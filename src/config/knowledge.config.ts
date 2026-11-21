@@ -20,6 +20,8 @@ export const KNOWLEDGE_GRAPH = {
     fact: '--text-accent',
   } satisfies Record<EntityKind | 'meeting' | 'fact', string>,
   smallKind: 'fact',
+  /** What one entity is, under its name in a list. */
+  kindNames: { person: 'Person', organization: 'Organization', project: 'Project', event: 'Event', topic: 'Topic' } satisfies Record<EntityKind, string>,
   /** Structural links, never written on the line: a meeting's "discussed", a memory's "about". */
   quietRelations: ['discussed', 'about'],
   legend: [
@@ -42,6 +44,7 @@ export const KNOWLEDGE_GRAPH = {
     relations: 'Relations',
     meetings: 'Meetings',
     alsoIn: 'Also Discussed In',
+    mostDiscussed: 'Most Discussed',
     alsoInFooter: 'Other meetings that discussed the same people, projects or topics.',
     shared: (names: readonly string[]) => names.join(', '),
   },

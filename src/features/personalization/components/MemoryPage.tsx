@@ -1,7 +1,7 @@
 /** Personalization › Memory: Use Memory, then the saved memories — an editable table on Mac and iPad, a searchable list on
  *  iPhone; a memory edits in a sheet; Delete All asks first. */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button, CardRow, ChoiceControl, Section, Switch, Text, type DataColumn } from '@shared/ui';
 import { EditableList, KnowledgeGraph } from '@shared/components';
 import { UI_CONFIG } from '@config/ui.config';
@@ -47,6 +47,7 @@ export const MemoryPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const { memories, entities, save, remove, removeAll } = useMemories();
   const textOf = (m: MemoryRow) => `${m.text} ${aboutOf(m, entities)}`;
   const [editing, setEditing] = useState<Editing>(null);
+  const columns = useMemo(() => columnsFor(entities), [entities]);
   const [view, setView] = useState<(typeof COPY.views)[number]['value']>('list');
   const openMeeting = useOpenMeeting();
   const openMemory = (id: string) => {
@@ -78,7 +79,7 @@ export const MemoryPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           footer={COPY.footer}
           rows={memories}
           rowKey={(m) => m.id}
-          columns={columnsFor(entities)}
+          columns={columns}
           phoneRow={(m) => ({ title: m.text, description: aboutOf(m, entities) })}
           text={textOf}
           copy={{ search: COPY.search, add: COPY.add, remove: COPY.remove, empty: COPY.empty }}

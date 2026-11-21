@@ -3,7 +3,7 @@
  *  read from the tokens on mount and on each light/dark change; selection and hover recolour through sigma's reducers, so
  *  React never redraws the canvas. */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Graph from 'graphology';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import Sigma from 'sigma';
@@ -60,12 +60,15 @@ function colours(kindTokens: Record<string, string>) {
 /** A link's name as shown, unless it is a structural one (a meeting's "discussed") that would only repeat itself. */
 const namedRelation = (relation: string, quiet: readonly string[] | undefined) => (quiet?.includes(relation) ? null : relation);
 
-export default function GraphCanvas({ nodes, edges, kindTokens, smallKind, quietRelations, selected, onSelect, height, label }: GraphViewProps) {
+/** `expanded`: the graph fills a sheet and takes scroll and drag itself; inline, plain scrolling moves the page (zoom with
+ *  ⌘ or two fingers). */
+export default function GraphCanvas({ nodes, edges, kindTokens, smallKind, quietRelations, selected, onSelect, height, label, expanded }: GraphViewProps & { expanded?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   const sigma = useRef<Sigma | null>(null);
   const { isDark } = useThemeContext();
   // What the reducers read: changed in place, then one refresh — no new instance, no React render.
-  const view = useRef({ selected, hovered: null as string | null, colours: colours(kindTokens) });
+  // One object for the canvas's life (lazy, so the colours are read once, not on every render).
+  const [view] = useState(() => ({ current: { selected, hovered: null as string | null, colours: colours(kindTokens) } }));
   const select = useRef(onSelect);
   select.current = onSelect;
 
@@ -107,7 +110,12 @@ export default function GraphCanvas({ nodes, edges, kindTokens, smallKind, quiet
     };
     const instance = new Sigma(graph, box.current, {
       // Sizes are screen pixels (sigma 4 defaults to layout units, which a small graph blows up).
-      settings: { renderEdgeLabels: true, labelRenderedSizeThreshold: G.labelThreshold, itemSizesReference: 'screen' },
+      settings: {
+        renderEdgeLabels: true,
+        labelRenderedSizeThreshold: G.labelThreshold,
+        itemSizesReference: 'screen',
+        gestureTarget: expanded ? 'graph' : 'shared',
+      },
       nodeReducer,
       edgeReducer,
     });
@@ -122,21 +130,25 @@ export default function GraphCanvas({ nodes, edges, kindTokens, smallKind, quiet
       instance.refresh();
     });
     sigma.current = instance;
+    // Its column can change width without the window resizing (the sidebar, the meeting's chat).
+    const resized = new ResizeObserver(() => instance.resize());
+    resized.observe(box.current);
     return () => {
+      resized.disconnect();
       instance.kill();
       sigma.current = null;
     };
-  }, [nodes, edges, smallKind, quietRelations]);
+  }, [nodes, edges, smallKind, quietRelations, expanded, view]);
 
   useEffect(() => {
     view.current.colours = colours(kindTokens);
     sigma.current?.refresh();
-  }, [isDark, kindTokens]);
+  }, [isDark, kindTokens, view]);
 
   useEffect(() => {
     view.current.selected = selected;
     sigma.current?.refresh();
-  }, [selected]);
+  }, [selected, view]);
 
   return (
     <div ref={box} role="img" aria-label={label} className="w-full" style={{ height }} />

@@ -48,6 +48,8 @@ export const UI_CONFIG = {
    *  heights. */
   graph: {
     maxNodes: 200,
+    /** Entities listed under the graph (Most Discussed), most central first. */
+    listed: 12,
     /** Node radius in px: least and most central. */
     nodeSize: { min: 4, max: 16 },
     /** A memory's node, smaller than any entity. */

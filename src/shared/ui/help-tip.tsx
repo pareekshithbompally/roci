@@ -24,7 +24,8 @@ export function HelpTip({ title, label, children }: HelpTipProps) {
       <PopoverContent width="md" label={title} onOpenAutoFocus={(e) => e.preventDefault()}>
         <div className="flex flex-col gap-1 p-3">
           <Text variant="headline">{title}</Text>
-          <Text as="p" variant="helper" tone="muted">{children}</Text>
+          {/* Announced when it opens (focus stays on ⓘ). */}
+          <Text as="p" variant="helper" tone="muted" role="status">{children}</Text>
         </div>
       </PopoverContent>
     </Popover>

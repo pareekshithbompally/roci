@@ -6,25 +6,18 @@ import { savedPersonalization } from '@shared/utils/personalization';
 
 const { engine, presets } = PERSONALIZATION_CONFIG.modelTuning;
 
-/** The tuning keys the AI SDK names itself; the rest travel as the on-device provider's options (the reply length too:
- *  it applies to free replies only, never cutting a schema reply short). */
-type SdkKey = 'temperature' | 'topP' | 'topK' | 'presencePenalty' | 'frequencyPenalty';
-
-/** The on-device provider's own options (`providerOptions['on-device']`). */
-export type OnDeviceTuning = Omit<ModelTuning, SdkKey>;
-
 /** `tuning` without its unset keys. */
 function setOnly<T extends object>(tuning: T): Partial<T> {
   return Object.fromEntries(Object.entries(tuning).filter(([, value]) => value !== undefined)) as Partial<T>;
 }
 
 /** The model maker's recommended values (its model card), or none. */
-export function makerTuning(modelId: string): ModelTuning {
+function makerTuning(modelId: string): ModelTuning {
   return LOCAL_MODELS_CONFIG.chatSampling[modelId] ?? {};
 }
 
 /** What the user changed for `modelId`, as last loaded (the settings query owns it). */
-export function savedTuning(modelId: string): ModelTuning {
+function savedTuning(modelId: string): ModelTuning {
   return savedPersonalization().modelTuning?.[modelId] ?? {};
 }
 

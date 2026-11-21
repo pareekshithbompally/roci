@@ -10,6 +10,8 @@ import { EmptyState } from '@shared/components/EmptyState';
 import { knowledgeEntityQuery, knowledgeGraphQuery } from '@shared/query/knowledge';
 import { KNOWLEDGE_GRAPH } from '@config/knowledge.config';
 import { formatDate } from '@shared/utils/formatters';
+import { UI_CONFIG } from '@config/ui.config';
+import type { GraphNode } from '@shared/types/native';
 
 const COPY = KNOWLEDGE_GRAPH.copy;
 
@@ -23,14 +25,14 @@ const EntityDetail: React.FC<{ id: string; onOpenMeeting: (id: string) => void }
     <>
       {facts.length > 0 && (
         <Section title={`${entity.name} — ${COPY.known}`}>
-          {facts.map((fact) => <CardRow key={fact} title={fact} />)}
+          {facts.map((fact, index) => <CardRow key={`${index}-${fact}`} title={fact} />)}
         </Section>
       )}
       {relations.length > 0 && (
         <Section title={COPY.relations}>
           {relations.map((r) => (
             <CardRow
-              key={`${r.relation}-${r.other}-${r.meeting_id}`}
+              key={`${r.outgoing}-${r.relation}-${r.other}-${r.meeting_id}`}
               title={r.outgoing ? `${entity.name} ${r.relation} ${r.other}` : `${r.other} ${r.relation} ${entity.name}`}
               description={titleOf(r.meeting_id)}
             />
@@ -43,6 +45,20 @@ const EntityDetail: React.FC<{ id: string; onOpenMeeting: (id: string) => void }
         </Section>
       )}
     </>
+  );
+};
+
+/** The most central people, organizations, projects, events and topics, as rows: the graph in words, for the keyboard and
+ *  VoiceOver as much as the eye. Opening one shows what is known about it, as clicking its dot does. */
+const MostDiscussed: React.FC<{ nodes: readonly GraphNode[]; onOpen: (id: string) => void }> = ({ nodes, onOpen }) => {
+  const entities = nodes.filter((n) => n.kind in KNOWLEDGE_GRAPH.kindNames).slice(0, UI_CONFIG.graph.listed);
+  if (entities.length === 0) return null;
+  return (
+    <Section title={COPY.mostDiscussed}>
+      {entities.map((n) => (
+        <CardRow key={n.id} title={n.label} description={KNOWLEDGE_GRAPH.kindNames[n.kind as keyof typeof KNOWLEDGE_GRAPH.kindNames]} onOpen={() => onOpen(n.id)} />
+      ))}
+    </Section>
   );
 };
 
@@ -86,6 +102,7 @@ export function KnowledgeGraph({ focus, height, onOpenMeeting, onOpenMemory }: K
         />
       </Section>
       {entity && <EntityDetail id={entity} onOpenMeeting={onOpenMeeting} />}
+      <MostDiscussed nodes={data.nodes} onOpen={setSelected} />
     </>
   );
 }

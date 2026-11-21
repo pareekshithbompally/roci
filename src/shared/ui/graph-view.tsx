@@ -68,7 +68,7 @@ function GraphLegend({ items, kindTokens }: { items: readonly GraphLegendItem[];
 const GraphCanvas = lazy(() => import('./graph-canvas'));
 
 /** The drawing, loaded on first use. */
-function Canvas(props: GraphViewProps) {
+function Canvas(props: GraphViewProps & { expanded?: boolean }) {
   return (
     <Suspense fallback={<div style={{ height: props.height }} />}>
       <GraphCanvas {...props} />
@@ -98,7 +98,7 @@ export function GraphView({ legend, ...props }: GraphViewProps & { legend?: read
                 <IconButton icon={X} label="Close" size="sm" />
               </DialogClose>
             </DialogHeader>
-            {expanded && <Canvas {...props} height={Math.round(window.innerHeight * UI_CONFIG.graph.expandedHeight)} />}
+            {expanded && <Canvas {...props} expanded height={Math.round(window.innerHeight * UI_CONFIG.graph.expandedHeight)} />}
             {legend && <GraphLegend items={legend} kindTokens={props.kindTokens} />}
           </DialogContent>
         </DialogPortal>

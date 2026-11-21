@@ -81,7 +81,7 @@ const KnobRow: React.FC<TuningProps & { knob: Knob; tuning: ModelTuning }> = ({ 
 
 /** A token limit: a whole number, or empty for the model's own. */
 const LimitRow: React.FC<TuningProps & { limit: Limit; max?: number }> = ({ limit, max, saved, onChange }) => {
-  const set = (text: string) => onChange({ ...saved, [limit.key]: text === '' ? undefined : Math.max(1, Math.round(Number(text))) });
+  const set = (text: string) => onChange({ ...saved, [limit.key]: text === '' ? undefined : Math.min(max ?? Infinity, Math.max(1, Math.round(Number(text)))) });
   return (
     <CardRow
       title={<Label label={limit.label} help={limit.help} />}
@@ -217,9 +217,11 @@ const ModelTuning: React.FC<{ choices: ModelChoice[]; localModels: LocalModel[] 
   );
 };
 
+const NO_MODELS: NonNullable<ReturnType<typeof useLocalModels>['data']> = [];
+
 export const ModelTuningPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const query = useLocalModels();
-  const localModels = query.data ?? [];
+  const localModels = query.data ?? NO_MODELS;
   const choices = useTunableModels(localModels);
   return (
     <SettingsPage title={COPY.title} onBack={onBack}>
