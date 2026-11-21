@@ -25,3 +25,4 @@ export { useTauriEvent } from './useTauriEvent';
 export { useReadAloud } from './useReadAloud';
 export type { ReadAloud, ReadAloudState } from './useReadAloud';
 export { useSpeechHighlight } from './useSpeechHighlight';
+export { useLogoTint } from './useLogoTint';

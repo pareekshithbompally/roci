@@ -86,6 +86,8 @@ export default {
       zIndex: roles('z', ['floating', 'modal', 'popover', 'tooltip', 'splash']),
       // State tints as an image layer, so they shade a surface's fill instead of replacing it.
       backgroundImage: {
+        // A badge in its logo's colour (`--badge-tint` on the badge): the neutral pill with the colour mixed in, fading across the label (kit Badge `tint`).
+        'badge-tint': 'linear-gradient(90deg, color-mix(in srgb, var(--badge-tint) var(--badge-tint-from), var(--bg-layer-2)), color-mix(in srgb, var(--badge-tint) var(--badge-tint-to), var(--bg-layer-2)))',
         'tint-hover': 'linear-gradient(var(--bg-hover), var(--bg-hover))',
         'tint-pressed': 'linear-gradient(var(--bg-pressed), var(--bg-pressed))',
         // Running-work label: a brighter band sweeps across faint text (Text `shimmer`).

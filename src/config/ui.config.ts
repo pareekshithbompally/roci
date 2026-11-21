@@ -39,6 +39,9 @@ export const UI_CONFIG = {
   paneHero: { tile: 64 },
   /** Settings pane icons (Icon Composer renders), one per pane and appearance: `{dir}/{pane}-{light|dark}.webp`. */
   settingsArt: '/images/settings',
+  /** A logo's colour for a tinted badge (useLogoTint): read at `samplePx` square from the pixels at least `minSaturation`
+   *  saturated and `minBrightness` bright; under `minShare` of the logo coloured, it counts as mono (no tint). */
+  logoTint: { samplePx: 24, minSaturation: 0.3, minBrightness: 0.2, minShare: 0.08 },
   /** A list row's icon image, larger than a line glyph as Apple's are (macOS sidebar 20 pt, iOS Settings 29 pt). */
   listArt: { desktop: 20, touch: 29 },
   /** Bar chart (usage trends): plot height (taller on touch), bar cap and gap, data-end radius, axis gutters, label density, dimmed bars. */

@@ -188,6 +188,9 @@
   /* ≥ 4.5:1 on the wash for every Apple calendar colour: title ≥ 6.1, time ≥ 4.7 (light) */
   --event-text-mix: 35%;
   --event-meta-mix: 45%;
+  /* A badge tinted by its logo (useLogoTint): the neutral pill with the logo's colour mixed in, strongest at the logo, fading across the label */
+  --badge-tint-from: 28%;
+  --badge-tint-to: 8%;
   /* Landing glow (LandingGlow): copper core, amber companion, copper wash */
   --bg-glow-core: color-mix(in srgb, var(--copper-500) 30%, transparent);
   --bg-glow-companion: color-mix(in srgb, var(--copper-400) 26%, transparent);
@@ -245,6 +248,8 @@ html.platform-ios.dark {
   color-scheme: dark;
 
   --event-fill-mix: 30%;
+  --badge-tint-from: 34%;
+  --badge-tint-to: 10%;
   /* title ≥ 6.3, time ≥ 5.1 (dark) */
   --event-text-mix: 35%;
   --event-meta-mix: 55%;

@@ -48,6 +48,8 @@ export const queryKeys = {
   recordingAudio: (fileName: string) => ['recording-audio', fileName] as const,
   /** A Mac app's icon from macOS, by bundle id (Finder, Calendar, …) */
   appIcon: (bundleId: string) => ['app-icon', bundleId] as const,
+  /** A logo image's colour, for a tinted badge (useLogoTint) */
+  logoTint: (src: string) => ['logo-tint', src] as const,
   /** macOS permissions a recording needs (checklist rows) */
   permissions: () => ['permissions'] as const,
   /** Running Hex app: whether it answers and its models (transcription engine) */

@@ -28,6 +28,8 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   solid?: boolean;
   /** The one status a screen calls out: a tinted pill in the variant's colour. */
   tinted?: boolean;
+  /** A runtime colour (a logo's, useLogoTint): a soft wash of it fading across the label, the label in the text colour. */
+  tint?: string | null;
 }
 
 function surfaceOf(variant: BadgeVariant, solid?: boolean, tinted?: boolean): string {
@@ -35,14 +37,15 @@ function surfaceOf(variant: BadgeVariant, solid?: boolean, tinted?: boolean): st
   return tinted ? TINT[variant] : 'text-muted';
 }
 
-export function Badge({ variant = 'default', dot = true, solid, tinted, className, children, ...props }: BadgeProps) {
+export function Badge({ variant = 'default', dot = true, solid, tinted, tint, className, style, children, ...props }: BadgeProps) {
   return (
     <span
       className={cn(
         'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-subheadline font-medium',
-        surfaceOf(variant, solid, tinted),
+        tint ? 'bg-badge-tint text-primary' : surfaceOf(variant, solid, tinted),
         className,
       )}
+      style={tint ? { ...style, ['--badge-tint' as string]: tint } : style}
       {...props}
     >
       {dot && !solid && <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', DOT[variant])} />}
