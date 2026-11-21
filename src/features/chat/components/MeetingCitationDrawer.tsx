@@ -5,7 +5,7 @@ import { formatDate } from '@shared/utils/formatters';
 import { X, ExternalLink, FileText, Mic, ArrowLeft, AudioWaveform } from 'lucide-react';
 import { EmptyState, LoadingPane } from '@shared/components';
 import { ParsedTranscript } from '@features/transcription';
-import { Button, Drawer, Row, Tabs, IconButton, Icon, Surface, Text } from '@shared/ui';
+import { Button, Drawer, FadeScroll, Row, Tabs, IconButton, Icon, Surface, Text } from '@shared/ui';
 import type { MeetingCitation, HistoryItem } from '@shared/types';
 
 interface MeetingCitationDrawerProps {
@@ -86,7 +86,7 @@ export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
+      <FadeScroll fill className="flex-1">
         {mode === 'list' ? (
           /* List Mode */
           <div className="p-2 flex flex-col gap-1">
@@ -116,14 +116,14 @@ export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
           </Text>
         ) : (
           /* Detail Mode: Transcript tab with highlight */
-          <div className="p-4">
+          <div className="flex flex-1 flex-col p-4">
             <ParsedTranscript
               text={meeting.transcript}
               highlightText={activeCitation?.excerpt}
             />
           </div>
         )}
-      </div>
+      </FadeScroll>
 
       {/* Footer - Only for detail mode */}
       {mode === 'detail' && meeting && onOpenInMain && (

@@ -76,7 +76,8 @@ export interface ViewScrollProps {
 export function ViewScroll({ fade = true, className, children }: ViewScrollProps) {
   return (
     <PageScroll steady underTitlebar={false} fadeTop={fade && VIEW_FADE_PX} className={cn('min-h-0 flex-1', LAYOUT.viewGutter)}>
-      <div className={cn(LAYOUT.pageColumn, className)} style={fade ? undefined : { paddingTop: VIEW_FADE_PX }}>{children}</div>
+      {/* A full-height column, so an empty state fills what's left and centres there. */}
+      <div className={cn(LAYOUT.pageColumn, 'flex min-h-full flex-col', className)} style={fade ? undefined : { paddingTop: VIEW_FADE_PX }}>{children}</div>
     </PageScroll>
   );
 }
