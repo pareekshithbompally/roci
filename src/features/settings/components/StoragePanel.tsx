@@ -1,8 +1,7 @@
 /** Settings › Storage: location, Keep periods with Delete All…, space used, search index and the models.dev catalog. */
 
 import React from 'react';
-import { RefreshCw, Trash2 } from 'lucide-react';
-import { CardRow, IconButton, Picker, Section, Text } from '@shared/ui';
+import { Button, CardRow, Picker, Section, Text } from '@shared/ui';
 import { StorageConfig } from '@config/storage.config';
 import { LAYOUT } from '@config/layout.config';
 import { confirm } from '@shared/stores/confirmStore';
@@ -15,6 +14,8 @@ import { useKeepPeriod, useStorageClear, useStorageUsage, type StorageTarget } f
 import { StorageLocationSection } from './StorageLocationSection';
 import { SearchIndexSection } from './SearchIndexSection';
 import { PENDING, SettingsPage } from './shared';
+
+const ACTIONS = StorageConfig.actions;
 
 const { retention } = StorageConfig;
 type StorageClass = (typeof retention.classes)[number];
@@ -108,7 +109,7 @@ const SpaceSection: React.FC<{ usage: StorageUsage | undefined }> = ({ usage }) 
         actions={
           <>
             <Figure bytes={usage?.cache_bytes} />
-            <IconButton icon={Trash2} label="Clear cache" size="sm" onClick={() => void clear('cache', 'Clear the cache?', 'Temporary files are removed and fetched again when needed.')} />
+            <Button variant="outline" size="sm" onClick={() => void clear('cache', 'Clear the cache?', 'Temporary files are removed and fetched again when needed.')}>{ACTIONS.clearCache}</Button>
           </>
         }
       />
@@ -128,7 +129,7 @@ const CatalogSection: React.FC = () => {
     });
   return (
     <Section title="Model Catalog" footer="Model abilities, context sizes and prices come from models.dev.">
-      <CardRow title="models.dev" actions={<IconButton icon={RefreshCw} label="Refresh model catalog" size="sm" spin={refresh.isPending} onClick={onRefresh} />} />
+      <CardRow title="models.dev" actions={<Button variant="outline" size="sm" loading={refresh.isPending} onClick={onRefresh}>{ACTIONS.refreshCatalog}</Button>} />
     </Section>
   );
 };
@@ -138,7 +139,7 @@ export const StoragePanel: React.FC = () => {
   return (
     <SettingsPage pane="storage">
       {platform.hasFileManager && <StorageLocationSection />}
-      <Section title="Keep" footer={retention.footer}>
+      <Section title={retention.title} footer={retention.footer}>
         {retention.classes.map((item) => <KeepRow key={item.id} item={item} usage={usage} />)}
       </Section>
       <SpaceSection usage={usage} />

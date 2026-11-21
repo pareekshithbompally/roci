@@ -2,15 +2,12 @@
 
 import React from 'react';
 import { Info } from 'lucide-react';
-import { Button, IconButton, Popover, PopoverContent, PopoverTrigger, RowGroupLabel, Separator, Text } from '@shared/ui';
-import { AppIcon, ModelName } from '@shared/components';
-import { SHOW_IN_FINDER, showInFinder } from '@shared/utils/savedFileToast';
-import { platform } from '@platform/index';
+import { IconButton, Popover, PopoverContent, PopoverTrigger, RowGroupLabel, Separator, Text } from '@shared/ui';
+import { ModelName, ShowInFinderButton } from '@shared/components';
 import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { formatDuration, formatFileSize, formatDateTime } from '@shared/utils/formatters';
 import { formatCostOrUnknown, formatTokenCount } from '@extensions/usage/format';
 import { useMeetingStats, type MeetingStats } from '@features/home/hooks/useMeetingStats';
-import { APP_CONFIG } from '@config/app.config';
 
 const StatRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div className="flex items-center justify-between gap-6 px-2 py-1.5">
@@ -50,11 +47,7 @@ const RecordingSection: React.FC<{ stats: MeetingStats }> = ({ stats }) => {
       {file && (
         <StatRow label="File">
           <Value>{formatFileSize(file.sizeBytes)}</Value>
-          {platform.hasFileManager && (
-            <Button variant="ghost" size="iconSm" onClick={() => showInFinder(file.path)} aria-label={SHOW_IN_FINDER} title={SHOW_IN_FINDER}>
-              <AppIcon app={APP_CONFIG.macApps.finder} size="sm" />
-            </Button>
-          )}
+          <ShowInFinderButton path={file.path} />
         </StatRow>
       )}
     </Section>

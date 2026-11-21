@@ -112,6 +112,9 @@ export const LOCAL_GENERIC_LOGO = GENERIC_LOGO;
 /** The Providers group of model servers the user runs (vs models built into this device). */
 export const LOCAL_SERVERS_GROUP = 'Your Servers';
 
+/** Your Servers' header command: look again for servers running on this device. */
+export const LOCAL_RESCAN = 'Rescan';
+
 /** Under the Your Servers list: what it is and why to use it. */
 export const LOCAL_SERVERS_FOOTER = 'Model servers you run, here or on another computer (Ollama, LM Studio, llama-server): private, and nothing to pay per use.';
 

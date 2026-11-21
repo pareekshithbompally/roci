@@ -1,8 +1,7 @@
 /** Calendar connection and week view; meeting reminders are switched in Settings › Notifications. */
 
 import React from 'react';
-import { CalendarDays } from 'lucide-react';
-import { Button, CardRow, Icon } from '@shared/ui';
+import { Button, CardRow } from '@shared/ui';
 import { useAppActions } from '@shared/stores/appStore';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { useCalendarControls } from '@features/integrations/hooks/useCalendarControls';
@@ -27,7 +26,6 @@ export const CalendarIntegration: React.FC = () => {
         title="Your upcoming week"
         actions={
           <Button variant="outline" size="sm" onClick={() => setCurrentView('calendar')}>
-            <Icon icon={CalendarDays} size="xs" />
             View Schedule
           </Button>
         }

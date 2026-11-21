@@ -34,6 +34,8 @@ export const StorageConfig = {
     /** The Keep menu's last group: an action, not a period. */
     deleteAll: 'Delete All…',
     forever: 'Forever',
+    /** The section's heading: the question its rows answer (Meetings · Forever). */
+    title: 'How Long to Keep',
     footer: 'Older items are removed automatically. Meetings still recording or transcribing are never removed.',
   },
 
@@ -67,6 +69,13 @@ export const StorageConfig = {
       maxSizeMB: 100,
     },
     cleanupThresholdPercent: 90,
+  },
+
+  /** Settings › Storage row commands: labelled push buttons (System Settings); a value's tools (copy) are icons. */
+  actions: {
+    copyPath: 'Copy path',
+    clearCache: 'Clear',
+    refreshCatalog: 'Refresh',
   },
 } as const;
 

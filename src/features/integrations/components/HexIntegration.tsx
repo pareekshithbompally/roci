@@ -1,8 +1,7 @@
 /** Hex's transcription models in Default Models while on, and every Hex meeting synced one-way into Roci. */
 
 import React from 'react';
-import { RefreshCw } from 'lucide-react';
-import { Button, CardRow, Icon, Status } from '@shared/ui';
+import { Button, CardRow, Status } from '@shared/ui';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { useHexControls } from '@features/integrations/hooks/useHexControls';
 import { IntegrationRow } from './IntegrationRow';
@@ -35,7 +34,6 @@ export const HexIntegration: React.FC = () => {
         description={hex.syncError}
         actions={
           <Button variant="outline" size="sm" onClick={hex.syncNow} loading={hex.syncing}>
-            {!hex.syncing && <Icon icon={RefreshCw} size="xs" />}
             {hex.syncing ? 'Syncing…' : 'Sync now'}
           </Button>
         }

@@ -78,7 +78,7 @@ These are hard constraints. They **override** convenience, speed, and your defau
 - Chat content is the truth for chat files: `chats_upsert` claims the paths its parts show and drops the rest. Unclaimed rows and untracked files are swept after a day.
 - A tail cut keeps its parent and says so: a removed recording stamps `meetings.audio_removed_at`; a part whose asset is gone renders `RemovedNotice`.
 - New file kind = one `StorageConfig.assetKinds` entry + its folder in `assets.rs` `MANAGED_DIRS` + the `tauri.conf.json` asset scope. No new table, service or delete path.
-- Expiry happens only in `storage_purge` (Settings › Storage › Keep). Sizes are measured from disk (`storage_usage`), never stored.
+- Expiry happens only in `storage_purge` (Settings › Storage › How Long to Keep). Sizes are measured from disk (`storage_usage`), never stored.
 
 ---
 

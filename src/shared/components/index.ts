@@ -20,6 +20,7 @@ export { ModelAvatar } from './ModelAvatar';
 export { ModelDownloadButton, ModelReadyStatus, ModelSize } from './ModelDownloadButton';
 export { ModelIcon } from './ModelIcon';
 export { AppIcon, AppImage, useAppIcon } from './AppIcon';
+export { ShowInFinderButton } from './ShowInFinderButton';
 export { SearchIndexActivity } from './SearchIndexActivity';
 export { ProvidersAvatar } from './ProvidersAvatar';
 export { ProviderFan } from './ProviderFan';

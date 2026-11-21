@@ -1,8 +1,7 @@
 /** Search Index: how many meetings and chats are indexed, re-index each, or rebuild everything. */
 
 import React, { useCallback, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
-import { Button, CardRow, Icon, Section, Status } from '@shared/ui';
+import { Button, CardRow, Section, Status } from '@shared/ui';
 import { useToast } from '@shared/contexts/ToastContext';
 import { confirm } from '@shared/stores/confirmStore';
 import { rebuildSearchIndex, type RebuildScope } from '@extensions/rag';
@@ -36,7 +35,6 @@ const IndexActionRow: React.FC<{
     status={indexed === undefined ? <Status>{PENDING}</Status> : <IndexStatus indexed={indexed} total={total} />}
     actions={
       <Button variant="outline" size="sm" onClick={onReindex} disabled={disabled && !busy} loading={busy}>
-        {!busy && <Icon icon={RefreshCw} size="xs" />}
         {busy ? 'Indexing…' : 'Re-index'}
       </Button>
     }

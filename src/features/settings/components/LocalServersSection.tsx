@@ -2,9 +2,8 @@
  *  on the Providers list, and the Add Server form its page shows. */
 
 import React, { useState } from 'react';
-import { RefreshCw } from 'lucide-react';
 import { useToast } from '@shared/contexts/ToastContext';
-import { ADD_SERVER, LOCAL_EMPTY_HINT, LOCAL_SERVERS_FOOTER, LOCAL_SERVERS_GROUP, LOCAL_URL_DRAFT } from '@config/localServers.config';
+import { ADD_SERVER, LOCAL_EMPTY_HINT, LOCAL_RESCAN, LOCAL_SERVERS_FOOTER, LOCAL_SERVERS_GROUP, LOCAL_URL_DRAFT } from '@config/localServers.config';
 import { useLocalServers } from '@features/settings/hooks/useLocalServers';
 import { ProvidersAvatar } from '@shared/components';
 import { getProviderTitle, serverAppOf } from '@shared/utils/provider.utils';
@@ -12,7 +11,7 @@ import { platform } from '@platform/index';
 import { ProviderStatus, type ProviderRowState } from './ProviderStatus';
 import { serverHost } from '@services/providers/localServers';
 import type { LocalRow } from '@services/providers/localServers';
-import { Button, CardRow, ICON_TILE_PX, IconButton, Input, Section } from '@shared/ui';
+import { Button, CardRow, ICON_TILE_PX, Input, Section } from '@shared/ui';
 import { FieldRow } from './shared';
 
 
@@ -115,7 +114,7 @@ export const ServersSection: React.FC<ServersSectionProps> = ({ onOpen, onAdd })
   };
 
   const rescanAction = platform.runsLocalServers && (
-    <IconButton icon={RefreshCw} label="Rescan servers" size="sm" spin={isScanning} onClick={handleRescan} />
+    <Button variant="outline" size="sm" loading={isScanning} onClick={handleRescan}>{LOCAL_RESCAN}</Button>
   );
 
   return (
