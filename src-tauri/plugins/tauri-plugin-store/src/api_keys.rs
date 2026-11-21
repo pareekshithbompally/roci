@@ -1,51 +1,74 @@
-//! API keys live in the system Keychain as one item (every provider's key in it), read once per run and kept in memory,
-//! so macOS asks at most once; roci.db never holds one. A provider row's settings keep their API-key field empty on disk,
-//! and it's filled from these keys as the row is read.
+//! Providers' API keys: one file in the app data folder (`api-keys.json`, readable and writable by its owner only), read
+//! once per run and kept in memory; roci.db never holds one. A provider row's settings keep their API-key field empty on
+//! disk, and it's filled from these keys as the row is read.
 
 use std::collections::BTreeMap;
-use std::sync::{Mutex, MutexGuard};
+use std::fs;
+use std::io::{ErrorKind, Write};
+use std::os::unix::fs::OpenOptionsExt;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use security_framework::passwords::{delete_generic_password, get_generic_password, set_generic_password};
 use serde_json::Value;
 
 use crate::error::StoreError;
 
-/// The one Keychain item: service and account.
-const SERVICE: &str = "ai.roci.roci";
-const ACCOUNT: &str = "api-keys";
-/// `errSecItemNotFound`: no keys saved yet.
-const NOT_FOUND: i32 = -25300;
+const FILE: &str = "api-keys.json";
+/// Owner read and write only.
+const FILE_MODE: u32 = 0o600;
 /// The provider setting that holds its API key.
 const KEY_SETTING: &str = "api-key";
 
 /// Provider id → its key.
 type Keys = BTreeMap<String, String>;
 
+/// The app data folder, set once the store opens.
+static DIR: OnceLock<PathBuf> = OnceLock::new();
 /// The keys as last read or written; `None` until first used (and after a failed write, so the next use reads again).
 static KEYS: Mutex<Option<Keys>> = Mutex::new(None);
 
-/// The item's keys; none saved is an empty set.
+/// Where the keys file lives; called as the store opens, before anything reads a key.
+pub(crate) fn set_dir(dir: &Path) {
+    let _ = DIR.set(dir.to_path_buf());
+}
+
+fn path() -> Result<PathBuf, StoreError> {
+    DIR.get().map(|dir| dir.join(FILE)).ok_or_else(|| StoreError::from("API keys read before the store opened"))
+}
+
+/// The saved keys; no file yet is none.
 fn load() -> Result<Keys, StoreError> {
-    match get_generic_password(SERVICE, ACCOUNT) {
-        Ok(bytes) => serde_json::from_slice(&bytes).map_err(|e| StoreError::from(format!("Keychain keys unreadable: {e}"))),
-        Err(e) if e.code() == NOT_FOUND => Ok(Keys::new()),
-        Err(e) => Err(StoreError::from(format!("Keychain read: {e}"))),
+    match fs::read(path()?) {
+        Ok(bytes) => serde_json::from_slice(&bytes).map_err(|e| StoreError::from(format!("API keys file unreadable: {e}"))),
+        Err(e) if e.kind() == ErrorKind::NotFound => Ok(Keys::new()),
+        Err(e) => Err(StoreError::from(format!("API keys read: {e}"))),
     }
 }
 
-/// Writes `keys` as the one item (removing it once none are left).
+/// Writes `keys` whole (a temporary file renamed over the old one, so a crash never leaves half a file); none left
+/// removes the file.
 fn write(keys: &Keys) -> Result<(), StoreError> {
+    let target = path()?;
     if keys.is_empty() {
-        return match delete_generic_password(SERVICE, ACCOUNT) {
-            Err(e) if e.code() != NOT_FOUND => Err(StoreError::from(format!("Keychain remove: {e}"))),
+        return match fs::remove_file(&target) {
+            Err(e) if e.kind() != ErrorKind::NotFound => Err(StoreError::from(format!("API keys remove: {e}"))),
             _ => Ok(()),
         };
     }
-    let json = serde_json::to_vec(keys).map_err(|e| StoreError::from(format!("Keychain keys: {e}")))?;
-    set_generic_password(SERVICE, ACCOUNT, &json).map_err(|e| StoreError::from(format!("Keychain save: {e}")))
+    let json = serde_json::to_vec(keys).map_err(|e| StoreError::from(format!("API keys: {e}")))?;
+    let temporary = target.with_extension("json.tmp");
+    let saved = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(FILE_MODE)
+        .open(&temporary)
+        .and_then(|mut file| file.write_all(&json).and_then(|()| file.sync_all()))
+        .and_then(|()| fs::rename(&temporary, &target));
+    saved.map_err(|e| StoreError::from(format!("API keys save: {e}")))
 }
 
-/// The keys, read from the Keychain on first use this run.
+/// The keys, read from the file on first use this run.
 fn loaded() -> Result<MutexGuard<'static, Option<Keys>>, StoreError> {
     let mut guard = KEYS.lock().unwrap_or_else(|error| error.into_inner());
     if guard.is_none() {
@@ -54,7 +77,7 @@ fn loaded() -> Result<MutexGuard<'static, Option<Keys>>, StoreError> {
     Ok(guard)
 }
 
-/// Sets (`Some`) or clears (`None`) the provider's key; the Keychain is written only when it changed.
+/// Sets (`Some`) or clears (`None`) the provider's key; the file is written only when it changed.
 fn change(provider: &str, key: Option<&str>) -> Result<(), StoreError> {
     let mut guard = loaded()?;
     let keys = guard.get_or_insert_with(Keys::new);

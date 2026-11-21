@@ -64,8 +64,8 @@ fn upgrade_v11(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
-/// v11 → v12: API keys move to the Keychain. Each saved key (its column, or its settings field) is put in the Keychain
-/// first; only then are the settings fields blanked and the column dropped, in one transaction.
+/// v11 → v12: API keys move out of roci.db. Each saved key (its column, or its settings field) is put in the API keys
+/// file first; only then are the settings fields blanked and the column dropped, in one transaction.
 fn upgrade_v12(conn: &Connection) -> Result<(), String> {
     let rows: Vec<(String, Option<String>, Option<String>)> = conn
         .prepare("SELECT provider, api_key_encrypted, data FROM providers")
@@ -73,17 +73,17 @@ fn upgrade_v12(conn: &Connection) -> Result<(), String> {
         .map_err(|e| format!("v12 read providers: {}", e))?;
     let tx = conn.unchecked_transaction().map_err(|e| format!("begin v12: {}", e))?;
     for (provider, column, data) in rows {
-        let key = column.filter(|k| !k.trim().is_empty()).or_else(|| crate::keychain::key_in_settings(data.as_deref()));
+        let key = column.filter(|k| !k.trim().is_empty()).or_else(|| crate::api_keys::key_in_settings(data.as_deref()));
         if let Some(key) = key {
-            crate::keychain::save(&provider, key.trim()).map_err(|e| e.to_string())?;
+            crate::api_keys::save(&provider, key.trim()).map_err(|e| e.to_string())?;
         }
-        tx.execute("UPDATE providers SET data = ?2 WHERE provider = ?1", rusqlite::params![provider, crate::keychain::with_key_in_settings(data, "")])
+        tx.execute("UPDATE providers SET data = ?2 WHERE provider = ?1", rusqlite::params![provider, crate::api_keys::with_key_in_settings(data, "")])
             .map_err(|e| format!("v12 blank {provider}: {}", e))?;
     }
     tx.execute_batch("ALTER TABLE providers DROP COLUMN api_key_encrypted;").map_err(|e| format!("v12: {}", e))?;
     set_schema_version(&tx, 12)?;
     tx.commit().map_err(|e| format!("commit v12: {}", e))?;
-    log::info!("[store] Schema v11→v12 (API keys in the Keychain)");
+    log::info!("[store] Schema v11→v12 (API keys out of roci.db)");
     Ok(())
 }
 

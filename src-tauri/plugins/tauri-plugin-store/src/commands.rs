@@ -318,7 +318,7 @@ pub struct SettingsSetInput {
 
 // ── Providers Structs ──
 
-/// A provider as the webview gets it: its API key read from the Keychain.
+/// A provider as the webview gets it: its API key read from the API keys file.
 #[derive(Debug, Serialize)]
 pub struct ProviderRow {
     pub provider: String,
@@ -329,7 +329,7 @@ pub struct ProviderRow {
     pub updated_at: i64,
 }
 
-/// A provider to save: its API key goes to the Keychain, the rest to roci.db.
+/// A provider to save: its API key goes to the API keys file, the rest to roci.db.
 #[derive(Debug, Deserialize)]
 pub struct ProviderUpsertInput {
     pub provider: String,
@@ -673,6 +673,7 @@ pub async fn initialize<R: Runtime>(
         .map_err(|e| StoreError::from(format!("Failed to get app data dir: {}", e)))?;
     std::fs::create_dir_all(&app_data)
         .map_err(|e| StoreError::from(format!("Failed to create app data dir: {}", e)))?;
+    crate::api_keys::set_dir(&app_data);
     let db_path = app_data.join("roci.db");
 
     let conn_arc = Arc::clone(&state.conn);
@@ -1782,8 +1783,8 @@ pub async fn providers_list(
 
 /// The row with its saved key, in `api_key` and in its settings' API-key field.
 fn with_saved_key(row: ProviderRow) -> Result<ProviderRow, StoreError> {
-    let key = crate::keychain::read(&row.provider)?.unwrap_or_default();
-    let data = crate::keychain::with_key_in_settings(row.data, &key);
+    let key = crate::api_keys::read(&row.provider)?.unwrap_or_default();
+    let data = crate::api_keys::with_key_in_settings(row.data, &key);
     Ok(ProviderRow { api_key: (!key.is_empty()).then_some(key), data, ..row })
 }
 
@@ -1799,10 +1800,10 @@ pub async fn providers_upsert(
         let now = now_millis();
 
         let key = input.api_key.as_deref().map(str::trim).filter(|k| !k.is_empty()).map(str::to_string)
-            .or_else(|| crate::keychain::key_in_settings(input.data.as_deref()))
+            .or_else(|| crate::api_keys::key_in_settings(input.data.as_deref()))
             .unwrap_or_default();
-        crate::keychain::save(&input.provider, &key)?;
-        let data = crate::keychain::with_key_in_settings(input.data, "");
+        crate::api_keys::save(&input.provider, &key)?;
+        let data = crate::api_keys::with_key_in_settings(input.data, "");
 
         let tx = db.unchecked_transaction()?;
 
@@ -1870,7 +1871,7 @@ pub async fn providers_delete(
         if affected == 0 {
             return Err(StoreError::from("Provider not found"));
         }
-        crate::keychain::remove(&provider)?;
+        crate::api_keys::remove(&provider)?;
         Ok(())
     })
     .await
