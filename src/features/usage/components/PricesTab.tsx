@@ -33,7 +33,8 @@ const RateField: React.FC<{ row: PriceRow; rate: Rate; onSave: SavePrice }> = ({
     const pair = (r: Rate) => r !== 'perMinute' && rate !== 'perMinute';
     // a price saved only for its per-minute rate holds 0 token rates just to be a price: clearing that rate clears it all
     const perMinuteOnly = row.own?.perMinute !== undefined && !row.own.inputPer1M && !row.own.outputPer1M;
-    const keep = (r: Rate) => (cleared && perMinuteOnly ? '' : rateText(cleared ? row.own?.[r] : row.own?.[r] ?? row.catalog?.[r]));
+    const clearsAll = cleared && rate === 'perMinute' && perMinuteOnly;
+    const keep = (r: Rate) => (clearsAll ? '' : rateText(cleared ? row.own?.[r] : row.own?.[r] ?? row.catalog?.[r]));
     const typed = Object.fromEntries(RATES.map((r) => [r, r === rate || (cleared && pair(r)) ? text : keep(r)])) as PriceText;
     const price = parsePrice(typed);
     if (price !== undefined && (price || row.own)) onSave(row, price);
