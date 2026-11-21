@@ -16,7 +16,7 @@ export { useLocalServers } from './hooks/useLocalServers';
 export { useProviderConnection } from './hooks/useProviderConnection';
 export { useSettings, useAppUpdate, useUpdateRuntime, useMenubarSpeechModels, useMenubarReports, useStorageRetention, useLocalModelDownloads, useLocalModelIdle, useLiveDictation, useSelectedSpeechOption, freshSpeechSources } from './hooks';
 export type { LiveDictation, AIReadiness } from './hooks';
-export { useAIReadiness, useOpenAISetup } from './hooks';
+export { aiSetupStep, useAIReadiness, useOpenAISetup } from './hooks';
 
 export { preloadSystemInfo, useSystemInfo } from './hooks/useSystemInfo';
 

@@ -9,7 +9,8 @@ import { ChatInput } from '@features/chat';
 import { LandingGlow } from './LandingGlow';
 import { useVoiceCapture } from '@features/chat';
 import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
-import { useAIReadiness, useOpenAISetup } from '@features/settings';
+import { aiSetupStep, useAIReadiness, useOpenAISetup } from '@features/settings';
+import { ONBOARDING_CONFIG } from '@config/onboarding.config';
 import { LAYOUT } from '@config/layout.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { Button, cn, Icon, Text, TitlebarSpacer } from '@shared/ui';
@@ -31,6 +32,8 @@ const GREETING_POOL = [
   'Ready when you are!',
   'How can I help?',
 ];
+
+const FINISH_SETUP = ONBOARDING_CONFIG.finishSetup;
 
 export const IdleView: React.FC<IdleViewProps> = () => {
   const [greeting] = useState(() => GREETING_POOL[Math.floor(Math.random() * GREETING_POOL.length)]);
@@ -60,7 +63,9 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   const voice = useVoiceCapture({ settings, providers, appendTranscript });
 
 
-  const hasConfiguredProviders = useAIReadiness().text;
+  const aiReady = useAIReadiness();
+  const hasConfiguredProviders = aiReady.text;
+  const setupStep = aiSetupStep(aiReady);
   const handleSetupProviders = useOpenAISetup();
   // Phone: the greeting fills the screen and the composer sits at the bottom, above the keyboard.
   const phone = useFormFactor() === 'phone';
@@ -138,11 +143,11 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                 {platform.canRecord && <RecordPill />}
               </motion.div>
 
-              {/* No AI yet (set up later): everything shows, chat waits for a provider. */}
-              {!hasConfiguredProviders && (
+              {/* Until AI is fully set up: a provider first (chat waits for one), then the default models still to choose. */}
+              {setupStep && (
                 <div className="flex justify-center">
                   <Button variant="outline" size="sm" onClick={handleSetupProviders}>
-                    Set up AI to start
+                    {setupStep.panel === 'providers' ? FINISH_SETUP.start : FINISH_SETUP.defaults(setupStep.left)}
                     <Icon icon={ChevronRight} size="xs" />
                   </Button>
                 </div>

@@ -107,4 +107,9 @@ export const ONBOARDING_CONFIG = {
     connect: 'Connect',
     openSettings: `Open ${platform.settingsAppName}`,
   },
+  /** After onboarding, until AI is fully set up (home's button): a provider first, then the default models. */
+  finishSetup: {
+    start: 'Set up AI to start',
+    defaults: (left: number) => `Choose default models · ${left} left`,
+  },
 } as const;
