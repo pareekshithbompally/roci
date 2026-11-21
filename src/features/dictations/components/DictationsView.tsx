@@ -3,7 +3,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { ChevronLeft, Copy, Mic, Trash2 } from 'lucide-react';
-import { Button, Icon, ICON_SIZE_PX, IconButton, Row, SearchField, Surface, Text, TitlebarSpacer, VIEW_FADE_PX, ViewHeader, cn } from '@shared/ui';
+import { Button, Icon, ICON_SIZE_PX, IconButton, PageScroll, Row, SearchField, Surface, Text, TitlebarSpacer, VIEW_FADE_PX, ViewHeader, cn } from '@shared/ui';
 import { ModelIcon, ScreenState } from '@shared/components';
 import { useFormFactor } from '@platform/formFactor';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -22,29 +22,19 @@ interface SpeechModel {
   label: string;
 }
 
-/** "0:21 · Parakeet": how long it was and which model heard it. */
-const detailLine = (dictation: Dictation, speechModel: SpeechModel | undefined) =>
-  [dictation.durationMs !== undefined && formatDuration(dictation.durationMs / 1000), speechModel?.label].filter(Boolean).join(' · ');
-
 interface DictationListProps {
   dictations: Dictation[];
-  modelsById: Map<string, SpeechModel>;
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
 
-/** One row per dictation: its words on one line with the time ago beside them, length · model under them. */
-const DictationList: React.FC<DictationListProps> = ({ dictations, modelsById, selectedId, onSelect }) => (
+/** One line per dictation: its words with the time ago beside them (length and model are on the open dictation). */
+const DictationList: React.FC<DictationListProps> = ({ dictations, selectedId, onSelect }) => (
   <>
     {dictations.map((dictation) => (
-      <Row key={dictation.id} size="lg" selected={dictation.id === selectedId} onClick={() => onSelect(dictation.id)}>
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="flex min-w-0 items-baseline gap-3">
-            <Text as="span" variant="bodyStrong" truncate className="min-w-0 flex-1">{dictation.text}</Text>
-            <Text as="span" variant="figureSmall" tone="muted" className="shrink-0">{formatRelativeTime(dictation.createdAt, { short: true })}</Text>
-          </span>
-          <Text as="span" variant="helper" tone="muted" truncate>{detailLine(dictation, dictation.model ? modelsById.get(dictation.model) : undefined)}</Text>
-        </span>
+      <Row key={dictation.id} selected={dictation.id === selectedId} onClick={() => onSelect(dictation.id)}>
+        <Text as="span" truncate className="min-w-0 flex-1">{dictation.text}</Text>
+        <Text as="span" variant="figureSmall" tone="muted" className="shrink-0">{formatRelativeTime(dictation.createdAt, { short: true })}</Text>
       </Row>
     ))}
   </>
@@ -124,11 +114,11 @@ export const DictationsView: React.FC = () => {
   const searchAndList = (
     <>
       <SearchField value={query} onChange={setQuery} onCancel={() => setQuery('')} placeholder={DICTATIONS_CONFIG.searchPlaceholder} />
-      <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar pb-2">
+      <PageScroll underTitlebar={false} className="min-h-0 flex-1 pb-2">
         {dictations.length > 0
-          ? <DictationList dictations={dictations} modelsById={modelsById} selectedId={selected?.id ?? null} onSelect={setSelectedId} />
+          ? <DictationList dictations={dictations} selectedId={selected?.id ?? null} onSelect={setSelectedId} />
           : hasAny && <Text as="p" variant="helper" tone="muted" className="px-2.5 py-2">{DICTATIONS_CONFIG.noMatch}</Text>}
-      </div>
+      </PageScroll>
     </>
   );
 

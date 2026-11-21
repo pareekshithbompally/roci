@@ -23,6 +23,8 @@ export const UI_CONFIG = {
     /** Page scrollers (kit `PageScroll`): length of a faded bottom edge (matches the titlebar band). */
     pageScroll: {
       edgeFadePx: 40,
+      /** A reading view's room under its header (ViewScroll, Dictations), its content fading through it. */
+      viewFadePx: 16,
     },
   },
 
