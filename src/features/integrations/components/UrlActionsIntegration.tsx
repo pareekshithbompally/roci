@@ -22,7 +22,7 @@ export const UrlActionsIntegration: React.FC = () => {
       {COPY.actions.map(({ url, description }) => (
         <CardRow
           key={url}
-          title={<Code>{url}</Code>}
+          title={<Code line>{url}</Code>}
           description={description}
           actions={<IconButton icon={Copy} label={COPY.copy} size="sm" onClick={() => copy(url)} />}
         />

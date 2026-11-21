@@ -25,7 +25,7 @@ const candidates: ReadonlyArray<Group | false> = [
   systemRows.length > 0 && { key: 'system', title: platform.systemName, layout: 'stack', content: systemRows.map(([id, Row]) => <Row key={id} />) },
   isIntegrationAvailable('hex') && { key: 'apps', title: 'Apps', layout: 'stack', content: <HexIntegration /> },
   platform.hasCodingAgents && { key: 'agents', title: INTEGRATIONS_CONFIG.codingAgents.section, layout: 'card', content: <CodingAgentsIntegration />, footer: INTEGRATIONS_CONFIG.codingAgents.server.description },
-  platform.hasUrlActions && { key: 'urls', title: INTEGRATIONS_CONFIG.urlActions.section, layout: 'card', content: <UrlActionsIntegration /> },
+  platform.hasUrlActions && { key: 'urls', title: INTEGRATIONS_CONFIG.urlActions.section, layout: 'card', content: <UrlActionsIntegration />, footer: INTEGRATIONS_CONFIG.urlActions.footer },
 ];
 const groups = candidates.filter((g): g is Group => g !== false);
 

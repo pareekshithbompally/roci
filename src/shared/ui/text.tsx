@@ -29,14 +29,16 @@ export const TONE_CLASSES: Record<TextTone, string> = {
 };
 
 /** Inline code inside running text. */
-/** Inline code in running text; `line`: a command or path on its own line, smaller, never wrapped (it scrolls sideways when
- *  longer than its row). */
+/** Code in running text, as a chip; `line`: code standing on its own (a command, path or link as a row's title or value) in
+ *  the mono text role, flush with the text around it, never wrapped (it scrolls sideways when longer than its row). */
 export function Code({ className, line, ...props }: React.HTMLAttributes<HTMLElement> & { line?: boolean }) {
   return (
     <code
       className={cn(
-        'font-mono px-1 py-0.5 rounded bg-layer-2 text-primary',
-        line ? 'block min-w-0 flex-1 overflow-x-auto whitespace-nowrap text-subheadline' : 'text-[0.9em]',
+        'text-primary',
+        line
+          ? cn(TYPOGRAPHY_CLASSES.mono, 'block min-w-0 flex-1 overflow-x-auto whitespace-nowrap')
+          : 'font-mono text-[0.9em] px-1 py-0.5 rounded bg-layer-2',
         className,
       )}
       {...props}
