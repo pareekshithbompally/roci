@@ -66,6 +66,7 @@ export function toolNamesOf(tools: ChatToolset): string[] {
     tools.webSearch && 'web search',
     tools.image && 'image generation',
     tools.apps.length > 0 && `connected apps: ${listOf(tools.apps)}`,
+    tools.memory && 'suggesting memories',
   ].filter((name): name is string => !!name);
 }
 

@@ -88,7 +88,8 @@ export function toolKey({ toolName, arguments: args, source }: ToolCallView): st
   if (source) return toolName;
   if (toolName === 'read') return args.chat_id ? 'read.chat' : args.entity_id ? 'read.entity' : 'read.meeting';
   const mode = MODE_ARGUMENT[toolName];
-  if (!mode) return toolName;
+  // While its input streams in, a call has no mode yet: its bare name until it does.
+  if (!mode || args[mode] === undefined) return toolName;
   const listing = toolName === 'find' && !args.query ? '.list' : '';
   return `${toolName}.${String(args[mode])}${listing}`;
 }

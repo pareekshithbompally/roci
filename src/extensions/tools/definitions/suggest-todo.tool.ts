@@ -89,7 +89,7 @@ const SUGGEST: Record<Input['action'], (args: Input, context: ToolContext) => Pr
 export const suggestTodoTool = defineTool({
   name: 'suggest_todo',
   description:
-    'Suggest one to-do change. add: when the user asks to add a task, or to be reminded to do something (a fact to remember goes to suggest_memory). update: ' +
+    'Suggest one to-do change. add: when the user asks to add a task, or to be reminded to do something. update: ' +
     `give only what changes (done=true finishes it). delete: remove it for good. todo_id comes from find. ${CONFIRMED_ON_A_CARD}`,
   input,
   writes: true,

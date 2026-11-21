@@ -74,7 +74,8 @@ async function update(p: TodoChange, todoId: string): Promise<void> {
     source: current.source,
   });
   if (completed) await reminderService.cancel(todoId);
-  else if (p.reminderDateTime && p.reminderDateTime !== current.reminder?.dateTime) await remind(todoId, p, p.reminderDateTime);
+  // Compared as instants: the proposal's time is local, the stored one UTC.
+  else if (p.reminderDateTime && Date.parse(p.reminderDateTime) !== Date.parse(current.reminder?.dateTime ?? '')) await remind(todoId, p, p.reminderDateTime);
   void remindersSync.changed(todoId);
 }
 

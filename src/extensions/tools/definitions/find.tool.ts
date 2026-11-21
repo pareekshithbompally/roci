@@ -5,9 +5,9 @@
 
 import { z } from 'zod';
 import type { MeetingCitation, ToolResult } from '@extensions/tools/types';
-import { day, defineTool, fail, idFrom, ok, text, toolDate } from '@extensions/tools/contract';
+import { day, defineTool, idFrom, ok, text, toolDate } from '@extensions/tools/contract';
 import { findMeeting, meetingNotFound, todoLine } from '@extensions/tools/data';
-import { MAX_TODOS_FOR_LLM } from '@extensions/tools/constants';
+import { MAX_CITATION_EXCERPT_CHARS, MAX_SNIPPET_CHARS, MAX_TODOS_FOR_LLM } from '@extensions/tools/constants';
 import { searchChats, searchMeetings } from '@extensions/rag/searchIndex';
 import { SCORE_HIGH, SCORE_MEDIUM } from '@extensions/rag/constants';
 import { store, type GlobalTodoEntry } from '@services/db';
@@ -17,7 +17,6 @@ import { memoriesQuery } from '@shared/query/memories';
 import { memoryLines } from '@shared/utils/memories';
 import { memoryOn } from '@shared/utils/personalization';
 import { matchesAllWords } from '@shared/utils/textMatch';
-import { errorMessage } from '@shared/utils/errors';
 import { TODOS_CONFIG } from '@config/todos.config';
 
 const SCOPES = ['meetings', 'chats', 'todos', 'memories', 'knowledge'] as const;
@@ -56,13 +55,7 @@ function startOfDay(date: string | undefined, days = 0): number | undefined {
 const confidenceOf = (score: number) => (score >= SCORE_HIGH ? 'high' : score >= SCORE_MEDIUM ? 'medium' : 'low');
 
 async function searchMeetingsFor(query: string, count: number): Promise<ToolResult> {
-  let results;
-  try {
-    results = await searchMeetings(query, count);
-  } catch (error) {
-    console.error('[FindTool] Meeting search failed:', error);
-    return fail(`Search failed: ${errorMessage(error)}`);
-  }
+  const results = await searchMeetings(query, count);
   if (results.length === 0) return ok('No meetings match that search. Try other words, or find meetings without a query to list them by date.', { resultCount: 0 });
 
   // One entry per meeting: its best match.
@@ -70,15 +63,15 @@ async function searchMeetingsFor(query: string, count: number): Promise<ToolResu
   for (const r of results) if (!best.has(r.meetingId)) best.set(r.meetingId, r);
   const hits = [...best.values()];
   const lines = hits.flatMap((r, i) => [
-    `${i + 1}. "${r.meetingTitle}" (${toolDate(r.created_at)})`,
-    `   Relevance: ${confidenceOf(r.score)} | Match: "${r.chunkText.slice(0, 200).replace(/\n/g, ' ')}..."`,
+    `${i + 1}. "${r.meetingTitle}" (${toolDate(r.timestamp)})`,
+    `   Relevance: ${confidenceOf(r.score)} | Match: "${r.chunkText.slice(0, MAX_SNIPPET_CHARS).replace(/\n/g, ' ')}..."`,
     `   Meeting ID: ${r.meetingId}`,
     '',
   ]);
   // Sources show only the truly relevant meetings.
   const citations: MeetingCitation[] = hits
     .filter((r) => r.score >= SCORE_HIGH)
-    .map((r) => ({ meetingId: r.meetingId, meetingTitle: r.meetingTitle, meetingTimestamp: r.timestamp, excerpt: r.chunkText.slice(0, 300), score: r.score }));
+    .map((r) => ({ meetingId: r.meetingId, meetingTitle: r.meetingTitle, meetingTimestamp: r.timestamp, excerpt: r.chunkText.slice(0, MAX_CITATION_EXCERPT_CHARS), score: r.score }));
   return ok([`Found ${hits.length} relevant meeting(s):\n`, ...lines].join('\n'), { resultCount: hits.length, citations });
 }
 
@@ -96,16 +89,11 @@ async function listMeetings({ from_date, to_date }: Input, count: number): Promi
 // ── Chats ──
 
 async function searchChatsFor(query: string, count: number): Promise<ToolResult> {
-  let results;
-  try {
-    results = await searchChats(query, count);
-  } catch (error) {
-    return fail(`Chat search failed: ${errorMessage(error)}`);
-  }
+  const results = await searchChats(query, count);
   if (results.length === 0) return ok('No chats match that search. Try other words, or find chats without a query to list them.', { resultCount: 0 });
   const lines = results.flatMap((r, i) => [
     `${i + 1}. "${r.sessionTitle}" (${toolDate(r.lastMessageAt)})`,
-    `   Relevance: ${confidenceOf(r.score)} | Excerpt: "${r.chunkText.slice(0, 200).replace(/\n/g, ' ')}..."`,
+    `   Relevance: ${confidenceOf(r.score)} | Excerpt: "${r.chunkText.slice(0, MAX_SNIPPET_CHARS).replace(/\n/g, ' ')}..."`,
     `   Chat ID: ${r.sessionId}`,
     '',
   ]);
@@ -113,12 +101,7 @@ async function searchChatsFor(query: string, count: number): Promise<ToolResult>
 }
 
 async function listChats(count: number): Promise<ToolResult> {
-  let chats;
-  try {
-    chats = (await store.items.page(null, count, { kind: 'chat' })).flatMap((item) => (item.kind === 'chat' ? [item.chat] : []));
-  } catch (error: unknown) {
-    return fail(`Failed to list chats: ${errorMessage(error)}`);
-  }
+  const chats = (await store.items.page(null, count, { kind: 'chat' })).flatMap((item) => (item.kind === 'chat' ? [item.chat] : []));
   if (chats.length === 0) return ok('No chats yet.', { resultCount: 0 });
   const lines = chats.map((c, i) => `${i + 1}. "${c.title}" — ${toolDate(c.lastMessageAt)} — ID: ${c.id}`);
   return ok([`${chats.length} recent chat(s):`, '', ...lines].join('\n'), { resultCount: chats.length });
@@ -194,7 +177,8 @@ const FIND: Record<(typeof SCOPES)[number], (args: Input) => Promise<ToolResult>
 export const findTool = defineTool({
   name: 'find',
   description:
-    "Find the user's own meetings, chats, to-dos or memories; not for general knowledge. Set `in`. With a query: the " +
+    "Find the user's own meetings, chats, to-dos, memories or knowledge (the people, projects and topics in them); not for " +
+    'facts about the world. Set `in`. With a query: the ' +
     'best matches, by meaning and keywords. Without: the newest. Results carry ids; read one only when the snippets do not answer.',
   input,
   execute: (args) => FIND[args.in](args),

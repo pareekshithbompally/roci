@@ -15,8 +15,9 @@ describe('tool descriptions work together', () => {
     expect(description('read')).toContain('by the id find returned');
   });
 
-  it("find is for the user's own things; to-dos cover reminders, facts go to memory", () => {
-    expect(description('find')).toContain('not for general knowledge');
-    expect(description('suggest_todo')).toContain('a fact to remember goes to suggest_memory');
+  it("find is for the user's own things, knowledge included; suggest_todo names no tool it may not have", () => {
+    expect(description('find')).toContain('not for facts about the world');
+    expect(description('find')).toContain('knowledge');
+    expect(description('suggest_todo')).not.toContain('suggest_memory');
   });
 });

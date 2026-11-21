@@ -5,13 +5,13 @@
 import { z } from 'zod';
 import type { ToolContext, ToolResult } from '@extensions/tools/types';
 import { defineTool, fail, idFrom, ok, text } from '@extensions/tools/contract';
-import { memoryProposalStore, type MemoryProposal } from '@features/chat';
+import { memoryProposalStore, sameMemory, type MemoryProposal } from '@features/chat';
 import { queryClient } from '@shared/query/queryClient';
 import { memoriesQuery } from '@shared/query/memories';
 import type { MemoryRow } from '@shared/types/native';
 import { ENTITY_KINDS, KNOWLEDGE_LIMITS } from '@config/knowledge.config';
 
-const FROM = 'the memories in your instructions or find in memories';
+const FROM = 'the memories in your instructions';
 
 const input = z.object({
   action: z.enum(['save', 'forget']).describe('save a fact (new, or a correction with replaces), or forget one.'),
@@ -26,14 +26,13 @@ const input = z.object({
 type Input = z.output<typeof input>;
 
 const saved = async (): Promise<MemoryRow[]> => (await queryClient.fetchQuery(memoriesQuery)).memories;
-const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 /** Why a fact can't be suggested now: one waits already, the user declined it, or it is saved. */
 async function refusal(fact: string, context: ToolContext): Promise<ToolResult | null> {
   const waiting = memoryProposalStore.pendingIn(context.sessionId ?? null);
   if (waiting) return fail(`The user is still deciding on "${waiting.text}". Suggest at most one memory per reply.`);
   if (memoryProposalStore.wasDismissed(fact)) return fail("The user declined this memory already. Don't suggest it again.");
-  if ((await saved()).some((m) => same(m.text, fact))) return fail('This is already saved. Nothing to do.');
+  if ((await saved()).some((m) => sameMemory(m.text, fact))) return fail('This is already saved. Nothing to do.');
   return null;
 }
 

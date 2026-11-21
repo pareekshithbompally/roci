@@ -10,8 +10,11 @@ export const TOOL_TIMEOUT_MS = 30_000;
 
 // ── LLM Context Budget ──
 
-/** Total character budget for all retrieved context injected into LLM */
-export const MAX_CONTEXT_BUDGET_CHARS = 24_000;
+/** A search result's snippet, in characters (the model reads it to decide whether to read the whole item). */
+export const MAX_SNIPPET_CHARS = 200;
+
+/** A citation's excerpt, in characters (shown on the answer's source card). */
+export const MAX_CITATION_EXCERPT_CHARS = 300;
 
 /** Max transcript characters included in formatForLLM output */
 export const MAX_TRANSCRIPT_FOR_LLM = 4_000;

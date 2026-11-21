@@ -6,7 +6,7 @@ export {
   useTodoProposals,
 } from './todoProposalStore';
 export type { TodoChange, TodoProposal } from './todoProposalStore';
-export { memoryProposalStore, useMemoryProposals } from './memoryProposalStore';
+export { memoryProposalStore, sameMemory, useMemoryProposals } from './memoryProposalStore';
 export type { MemoryProposal } from './memoryProposalStore';
 export {
   useChatStore,

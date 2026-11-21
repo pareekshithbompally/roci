@@ -73,7 +73,8 @@ export function toExecutableTools(definitions: ToolDefinition[], context: ToolCo
       execute: (args: Record<string, unknown>, { toolCallId }) => runTool(definition, args, context, toolCallId),
       // The MCP server a tool came from rides on its parts in the chat (the SDK's `toolMetadata`); never sent to the model.
       ...(definition.source && { metadata: { source: definition.source } }),
-      toModelOutput: ({ output }: { output: ToolResult }) => ({ type: 'text' as const, value: output.content }),
+      // A failed call goes back as an error, so providers that mark one (Anthropic's is_error) do.
+      toModelOutput: ({ output }: { output: ToolResult }) => ({ type: output.isError ? ('error-text' as const) : ('text' as const), value: output.content }),
     });
   }
   return tools;

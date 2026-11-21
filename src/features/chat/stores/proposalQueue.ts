@@ -5,6 +5,8 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { UI_CONFIG } from '@config/ui.config';
+import { errorMessage } from '@shared/utils/errors';
+import type { ProposalItem } from '@shared/components';
 
 /** What every proposal carries; each queue adds the fields of what it changes. */
 export interface Proposal {
@@ -14,6 +16,14 @@ export interface Proposal {
   status: 'pending' | 'committing' | 'committed' | 'error';
   error?: string;
 }
+
+/** How the shared proposal card shows each status. */
+export const PROPOSAL_STATE: Record<Proposal['status'], ProposalItem['state']> = {
+  pending: 'pending',
+  committing: 'saving',
+  committed: 'saved',
+  error: 'error',
+};
 
 /** A queue whose approved proposals are written by `commit`; `settled` runs once a batch is written (to read again). */
 export function createProposalQueue<P extends Proposal>(name: string, commit: (p: P) => Promise<void>, settled: () => void) {
@@ -29,7 +39,7 @@ export function createProposalQueue<P extends Proposal>(name: string, commit: (p
       mark(p.id, { status: 'committed' } as Partial<P>);
     } catch (error: unknown) {
       console.error(`[${name}] Save failed:`, error);
-      mark(p.id, { status: 'error', error: error instanceof Error ? error.message : String(error) } as Partial<P>);
+      mark(p.id, { status: 'error', error: errorMessage(error) } as Partial<P>);
     }
   }
 
@@ -53,10 +63,10 @@ export function createProposalQueue<P extends Proposal>(name: string, commit: (p
       return removed;
     },
 
-    /** Saves this chat's waiting proposals, one after another. */
+    /** Saves this chat's waiting proposals, and retries failed ones, one after another. */
     async commitAll(chatId: string | null): Promise<void> {
-      const pending = inChat(chatId).filter((p) => p.status === 'pending');
-      pending.forEach((p) => mark(p.id, { status: 'committing' } as Partial<P>));
+      const pending = inChat(chatId).filter((p) => p.status === 'pending' || p.status === 'error');
+      pending.forEach((p) => mark(p.id, { status: 'committing', error: undefined } as Partial<P>));
       for (const p of pending) await commitOne(p);
       settled();
       setTimeout(() => set(all().filter((p) => p.status !== 'committed')), UI_CONFIG.activityTray.settleDelay);

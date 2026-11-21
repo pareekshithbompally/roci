@@ -31,6 +31,7 @@ export {
   commitTodoProposal,
   useTodoProposals,
   memoryProposalStore,
+  sameMemory,
   useMemoryProposals,
 } from './stores';
 export type { MemoryProposal, TodoChange, TodoProposal } from './stores';

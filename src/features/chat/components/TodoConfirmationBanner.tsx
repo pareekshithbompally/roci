@@ -5,6 +5,7 @@ import { ListTodo } from 'lucide-react';
 import { ProposalCard, type ProposalItem } from '@shared/components';
 import { formatShortDateTime, formatWeekdayDate } from '@shared/utils/formatters';
 import { TODOS_CONFIG } from '@config/todos.config';
+import { PROPOSAL_STATE } from '@features/chat/stores/proposalQueue';
 import { todoProposalStore, useTodoProposals, type TodoProposal } from '@features/chat/stores/todoProposalStore';
 import { TodoProposalDialog } from './TodoProposalDialog';
 
@@ -32,22 +33,19 @@ function detailOf(p: TodoProposal): string {
   ].filter(Boolean).join(' · ');
 }
 
-const STATE: Record<TodoProposal['status'], ProposalItem['state']> = {
-  pending: 'pending', committing: 'saving', committed: 'saved', error: 'error',
-};
-
 const TodoConfirmationBanner: React.FC<{ chatId: string | undefined }> = ({ chatId }) => {
   const proposals = useTodoProposals(chatId ?? null);
   const [editing, setEditing] = useState<TodoProposal | null>(null);
   if (proposals.length === 0) return null;
 
-  const pending = proposals.filter((p) => p.status === 'pending').length;
+  // Not yet saved: waiting, saving, or failed and ready to retry.
+  const pending = proposals.filter((p) => p.status !== 'committed').length;
   const items: ProposalItem[] = proposals.map((p) => ({
     id: p.id,
     title: verbOf(p) ? p.originalText ?? p.text : p.text,
     verb: verbOf(p),
     detail: editable(p) ? detailOf(p) : undefined,
-    state: STATE[p.status],
+    state: PROPOSAL_STATE[p.status],
     error: p.error,
     onEdit: editable(p) ? () => setEditing(p) : undefined,
     onRemove: proposals.length > 1 ? () => todoProposalStore.remove(p.id) : undefined,

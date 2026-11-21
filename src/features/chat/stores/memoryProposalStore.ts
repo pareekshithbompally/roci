@@ -23,6 +23,9 @@ export interface MemoryProposal extends Proposal {
 const dismissed = new Set<string>();
 const key = (text: string) => text.trim().toLowerCase();
 
+/** Whether two memories say the same thing (compared without case or outer spaces). */
+export const sameMemory = (a: string, b: string): boolean => key(a) === key(b);
+
 /** What an existing memory is about, as the store takes it. */
 function entityOf(graph: MemoryGraph, entityId: string | null): EntityRef | null {
   const entity = graph.entities.find((e) => e.id === entityId);

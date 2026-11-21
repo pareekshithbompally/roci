@@ -6,14 +6,13 @@ import { z } from 'zod';
 import type { MeetingCitation, ToolResult } from '@extensions/tools/types';
 import { defineTool, fail, idFrom, ok, toolDate } from '@extensions/tools/contract';
 import { meetingNotFound, todoLine } from '@extensions/tools/data';
-import { MAX_CHAT_MESSAGES_FOR_LLM, MAX_TRANSCRIPT_FOR_LLM } from '@extensions/tools/constants';
+import { MAX_CHAT_MESSAGES_FOR_LLM, MAX_CITATION_EXCERPT_CHARS, MAX_TRANSCRIPT_FOR_LLM } from '@extensions/tools/constants';
 import { store } from '@services/db';
 import { chatService } from '@services/chat.service';
 import { summaryText } from '@services/meetingReferenceService';
 import { excerptTranscript } from '@services/ai/transcription/excerpt';
-import { errorMessage } from '@shared/utils/errors';
 import { messageText } from '@shared/utils/chatParts';
-import type { ChatSession, MeetingDetail } from '@shared/types';
+import type { MeetingDetail } from '@shared/types';
 
 const PARTS = ['summary', 'notes', 'todos', 'transcript'] as const;
 type Part = (typeof PARTS)[number];
@@ -49,19 +48,14 @@ async function readMeeting(id: string, parts: Part[]): Promise<ToolResult> {
   const header = `## Meeting: ${detail.index.title}\n${toolDate(timestamp)} — ID: ${detail.index.id}`;
   const body = sections.length > 0 ? sections.join('\n\n') : `This meeting has no ${parts.join(' or ')} yet.`;
   // An explicit read: the meeting is a source of the answer.
-  const citation: MeetingCitation = { meetingId: detail.index.id, meetingTitle: detail.index.title, meetingTimestamp: timestamp, excerpt: body.slice(0, 300), score: 1 };
+  const citation: MeetingCitation = { meetingId: detail.index.id, meetingTitle: detail.index.title, meetingTimestamp: timestamp, excerpt: body.slice(0, MAX_CITATION_EXCERPT_CHARS), score: 1 };
   return ok(`${header}\n\n${body}`, { resultCount: 1, citations: [citation] });
 }
 
 // ── Chat ──
 
 async function readChat(id: string): Promise<ToolResult> {
-  let session: ChatSession | null;
-  try {
-    session = await chatService.loadSession(id);
-  } catch (error: unknown) {
-    return fail(`Failed to load chat: ${errorMessage(error)}`);
-  }
+  const session = await chatService.loadSession(id);
   if (!session) return fail(`No chat has the ID "${id}". Get chat IDs from find in chats.`);
   // The most recent messages, to stay within the model's context.
   const total = session.messages.length;

@@ -11,7 +11,8 @@ export function toWireTool(tool: ToolDefinition): McpWireTool {
   const writes = tool.writes === true;
   return {
     name: tool.name,
-    description: tool.description,
+    // Here a write saves at once (the agent asked the user already), not on chat's card.
+    description: writes ? `${tool.description} Called over MCP, the change is saved at once: ask the user first.` : tool.description,
     inputSchema: { ...tool.parameters },
     annotations: { readOnlyHint: !writes, destructiveHint: writes, openWorldHint: false },
   };

@@ -6,13 +6,10 @@ import { Button, Textarea } from '@shared/ui';
 import { ProposalCard, type ProposalItem, FormDialog } from '@shared/components';
 import { PERSONALIZATION_CONFIG } from '@config/personalization.config';
 import { KNOWLEDGE_LIMITS } from '@config/knowledge.config';
+import { PROPOSAL_STATE } from '@features/chat/stores/proposalQueue';
 import { memoryProposalStore, useMemoryProposals, type MemoryProposal } from '@features/chat/stores/memoryProposalStore';
 
 const COPY = PERSONALIZATION_CONFIG.memory.proposal;
-
-const STATE: Record<MemoryProposal['status'], ProposalItem['state']> = {
-  pending: 'pending', committing: 'saving', committed: 'saved', error: 'error',
-};
 
 const VERB: Record<MemoryProposal['action'], string | undefined> = { create: undefined, update: COPY.verbs.update, forget: COPY.verbs.forget };
 
@@ -45,7 +42,7 @@ export const MemoryConfirmationBanner: React.FC<{ chatId: string | undefined }> 
     title: p.action === 'update' ? `${p.originalText} → ${p.text}` : p.text,
     detail: p.about ? `${p.about.name} (${p.about.entity_type})` : undefined,
     verb: VERB[p.action],
-    state: STATE[p.status],
+    state: PROPOSAL_STATE[p.status],
     error: p.error,
     onEdit: p.action === 'forget' ? undefined : () => setEditing(p),
     onRemove: proposals.length > 1 ? () => memoryProposalStore.remove(p.id) : undefined,
