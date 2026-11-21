@@ -11,6 +11,13 @@ export const queryKeys = {
   galleryCount: () => ['gallery', 'count'] as const,
   /** Dictations made in the app (Dictations). */
   dictations: () => ['dictations'] as const,
+  /** Settings › Personalization › Memory, and what chat reads of it. */
+  memories: () => ['memories'] as const,
+  /** The knowledge graph drawn around `focus` (null: the whole graph) and one entity's detail: under `memories`, so a memory
+   *  edit reads them again; a meeting write does too (meetingChanges). */
+  knowledge: () => ['memories', 'knowledge'] as const,
+  knowledgeGraph: (focus: string | null) => ['memories', 'knowledge', 'graph', focus] as const,
+  knowledgeEntity: (id: string) => ['memories', 'knowledge', 'entity', id] as const,
   /** Settings: the storage folder and app version, read once. */
   systemInfo: () => ['system-info'] as const,
   /** Settings › Storage: counts and sizes, measured from disk. */

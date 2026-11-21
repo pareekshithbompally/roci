@@ -6,12 +6,12 @@ import { useChatStore } from '@features/chat';
 import { AppStatus } from '@shared/types';
 import type { HistoryItem } from '@shared/types';
 
-export function useOpenMeeting(): (meeting: HistoryItem) => Promise<void> {
+export function useOpenMeeting(): (meeting: Pick<HistoryItem, 'id'>) => Promise<void> {
   const { setCurrentView, setSelectedHistoryId, setStatus } = useAppActions();
   const setCurrentSessionId = useChatStore((s) => s.setCurrentSessionId);
 
   // the view reads the meeting itself (useMeetingResult); opening it is only choosing it
-  return useCallback(async (meeting: HistoryItem) => {
+  return useCallback(async (meeting: Pick<HistoryItem, 'id'>) => {
     setCurrentView('home');
     setSelectedHistoryId(meeting.id);
     setCurrentSessionId(null);

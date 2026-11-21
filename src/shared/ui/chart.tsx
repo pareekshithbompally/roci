@@ -11,6 +11,7 @@ import type { AxisPointerComponentOption, GridComponentOption, TooltipComponentO
 import { SVGRenderer } from 'echarts/renderers';
 import { useThemeContext } from '@shared/contexts/ThemeContext';
 import { UI_CONFIG } from '@config/ui.config';
+import { cssToken } from './utils';
 
 const C = UI_CONFIG.chart;
 
@@ -23,13 +24,10 @@ export type ChartOption = echarts.ComposeOption<
 
 const THEME = 'roci';
 
-/** A token's value as it is now (light or dark), for a mark ECharts colours itself. */
-export const chartToken = (name: string): string => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-
 /** ECharts' theme from the tokens as they are now: series colours, axis labels in muted ink at the caption size (as table
  *  headers), hairlines, and the marks — thin bars with rounded data ends, slices parted by a gap in the card's colour. */
 function tokenTheme(): object {
-  const token = chartToken;
+  const token = cssToken;
   const { fontFamily } = getComputedStyle(document.body);
   const caption = { color: token('--text-muted'), fontFamily, fontSize: parseFloat(token('--fs-subheadline')) };
   const hairline = token('--border-muted');

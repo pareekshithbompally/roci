@@ -5,7 +5,9 @@
 import React, { useMemo, useState } from 'react';
 import { UI_CONFIG } from '@config/ui.config';
 import { rowClasses } from './row';
-import { Chart, chartToken, type ChartOption } from './chart';
+import { Chart, type ChartOption } from './chart';
+import { cssToken } from './utils';
+import { Swatch } from './swatch';
 import { Text } from './text';
 import { Tooltip } from './tooltip';
 
@@ -62,6 +64,7 @@ function rowsOf(slices: readonly DonutSlice[], formatValue: (v: number) => strin
 
 interface LegendRowProps {
   row: Row;
+  /** Its colour token. */
   swatch: string;
   share: string;
   active: boolean;
@@ -75,7 +78,7 @@ const LegendRow: React.FC<LegendRowProps> = ({ row, swatch, share, active, onHov
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
     >
-      <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ backgroundColor: swatch }} />
+      <Swatch token={swatch} />
       {row.leading}
       <Text truncate tone={row.members ? 'muted' : 'primary'} className="min-w-0 flex-1">{row.label}</Text>
       <Text variant="figure">{row.valueText}</Text>
@@ -93,7 +96,7 @@ export function DonutChart({ slices, total, formatValue, label }: DonutChartProp
       type: 'pie',
       radius: ['64%', '92%'],
       label: { show: false },
-      data: rows.map((r) => ({ name: r.label, value: r.value, itemStyle: { color: chartToken(colourOf(r)) } })),
+      data: rows.map((r) => ({ name: r.label, value: r.value, itemStyle: { color: cssToken(colourOf(r)) } })),
     }],
   }), [rows]);
 
@@ -111,7 +114,7 @@ export function DonutChart({ slices, total, formatValue, label }: DonutChartProp
           <LegendRow
             key={r.key}
             row={r}
-            swatch={`var(${colourOf(r)})`}
+            swatch={colourOf(r)}
             share={shareText(sum ? r.value / sum : 0)}
             active={hovered === i}
             onHover={(on) => setHovered(on ? i : null)}
