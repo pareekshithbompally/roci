@@ -12,7 +12,7 @@ import { previousWindow, windowFor, type UsageWindow } from '@features/usage/mod
 const summaryOptions = (query: UsageQuery) =>
   queryOptions({ queryKey: queryKeys.usage(query), queryFn: () => getUsageSummary(query), staleTime: Infinity });
 
-export interface UsageView {
+interface UsageView {
   period: UsageWindow;
   summary: UsageSummary | undefined;
   /** The window before, for each KPI's change; null for all time. */

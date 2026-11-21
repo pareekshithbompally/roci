@@ -4,7 +4,11 @@ import { cn } from './utils';
 import { FIELD, LITERAL_TEXT } from './recipes';
 import { Icon } from './icon';
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+/** Field heights from the control scale: `md` a form field, `sm` a field inside a row or table cell (macOS inline field). */
+const HEIGHT = { sm: 'h-control-sm', md: 'h-control-md' } as const;
+
+export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
+  size?: keyof typeof HEIGHT;
   /** Leading glyph (search, link…) */
   icon?: LucideIcon;
   /** Buttons inside the field's end (show, copy): laid out beside the text, so the text never runs under them. */
@@ -13,19 +17,19 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 }
 
 /** Canonical single-line text field. */
-export function Input({ icon, trailing, className, ref, ...fieldProps }: InputProps) {
+export function Input({ icon, trailing, size = 'md', className, ref, ...fieldProps }: InputProps) {
   // Addresses are typed as-is: no auto-capital, no autocorrect.
   const props = fieldProps.type === 'url' || fieldProps.type === 'email' ? { ...LITERAL_TEXT, ...fieldProps } : fieldProps;
   if (trailing) {
     // The field look moves to the frame; the input fills what the buttons leave.
     return (
-      <div className={cn(FIELD, 'flex h-control-md items-center gap-1 pr-1 focus-within:ring-2 focus-within:ring-focus', className)}>
+      <div className={cn(FIELD, HEIGHT[size], 'flex items-center gap-1 pr-1 focus-within:ring-2 focus-within:ring-focus', className)}>
         <input ref={ref} className="h-full min-w-0 flex-1 bg-transparent outline-none placeholder:text-faint" {...props} />
         <div className="flex shrink-0 items-center">{trailing}</div>
       </div>
     );
   }
-  const field = <input ref={ref} className={cn(FIELD, 'h-control-md', icon && 'pl-8', className)} {...props} />;
+  const field = <input ref={ref} className={cn(FIELD, HEIGHT[size], icon && 'pl-8', className)} {...props} />;
   if (!icon) return field;
   return (
     <div className="relative w-full">

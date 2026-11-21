@@ -34,24 +34,27 @@ export const UI_CONFIG = {
   /** A glyph on an app-icon-sized tile, so a bare glyph weighs the same as the app icons beside it. */
   glyphTile: { tile: 34, glyph: 24 },
   /** Bar chart (usage trends): plot height (taller on touch), bar cap and gap, data-end radius, axis gutters, label density, dimmed bars. */
+  /** Data tables: rows shown before the table scrolls inside its card (its header stays). */
+  table: { visibleRows: 10 },
   chart: {
-    /** The trend: two plots (cost over requests) on one timeline — each plot's height and the gap between them (px). */
-    trendPlot: 96,
-    trendGap: 32,
-    /** Room under the lower plot for its date labels (px). */
-    trendAxis: 24,
+    /** The trend's plot, dates included (px). */
+    trendHeight: 200,
     /** A donut's ring (px). */
     donutHeight: 180,
-    /** Slices a donut shows before the rest fold into "Other" (palette slots, never cycled). */
+    /** Series colours in `tokens.css` (`--viz-1` …); never cycled — past them, a mark is neutral. */
+    seriesSlots: 8,
+    /** Legend rows a donut shows: the largest by name, then one "+N more" for the rest. */
     maxSlices: 6,
-    /** A legend row's model, provider or use-case icon (px). */
-    legendIcon: 16,
+    /** A legend or table row’s model, provider or use-case icon (px). */
+    rowIcon: 16,
     /** Marks: widest bar, its rounded top, the gap between slices (px). */
     barMaxWidth: 24,
     barRadius: 4,
     sliceGap: 2,
     /** Plot inset inside its card (px). */
     inset: 8,
+    /** Opacity of the other marks while one is highlighted. */
+    dimOpacity: 0.35,
   },
   /** A macOS app icon's visible body inside its canvas (824 of 1024): app icons scale up by its inverse to match a tile. */
   appIconBody: 824 / 1024,

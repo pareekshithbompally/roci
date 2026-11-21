@@ -7,7 +7,7 @@ import type { ProviderModelBreakdown } from '@extensions/usage';
 import type { Model, ModelPrice, ModelProvider } from '@shared/types/modelProviders';
 
 /** Where a model's price comes from, in the price rule's order. */
-export type PriceSource = 'free' | 'own' | 'catalog' | 'unknown';
+type PriceSource = 'free' | 'own' | 'catalog' | 'unknown';
 
 export interface PriceRow {
   provider: string;

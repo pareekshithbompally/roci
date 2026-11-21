@@ -23,10 +23,13 @@ export const SHEET_DESCRIPTION = 'text-body text-muted mt-1';
 export const MENU_LIST = `${FLOATING_SURFACE} min-w-36 p-1`;
 export const MENU_ITEM =
   'relative flex items-center gap-2 px-2 py-1.5 rounded text-body text-primary cursor-default select-none outline-none transition-colors data-[highlighted]:bg-hover aria-disabled:opacity-50';
+/** The grouped card surface (System Settings): what every card, table and KPI tile sits on. */
+export const GROUPED_SURFACE = 'rounded-card bg-grouped-card';
+
 /** A searchable list shown as an iOS screen: results are an inset grouped card — list-height rows, separators inset
  *  like a list's, no hover/selection fill on touch (a press shades the row), group headings above the card's rows. */
 export const LIST_COMMAND = cn(
-  'overflow-hidden rounded-card bg-grouped-card',
+  'overflow-hidden', GROUPED_SURFACE,
   '[&_[cmdk-item]]:mx-4 [&_[cmdk-item]]:min-h-row [&_[cmdk-item]]:rounded-none [&_[cmdk-item]]:px-0 [&_[cmdk-item]]:py-3',
   '[&_[cmdk-item]+[cmdk-item]]:border-t [&_[cmdk-item]+[cmdk-item]]:border-muted',
   '[&_[cmdk-item][data-selected=true]]:bg-transparent [&_[cmdk-item]:active]:opacity-60',

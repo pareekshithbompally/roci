@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<!-- Dev-only: Settings › Usage in the app's providers over a simulated store, for screenshots with Playwright.
+     http://localhost:5173/src/features/usage/preview/usage.html  (theme from localStorage `theme`: light | dark) -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Roci · usage preview</title>
+    <link rel="stylesheet" href="/src/styles/tokens.css" />
+    <script>
+      document.documentElement.classList.add(localStorage.getItem('theme') === 'light' ? 'light' : 'dark');
+    </script>
+  </head>
+  <body class="antialiased" id="app-body">
+    <div id="root"></div>
+    <script type="module" src="./usagePreview.tsx"></script>
+  </body>
+</html>

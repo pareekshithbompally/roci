@@ -6,17 +6,20 @@ export type UsageRange = '7d' | '30d' | 'all';
 export type UsageTab = 'activity' | 'prices';
 /** What a chart measures: money, or how many requests. */
 export type UsageMeasure = 'cost' | 'requests';
+/** Which prices the Prices table shows. */
+export type PriceScope = 'all' | 'unknown' | 'own';
 
 export const USAGE_CONFIG = {
   tabs: [
     { value: 'activity', label: 'Activity' },
     { value: 'prices', label: 'Prices' },
   ] as const satisfies ReadonlyArray<{ value: UsageTab; label: string }>,
+  /** `period` names the window in a sentence ("Last 30 days · $0.11 · 179 requests"). */
   ranges: [
-    { value: '7d', label: '7 days' },
-    { value: '30d', label: '30 days' },
-    { value: 'all', label: 'All time' },
-  ] as const satisfies ReadonlyArray<{ value: UsageRange; label: string }>,
+    { value: '7d', label: '7 days', period: 'Last 7 days' },
+    { value: '30d', label: '30 days', period: 'Last 30 days' },
+    { value: 'all', label: 'All time', period: 'All time' },
+  ] as const satisfies ReadonlyArray<{ value: UsageRange; label: string; period: string }>,
   /** Days in each fixed range, counted back from today inclusive (local calendar days). */
   rangeDays: { '7d': 7, '30d': 30 } as const satisfies Record<Exclude<UsageRange, 'all'>, number>,
   defaultRange: '30d' as UsageRange,
@@ -42,15 +45,10 @@ export const USAGE_CONFIG = {
     /** A cost that can't be worked out: a paid model with no known price (never shown as free). */
     noPrice: 'no price',
     /** Under the cost when some calls ran on cloud models with no known price (left out of the total). */
-    unpriced: (calls: number) => `${calls} ${calls === 1 ? 'call has' : 'calls have'} no price — set it in Prices`,
-    other: 'Other',
-    /** A slice whose calls all ran free (on this device or a server you run). */
-    free: 'Free',
+    unpriced: (calls: number) => `${calls} ${calls === 1 ? 'call has' : 'calls have'} no price`,
+    /** After a server you run, so it isn't mistaken for the same maker's cloud ("Ollama (local)"). */
+    yourServer: (title: string) => `${title} (local)`,
     splits: { model: 'By model', provider: 'By provider', useCase: 'By use case' },
-    /** The legend line for entries that cost nothing: "3 free models · 31 requests". */
-    freeNote: (count: number, split: 'model' | 'provider' | 'useCase', calls: number) =>
-      `${count} free ${({ model: ['model', 'models'], provider: ['provider', 'providers'], useCase: ['use case', 'use cases'] } as const)[split][count === 1 ? 0 : 1]}`
-      + ` · ${calls} ${calls === 1 ? 'request' : 'requests'}`,
     kpis: { cost: 'Cost', requests: 'Requests', tokens: 'Tokens', perRequest: 'Cost per request', average: 'Average' },
     trend: 'Over time',
     columns: {
@@ -59,6 +57,8 @@ export const USAGE_CONFIG = {
     },
     tables: { models: 'Models', tools: 'Tools the AI used', days: 'By day' },
     noTools: 'No tool calls in this period.',
+    noMatches: 'Nothing matches.',
+    search: { models: 'Search models or providers', tools: 'Search tools', prices: 'Search models or providers' },
     prices: {
       label: 'Model prices',
       model: 'Model',
@@ -68,7 +68,13 @@ export const USAGE_CONFIG = {
       output: 'Output $ / 1M',
       footer: 'Prices per million tokens. Type a price to use yours instead of models.dev’s; it also prices that model’s earlier calls. Clear both to go back.',
       none: 'No paid models yet. Models you use and add show here.',
-      sources: { own: 'You', catalog: 'models.dev', free: 'Free on this device', unknown: 'No price' },
+      sources: { own: 'You', catalog: 'models.dev', free: 'Free', unknown: 'No price' },
+      scopeLabel: 'Show',
+      scopes: [
+        { value: 'all', label: 'All' },
+        { value: 'unknown', label: 'No price' },
+        { value: 'own', label: 'Yours' },
+      ] as const satisfies ReadonlyArray<{ value: PriceScope; label: string }>,
     },
   },
 } as const;

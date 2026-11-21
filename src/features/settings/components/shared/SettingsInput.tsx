@@ -25,7 +25,7 @@ export function renderWithLinks(text: string): React.ReactNode {
   });
 }
 
-interface SettingsInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface SettingsInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
   label?: string;
   helper?: string;
   error?: string;

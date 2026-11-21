@@ -123,7 +123,8 @@ export function Section({ title, accessory, layout = 'card', footer, className, 
           {accessory}
         </div>
       )}
-      {layout === 'card' ? <Card>{children}</Card> : <div className="flex flex-col gap-6">{children}</div>}
+      {/* The card fills the section, so sections side by side in a grid row end level. */}
+      {layout === 'card' ? <Card className="flex-1">{children}</Card> : <div className="flex flex-col gap-6">{children}</div>}
       {footer && <Text as="p" variant="caption" tone="muted" className="mx-4">{footer}</Text>}
     </section>
   );

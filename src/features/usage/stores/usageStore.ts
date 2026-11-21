@@ -10,7 +10,7 @@ interface UsageState {
   setRange: (range: UsageRange) => void;
 }
 
-export const useUsageStore = create<UsageState>((set) => ({
+const useUsageStore = create<UsageState>((set) => ({
   tab: 'activity',
   range: USAGE_CONFIG.defaultRange,
   setTab: (tab) => set({ tab }),

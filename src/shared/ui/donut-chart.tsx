@@ -1,11 +1,13 @@
-/** A donut and its legend: ECharts draws the ring; the legend is native rows (swatch, icon, name, value, share) in the app's
- *  type, so every figure reads exactly as the caller formatted it, in the tooltip too. */
+/** A donut with its total in the middle and its legend as native rows: the largest entries by name, the rest as one "+N more"
+ *  row whose native tooltip lists each of them. The ring and the legend highlight each other on hover. ECharts draws the
+ *  ring only; every word and figure is kit text. */
 
-import React, { useMemo } from 'react';
-import { format } from 'echarts/core';
+import React, { useMemo, useState } from 'react';
 import { UI_CONFIG } from '@config/ui.config';
-import { Chart, type ChartOption } from './chart';
+import { rowClasses } from './row';
+import { Chart, chartToken, type ChartOption } from './chart';
 import { Text } from './text';
+import { Tooltip } from './tooltip';
 
 export interface DonutSlice {
   key: string;
@@ -15,60 +17,105 @@ export interface DonutSlice {
   value: number;
   /** The value as it reads ("$0.07", "No price", "128"). */
   valueText: string;
+  /** Its series colour (`--viz-N`), fixed to what it stands for so it keeps it when the view changes; none: neutral. */
+  slot?: number;
 }
 
 export interface DonutChartProps {
-  /** In palette order: slice `i` wears series colour `i + 1`; at most `UI_CONFIG.chart.maxSlices`. */
+  /** Largest first; past `UI_CONFIG.chart.maxSlices` the rest fold into "+N more". */
   slices: readonly DonutSlice[];
-  /** A last legend line with no slice (what was left out, such as entries that cost nothing). */
-  note?: DonutSlice;
+  /** The whole, in the hole: its figure and what it counts ("$0.08", "Cost"). */
+  total: { value: string; caption: string };
+  /** A sum of values as it reads, for the "+N more" row. */
+  formatValue: (value: number) => string;
   /** What the chart shows, for assistive tech. */
   label: string;
 }
 
 const C = UI_CONFIG.chart;
 const PERCENT = new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 0 });
+/** The neutral colour of "+N more": never a series colour. */
+const REST = '--text-faint';
+
+/** A row's colour token: its entity's series slot; "+N more" and slot-less rows are neutral. */
+const colourOf = (row: Row): string => (row.members || !row.slot ? REST : `--viz-${row.slot}`);
 
 /** "42%", or "<1%" for a sliver that would round to nothing. */
 const shareText = (share: number) => (share > 0 && share < 0.01 ? '<1%' : PERCENT.format(share));
 
-const ROW = 'flex min-w-0 items-center gap-2 py-1';
+interface Row extends DonutSlice {
+  /** The entries a "+N more" row stands for, one per line (its native tooltip). */
+  members?: string;
+}
 
-/** One legend line: swatch (none for a note), icon, name, value, share. */
-const LegendRow: React.FC<{ slice: DonutSlice; swatch?: string; share?: string }> = ({ slice, swatch, share }) => (
-  <li className={ROW}>
-    <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={swatch ? { backgroundColor: swatch } : undefined} />
-    {slice.leading}
-    <Text truncate tone={swatch ? 'primary' : 'muted'} className="min-w-0 flex-1">{slice.label}</Text>
-    <Text variant="figure" tone={swatch ? 'primary' : 'muted'}>{slice.valueText}</Text>
-    <Text variant="figure" tone="muted" className="w-10 text-right">{share ?? ''}</Text>
-  </li>
+/** The named rows, and past `C.maxSlices` one "+N more" row for the rest. */
+function rowsOf(slices: readonly DonutSlice[], formatValue: (v: number) => string): Row[] {
+  if (slices.length <= C.maxSlices) return [...slices];
+  const named = slices.slice(0, C.maxSlices - 1);
+  const rest = slices.slice(C.maxSlices - 1);
+  const value = rest.reduce((sum, s) => sum + s.value, 0);
+  return [
+    ...named,
+    { key: 'more', label: `+${rest.length} more`, value, valueText: formatValue(value), members: rest.map((s) => `${s.label} — ${s.valueText}`).join('\n') },
+  ];
+}
+
+interface LegendRowProps {
+  row: Row;
+  swatch: string;
+  share: string;
+  active: boolean;
+  onHover: (on: boolean) => void;
+}
+
+const LegendRow: React.FC<LegendRowProps> = ({ row, swatch, share, active, onHover }) => (
+  <Tooltip content={row.members ?? `${row.label} — ${row.valueText}`}>
+    <li
+      className={rowClasses(active)}
+      onMouseEnter={() => onHover(true)}
+      onMouseLeave={() => onHover(false)}
+    >
+      <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ backgroundColor: swatch }} />
+      {row.leading}
+      <Text truncate tone={row.members ? 'muted' : 'primary'} className="min-w-0 flex-1">{row.label}</Text>
+      <Text variant="figure">{row.valueText}</Text>
+      <Text variant="figure" tone="muted" className="w-10 text-right">{share}</Text>
+    </li>
+  </Tooltip>
 );
 
-export function DonutChart({ slices, note, label }: DonutChartProps) {
-  const total = slices.reduce((sum, s) => sum + s.value, 0);
+export function DonutChart({ slices, total, formatValue, label }: DonutChartProps) {
+  const [hovered, setHovered] = useState<number | null>(null);
+  const rows = useMemo(() => rowsOf(slices, formatValue), [slices, formatValue]);
+  const sum = rows.reduce((s, r) => s + r.value, 0);
   const option = useMemo<ChartOption>(() => ({
-    tooltip: {
-      trigger: 'item',
-      formatter: (p) => {
-        const slice = slices[(p as { dataIndex: number }).dataIndex];
-        return `${format.encodeHTML(slice.label)}<br/><b>${format.encodeHTML(slice.valueText)}</b> · ${shareText(total ? slice.value / total : 0)}`;
-      },
-    },
-    series: [{ type: 'pie', radius: ['62%', '92%'], label: { show: false }, data: slices.map((s) => ({ name: s.label, value: s.value })) }],
-  }), [slices, total]);
+    series: [{
+      type: 'pie',
+      radius: ['64%', '92%'],
+      label: { show: false },
+      data: rows.map((r) => ({ name: r.label, value: r.value, itemStyle: { color: chartToken(colourOf(r)) } })),
+    }],
+  }), [rows]);
 
   return (
     <div className="flex flex-col gap-3">
-      <Chart option={option} height={C.donutHeight} label={label} />
+      <div className="relative">
+        <Chart option={option} height={C.donutHeight} label={label} onHover={setHovered} highlight={hovered} />
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+          <Text variant="title" className="tabular-nums">{total.value}</Text>
+          <Text variant="caption" tone="muted">{total.caption}</Text>
+        </div>
+      </div>
       <ul className="flex flex-col">
-        {slices.map((s, i) => (
-          <LegendRow key={s.key} slice={s} swatch={`var(--viz-${i + 1})`} share={shareText(total ? s.value / total : 0)} />
-        ))}
-        {note && <LegendRow slice={note} />}
-        {/* Every slot keeps its row, so donuts side by side are the same height whatever they hold. */}
-        {Array.from({ length: Math.max(0, C.maxSlices - slices.length - (note ? 1 : 0)) }, (_, i) => (
-          <li key={`empty-${i}`} aria-hidden="true" className={ROW}><Text>&nbsp;</Text></li>
+        {rows.map((r, i) => (
+          <LegendRow
+            key={r.key}
+            row={r}
+            swatch={`var(${colourOf(r)})`}
+            share={shareText(sum ? r.value / sum : 0)}
+            active={hovered === i}
+            onHover={(on) => setHovered(on ? i : null)}
+          />
         ))}
       </ul>
     </div>
