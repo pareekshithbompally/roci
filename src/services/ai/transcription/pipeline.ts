@@ -29,8 +29,8 @@ export interface TranscribeOptions {
   onProgress?: (progress: TranscriptionProgress) => void;
   /** A live meeting chunk: sent whole when it holds speech, not cut into its speech spans. */
   whole?: boolean;
-  /** Speech detection; defaults to the Silero VAD worker. Injected in tests. */
-  vad?: (samples: Float32Array, sampleRate: number) => Promise<SpeechRange[]>;
+  /** Speech detection; defaults to the bundled speech detector. Injected in tests. */
+  vad?: (samples: Float32Array) => Promise<SpeechRange[]>;
   /** One-part transcription; defaults to the provider's adapter. Injected in tests. */
   transcribePart?: TranscribePart;
 }
@@ -115,8 +115,7 @@ async function speechChunks(
   { vad, whole }: Pick<TranscribeOptions, 'vad' | 'whole'>,
 ): Promise<Chunk[]> {
   try {
-    // The service transfers (neuters) its input; the copy keeps this buffer intact.
-    const ranges = await (vad ?? getSpeechSegments)(samples.slice(), sampleRate);
+    const ranges = await (vad ?? getSpeechSegments)(samples);
     if (whole) return ranges.length > 0 ? [{ samples, startSecond: 0 }] : [];
     return toChunks(ranges, samples, sampleRate, maxPartSamples);
   } catch (error: unknown) {

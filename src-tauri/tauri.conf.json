@@ -75,6 +75,9 @@
       "app",
       "dmg"
     ],
+    "resources": {
+      "resources/silero-vad-v6.2-F32.gguf": "silero-vad-v6.2-F32.gguf"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

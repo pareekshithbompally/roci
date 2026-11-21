@@ -146,8 +146,7 @@ pub fn decode_wav(bytes: &[u8]) -> Result<Vec<f32>, LocalError> {
 }
 
 fn load(id: &'static str, path: &Path) -> Result<Loaded, LocalError> {
-    static LOGGING: Once = Once::new();
-    LOGGING.call_once(transcribe_cpp::init_logging);
+    init_logging();
     let model = Model::load(path).map_err(engine_error)?;
     let capabilities = model.capabilities().map_err(engine_error)?;
     let max_ms = capabilities.max_audio_ms.max(0) as usize;
@@ -165,6 +164,12 @@ fn load(id: &'static str, path: &Path) -> Result<Loaded, LocalError> {
         languages: capabilities.languages,
         vocabulary,
     })
+}
+
+/// Routes transcribe.cpp's logging into the app log, once, before its first model loads.
+pub(super) fn init_logging() {
+    static LOGGING: Once = Once::new();
+    LOGGING.call_once(transcribe_cpp::init_logging);
 }
 
 pub fn engine_error(error: transcribe_cpp::Error) -> LocalError {

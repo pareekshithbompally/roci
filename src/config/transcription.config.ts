@@ -83,22 +83,12 @@ export const TRANSCRIPTION_CONFIG = {
   /** Hex models Roci doesn't offer: Apple speech is Roci-native (Apple Intelligence), never via Hex. */
   hiddenHexModels: ['apple_speech'] as readonly string[],
 
-  /** Silero VAD gate (only speech spans are transcribed), tuned for recall; spans are in recording-clock units. */
+  /** How the speech detector's spans become the ranges sent to transcription (its own tuning lives with it, in Rust). */
   vad: {
-    positiveSpeechThreshold: 0.5,
-    negativeSpeechThreshold: 0.35,
-    /** Pauses shorter than this stay inside one segment. */
-    redemptionMs: 800,
-    /** Audio kept before a detected onset so word starts aren't clipped. */
-    preSpeechPadMs: 120,
-    /** Segments shorter than this are blips (clicks), not speech. */
-    minSpeechMs: 200,
     /** Segments separated by less than this are transcribed as one range. */
     mergeGapMs: 2000,
     /** Ranges shorter than this are symmetrically extended with real audio. */
     minRangeMs: 1500,
-    /** Upper bound for VAD on one recording (2 h audio ≈ 1–2 min single-thread). */
-    timeoutMs: 300_000,
   },
 
   /** Categories the Summary model files each meeting under. */

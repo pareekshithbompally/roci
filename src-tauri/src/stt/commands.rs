@@ -1,11 +1,13 @@
-//! Tauri commands for on-device speech-to-text: transcribe one WAV part, and live dictation.
+//! Tauri commands for on-device speech-to-text: transcribe one WAV part, find its speech, and live dictation.
 
 
 use tauri::ipc::Request;
+use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Manager, State};
 
 use super::engine::{self, Timed};
 use super::live::{LiveSession, LiveText};
+use super::vad::{self, SpeechSpan};
 use super::vocabulary::{self, RecognitionBoost, VocabularyEntry};
 use super::SttState;
 use crate::ipc::{header, raw_body};
@@ -35,6 +37,15 @@ pub async fn stt_transcribe(app: AppHandle, request: Request<'_>) -> Result<Time
 
     schedule_idle_unload(app);
     Ok(segments)
+}
+
+/// The speech spans in one WAV raw body (16 kHz mono 16-bit), by the bundled speech detector.
+#[tauri::command]
+pub async fn stt_speech_spans(app: AppHandle, request: Request<'_>) -> Result<Vec<SpeechSpan>, LocalError> {
+    let wav = raw_body(&request).ok_or_else(|| LocalError::BadInput("expected a raw WAV body".into()))?;
+    let pcm = engine::decode_wav(wav)?;
+    let path = app.path().resolve(vad::MODEL_RESOURCE, BaseDirectory::Resource).map_err(|e| LocalError::Io(e.to_string()))?;
+    blocking(move || app.state::<SttState>().detector.spans(&path, &pcm)).await
 }
 
 /// Drops the warm model once nothing has run for Settings' idle time (never when kept until quit).
