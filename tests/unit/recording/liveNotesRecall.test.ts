@@ -46,3 +46,39 @@ describe('live notes recall earlier talk from the meeting index', () => {
     expect(refresh.mock.calls[1][0].input.earlier).toEqual(['[00:00] Others: the budget is ten thousand']);
   });
 });
+
+describe('an update asked for while one runs', () => {
+  it('waits instead of cancelling it, then runs once with everything new', async () => {
+    let answer: (reply: unknown) => void = () => undefined;
+    refresh.mockImplementationOnce(() => new Promise((resolve) => { answer = resolve; }));
+    liveNotes.start('m-coalesce');
+    const first = [entry(0, 'we ship friday')];
+    const running = liveNotes.refresh(first, model);
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+
+    await liveNotes.refresh([...first, entry(20_000, 'budget is approved')], model);
+    await liveNotes.refresh([...first, entry(20_000, 'budget is approved'), entry(40_000, 'hiring paused')], model);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refresh.mock.calls[0][0].signal.aborted).toBe(false);
+
+    answer({ filled: [], points: [{ text: 'Ship Friday' }] });
+    await running;
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
+    expect(refresh.mock.calls[1][0].input.transcript).toContain('hiring paused');
+    expect(refresh.mock.calls[1][0].input.transcript).not.toContain('we ship friday');
+  });
+
+  it('is dropped when the running one already covered everything', async () => {
+    let answer: (reply: unknown) => void = () => undefined;
+    refresh.mockImplementationOnce(() => new Promise((resolve) => { answer = resolve; }));
+    liveNotes.start('m-covered');
+    const first = [entry(0, 'we ship friday')];
+    const running = liveNotes.refresh(first, model);
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+
+    await liveNotes.refresh(first, model, [], true);
+    answer({ filled: [], points: [] });
+    await running;
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+});

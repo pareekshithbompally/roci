@@ -99,7 +99,7 @@ export function useLiveNotes(meetingId: string, live: boolean) {
     const { save: saveLines, model: current, participants: names } = latest.current;
     saveLines().catch(report('save'));
     const now = useMeetingLiveStore.getState().entries;
-    if (current && liveNotes.due(now, true)) void liveNotes.refresh(now, current, names);
+    if (current && liveNotes.due(now, true)) void liveNotes.refresh(now, current, names, true);
   }, []);
 
   const type = useCallback((text: string) => {

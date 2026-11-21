@@ -129,12 +129,12 @@ const MeetingTitle: React.FC<{ title: string; onEdit: () => void; children?: Rea
 );
 
 /** The Transcript tab: the saved transcript (or the in-call one until it is saved) beside the meeting's notes, whose AI lines
- *  are the summary's enhanced notes. Keyed by meeting, so each meeting's notes load fresh. */
+ *  are the summary's filled-in notes and key points. Keyed by meeting, so each meeting's notes load fresh. */
 const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phase: MeetingPhase }> = ({ meetingId, result, phase }) => {
   const { type, modelProblem } = useLiveNotes(meetingId, false);
   const draft = useDraftSegments(meetingId);
-  const enhanced = result.structuredSummary?.enhancedNotes;
-  const bullets = useAiBullets(meetingId, enhanced);
+  const summary = result.structuredSummary;
+  const bullets = useAiBullets(meetingId, summary?.enhancedNotes, summary?.keyDiscussionPoints);
   const saved = !!result.transcript;
   const busy = isMeetingBusy(phase);
   const transcript: WorkspaceTranscript = {
@@ -147,7 +147,7 @@ const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phas
   return (
     <MeetingWorkspace
       transcript={transcript}
-      notes={{ onType: type, modelProblem, bullets, writing: busy, live: false, initialView: (enhanced?.length ?? 0) > 0 || bullets.length > 0 ? 'ai' : 'notes' }}
+      notes={{ onType: type, modelProblem, bullets, writing: busy, live: false }}
     />
   );
 };

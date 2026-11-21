@@ -27,6 +27,7 @@ unsafe extern "C" {
     fn roci_mlx_unload(role: *const c_char);
     fn roci_mlx_free_string(value: *mut c_char);
     fn roci_mlx_set_load_listener(listener: extern "C" fn(*const c_char));
+    fn roci_mlx_set_checkpoint(hook: extern "C" fn());
 }
 
 /// Rust → webview: a model started or ended loading (`{ role, model, name, state }`, state loading | loaded | failed).
@@ -35,12 +36,20 @@ const MODEL_EVENT: &str = "mlx://model";
 /// Where load reports go: set once at startup.
 static APP: OnceLock<AppHandle> = OnceLock::new();
 
-/// Starts forwarding RociMLX's model-load reports to the webview; call once at setup.
-pub fn report_loads(app: &AppHandle) {
+/// Connects RociMLX's hooks once at setup: model-load reports to the webview, a chat's checkpoints to the GPU queue.
+pub fn connect(app: &AppHandle) {
     if APP.set(app.clone()).is_ok() {
-        // SAFETY: `on_load` is a plain `extern "C"` function that lives for the whole program.
-        unsafe { roci_mlx_set_load_listener(on_load) }
+        // SAFETY: `on_load` and `checkpoint` are plain `extern "C"` functions that live for the whole program.
+        unsafe {
+            roci_mlx_set_load_listener(on_load);
+            roci_mlx_set_checkpoint(checkpoint);
+        }
     }
+}
+
+/// A chat's checkpoint (after each prompt chunk and each token, on MLX's generation thread): waiting speech-to-text runs now.
+extern "C" fn checkpoint() {
+    gpu::step_aside(Priority::Interactive);
 }
 
 /// One load report from Swift: the model folder's name is its catalog id.
@@ -142,13 +151,13 @@ pub fn mlx_cancel(stream_id: u64) {
     unsafe { roci_mlx_cancel(stream_id) }
 }
 
-/// Unit-length vectors for `texts` from search's embedding model, in order; blocking (the GPU's background queue), so never on
-/// the main thread. `NotDownloaded` until the model is.
-pub fn embed(app: &AppHandle, texts: &[String]) -> Result<Vec<Vec<f32>>, LocalError> {
+/// Unit-length vectors for `texts` from search's embedding model, in order, in a GPU turn at `priority` (a query someone waits
+/// for is Interactive, indexing Background); blocking, so never on the main thread. `NotDownloaded` until the model is.
+pub fn embed(app: &AppHandle, texts: &[String], priority: Priority) -> Result<Vec<Vec<f32>>, LocalError> {
     let dir = store::installed_dir(app, catalog::search_embedder()?)?.to_string_lossy().into_owned();
     let request = to_c(&json!({ "modelDir": dir, "texts": texts }))?;
     // SAFETY: `request` outlives the call; the returned string is ours to free.
-    let result = take(gpu::run(Priority::Background, || unsafe { roci_mlx_embed(request.as_ptr()) }));
+    let result = take(gpu::run(priority, || unsafe { roci_mlx_embed(request.as_ptr()) }));
     rearm_idle(app, Role::Embedding);
     let vectors = result?.get_mut("vectors").map(Value::take).unwrap_or_default();
     serde_json::from_value(vectors).map_err(|e| LocalError::Engine(e.to_string()))
@@ -168,20 +177,17 @@ pub fn speak(dir: &std::path::Path, text: &str, voice: Option<&str>) -> Result<(
     Ok((samples, rate))
 }
 
-/// Frees the model of `kind` now (its files are about to be deleted, or the app quits).
+/// Frees the model of `kind` now (its files are about to be deleted).
 pub fn unload(kind: Kind) {
     if let Some(role) = Role::of(kind) {
-        // SAFETY: a static C string.
-        unsafe { roci_mlx_unload(role.name().as_ptr()) }
+        free(role);
     }
 }
 
-/// Frees every MLX model (app quit).
-#[cfg(desktop)]
-pub fn unload_all() {
-    unload(Kind::Chat);
-    unload(Kind::Embedding);
-    unload(Kind::Voice);
+/// Frees `role`'s model in a GPU turn of its own, so never while a reply, embedding or voice is using it.
+fn free(role: Role) {
+    // SAFETY: a static C string.
+    gpu::run(Priority::Interactive, || unsafe { roci_mlx_unload(role.name().as_ptr()) });
 }
 
 fn model_dir(app: &AppHandle, id: &str, kind: Kind) -> Result<String, LocalError> {
@@ -205,8 +211,7 @@ fn rearm_idle(app: &AppHandle, role: Role) {
         tokio::time::sleep(idle).await;
         if app.state::<MlxState>().uses(role).load(Ordering::SeqCst) == generation {
             let _ = blocking(move || {
-                // SAFETY: a static C string.
-                unsafe { roci_mlx_unload(role.name().as_ptr()) };
+                free(role);
                 Ok(())
             })
             .await;
@@ -214,10 +219,8 @@ fn rearm_idle(app: &AppHandle, role: Role) {
     });
 }
 
-/// Sends one Swift event to the webview channel passed as `context`; between pieces of the reply, speech-to-text that is
-/// waiting runs first.
+/// Sends one Swift event to the webview channel passed as `context`.
 extern "C" fn forward(context: *mut c_void, event: *const c_char) {
-    gpu::step_aside(Priority::Interactive);
     // SAFETY: `context` is the `Channel` `mlx_chat` passed, alive for the whole call; `event` is a valid C string for
     // the duration of this callback.
     let (channel, event) = unsafe { (&*(context as *const Channel<Value>), CStr::from_ptr(event)) };

@@ -154,7 +154,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
   menubar::setup(app.handle());
 
   // On-device model loads show in the activity tray.
-  mlx::report_loads(app.handle());
+  mlx::connect(app.handle());
 
 
   // MCP: connect the servers the user left enabled.
@@ -209,7 +209,6 @@ pub fn on_event(app_handle: &AppHandle, event: RunEvent) {
     RunEvent::Exit => {
       audio::commands::abandon_active();
       mcp::kill_all_children(app_handle);
-      mlx::unload_all();
     }
     _ => {}
   }

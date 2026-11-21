@@ -1,7 +1,7 @@
 /** AI notes on the record screen through the real path: transcript arrives → an update runs on the cadence → points show. */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 
 const refresh = vi.hoisted(() => vi.fn());
 vi.mock('@services/ai/liveNotes', () => ({ refreshLiveNotes: refresh }));
@@ -49,7 +49,6 @@ describe('AI notes on the record screen', () => {
     refresh.mockResolvedValueOnce({ points: [{ text: 'Q3 budget: 1.2M approved.' }], filled: [] });
     refresh.mockResolvedValueOnce({ points: [{ text: 'Hiring paused until January.' }], filled: [] });
     render(<RecordingMeetingView />);
-    fireEvent.click(screen.getByRole('tab', { name: /AI notes/ }));
 
     await act(async () => meetingLiveActions.set([line(0, 5_000, 'Budget is approved at 1.2 million.')]));
     expect(refresh).not.toHaveBeenCalled();

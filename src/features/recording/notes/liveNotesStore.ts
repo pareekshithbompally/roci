@@ -1,5 +1,5 @@
 /** The record screen's notes: the typed lines and the enhanced bullets (UI state), and the refresh that keeps the bullets up
- *  to date — one request at a time, a newer one cancelling the stale one. */
+ *  to date — one request at a time; what asks while one runs waits for it, then runs once with everything new. */
 
 import { useMemo } from 'react';
 import { create } from 'zustand';
@@ -11,8 +11,8 @@ import { formatClock } from '@shared/utils/formatters';
 import { indexStretch, searchMeetingWithin } from '@extensions/rag';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
 import {
-  changedNotes, changesFromReply, enhancedBullets, entryKey, liveNotesRequest, mergeBullets, notesSeen, NO_RECALL, recallOf, reconcileLines,
-  refreshReason, signatureOf, transcriptText, unsentEntries,
+  changedNotes, changesFromReply, entryKey, liveNotesRequest, mergeBullets, notesSeen, NO_RECALL, recallOf, reconcileLines,
+  refreshReason, signatureOf, summaryBullets, transcriptText, unsentEntries,
   type Bullet, type NoteLine, type Recall, type Span, type TypedAt,
 } from './liveNotes';
 
@@ -43,10 +43,14 @@ interface Session {
   /** This recording's indexed stretches (chunk text → when it was said), for recalling earlier talk. */
   spans: Map<string, Span>;
   controller: AbortController | null;
+  /** A refresh asked for while one runs: the newest ask, run once when the running one ends if there's still news. */
+  pending: RefreshArgs | null;
 }
 
+type RefreshArgs = [entries: LiveEntry[], resolved: ResolvedModel, participants: string[], typingPaused: boolean];
+
 const freshSession = (): Session => ({
-  sent: new Set(), taken: new Set(), signature: '', coveredUntilMs: 0, seen: new Map(), spans: new Map(), controller: null,
+  sent: new Set(), taken: new Set(), signature: '', coveredUntilMs: 0, seen: new Map(), spans: new Map(), controller: null, pending: null,
 });
 let session = freshSession();
 
@@ -93,6 +97,7 @@ export const liveNotes = {
   /** The recording ended: an update in flight is dropped (the summary writes the notes from here), so nothing of it lands
    *  after the meeting's final index. */
   stop(): void {
+    session.pending = null;
     session.controller?.abort();
   },
 
@@ -112,11 +117,15 @@ export const liveNotes = {
     return refreshReason({ unsent: untaken, coveredUntilMs: session.coveredUntilMs, notesChanged, typingPaused }) !== null;
   },
 
-  /** Sends the notes, bullets and every transcript entry not yet applied; applies the changed bullets unless a newer refresh started. */
-  async refresh(entries: LiveEntry[], resolved: ResolvedModel, participants: string[] = []): Promise<void> {
+  /** Sends the notes, bullets and every transcript entry not yet applied, and applies the changed bullets. While one runs, a
+   *  new ask waits for it (never cancels it: a slow model would never finish), then runs once if anything is still new. */
+  async refresh(entries: LiveEntry[], resolved: ResolvedModel, participants: string[] = [], typingPaused = false): Promise<void> {
     const { meetingId, lines, bullets } = get();
     if (!meetingId) return;
-    session.controller?.abort();
+    if (session.controller) {
+      session.pending = [entries, resolved, participants, typingPaused || (session.pending?.[3] ?? false)];
+      return;
+    }
     const controller = new AbortController();
     const current = session;
     current.controller = controller;
@@ -146,6 +155,9 @@ export const liveNotes = {
       if (current.controller === controller) {
         current.controller = null;
         set({ updating: false });
+        const next = current.pending;
+        current.pending = null;
+        if (next && session === current && liveNotes.due(next[0], next[3])) void liveNotes.refresh(...next);
       }
     }
   },
@@ -153,13 +165,15 @@ export const liveNotes = {
 
 const NO_BULLETS: Bullet[] = [];
 
-/** A meeting's AI lines: the summary's enhanced notes once written, before that the live ones of the meeting just recorded. */
-export function useAiBullets(meetingId: string, enhanced: string[] | undefined): Bullet[] {
+/** A meeting's AI lines: once the summary is written, its filled-in notes and key points (saved with the meeting); before
+ *  that, the live ones of the meeting just recorded. */
+export function useAiBullets(meetingId: string, enhanced: string[] | undefined, points: string[] | undefined): Bullet[] {
   const owner = useLiveNotesStore((s) => s.meetingId);
   const lines = useLiveNotesStore((s) => s.lines);
   const bullets = useLiveNotesStore((s) => s.bullets);
   return useMemo(() => {
     if (owner !== meetingId) return NO_BULLETS;
-    return enhanced && enhanced.length > 0 ? enhancedBullets(lines, enhanced) : bullets;
-  }, [meetingId, owner, lines, bullets, enhanced]);
+    const written = (enhanced?.length ?? 0) + (points?.length ?? 0) > 0;
+    return written ? summaryBullets(lines, enhanced ?? [], points ?? []) : bullets;
+  }, [meetingId, owner, lines, bullets, enhanced, points]);
 }

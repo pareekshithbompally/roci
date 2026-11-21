@@ -133,10 +133,16 @@ export function enhancedBullets(lines: NoteLine[], enhanced: string[]): Bullet[]
   });
 }
 
+/** The written summary's AI lines: each typed note filled in, then the meeting's key points (no clock time: they follow). */
+export function summaryBullets(lines: NoteLine[], enhanced: string[], points: string[]): Bullet[] {
+  return [...enhancedBullets(lines, enhanced), ...points.map((text, i) => ({ id: `point-${i + 1}`, text }))];
+}
+
 /** One row of the AI notes: a written line, or a typed note the model has not filled in yet. */
 export type AiRow = { kind: 'bullet'; bullet: Bullet } | { kind: 'pending'; line: NoteLine };
 
-const rowTime = (row: AiRow): number => (row.kind === 'bullet' ? row.bullet.atMs : row.line.atMs) ?? 0;
+/** A line's place: its clock time; a summary point (no time) after every timed line. */
+const rowTime = (row: AiRow): number => (row.kind === 'bullet' ? row.bullet.atMs ?? Number.MAX_SAFE_INTEGER : row.line.atMs ?? 0);
 
 /** The AI notes in time order: the meeting's points as their talk arrived, each typed note's line where it was typed (the note
  *  itself while it waits). */

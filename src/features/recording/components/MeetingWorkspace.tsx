@@ -73,7 +73,7 @@ const Columns: React.FC<MeetingWorkspaceProps> = ({ transcript, notes }) => (
 /** iPhone: one section at a time, picked with a segmented control. */
 const Sections: React.FC<MeetingWorkspaceProps> = ({ transcript, notes }) => {
   const [section, setSection] = useState<PhoneSection>('transcript');
-  const items = [{ value: 'transcript' as const, label: transcript.label }, { value: 'notes' as const, label: NOTES.copy.yourNotes }, { value: 'ai' as const, label: NOTES.copy.aiNotes }];
+  const items = [{ value: 'transcript' as const, label: transcript.label }, { value: 'ai' as const, label: NOTES.copy.aiNotes }, { value: 'notes' as const, label: NOTES.copy.yourNotes }];
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <Tabs items={items} value={section} onValueChange={setSection} label={NOTES.copy.sections} />

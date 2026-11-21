@@ -102,7 +102,7 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
         <div className={`${LAYOUT.pageColumn} h-full flex flex-col min-h-0`}>
           <MeetingWorkspace
             transcript={transcript}
-            notes={{ onType: type, modelProblem, bullets, writing: updating, live: true, initialView: 'notes' }}
+            notes={{ onType: type, modelProblem, bullets, writing: updating, live: true }}
           />
         </div>
       </div>

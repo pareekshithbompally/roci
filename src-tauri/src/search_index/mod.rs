@@ -16,6 +16,7 @@ use tauri_plugin_store::index::{self, ChatLine, MeetingText, ItemKind, ChunkData
 use tauri_plugin_store::{ChatSearchHit, MeetingChange, SearchHit};
 
 use crate::mlx;
+use crate::models::gpu::Priority;
 use crate::models::LocalError;
 
 /// How long saves settle before their meeting or chat is indexed (typing a note indexes once).
@@ -154,7 +155,7 @@ fn with_new_vectors(app: &AppHandle, owner: ItemKind, id: &str, mut pieces: Vec<
     let have: BTreeSet<String> = index::embedded_texts(app, owner, id).map_err(|e| e.to_string())?.into_iter().collect();
     let missing: Vec<usize> = (0..pieces.len()).filter(|&i| !have.contains(&pieces[i].chunk_text)).collect();
     let texts: Vec<String> = missing.iter().map(|&i| pieces[i].chunk_text.clone()).collect();
-    if let Some(vectors) = embed(app, &texts)? {
+    if let Some(vectors) = embed(app, &texts, Priority::Background)? {
         for (i, vector) in missing.into_iter().zip(vectors) {
             pieces[i].embedding = Some(vector);
         }
@@ -162,11 +163,12 @@ fn with_new_vectors(app: &AppHandle, owner: ItemKind, id: &str, mut pieces: Vec<
     Ok(pieces)
 }
 
-/// Vectors for `texts` in batches; `None` while search's model isn't downloaded (search then matches words only).
-fn embed(app: &AppHandle, texts: &[String]) -> Result<Option<Vec<Vec<f32>>>, String> {
+/// Vectors for `texts` in batches, each a GPU turn at `priority`; `None` while search's model isn't downloaded (search then
+/// matches words only).
+fn embed(app: &AppHandle, texts: &[String], priority: Priority) -> Result<Option<Vec<Vec<f32>>>, String> {
     let mut vectors = Vec::with_capacity(texts.len());
     for batch in texts.chunks(EMBED_BATCH) {
-        match mlx::embed(app, batch) {
+        match mlx::embed(app, batch, priority) {
             Ok(v) => vectors.extend(v),
             Err(LocalError::NotDownloaded) => return Ok(None),
             Err(error) => return Err(error.to_string()),
@@ -214,7 +216,7 @@ fn emit(app: &AppHandle, progress: Progress) {
 
 /// One query's vector, or none (words only) while the model isn't downloaded.
 fn query_vector(app: &AppHandle, query: &str) -> Result<Option<Vec<f32>>, String> {
-    Ok(embed(app, &[format!("{QUERY_INSTRUCTION}{query}")])?.and_then(|mut v| v.pop()))
+    Ok(embed(app, &[format!("{QUERY_INSTRUCTION}{query}")], Priority::Interactive)?.and_then(|mut v| v.pop()))
 }
 
 async fn off_main<T: Send + 'static>(work: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
@@ -236,7 +238,7 @@ pub async fn search_meetings(app: AppHandle, query: String, limit: usize, meetin
 pub async fn search_meeting_within(app: AppHandle, meeting_id: String, queries: Vec<String>, limit: usize) -> Result<Vec<Vec<SearchHit>>, String> {
     off_main(move || {
         let texts: Vec<String> = queries.iter().map(|q| format!("{QUERY_INSTRUCTION}{q}")).collect();
-        let vectors = embed(&app, &texts)?;
+        let vectors = embed(&app, &texts, Priority::Interactive)?;
         queries
             .iter()
             .enumerate()
@@ -265,7 +267,7 @@ pub async fn index_stretch(app: AppHandle, meeting_id: String, text: String) -> 
     off_main(move || {
         let mut pieces = pieces::transcript(&text);
         let texts: Vec<String> = pieces.iter().map(|p| p.chunk_text.clone()).collect();
-        if let Some(vectors) = embed(&app, &texts)? {
+        if let Some(vectors) = embed(&app, &texts, Priority::Background)? {
             pieces.iter_mut().zip(vectors).for_each(|(p, v)| p.embedding = Some(v));
         }
         index::append_pieces(&app, &meeting_id, &pieces).map_err(|e| e.to_string())?;

@@ -32,6 +32,24 @@ struct ChatRequest: Decodable, Sendable {
     let temperature: Float?
     let topP: Float?
     let topK: Int?
+    let minP: Float?
+    let repetitionPenalty: Float?
+    let presencePenalty: Float?
+    let frequencyPenalty: Float?
+    /// How many recent tokens the three penalties look back over.
+    let penaltyContext: Int?
+    /// The most tokens the model keeps in mind; older ones roll off.
+    let contextTokens: Int?
+    /// Compresses the kept tokens to 4 or 8 bits.
+    let kvBits: Int?
+}
+
+/// The chat model's last conversation, so the next turn reads only what's new. Unchecked: one reply at a time uses it (the
+/// GPU queue runs chats one after another).
+final class Conversation: @unchecked Sendable {
+    let session: ChatSession
+
+    init(_ session: ChatSession) { self.session = session }
 }
 
 /// Tokens in and out of one reply.
@@ -67,6 +85,7 @@ actor Engine {
     private var chatModel: (dir: String, container: ModelContainer)?
     /// The loaded chat model's schema-decoding pieces, built on its first schema request.
     private var grammar: (dir: String, kit: GrammarKit)?
+    private var conversation: Conversation?
     private var embedder: (dir: String, container: EmbedderModelContainer)?
     private var speaker: Speaker?
 
@@ -75,6 +94,7 @@ actor Engine {
         case "chat":
             chatModel = nil
             grammar = nil
+            conversation = nil
         case "voice": speaker = nil
         default: embedder = nil
         }
@@ -97,6 +117,7 @@ actor Engine {
         if let loaded = chatModel, loaded.dir == dir { return loaded.container }
         chatModel = nil
         grammar = nil
+        conversation = nil
         Memory.clearCache()
         // A model whose config declares a vision part loads on the engine's vision path (text, images, tools); else text.
         let folder = URL(filePath: dir)
@@ -129,23 +150,22 @@ actor Engine {
     /// Streams `text` and `tool-call` events, then returns usage; Stop ends it early. With a `schema` the reply is decoded to it.
     func chat(_ request: ChatRequest, emit: @escaping @Sendable ([String: Any]) -> Void) async throws -> [String: any Sendable] {
         let container = try await chatContainer(request.modelDir)
-        let kit = request.schema == nil ? nil : try await grammarKit(request.modelDir, container)
-        let generation = Task<ReplyUsage, Error> {
-            try await container.perform { (context: ModelContext) async throws -> ReplyUsage in
-                let prepared = try await context.processor.prepare(input: try Self.input(request))
-                guard let schema = request.schema, let kit else {
-                    return try await Self.stream(prepared, request: request, context: context, emit: emit)
-                }
-                let produced = try kit.generate(schema: schema, input: prepared, context: context, maxTokens: request.maxTokens) { text in
-                    emit(["type": "text", "text": text])
-                    return !Task.isCancelled
-                }
-                return ReplyUsage(prompt: prepared.text.tokens.size, completion: produced)
-            }
+        let generation: Task<ReplyUsage, Error>
+        var reading: Conversation?
+        if let schema = request.schema {
+            let kit = try await grammarKit(request.modelDir, container)
+            generation = Task { try await Self.decode(schema, request: request, kit: kit, container: container, emit: emit) }
+        } else {
+            let reply = try await continuing(request, container)
+            reading = reply.conversation
+            generation = Task { try await Self.stream(reply.events, emit: emit) }
         }
         Streams.shared.add(request.streamId) { generation.cancel() }
         defer { Streams.shared.remove(request.streamId) }
-        let usage = try await generation.value
+        let result = await generation.result
+        // Stop ends our reading at once, not the library's generation: wait for it, so this GPU turn ends with it.
+        await reading?.session.synchronize()
+        let usage = try result.get()
         return [
             "promptTokens": usage.prompt,
             "completionTokens": usage.completion,
@@ -153,25 +173,102 @@ actor Engine {
         ]
     }
 
-    /// The chat as the model's template reads it. Thinking off: templates that think by default (SmolLM3, Bonsai 2) answer
-    /// directly and quickly.
-    private static func input(_ request: ChatRequest) throws -> UserInput {
-        UserInput(
-            chat: try request.messages.map(Self.message), tools: request.tools?.map(Self.spec),
-            additionalContext: ["enable_thinking": false])
+    /// Thinking off: templates that think by default (SmolLM3, Bonsai 2) answer directly and quickly.
+    private static let context: [String: any Sendable] = ["enable_thinking": false]
+
+    /// This turn's session and reply events: the last conversation's cache carried over (the library keeps the prefix this
+    /// chat starts with, and rebuilds the cache when its memory values change).
+    private func continuing(
+        _ request: ChatRequest, _ container: ModelContainer
+    ) async throws -> (conversation: Conversation, events: AsyncThrowingStream<Generation, Error>) {
+        var history = try request.messages.map(Self.message)
+        guard let last = history.popLast() else { throw EngineError(description: "There's no message to answer.") }
+        let tools = request.tools?.map(Self.spec)
+        let session = if let kept = conversation {
+            await kept.session.fork(history: history)
+        } else {
+            ChatSession(container, history: history, processing: .init(), additionalContext: Self.context)
+        }
+        let instructions = request.contextTokens == nil ? 0 : try await Self.instructionTokens(request, container)
+        session.generateParameters = try Self.parameters(request, instructions: instructions)
+        session.components = Checkpoint.components
+        session.tools = tools
+        let current = Conversation(session)
+        conversation = current
+        return (current, session.streamDetails(to: [last]))
+    }
+
+    /// How many tokens the chat's instructions (its system messages and tools) take at the start of the prompt: two prompts
+    /// that differ only in the first user turn share exactly that much.
+    private static func instructionTokens(_ request: ChatRequest, _ container: ModelContainer) async throws -> Int {
+        try await container.perform { (model: ModelContext) async throws -> Int in
+            let system = try request.messages.prefix { $0.role == "system" }.map(message)
+            let tools = request.tools?.map(spec)
+            func tokens(_ probe: String) async throws -> [Int] {
+                let input = UserInput(chat: system + [.user(probe)], tools: tools, additionalContext: context)
+                return try await model.processor.prepare(input: input).text.tokens.asArray(Int.self)
+            }
+            let (a, b) = (try await tokens("a"), try await tokens("b"))
+            return zip(a, b).prefix { $0 == $1 }.count
+        }
+    }
+
+    /// The memory the chat keeps: at most `contextTokens`, compressed to `kvBits`. When older text rolls off, the
+    /// instructions stay (rounded up to a prefill chunk so the cache isn't rebuilt each turn), up to half the window.
+    private static func memory(_ request: ChatRequest, instructions: Int) throws -> KVCacheConfiguration? {
+        let strategy: KVCacheConfiguration.Strategy = try request.kvBits.map { .affine(try .init(bits: $0)) } ?? .fullPrecision
+        let capacity = try request.contextTokens.map { window in
+            let chunk = PrefillParameters.defaultStepSize
+            let rounded = (instructions + chunk - 1) / chunk * chunk
+            return try KVCacheConfiguration.Capacity(maxTokens: window, preservedPrefixTokens: min(rounded, window / 2))
+        }
+        guard capacity != nil || request.kvBits != nil else { return nil }
+        return KVCacheConfiguration(capacity: capacity, strategy: strategy, compatibility: .allowPartial)
+    }
+
+    /// The request's values over the library's defaults.
+    private static func parameters(_ request: ChatRequest, instructions: Int) throws -> GenerateParameters {
+        let base = GenerateParameters()
+        let window = request.penaltyContext
+        return GenerateParameters(
+            maxTokens: request.maxTokens,
+            kvCache: try memory(request, instructions: instructions),
+            temperature: request.temperature ?? base.temperature,
+            topP: request.topP ?? base.topP,
+            topK: request.topK ?? base.topK,
+            minP: request.minP ?? base.minP,
+            repetitionPenalty: request.repetitionPenalty,
+            repetitionContextSize: window ?? base.repetitionContextSize,
+            presencePenalty: request.presencePenalty,
+            presenceContextSize: window ?? base.presenceContextSize,
+            frequencyPenalty: request.frequencyPenalty,
+            frequencyContextSize: window ?? base.frequencyContextSize,
+            prefill: Checkpoint.prefill)
+    }
+
+    /// A reply decoded to `schema`, from the whole chat (a one-off: it neither reads nor keeps a conversation cache).
+    private static func decode(
+        _ schema: String, request: ChatRequest, kit: GrammarKit, container: ModelContainer,
+        emit: @escaping @Sendable ([String: Any]) -> Void
+    ) async throws -> ReplyUsage {
+        try await container.perform { (model: ModelContext) async throws -> ReplyUsage in
+            let input = UserInput(chat: try request.messages.map(message), tools: request.tools?.map(spec), additionalContext: context)
+            let prepared = try await model.processor.prepare(input: input)
+            let produced = try kit.generate(schema: schema, input: prepared, context: model, maxTokens: request.maxTokens) { text in
+                emit(["type": "text", "text": text])
+                Checkpoint.shared.pass()
+                return !Task.isCancelled
+            }
+            return ReplyUsage(prompt: prepared.text.tokens.size, completion: produced)
+        }
     }
 
     /// A free reply: text and tool calls as they're generated.
     private static func stream(
-        _ prepared: LMInput, request: ChatRequest, context: ModelContext, emit: @Sendable ([String: Any]) -> Void
+        _ events: AsyncThrowingStream<Generation, Error>, emit: @Sendable ([String: Any]) -> Void
     ) async throws -> ReplyUsage {
-        let parameters = GenerateParameters(
-            maxTokens: request.maxTokens,
-            temperature: request.temperature ?? 0.6,
-            topP: request.topP ?? 1.0,
-            topK: request.topK ?? 0)
         var info: GenerateCompletionInfo?
-        for await event in try generate(input: prepared, parameters: parameters, context: context) {
+        for try await event in events {
             if Task.isCancelled { break }
             switch event {
             case .chunk(let text): emit(["type": "text", "text": text])

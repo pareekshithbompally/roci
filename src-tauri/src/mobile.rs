@@ -76,7 +76,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
   meeting_reminders::start(app.handle().clone());
   crate::system_format::watch(app.handle().clone());
   // On-device model loads show in the activity tray.
-  mlx::report_loads(app.handle());
+  mlx::connect(app.handle());
   // Search: meetings and chats are indexed in Rust as they're saved.
   search_index::start(app.handle().clone());
   // MCP: connect the remote servers the user left enabled.

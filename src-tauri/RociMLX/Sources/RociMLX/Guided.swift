@@ -38,7 +38,7 @@ struct GrammarKit: @unchecked Sendable {
                 input: input, context: context, constraint: constraint, maxTokens: limit,
                 vocabSize: tokenizer.vocabSize, completionReserve: max(structural * 3, limit / 4),
                 hardReserve: structural * 8, closingBias: closing, whitespaceBias: whitespace,
-                whitespaceTokenIDs: whitespaceIDs, emit: emit)
+                whitespaceTokenIDs: whitespaceIDs, prefill: Checkpoint.prefill, emit: emit)
         } catch GuidedGenerationError.incompleteOutput, GuidedGenerationError.prematureEOS {
             throw EngineError(description: "The model stopped before its answer was complete.")
         }

@@ -18,7 +18,6 @@ export interface NotesPaneProps {
   writing: boolean;
   /** The meeting is recording: the empty AI view says lines build as it goes, and typing takes the focus. */
   live: boolean;
-  initialView: NotesView;
 }
 
 /** A pane's heading row: the title or a switch, then trailing content. */
@@ -82,13 +81,13 @@ export const AiNotes: React.FC<AiNotesProps> = (props) => {
 };
 
 export const NOTES_TABS = [
-  { value: 'notes' as const, label: NOTES.copy.yourNotes },
   { value: 'ai' as const, label: <span className="inline-flex items-center gap-1"><Icon icon={RociMark} size="xs" tone="ai" />{NOTES.copy.aiNotes}</span>, text: NOTES.copy.aiNotes },
+  { value: 'notes' as const, label: NOTES.copy.yourNotes },
 ];
 
-/** Mac and iPad: the notes pane, Your notes or AI notes behind a switch. */
-export const NotesPane: React.FC<NotesPaneProps> = ({ onType, initialView, ...ai }) => {
-  const [view, setView] = useState<NotesView>(initialView);
+/** Mac and iPad: the notes pane, the AI summary (first, and open) or Your notes behind a switch. */
+export const NotesPane: React.FC<NotesPaneProps> = ({ onType, ...ai }) => {
+  const [view, setView] = useState<NotesView>('ai');
   return (
     <section className="flex h-full min-h-0 flex-col">
       <PaneHeader>

@@ -105,6 +105,7 @@ describe('RecordingMeetingView', () => {
     startRecording();
     render(<RecordingMeetingView />);
 
+    fireEvent.click(screen.getByRole('tab', { name: 'Your notes' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Your notes' }), { target: { value: 'launch date?\n\nask Raj' } });
     fireEvent.click(screen.getByRole('button', { name: /stop/i }));
     await waitFor(() => expect(useRecordingStore.getState().meetingId).toBeNull());
@@ -113,15 +114,15 @@ describe('RecordingMeetingView', () => {
     expect(notesApi.addNote).toHaveBeenCalledWith('ask Raj', expect.objectContaining({ id: expect.any(String) }));
   });
 
-  it('puts the transcript beside the notes, and AI notes ask for a Summary model when none can be called', () => {
+  it('puts the transcript beside the notes, opens on the AI Summary, which asks for a Summary model when none can be called', () => {
     startRecording();
     render(<RecordingMeetingView />);
 
     expect(screen.getByText('Live transcript')).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Your notes' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: /AI notes/ }));
     expect(screen.queryByRole('textbox', { name: 'Your notes' })).not.toBeInTheDocument();
     expect(screen.getByText(/No Summary model is chosen/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Your notes' }));
+    expect(screen.getByRole('textbox', { name: 'Your notes' })).toBeInTheDocument();
   });
 
   it('offers Save for Later beside Pause and Stop', () => {

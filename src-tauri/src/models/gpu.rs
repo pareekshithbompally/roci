@@ -13,7 +13,7 @@ use crate::sync::lock;
 pub enum Priority {
     /// Live and file speech-to-text: it must keep up with the meeting.
     Realtime = 0,
-    /// A chat reply or read-aloud someone is waiting for.
+    /// A chat reply, read-aloud or search query someone is waiting for.
     Interactive = 1,
     /// Indexing embeddings.
     Background = 2,
@@ -215,6 +215,41 @@ mod tests {
             handle.join().unwrap();
         }
         assert_eq!(*lock(&order), [1, 2, 3]);
+    }
+
+    #[test]
+    fn a_checkpoint_on_the_engines_own_thread_lets_speech_run_and_takes_the_turn_back() {
+        let _serial = lock(&SERIAL);
+        let order = Arc::new(Mutex::new(Vec::new()));
+        let (paused, wait_paused) = mpsc::channel::<()>();
+        let (go_on, resume) = mpsc::channel::<()>();
+        let reply = {
+            let order = Arc::clone(&order);
+            // The turn is held here while the engine generates on a thread of its own (MLX's generation thread).
+            thread::spawn(move || {
+                run(Priority::Interactive, || {
+                    let engine = thread::spawn(move || {
+                        lock(&order).push("token");
+                        paused.send(()).unwrap();
+                        resume.recv().unwrap();
+                        step_aside(Priority::Interactive);
+                        lock(&order).push("next token");
+                    });
+                    engine.join().unwrap();
+                })
+            })
+        };
+        wait_paused.recv().unwrap();
+        let speech = {
+            let order = Arc::clone(&order);
+            thread::spawn(move || run(Priority::Realtime, || lock(&order).push("speech")))
+        };
+        settle();
+        go_on.send(()).unwrap();
+        reply.join().unwrap();
+        speech.join().unwrap();
+        assert_eq!(*lock(&order), ["token", "speech", "next token"]);
+        assert!(!lock(&QUEUE.state).busy);
     }
 
     #[test]

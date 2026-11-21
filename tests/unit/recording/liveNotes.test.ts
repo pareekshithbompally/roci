@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
 import {
   enhancedBullets,
-  aiRows, changedNotes, changesFromReply, liveNotesRequest, mergeBullets, notesSeen, NO_RECALL, recallOf, reconcileLines, refreshReason, signatureOf,
+  aiRows, changedNotes, summaryBullets, changesFromReply, liveNotesRequest, mergeBullets, notesSeen, NO_RECALL, recallOf, reconcileLines, refreshReason, signatureOf,
   transcriptText, unsentEntries, entryKey,
   type Bullet, type NoteLine,
 } from '@features/recording/notes/liveNotes';
@@ -212,5 +212,24 @@ describe('enhancedBullets', () => {
     const lines = [{ id: 'n1', text: 'pricing', atMs: 1_000 }, { id: 'n2', text: '  ' }, { id: 'n3', text: 'launch' }];
     expect(enhancedBullets(lines, ['Pricing: three tiers'])).toEqual([{ id: 'b1', noteId: 'n1', text: 'Pricing: three tiers', atMs: 1_000 }]);
     expect(enhancedBullets(lines, ['A', 'B']).map((b) => [b.noteId, b.text])).toEqual([['n1', 'A'], ['n3', 'B']]);
+  });
+});
+
+describe('the written summary in the AI Summary pane', () => {
+  it('shows each typed note filled in at its time, then the key points after them', () => {
+    const lines = [
+      { id: 'n1', text: 'budget?', atMs: 60_000 },
+      { id: 'n2', text: 'hiring', atMs: 120_000 },
+    ];
+    const bullets = summaryBullets(lines, ['Budget: 1.2M approved.', 'Hiring paused until January.'], ['Q3 plan agreed.']);
+    expect(aiRows(lines, bullets).map((r) => (r.kind === 'bullet' ? r.bullet.text : `waiting:${r.line.id}`))).toEqual([
+      'Budget: 1.2M approved.',
+      'Hiring paused until January.',
+      'Q3 plan agreed.',
+    ]);
+  });
+
+  it('keeps the key points when no notes were typed', () => {
+    expect(summaryBullets([], [], ['Q3 plan agreed.', 'Launch moved to May.']).map((b) => b.text)).toEqual(['Q3 plan agreed.', 'Launch moved to May.']);
   });
 });

@@ -20,7 +20,7 @@ export const LIVE_NOTES_CONFIG = {
   },
   copy: {
     yourNotes: 'Your notes',
-    aiNotes: 'AI notes',
+    aiNotes: 'AI Summary',
     liveTranscript: 'Live transcript',
     transcript: 'Transcript',
     /** The in-call transcript after Stop, until the final one replaces it. */
@@ -33,7 +33,7 @@ export const LIVE_NOTES_CONFIG = {
 } as const;
 
 /** The notes pane's switch: one view at a time. */
-export const NOTES_VIEWS = ['notes', 'ai'] as const;
+export const NOTES_VIEWS = ['ai', 'notes'] as const;
 export type NotesView = (typeof NOTES_VIEWS)[number];
 
 /** A phone's sections, one at a time. */
