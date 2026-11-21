@@ -2,6 +2,7 @@
 //! sleeping task, no polling), the update found is held, the menu bar, the webview and (once per version) macOS are
 //! told, and it installs on request: download, verify, replace, relaunch.
 
+use std::process::Stdio;
 use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
 
@@ -195,7 +196,7 @@ async fn install(app: &AppHandle) -> Result<(), String> {
 
     match result {
         Ok(()) => {
-            app.request_restart();
+            relaunch(app);
             Ok(())
         }
         Err(error) => {
@@ -204,6 +205,41 @@ async fn install(app: &AppHandle) -> Result<(), String> {
             Err(error)
         }
     }
+}
+
+// ── Relaunch ──
+
+/// Waits (≤10 s) for pid `$1` to exit, then opens bundle `$2` as a Dock click does; arguments are passed, never interpolated.
+const RELAUNCH_SCRIPT: &str =
+    r#"i=0; while kill -0 "$1" 2>/dev/null && [ "$i" -lt 100 ]; do sleep 0.1; i=$((i+1)); done; exec /usr/bin/open "$2""#;
+
+/// Relaunches under the pinned Dock icon (Tauri's `open -n` restart adds a second tile: tauri-apps/tauri#16449).
+fn relaunch(app: &AppHandle) {
+    match relaunch_when_exited() {
+        Ok(()) => app.exit(0),
+        Err(error) => {
+            log::warn!("[updates] relaunch helper failed, using restart: {error}");
+            app.request_restart();
+        }
+    }
+}
+
+/// Starts the detached helper; fails outside an app bundle (dev builds), which then use Tauri's restart.
+fn relaunch_when_exited() -> std::io::Result<()> {
+    let binary = std::env::current_exe()?;
+    let bundle = binary
+        .ancestors()
+        .nth(3)
+        .filter(|path| path.extension().is_some_and(|ext| ext == "app"))
+        .ok_or_else(|| std::io::Error::other("not running from an app bundle"))?;
+    std::process::Command::new("/bin/sh")
+        .args(["-c", RELAUNCH_SCRIPT, "relaunch", &std::process::id().to_string()])
+        .arg(bundle)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()?;
+    Ok(())
 }
 
 // ── Commands ──
