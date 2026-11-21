@@ -1,7 +1,7 @@
 //! macOS: the full app (menu bar, shortcuts, audio capture, MCP, coding agents …).
 
 use crate::{
-  app_icon, audio, autostart, call_detection, choice_menu, downloads, hex, mcp, mcp_server, meeting_reminders, meeting_spotlight, search_index,
+  app_icon, app_intents, audio, autostart, call_detection, choice_menu, downloads, hex, mcp, mcp_server, meeting_reminders, meeting_spotlight, search_index,
   menubar, mlx, models, native_alert, open_native, permissions, screenshot, shortcuts, stt, system_format, tts, updates, url_actions, window,
 };
 use std::sync::Mutex;
@@ -165,8 +165,9 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
   // Roci as an MCP server for coding agents (socket in the app data folder).
   mcp_server::start(app.handle().clone());
 
-  // roci:// URL actions (queued until the webview is ready).
+  // roci:// URL actions (queued until the webview is ready), from links and from Spotlight, Siri and Shortcuts.
   url_actions::setup(app.handle());
+  app_intents::setup(app.handle());
 
   // Calendar meeting reminders: idle until the frontend enables them.
   permissions::emit_answers(app.handle().clone());

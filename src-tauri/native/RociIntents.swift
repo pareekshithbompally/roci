@@ -1,4 +1,4 @@
-// Roci's actions for Spotlight, Siri and Shortcuts: each opens the roci:// link that runs it in the app.
+// Roci's actions for Spotlight, Siri and Shortcuts. They run in the app and hand Rust the roci:// action they stand for.
 
 import AppIntents
 import Foundation
@@ -7,6 +7,7 @@ import Foundation
 struct AskRoci: AppIntent {
     static let title: LocalizedStringResource = "Ask Roci"
     static let description = IntentDescription("Ask a question in a new Roci chat.")
+    static let supportedModes: IntentModes = .foreground
 
     @Parameter(title: "Question", requestValueDialog: "What do you want to ask Roci?")
     var question: String
@@ -15,18 +16,22 @@ struct AskRoci: AppIntent {
         Summary("Ask Roci \(\.$question)")
     }
 
-    func perform() async throws -> some IntentResult & OpensIntent {
-        .result(opensIntent: OpenURLIntent(rociLink("ask", query: question)))
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        run(rociLink("ask", query: question))
+        return .result()
     }
 }
 
-/// Start recording a meeting.
+/// Start recording a meeting; the menu bar icon turns red.
 struct StartRecording: AppIntent {
     static let title: LocalizedStringResource = "Start Recording"
     static let description = IntentDescription("Record a meeting in Roci.")
 
-    func perform() async throws -> some IntentResult & OpensIntent {
-        .result(opensIntent: OpenURLIntent(rociLink("record")))
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        run(rociLink("record"))
+        return .result()
     }
 }
 
@@ -35,8 +40,10 @@ struct StopRecording: AppIntent {
     static let title: LocalizedStringResource = "Stop Recording"
     static let description = IntentDescription("Stop the meeting Roci is recording and transcribe it.")
 
-    func perform() async throws -> some IntentResult & OpensIntent {
-        .result(opensIntent: OpenURLIntent(rociLink("stop")))
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        run(rociLink("stop"))
+        return .result()
     }
 }
 
@@ -44,9 +51,12 @@ struct StopRecording: AppIntent {
 struct OpenSettings: AppIntent {
     static let title: LocalizedStringResource = "Roci Settings"
     static let description = IntentDescription("Open Roci's settings.")
+    static let supportedModes: IntentModes = .foreground
 
-    func perform() async throws -> some IntentResult & OpensIntent {
-        .result(opensIntent: OpenURLIntent(rociLink("settings")))
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        run(rociLink("settings"))
+        return .result()
     }
 }
 
@@ -68,9 +78,37 @@ struct RociShortcuts: AppShortcutsProvider {
     }
 }
 
-/// The symbol the link asks for, so the intents (which nothing calls) come into the app (apple-build `build_with_app_intents`).
-@_cdecl("roci_intents_linked")
-public func rociIntentsLinked() {}
+// MARK: - Rust bridge
+
+/// Rust's handler for an action: its roci:// URL as a NUL-terminated UTF-8 string.
+private typealias ActionHandler = @convention(c) (UnsafePointer<CChar>) -> Void
+
+/// Main-thread only: the handler, and the actions that ran before Rust set it (an intent can launch Roci).
+private var handler: ActionHandler?
+private var waiting: [URL] = []
+
+/// Rust's handler for every action from now on, and the ones that were waiting for it; called once at startup.
+@_cdecl("roci_intents_setup")
+public func rociIntentsSetup(_ callback: @escaping @convention(c) (UnsafePointer<CChar>) -> Void) {
+    DispatchQueue.main.async {
+        handler = callback
+        waiting.forEach(deliver)
+        waiting.removeAll()
+    }
+}
+
+@MainActor
+private func run(_ url: URL) {
+    guard handler != nil else {
+        waiting.append(url)
+        return
+    }
+    deliver(url)
+}
+
+private func deliver(_ url: URL) {
+    url.absoluteString.withCString { handler?($0) }
+}
 
 /// `roci://<action>`, with the question as `q` when there is one (url_actions.rs reads it).
 private func rociLink(_ action: String, query: String? = nil) -> URL {

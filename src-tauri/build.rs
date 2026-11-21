@@ -42,7 +42,7 @@ fn compile_app_intents() {
         sources: &["native/RociIntents.swift"],
         frameworks: &["AppIntents"],
     }
-    .build_with_app_intents(&conf_value("identifier"), std::path::Path::new("gen/appintents"), "roci_intents_linked");
+    .build_with_app_intents(&conf_value("identifier"), std::path::Path::new("gen/appintents"));
 }
 
 /// The system Swift runtime (in the OS since macOS 12; the minimum is 26) for the macOS app.

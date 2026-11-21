@@ -51,6 +51,8 @@ mod mcp_server;
 mod updates;
 #[cfg(desktop)]
 mod url_actions;
+#[cfg(desktop)]
+mod app_intents;
 mod meeting_reminders;
 mod search_index;
 #[cfg(desktop)]

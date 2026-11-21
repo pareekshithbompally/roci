@@ -41,9 +41,8 @@ impl SwiftLibrary<'_> {
     }
 
     /// Like [`build`](Self::build) for a library of App Intents, whose index the system reads them from is written to
-    /// `resources/Metadata.appintents` for the app bundle `bundle_id` to carry. Nothing calls the intents, so the app's link
-    /// asks for `anchor`, a C symbol the library exports (`@_cdecl`), which brings them in.
-    pub fn build_with_app_intents(&self, bundle_id: &str, resources: &Path, anchor: &str) {
+    /// `resources/Metadata.appintents` for the app bundle `bundle_id` to carry.
+    pub fn build_with_app_intents(&self, bundle_id: &str, resources: &Path) {
         let Some(target) = self.target() else { return };
         let values = out_dir().join(format!("{}.swiftconstvalues", self.module));
         let protocols = out_dir().join("app-intents-protocols.json");
@@ -51,7 +50,6 @@ impl SwiftLibrary<'_> {
         self.compile(&target, &const_value_args(&values, &protocols));
         self.extract_intents(&target, &values, bundle_id, resources);
         self.link();
-        println!("cargo:rustc-link-arg=-Wl,-u,_{anchor}");
     }
 
     /// The Swift target for Cargo's target; `None` when it isn't Apple.

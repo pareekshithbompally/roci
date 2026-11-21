@@ -1,4 +1,4 @@
-//! `roci://` URL actions (record, stop, show, settings, ask, meeting), queued until the webview is ready.
+//! `roci://` URL actions (record, stop, show, settings, ask, meeting), from links and App Intents, queued until the webview is ready.
 
 use std::sync::Mutex;
 
@@ -57,7 +57,7 @@ impl Queue {
     }
 }
 
-fn receive(app: &AppHandle, url: &Url) {
+pub(crate) fn receive(app: &AppHandle, url: &Url) {
     let Some(action) = action_for(url) else {
         log::warn!("[url-actions] ignored unknown URL: {url}");
         return;
