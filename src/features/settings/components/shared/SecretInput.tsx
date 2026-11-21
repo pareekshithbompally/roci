@@ -1,59 +1,44 @@
+/** A key or token in a compact field (FieldRow): hidden by default, with show and copy inside its end. */
+
 import React, { useState, useCallback } from 'react';
 import { Eye, EyeOff, Copy, Check } from 'lucide-react';
 import { useCopiedFlag } from '@shared/hooks';
-import { SettingsInput } from '@shared/components';
-import { Button, Icon } from '@shared/ui';
+import { IconButton, Input } from '@shared/ui';
 
 interface SecretInputProps {
   value: string;
   onChange: (value: string) => void;
-  onBlur?: () => void;
   placeholder?: string;
-  label?: string;
-  helper?: string;
-  showCopy?: boolean;
-  disabled?: boolean;
+  /** The field's name (its row title). */
+  label: string;
 }
 
-export const SecretInput: React.FC<SecretInputProps> = ({
-  value,
-  onChange,
-  onBlur,
-  placeholder,
-  label,
-  helper,
-  showCopy = true,
-  disabled,
-}) => {
+export const SecretInput: React.FC<SecretInputProps> = ({ value, onChange, placeholder, label }) => {
   const [showSecret, setShowSecret] = useState(false);
   const { copied, markCopied } = useCopiedFlag();
 
   const handleCopy = useCallback(async () => {
     if (!value) return;
-    await navigator.clipboard.writeText(value);
-    markCopied();
+    try {
+      await navigator.clipboard.writeText(value);
+      markCopied();
+    } catch (error: unknown) {
+      console.error('[SecretInput] Copy failed:', error);
+    }
   }, [value, markCopied]);
 
   return (
-    <SettingsInput
+    <Input
+      size="sm"
       type={showSecret ? 'text' : 'password'}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      onBlur={onBlur}
       placeholder={placeholder}
-      label={label}
-      helper={helper}
-      disabled={disabled}
-      actions={
+      aria-label={label}
+      trailing={
         <>
-          <Button variant="ghost" size="iconSm" onClick={() => setShowSecret(!showSecret)} title={showSecret ? 'Hide' : 'Show'}>
-            <Icon icon={showSecret ? EyeOff : Eye} size="sm" />
-          </Button>
-          {showCopy && (
-            <Button variant="ghost" size="iconSm" onClick={handleCopy} title="Copy to clipboard">
-              <Icon icon={copied ? Check : Copy} size="sm" tone={copied ? 'success' : 'inherit'} />
-            </Button>
-          )}
+          <IconButton icon={showSecret ? EyeOff : Eye} label={showSecret ? 'Hide' : 'Show'} size="xs" onClick={() => setShowSecret(!showSecret)} />
+          <IconButton icon={copied ? Check : Copy} label="Copy to clipboard" size="xs" onClick={() => void handleCopy()} />
         </>
       }
     />

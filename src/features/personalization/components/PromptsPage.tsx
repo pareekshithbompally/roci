@@ -3,8 +3,7 @@
 
 import React, { useState } from 'react';
 import { Badge, Button, CardRow, ChoiceControl, Input, Section, Textarea } from '@shared/ui';
-import { SettingsPage } from '@features/settings/components/shared';
-import { LAYOUT } from '@config/layout.config';
+import { FieldRow, SettingsPage } from '@features/settings/components/shared';
 import { PERSONALIZATION_CONFIG, type PromptTemplateId } from '@config/personalization.config';
 import { usePromptSettings } from '@features/personalization/hooks/usePromptSettings';
 import { TemplateDialog } from './TemplateDialog';
@@ -16,14 +15,9 @@ const AboutYou: React.FC = () => {
   const { profile, setProfile } = usePromptSettings();
   return (
     <Section title={copy.about.section} footer={copy.about.footer}>
-      <CardRow
-        title={copy.about.name}
-        actions={
-          <div className={`${LAYOUT.capabilityPicker} w-full`}>
-            <Input size="sm" value={profile.name ?? ''} maxLength={limits.name} placeholder={copy.about.namePlaceholder} aria-label={copy.about.name} onChange={(e) => setProfile({ name: e.target.value })} />
-          </div>
-        }
-      />
+      <FieldRow title={copy.about.name}>
+        <Input size="sm" value={profile.name ?? ''} maxLength={limits.name} placeholder={copy.about.namePlaceholder} aria-label={copy.about.name} onChange={(e) => setProfile({ name: e.target.value })} />
+      </FieldRow>
       <CardRow title={copy.about.about} stacked>
         <Textarea rows={3} value={profile.about ?? ''} maxLength={limits.about} placeholder={copy.about.aboutPlaceholder} aria-label={copy.about.about} onChange={(e) => setProfile({ about: e.target.value })} />
       </CardRow>

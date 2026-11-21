@@ -1,5 +1,6 @@
 export { SettingsPage } from './SettingsPage';
 export { SecretInput } from './SecretInput';
+export { FieldRow } from './FieldRow';
 export { StringListEditor } from './StringListEditor';
 export { KeyValueEditor, pairsToRecord } from './KeyValueEditor';
 export type { KeyValuePair } from './KeyValueEditor';

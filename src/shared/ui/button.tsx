@@ -86,7 +86,7 @@ export interface IconButtonProps extends Omit<ButtonProps, 'size' | 'children'> 
   icon: LucideIcon;
   /** Accessible name — required: an icon alone has none. */
   label: string;
-  size?: 'toolbar' | 'sm' | 'md' | 'fab';
+  size?: 'xs' | 'toolbar' | 'sm' | 'md' | 'fab';
   /** Solid glyph (stop / play / pause) */
   filled?: boolean;
   /** Rotate the glyph while work runs (Rescan, Sync) */
@@ -95,6 +95,8 @@ export interface IconButtonProps extends Omit<ButtonProps, 'size' | 'children'> 
 
 /** Each icon-button size as its button shape and glyph size; toolbar glyphs match the labelled controls beside them. */
 const ICON_BUTTON_SIZES: Record<NonNullable<IconButtonProps['size']>, { button: ButtonSize; icon: IconSize }> = {
+  /** Inside a compact (`sm`) field, beside its text (show, copy). */
+  xs: { button: 'iconXs', icon: 'xs' },
   toolbar: { button: 'toolbar', icon: 'xs' },
   sm: { button: 'iconSm', icon: 'sm' },
   md: { button: 'icon', icon: 'md' },

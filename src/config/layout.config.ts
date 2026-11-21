@@ -35,6 +35,8 @@ export const LAYOUT = {
   settingsSelect: 'max-w-48',
   /** Settings › Default Models pickers (model, voice): hug their value up to this width, right-aligned in the row */
   capabilityPicker: 'max-w-64',
+  /** A value typed into a settings row (FieldRow): a compact field right-aligned in the row, one width everywhere (narrower only when the row is). */
+  settingsField: 'w-64 max-w-full',
   /** A row's model action (Download, 42%, Delete): one width, so actions and states align down a card. */
   modelAction: 'w-32',
   /** A row's model size, just before its action: one width, right-aligned, so sizes line up down a card. */

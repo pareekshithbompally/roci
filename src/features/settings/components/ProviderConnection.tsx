@@ -4,12 +4,12 @@ import React from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { isManagedSDK } from '@shared/utils/modelResolver';
 import { getProviderTitle } from '@shared/utils/provider.utils';
-import { CardRow, Section, Status } from '@shared/ui';
+import { CardRow, Input, Section, Status } from '@shared/ui';
 import type { DotTone } from '@shared/ui';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ConnectionStatus, ProviderConnection as Connection } from '@features/settings/hooks/useProviderConnection';
-import { SettingsInput, renderWithLinks } from '@shared/components';
-import { SecretInput } from './shared';
+import { renderWithLinks } from '@shared/components';
+import { FieldRow, SecretInput } from './shared';
 
 interface ProviderConnectionProps {
   provider: ModelProvider;
@@ -78,19 +78,16 @@ export const ProviderConnection: React.FC<ProviderConnectionProps> = ({ provider
       {provider.settings.map((setting, index) => {
         if (managed && setting.key === 'base-url') return null;
         const value = (setting.controller_props.value as string) || '';
-        const input = {
-          value,
-          placeholder: setting.controller_props.placeholder,
-          label: setting.title,
-        };
+        const placeholder = setting.controller_props.placeholder;
+        const update = (next: string) => updateProviderSetting(provider.provider, index, next);
         return (
-          <div key={setting.key} className="py-3">
+          <FieldRow key={setting.key} title={setting.title}>
             {setting.key === 'api-key' ? (
-              <SecretInput {...input} onChange={(next) => updateProviderSetting(provider.provider, index, next)} />
+              <SecretInput value={value} placeholder={placeholder} label={setting.title} onChange={update} />
             ) : (
-              <SettingsInput {...input} onChange={(e) => updateProviderSetting(provider.provider, index, e.target.value)} />
+              <Input size="sm" value={value} placeholder={placeholder} aria-label={setting.title} onChange={(e) => update(e.target.value)} />
             )}
-          </div>
+          </FieldRow>
         );
       })}
       {connection && <TestRows connection={connection} />}
