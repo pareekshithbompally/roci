@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { formatDateTime } from '@shared/utils/formatters';
 import { Images, MessageSquare } from 'lucide-react';
-import { Button, Icon, Lightbox, Surface, Text, Thumbnail, TitlebarSpacer } from '@shared/ui';
+import { Button, Icon, Lightbox, Surface, Text, Thumbnail, ViewHeader } from '@shared/ui';
 import { ScreenState } from '@shared/components';
 import { openChat } from '@features/chat';
 import type { GalleryImage } from '@services/storage/images.service';
@@ -47,11 +47,7 @@ export const GalleryView: React.FC = () => {
 
   return (
     <div className="flex h-full flex-col">
-      <TitlebarSpacer />
-      <Surface as="header" edge="bottom" className={`shrink-0 ${LAYOUT.listGutter} pt-2 pb-3`}>
-        <Text as="h1" variant="pageTitle">{GALLERY_CONFIG.title}</Text>
-        {count > 0 && <Text as="p" variant="helper" tone="muted">{count} {count === 1 ? 'image' : 'images'}</Text>}
-      </Surface>
+      <ViewHeader title={GALLERY_CONFIG.title} detail={count > 0 && `${count} ${count === 1 ? 'image' : 'images'}`} />
 
       {/* Loading and empty fill the page's column (centred there), not the scroll area. */}
       <ScreenState

@@ -53,6 +53,8 @@ export const LAYOUT = {
 
   /** Gutter of a full-width list page (To-dos): header, group labels and rows share it, so they line up */
   listGutter: 'px-5',
+  /** A top-level view's header (ViewHeader: To-dos, Upcoming, Gallery, Dictations): room above and below its title row. */
+  viewHeader: 'pt-2 pb-3',
 } as const;
 
 /** The ⌘K command palette: where it sits and how wide, and its list's one fixed height (it never resizes as you type). */

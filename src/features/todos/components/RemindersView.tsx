@@ -4,7 +4,7 @@ import React, { useCallback, useState } from 'react';
 import { AlertTriangle, Bell, CalendarDays, Inbox, Search, Plus, X } from 'lucide-react';
 import { useGlobalTodos } from '@features/todos/hooks/useGlobalTodos';
 import type { TodoFilter, GlobalTodo } from '@features/todos/hooks/useGlobalTodos';
-import { Button, Checkbox, Icon, IconButton, Input, Surface, Tabs, Text, TitlebarSpacer, cn } from '@shared/ui';
+import { Button, Checkbox, Icon, IconButton, Input, Surface, Tabs, Text, ViewHeader, cn } from '@shared/ui';
 import { ScreenState } from '@shared/components';
 import { isOverdue, formatDueDate, formatReminderDate, isReminderOverdue, formatMeetingDate } from '@shared/utils/todo.utils';
 import { NewTodoForm } from './NewTodoForm';
@@ -137,45 +137,40 @@ export const RemindersView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden animate-fade-in">
-      <TitlebarSpacer />
-      {/* Header: title and counts (or the search field), Search and Add; the filters under it */}
-      <Surface as="header" edge="bottom" className={`shrink-0 ${LAYOUT.listGutter} pt-2 pb-3 space-y-3`}>
-        <div className="flex items-center gap-2">
-          {isSearchOpen ? (
-            <>
-              <Input
-                icon={Search}
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search…"
-                onKeyDown={(e) => { if (e.key === 'Escape') handleSearchToggle(); }}
-              />
-              <IconButton icon={X} label="Close search" size="sm" onClick={handleSearchToggle} />
-            </>
-          ) : (
-            <>
-              <div className="min-w-0 flex-1">
-                <Text as="h1" variant="pageTitle" truncate>{TODOS_CONFIG.title}</Text>
-                {counts.total > 0 && (
-                  <Text as="p" variant="helper" tone="muted">{counts.pending} pending · {counts.completed} done</Text>
-                )}
-              </div>
-              <IconButton icon={Search} label="Search to-dos" size="sm" onClick={handleSearchToggle} />
-            </>
-          )}
-          {phone ? (
-            <IconButton icon={Plus} label={TODOS_CONFIG.add} size="sm" onClick={() => setIsCreating(true)} disabled={isCreating} />
-          ) : (
-            <Button variant="primary" size="sm" className="shrink-0" onClick={() => setIsCreating(true)} disabled={isCreating}>
-              <Icon icon={Plus} size="xs" />
-              {TODOS_CONFIG.add}
-            </Button>
-          )}
-        </div>
+      {/* Title and counts (or the search field), Search and Add; the filters under it */}
+      <ViewHeader
+        title={TODOS_CONFIG.title}
+        detail={counts.total > 0 && `${counts.pending} pending · ${counts.completed} done`}
+        replaceTitle={isSearchOpen && (
+          <>
+            <Input
+              icon={Search}
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search…"
+              onKeyDown={(e) => { if (e.key === 'Escape') handleSearchToggle(); }}
+            />
+            <IconButton icon={X} label="Close search" size="sm" onClick={handleSearchToggle} />
+          </>
+        )}
+        accessory={
+          <>
+            {!isSearchOpen && <IconButton icon={Search} label="Search to-dos" size="sm" onClick={handleSearchToggle} />}
+            {phone ? (
+              <IconButton icon={Plus} label={TODOS_CONFIG.add} size="sm" onClick={() => setIsCreating(true)} disabled={isCreating} />
+            ) : (
+              <Button variant="primary" size="sm" className="shrink-0" onClick={() => setIsCreating(true)} disabled={isCreating}>
+                <Icon icon={Plus} size="xs" />
+                {TODOS_CONFIG.add}
+              </Button>
+            )}
+          </>
+        }
+      >
         <Tabs items={filterTabs} value={filter} onValueChange={setFilter} fill={phone} />
-      </Surface>
+      </ViewHeader>
 
       {/* Content */}
       <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar">

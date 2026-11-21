@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, CircleAlert, Lock, RotateCw, Settings } from 'lucide-react';
 import { useAppActions } from '@shared/stores/appStore';
 import { useSystemFormatStore } from '@shared/stores/systemFormatStore';
-import { DatePicker, Button, Icon, IconButton, Surface, Text, TitlebarSpacer } from '@shared/ui';
+import { DatePicker, Button, Icon, IconButton, ViewHeader } from '@shared/ui';
 import { EmptyState } from '@shared/components';
 import { useCalendarControls } from '@features/integrations';
 import { useFormFactor } from '@platform/formFactor';
@@ -71,15 +71,10 @@ export const CalendarView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden animate-fade-in">
-      <TitlebarSpacer />
-      {/* Header: the title, with the month and back · Today · forward beside it on a Mac, under it on iPhone */}
-      <Surface as="header" edge="bottom" className={`shrink-0 ${LAYOUT.listGutter} py-2.5 space-y-2`}>
-        <div className="flex items-center gap-2">
-          <Text as="h1" variant="pageTitle" truncate className="flex-1">{CALENDAR_CONFIG.title}</Text>
-          {!empty && span === 'week' && controls}
-        </div>
+      {/* The month and back · Today · forward beside the title on a Mac, under it on iPhone */}
+      <ViewHeader title={CALENDAR_CONFIG.title} accessory={!empty && span === 'week' && controls}>
         {!empty && span === 'day' && controls}
-      </Surface>
+      </ViewHeader>
 
       {empty ? (
         <div className={`flex-1 flex flex-col ${LAYOUT.listGutter}`}>

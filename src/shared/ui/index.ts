@@ -57,6 +57,7 @@ export { ScrollArea } from './scroll-area';
 export { edgeFade } from './fade';
 export { FadeScroll } from './fade-scroll';
 export { PageScroll, TitlebarSpacer, TitlebarDragRegion } from './page-scroll';
+export { ViewHeader } from './view-header';
 export type { PageScrollProps } from './page-scroll';
 export type { SurfaceProps, SurfaceVariant, DotTone } from './surface';
 export { HelpTip } from './help-tip';

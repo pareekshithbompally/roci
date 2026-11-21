@@ -3,7 +3,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { ChevronLeft, Copy, Mic, Trash2 } from 'lucide-react';
-import { Button, Icon, ICON_SIZE_PX, IconButton, Row, SearchField, Surface, Text, TitlebarSpacer } from '@shared/ui';
+import { Button, Icon, ICON_SIZE_PX, IconButton, Row, SearchField, Surface, Text, TitlebarSpacer, ViewHeader } from '@shared/ui';
 import { ModelIcon, ScreenState } from '@shared/components';
 import { useFormFactor } from '@platform/formFactor';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -120,8 +120,7 @@ export const DictationsView: React.FC = () => {
     />
   );
 
-  // Title (its text in line with the rows'), search, then the matching rows; a quiet line only when the search matches none.
-  const title = <Text as="h1" variant="pageTitle" className="shrink-0 px-2.5">{DICTATIONS_CONFIG.title}</Text>;
+  // Search, then the matching rows; a quiet line only when there are dictations and the search matches none.
   const searchAndList = (
     <>
       <SearchField value={query} onChange={setQuery} onCancel={() => setQuery('')} placeholder={DICTATIONS_CONFIG.searchPlaceholder} />
@@ -136,50 +135,39 @@ export const DictationsView: React.FC = () => {
   if (isLoading || !hasAny) {
     return (
       <div className="flex h-full flex-col">
-        <TitlebarSpacer />
+        <ViewHeader title={DICTATIONS_CONFIG.title} />
         <ScreenState loading={isLoading} empty={{ icon: Mic, message: DICTATIONS_CONFIG.empty }} />
       </div>
     );
   }
 
-  if (phone) {
+  // iPhone: one dictation with Back to the list.
+  if (phone && selected) {
     return (
       <div className="flex h-full flex-col">
         <TitlebarSpacer />
-        <ScreenState className="flex min-h-0 flex-1 flex-col">
-          {selected ? (
-            <>
-              <header className={`shrink-0 ${LAYOUT.listGutter} pt-2 pb-2`}>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedId(null)}>
-                  <Icon icon={ChevronLeft} size="xs" />
-                  {DICTATIONS_CONFIG.title}
-                </Button>
-              </header>
-              <div className="flex-1 overflow-y-auto custom-scrollbar">{detail}</div>
-            </>
-          ) : (
-            <div className="flex min-h-0 flex-1 flex-col gap-3 px-2 pt-2">
-              {title}
-              {searchAndList}
-            </div>
-          )}
-        </ScreenState>
+        <header className={`shrink-0 ${LAYOUT.listGutter} pt-2 pb-2`}>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedId(null)}>
+            <Icon icon={ChevronLeft} size="xs" />
+            {DICTATIONS_CONFIG.title}
+          </Button>
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar">{detail}</div>
       </div>
     );
   }
 
-  // Mac: the title across the page, then the list beside the open dictation in one hairline panel (as a meeting's panes),
-  // its top level with the search field and its lines ending at its own rounded corners.
+  // The view's header, then (Mac) the list beside the open dictation in one hairline panel, as a meeting's panes: its top
+  // level with the search field, its lines ending at its own rounded corners. iPhone: the list alone.
   return (
     <div className="flex h-full flex-col">
-      <TitlebarSpacer />
-      <ScreenState className={`flex min-h-0 flex-1 flex-col gap-3 ${LAYOUT.pageGutter}`}>
-        {title}
-        <div className="flex min-h-0 flex-1 gap-6">
-          <div className={`${DICTATIONS_CONFIG.listColumn} flex flex-col gap-3`}>{searchAndList}</div>
+      <ViewHeader title={DICTATIONS_CONFIG.title} />
+      <div className={`flex min-h-0 flex-1 gap-6 ${LAYOUT.listGutter} pt-4`}>
+        <div className={`${phone ? 'flex-1' : DICTATIONS_CONFIG.listColumn} flex min-h-0 flex-col gap-3`}>{searchAndList}</div>
+        {!phone && (
           <Surface edge={['top', 'left', 'right']} radius="lg" className="min-w-0 flex-1 overflow-y-auto custom-scrollbar">{detail}</Surface>
-        </div>
-      </ScreenState>
+        )}
+      </div>
     </div>
   );
 };
