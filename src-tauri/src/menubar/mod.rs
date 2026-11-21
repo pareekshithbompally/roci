@@ -536,7 +536,8 @@ mod tests {
     #[test]
     fn webview_actions_cover_what_it_handles() {
         assert!(WEBVIEW_ACTIONS.contains(&item::PAUSE_RECORDING));
-        assert!(WEBVIEW_ACTIONS.contains(&item::INSTALL_UPDATE));
+        // Rust installs the update itself (`updates::request_install`); the window too
+        assert!(!WEBVIEW_ACTIONS.contains(&item::INSTALL_UPDATE));
         assert!(!WEBVIEW_ACTIONS.contains(&item::SHOW));
     }
 }
