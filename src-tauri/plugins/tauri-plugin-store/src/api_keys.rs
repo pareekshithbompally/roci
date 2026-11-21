@@ -1,6 +1,8 @@
-//! Providers' API keys: one file in the app data folder (`api-keys.json`, readable and writable by its owner only), read
-//! once per run and kept in memory; roci.db never holds one. A provider row's settings keep their API-key field empty on
-//! disk, and it's filled from these keys as the row is read.
+//! Providers' API keys, stored the way Chromium's safe storage keeps secrets: one file in the app data folder
+//! (`api-keys.enc`, owner-only), AES-256-GCM-encrypted with a random key that is the app's single Keychain item
+//! ("Roci Safe Storage"). The Keychain is read once per run and written once ever, so macOS asks at most once (again
+//! after a rebuild, which changes the app's signature). roci.db never holds a key: a provider row's settings keep their
+//! API-key field empty on disk, and it's filled from these keys as the row is read.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -9,13 +11,24 @@ use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
+use aes_gcm::aead::{Aead, AeadCore, KeyInit, OsRng};
+use aes_gcm::{Aes256Gcm, Key, Nonce};
+use base64::{engine::general_purpose::STANDARD, Engine};
+use security_framework::passwords::{get_generic_password, set_generic_password};
 use serde_json::Value;
 
 use crate::error::StoreError;
 
-const FILE: &str = "api-keys.json";
+const FILE: &str = "api-keys.enc";
 /// Owner read and write only.
 const FILE_MODE: u32 = 0o600;
+/// The one Keychain item: the encryption key, base64.
+const KEYCHAIN_SERVICE: &str = "Roci Safe Storage";
+const KEYCHAIN_ACCOUNT: &str = "Roci";
+/// `errSecItemNotFound`: no encryption key yet.
+const NOT_FOUND: i32 = -25300;
+/// AES-GCM's nonce, stored before the ciphertext.
+const NONCE_LEN: usize = 12;
 /// The provider setting that holds its API key.
 const KEY_SETTING: &str = "api-key";
 
@@ -24,6 +37,8 @@ type Keys = BTreeMap<String, String>;
 
 /// The app data folder, set once the store opens.
 static DIR: OnceLock<PathBuf> = OnceLock::new();
+/// The encryption key, from the Keychain, once per run.
+static CIPHER: OnceLock<Aes256Gcm> = OnceLock::new();
 /// The keys as last read or written; `None` until first used (and after a failed write, so the next use reads again).
 static KEYS: Mutex<Option<Keys>> = Mutex::new(None);
 
@@ -36,17 +51,59 @@ fn path() -> Result<PathBuf, StoreError> {
     DIR.get().map(|dir| dir.join(FILE)).ok_or_else(|| StoreError::from("API keys read before the store opened"))
 }
 
-/// The saved keys; no file yet is none.
-fn load() -> Result<Keys, StoreError> {
-    match fs::read(path()?) {
-        Ok(bytes) => serde_json::from_slice(&bytes).map_err(|e| StoreError::from(format!("API keys file unreadable: {e}"))),
-        Err(e) if e.kind() == ErrorKind::NotFound => Ok(Keys::new()),
-        Err(e) => Err(StoreError::from(format!("API keys read: {e}"))),
+/// The Keychain's encryption key; `create` makes and saves one when there is none yet (the first key saved).
+fn cipher(create: bool) -> Result<&'static Aes256Gcm, StoreError> {
+    if let Some(cipher) = CIPHER.get() {
+        return Ok(cipher);
     }
+    let key = match get_generic_password(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT) {
+        Ok(encoded) => STANDARD.decode(encoded).map_err(|e| StoreError::from(format!("Roci Safe Storage key unreadable: {e}")))?,
+        Err(e) if e.code() == NOT_FOUND && create => {
+            let key = Aes256Gcm::generate_key(OsRng).to_vec();
+            set_generic_password(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT, STANDARD.encode(&key).as_bytes())
+                .map_err(|e| StoreError::from(format!("Keychain save: {e}")))?;
+            key
+        }
+        Err(e) => return Err(StoreError::from(format!("Keychain read: {e}"))),
+    };
+    if key.len() != 32 {
+        return Err(StoreError::from("Roci Safe Storage key has the wrong length"));
+    }
+    Ok(CIPHER.get_or_init(|| Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key))))
 }
 
-/// Writes `keys` whole (a temporary file renamed over the old one, so a crash never leaves half a file); none left
-/// removes the file.
+/// `plaintext` encrypted under a fresh nonce: the nonce, then the ciphertext.
+fn seal(cipher: &Aes256Gcm, plaintext: &[u8]) -> Result<Vec<u8>, StoreError> {
+    let nonce = Aes256Gcm::generate_nonce(OsRng);
+    let ciphertext = cipher.encrypt(&nonce, plaintext).map_err(|_| StoreError::from("API keys encryption failed"))?;
+    Ok([nonce.as_slice(), &ciphertext].concat())
+}
+
+/// The plaintext `seal` made; damaged or foreign data is an error.
+fn open(cipher: &Aes256Gcm, sealed: &[u8]) -> Result<Vec<u8>, StoreError> {
+    if sealed.len() < NONCE_LEN {
+        return Err(StoreError::from("API keys file is damaged"));
+    }
+    let (nonce, ciphertext) = sealed.split_at(NONCE_LEN);
+    cipher
+        .decrypt(Nonce::from_slice(nonce), ciphertext)
+        .map_err(|_| StoreError::from("API keys can't be decrypted with the Roci Safe Storage key"))
+}
+
+/// The saved keys; no file yet is none, and needs no Keychain read. A file that won't decrypt is an error, never empty,
+/// so a later save can't overwrite keys that couldn't be read.
+fn load() -> Result<Keys, StoreError> {
+    let sealed = match fs::read(path()?) {
+        Ok(sealed) => sealed,
+        Err(e) if e.kind() == ErrorKind::NotFound => return Ok(Keys::new()),
+        Err(e) => return Err(StoreError::from(format!("API keys read: {e}"))),
+    };
+    let json = open(cipher(false)?, &sealed)?;
+    serde_json::from_slice(&json).map_err(|e| StoreError::from(format!("API keys unreadable: {e}")))
+}
+
+/// Encrypts `keys` with a fresh nonce and writes them whole (a temporary file renamed over the old one, so a crash
+/// never leaves half a file); none left removes the file.
 fn write(keys: &Keys) -> Result<(), StoreError> {
     let target = path()?;
     if keys.is_empty() {
@@ -56,14 +113,15 @@ fn write(keys: &Keys) -> Result<(), StoreError> {
         };
     }
     let json = serde_json::to_vec(keys).map_err(|e| StoreError::from(format!("API keys: {e}")))?;
-    let temporary = target.with_extension("json.tmp");
+    let sealed = seal(cipher(true)?, &json)?;
+    let temporary = target.with_extension("enc.tmp");
     let saved = fs::OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
         .mode(FILE_MODE)
         .open(&temporary)
-        .and_then(|mut file| file.write_all(&json).and_then(|()| file.sync_all()))
+        .and_then(|mut file| file.write_all(&sealed).and_then(|()| file.sync_all()))
         .and_then(|()| fs::rename(&temporary, &target));
     saved.map_err(|e| StoreError::from(format!("API keys save: {e}")))
 }
@@ -145,6 +203,19 @@ mod tests {
     use super::*;
 
     const DATA: &str = r#"{"settings":[{"key":"api-key","controller_props":{"value":"sk-1"}},{"key":"other","controller_props":{"value":"x"}}]}"#;
+
+    #[test]
+    fn sealed_keys_open_with_their_key_only_and_any_change_is_refused() {
+        let cipher = Aes256Gcm::new(&Aes256Gcm::generate_key(OsRng));
+        let sealed = seal(&cipher, b"{\"openai\":\"sk-1\"}").unwrap();
+        assert_eq!(open(&cipher, &sealed).unwrap(), b"{\"openai\":\"sk-1\"}");
+        assert_ne!(seal(&cipher, b"same").unwrap(), seal(&cipher, b"same").unwrap());
+        let mut tampered = sealed.clone();
+        *tampered.last_mut().unwrap() ^= 1;
+        assert!(open(&cipher, &tampered).is_err());
+        assert!(open(&Aes256Gcm::new(&Aes256Gcm::generate_key(OsRng)), &sealed).is_err());
+        assert!(open(&cipher, &sealed[..NONCE_LEN - 1]).is_err());
+    }
 
     #[test]
     fn the_key_field_is_read_and_blanked_and_nothing_else_changes() {

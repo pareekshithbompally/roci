@@ -126,7 +126,7 @@ src-tauri/
   plugins/        tauri-plugin-{store,calendar}; store: schema, assets (rows ⇄ files), retention, usage
 ```
 
-**Data layout** (`~/Library/Application Support/ai.roci.roci/`): one database, `roci.db` (meetings, chats, todos, reminders, dictations, settings, providers (their API keys live in `api-keys.json` beside it, owner-only, never in roci.db), search index + vectors, `assets` + `purge_queue`). Kept files, each an `assets` row: `recordings/*.wav`, `images/` (+ `.thumb.jpg`), `speech/`. Also `cache/` (expiring) and `models/` (downloaded models).
+**Data layout** (`~/Library/Application Support/ai.roci.roci/`): one database, `roci.db` (meetings, chats, todos, reminders, dictations, settings, providers (their API keys live in `api-keys.enc` beside it, AES-256-GCM under the one Keychain item "Roci Safe Storage", never in roci.db), search index + vectors, `assets` + `purge_queue`). Kept files, each an `assets` row: `recordings/*.wav`, `images/` (+ `.thumb.jpg`), `speech/`. Also `cache/` (expiring) and `models/` (downloaded models).
 
 **Transcription pipeline** — two clearly separated stages with their own model settings:
 - `transcriptionModel` (STT engine ID: `whisper-1`, `groq-whisper`, `deepgram`, `elevenlabs`, `gemini`) → fills the **Transcript** tab with verbatim STT output.
