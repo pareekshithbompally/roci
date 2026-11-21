@@ -250,11 +250,9 @@ const Story: React.FC<StoryProps> = ({ summary, previous, period, rangeLabel, pe
     <>
       <Kpis summary={summary} previous={previous} rangeLabel={rangeLabel} />
       <Trend series={series} period={period} summary={summary} periodLabel={periodLabel} />
-      <div className="grid gap-4 lg:grid-cols-3">
-        <SplitDonut summary={summary} split="model" />
-        <SplitDonut summary={summary} split="provider" />
-        <SplitDonut summary={summary} split="useCase" />
-      </div>
+      <SplitDonut summary={summary} split="model" />
+      <SplitDonut summary={summary} split="provider" />
+      <SplitDonut summary={summary} split="useCase" />
       <Tables summary={summary} series={series} period={period} />
     </>
   );

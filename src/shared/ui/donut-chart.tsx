@@ -1,6 +1,6 @@
-/** A donut with its total in the middle and its legend as native rows: the largest entries by name, the rest as one "+N more"
- *  row whose native tooltip lists each of them. The ring and the legend highlight each other on hover. ECharts draws the
- *  ring only; every word and figure is kit text. */
+/** A donut with its total in the middle and its legend as native rows beside it (under it when the row has no room): the
+ *  largest entries by name, the rest as one "+N more" row whose native tooltip lists each of them. The ring and the legend
+ *  highlight each other on hover. ECharts draws the ring only; every word and figure is kit text. */
 
 import React, { useMemo, useState } from 'react';
 import { UI_CONFIG } from '@config/ui.config';
@@ -101,15 +101,15 @@ export function DonutChart({ slices, total, formatValue, label }: DonutChartProp
   }), [rows]);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="relative">
+    <div className="flex flex-wrap items-center gap-6">
+      <div className="relative shrink-0" style={{ width: C.donutHeight }}>
         <Chart option={option} height={C.donutHeight} label={label} onHover={setHovered} highlight={hovered} />
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <Text variant="title" className="tabular-nums">{total.value}</Text>
           <Text variant="caption" tone="muted">{total.caption}</Text>
         </div>
       </div>
-      <ul className="flex flex-col">
+      <ul className="flex min-w-0 flex-1 basis-56 flex-col">
         {rows.map((r, i) => (
           <LegendRow
             key={r.key}
