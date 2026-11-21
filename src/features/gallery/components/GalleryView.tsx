@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { formatDateTime } from '@shared/utils/formatters';
 import { Images, MessageSquare } from 'lucide-react';
-import { Button, Icon, Lightbox, Surface, Text, Thumbnail, ViewHeader } from '@shared/ui';
+import { Button, Icon, Lightbox, Surface, Text, Thumbnail, ViewHeader, ViewScroll } from '@shared/ui';
 import { ScreenState } from '@shared/components';
 import { openChat } from '@features/chat';
 import type { GalleryImage } from '@services/storage/images.service';
@@ -49,13 +49,13 @@ export const GalleryView: React.FC = () => {
     <div className="flex h-full flex-col">
       <ViewHeader title={GALLERY_CONFIG.title} detail={count > 0 && `${count} ${count === 1 ? 'image' : 'images'}`} />
 
-      {/* Loading and empty fill the page's column (centred there), not the scroll area. */}
+      {/* Loading and empty fill the view (centred there), not the scroll area. */}
       <ScreenState
         loading={isLoading}
         empty={days.length === 0 && { icon: Images, message: GALLERY_CONFIG.empty }}
-        className={`flex-1 overflow-y-auto custom-scrollbar ${LAYOUT.listGutter} py-4`}
+        className="flex min-h-0 flex-1 flex-col"
       >
-        <div className="space-y-6">
+        <ViewScroll className={`space-y-6 pb-4 ${LAYOUT.listGutter}`}>
           {days.map((day) => (
             <section key={day.label} className="space-y-2">
               <Text as="h2" variant="label" tone="muted">{day.label}</Text>
@@ -71,8 +71,8 @@ export const GalleryView: React.FC = () => {
               </div>
             </section>
           ))}
-        </div>
-        {canLoadMore && <div ref={sentinelRef} className="h-1" aria-hidden="true" />}
+          {canLoadMore && <div ref={sentinelRef} className="h-1" aria-hidden="true" />}
+        </ViewScroll>
       </ScreenState>
 
       {open && (

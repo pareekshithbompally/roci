@@ -27,8 +27,8 @@ export const LAYOUT = {
   pageColumn: 'max-w-4xl mx-auto w-full',
   /** Settings panes: one tighter centred column for every pane and drilled-in page (macOS System Settings proportions). */
   settingsColumn: 'max-w-2xl mx-auto w-full',
-  /** A box a page column sits in that doesn't scroll (a page's toolbar): it keeps the scrollbar's room like the `steady`
-   *  PageScroll below it, so the column lines up under its title and never shifts between pages. */
+  /** A box a page column sits in that doesn't scroll (a reading view's header, Dictations' body): it keeps the scrollbar's
+   *  room like the `steady` PageScroll beside it, so the columns line up and never shift between views. */
   pageColumnFrame: 'custom-scrollbar overflow-y-scroll',
 
   /** Plain settings pop-ups (options, sources): they hug their value up to this width, right-aligned in the row */
@@ -55,6 +55,8 @@ export const LAYOUT = {
   listGutter: 'px-5',
   /** A top-level view's header (ViewHeader: To-dos, Upcoming, Gallery, Dictations): room above and below its title row. */
   viewHeader: 'pt-2 pb-3',
+  /** A reading view's gutter around its page column (To-dos, Gallery, Dictations); none on iPhone, whose lists run edge to edge. */
+  viewGutter: 'md:px-8',
 } as const;
 
 /** The ⌘K command palette: where it sits and how wide, and its list's one fixed height (it never resizes as you type). */

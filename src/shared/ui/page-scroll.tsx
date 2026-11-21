@@ -1,6 +1,7 @@
-import { forwardRef, type HTMLAttributes } from 'react';
+import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
 import { platform } from '@platform/index';
 import { UI_CONFIG } from '@config/ui.config';
+import { LAYOUT } from '@config/layout.config';
 import { edgeFade } from './fade';
 import { cn } from './utils';
 
@@ -56,3 +57,24 @@ export const PageScroll = forwardRef<HTMLDivElement, PageScrollProps>(
   },
 );
 PageScroll.displayName = 'PageScroll';
+
+/** Room under a reading view's header before its content: the height its content fades through. */
+export const VIEW_FADE_PX = edgeFadePx;
+
+export interface ViewScrollProps {
+  /** Content fades under the header; off where the view pins its own headings at the top (To-dos' meeting groups). */
+  fade?: boolean;
+  /** The column's own layout (spacing, its inner gutter). */
+  className?: string;
+  children?: ReactNode;
+}
+
+/** A reading view's page under its ViewHeader: it scrolls in the view gutter, its content in the page column lined up with
+ *  the header's (the scrollbar's room kept, as the header keeps it). */
+export function ViewScroll({ fade = true, className, children }: ViewScrollProps) {
+  return (
+    <PageScroll steady underTitlebar={false} fadeTop={fade} className={cn('min-h-0 flex-1', LAYOUT.viewGutter)}>
+      <div className={cn(LAYOUT.pageColumn, className)}>{children}</div>
+    </PageScroll>
+  );
+}

@@ -1,11 +1,13 @@
 /** A top-level view's header (To-dos, Upcoming, Gallery, Dictations): clear of the titlebar, the title with a quiet line under
- *  it and controls at the row's end, an optional row beneath, a hairline under all of it. One place, so every view's title
- *  sits at the same spot. */
+ *  it and controls at the row's end, an optional row beneath. A reading view's header sits in the page column with no rule
+ *  (its ViewScroll fades under it); a full-width tool's (Upcoming's grid) spans the view over a hairline. One place, so every
+ *  view's title sits at the same spot. */
 
 import React from 'react';
 import { LAYOUT } from '@config/layout.config';
 import { Surface } from './surface';
 import { Text } from './text';
+import { cn } from './utils';
 import { TitlebarSpacer } from './page-scroll';
 
 export interface ViewHeaderProps {
@@ -18,28 +20,39 @@ export interface ViewHeaderProps {
   replaceTitle?: React.ReactNode;
   /** A row under the title row (filters, a day's controls). */
   children?: React.ReactNode;
+  /** A full-width tool (Upcoming's grid): the header spans the view over a hairline instead of sitting in the page column. */
+  fullWidth?: boolean;
 }
 
-export function ViewHeader({ title, detail, accessory, replaceTitle, children }: ViewHeaderProps) {
+export function ViewHeader({ title, detail, accessory, replaceTitle, children, fullWidth }: ViewHeaderProps) {
+  // The title line is one control tall and the controls align to it, so every view's title sits at the same spot with or
+  // without buttons or a detail line.
+  const rows = (
+    <>
+      <div className="flex items-start gap-2">
+        {replaceTitle || (
+          <div className="min-w-0 flex-1">
+            <div className="flex h-control-sm min-w-0 items-center">
+              <Text as="h1" variant="pageTitle" truncate className="min-w-0">{title}</Text>
+            </div>
+            {detail && <Text as="p" variant="helper" tone="muted">{detail}</Text>}
+          </div>
+        )}
+        {accessory && <div className="flex h-control-sm shrink-0 items-center gap-2">{accessory}</div>}
+      </div>
+      {children}
+    </>
+  );
   return (
     <>
       <TitlebarSpacer />
-      <Surface as="header" edge="bottom" className={`shrink-0 space-y-3 ${LAYOUT.listGutter} ${LAYOUT.viewHeader}`}>
-        {/* The title line is one control tall and the controls align to it, so every view's title sits at the same spot
-            with or without buttons or a detail line. */}
-        <div className="flex items-start gap-2">
-          {replaceTitle || (
-            <div className="min-w-0 flex-1">
-              <div className="flex h-control-sm min-w-0 items-center">
-                <Text as="h1" variant="pageTitle" truncate className="min-w-0">{title}</Text>
-              </div>
-              {detail && <Text as="p" variant="helper" tone="muted">{detail}</Text>}
-            </div>
-          )}
-          {accessory && <div className="flex h-control-sm shrink-0 items-center gap-2">{accessory}</div>}
-        </div>
-        {children}
-      </Surface>
+      {fullWidth ? (
+        <Surface as="header" edge="bottom" className={cn('shrink-0 space-y-3', LAYOUT.listGutter, LAYOUT.viewHeader)}>{rows}</Surface>
+      ) : (
+        <header className={cn('shrink-0', LAYOUT.viewGutter, LAYOUT.pageColumnFrame, LAYOUT.viewHeader)}>
+          <div className={cn('space-y-3', LAYOUT.pageColumn, LAYOUT.listGutter)}>{rows}</div>
+        </header>
+      )}
     </>
   );
 }

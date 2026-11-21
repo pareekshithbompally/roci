@@ -56,7 +56,7 @@ export { Surface, Separator, Dot, Status } from './surface';
 export { ScrollArea } from './scroll-area';
 export { edgeFade } from './fade';
 export { FadeScroll } from './fade-scroll';
-export { PageScroll, TitlebarSpacer, TitlebarDragRegion } from './page-scroll';
+export { PageScroll, TitlebarSpacer, TitlebarDragRegion, ViewScroll, VIEW_FADE_PX } from './page-scroll';
 export { ViewHeader } from './view-header';
 export type { PageScrollProps } from './page-scroll';
 export type { SurfaceProps, SurfaceVariant, DotTone } from './surface';

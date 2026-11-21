@@ -72,7 +72,7 @@ export const CalendarView: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden animate-fade-in">
       {/* The month and back · Today · forward beside the title on a Mac, under it on iPhone */}
-      <ViewHeader title={CALENDAR_CONFIG.title} accessory={!empty && span === 'week' && controls}>
+      <ViewHeader fullWidth title={CALENDAR_CONFIG.title} accessory={!empty && span === 'week' && controls}>
         {!empty && span === 'day' && controls}
       </ViewHeader>
 

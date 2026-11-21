@@ -4,7 +4,7 @@ import React, { useCallback, useState } from 'react';
 import { AlertTriangle, Bell, CalendarDays, Inbox, Search, Plus, X } from 'lucide-react';
 import { useGlobalTodos } from '@features/todos/hooks/useGlobalTodos';
 import type { TodoFilter, GlobalTodo } from '@features/todos/hooks/useGlobalTodos';
-import { Button, Checkbox, Icon, IconButton, Input, Surface, Tabs, Text, ViewHeader, cn } from '@shared/ui';
+import { Button, Checkbox, Icon, IconButton, Input, Surface, Tabs, Text, ViewHeader, ViewScroll, cn } from '@shared/ui';
 import { ScreenState } from '@shared/components';
 import { isOverdue, formatDueDate, formatReminderDate, isReminderOverdue, formatMeetingDate } from '@shared/utils/todo.utils';
 import { NewTodoForm } from './NewTodoForm';
@@ -172,8 +172,8 @@ export const RemindersView: React.FC = () => {
         <Tabs items={filterTabs} value={filter} onValueChange={setFilter} fill={phone} />
       </ViewHeader>
 
-      {/* Content */}
-      <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar">
+      {/* The list in the page column; no fade, as each meeting's heading pins to the top. */}
+      <ViewScroll fade={false}>
         {/* Create form */}
         {/* New to-do: a sheet on iPhone, a card here on Mac. */}
         {phone
@@ -230,7 +230,7 @@ export const RemindersView: React.FC = () => {
             </div>
           ))}
         </ScreenState>
-      </div>
+      </ViewScroll>
     </div>
   );
 };

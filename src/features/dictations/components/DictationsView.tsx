@@ -3,7 +3,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { ChevronLeft, Copy, Mic, Trash2 } from 'lucide-react';
-import { Button, Icon, ICON_SIZE_PX, IconButton, Row, SearchField, Surface, Text, TitlebarSpacer, ViewHeader } from '@shared/ui';
+import { Button, Icon, ICON_SIZE_PX, IconButton, Row, SearchField, Surface, Text, TitlebarSpacer, VIEW_FADE_PX, ViewHeader, cn } from '@shared/ui';
 import { ModelIcon, ScreenState } from '@shared/components';
 import { useFormFactor } from '@platform/formFactor';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -162,11 +162,13 @@ export const DictationsView: React.FC = () => {
   return (
     <div className="flex h-full flex-col">
       <ViewHeader title={DICTATIONS_CONFIG.title} />
-      <div className={`flex min-h-0 flex-1 gap-6 ${LAYOUT.listGutter} pt-4`}>
-        <div className={`${phone ? 'flex-1' : DICTATIONS_CONFIG.listColumn} flex min-h-0 flex-col gap-3`}>{searchAndList}</div>
-        {!phone && (
-          <Surface edge={['top', 'left', 'right']} radius="lg" className="min-w-0 flex-1 overflow-y-auto custom-scrollbar">{detail}</Surface>
-        )}
+      <div className={cn('flex min-h-0 flex-1', LAYOUT.viewGutter, LAYOUT.pageColumnFrame)} style={{ paddingTop: VIEW_FADE_PX }}>
+        <div className={cn('flex min-h-0 flex-1 gap-6', LAYOUT.pageColumn, LAYOUT.listGutter)}>
+          <div className={cn('flex min-h-0 flex-col gap-3', phone ? 'flex-1' : DICTATIONS_CONFIG.listColumn)}>{searchAndList}</div>
+          {!phone && detail && (
+            <Surface edge={['top', 'left', 'right']} radius="lg" className="min-w-0 flex-1 overflow-y-auto custom-scrollbar">{detail}</Surface>
+          )}
+        </div>
       </div>
     </div>
   );
