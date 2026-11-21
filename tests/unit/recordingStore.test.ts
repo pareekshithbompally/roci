@@ -70,7 +70,7 @@ describe('recording', () => {
     audio.stopCapture.mockResolvedValue('m1');
     audio.recorderState.mockResolvedValue(IDLE);
     await recording.stop();
-    expect(recorded).toHaveBeenCalledWith('m1');
+    expect(recorded).toHaveBeenCalledWith('m1', false);
     expect(useAppStore.getState().selectedHistoryId).toBe('m1');
     expect(useAppStore.getState()).toMatchObject({ status: AppStatus.RESULTS, activeResultTab: 'transcript' });
   });

@@ -98,7 +98,7 @@ describe('RecordingMeetingView', () => {
     expect(useRecordingStore.getState().justStopped).toBe('m1');
     expect(useAppStore.getState().status).toBe(AppStatus.RESULTS);
     expect(useAppStore.getState().activeResultTab).toBe('transcript');
-    expect(pipeline.recorded).toHaveBeenCalledWith('m1');
+    expect(pipeline.recorded).toHaveBeenCalledWith('m1', false);
   });
 
   it('saves the typed lines as the meeting\'s notes before it stops', async () => {
@@ -122,6 +122,13 @@ describe('RecordingMeetingView', () => {
     fireEvent.click(screen.getByRole('tab', { name: /AI notes/ }));
     expect(screen.queryByRole('textbox', { name: 'Your notes' })).not.toBeInTheDocument();
     expect(screen.getByText(/No Summary model is chosen/)).toBeInTheDocument();
+  });
+
+  it('offers Save for Later beside Pause and Stop', () => {
+    startRecording();
+    render(<RecordingMeetingView />);
+    expect(screen.getByRole('button', { name: /Save for Later/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Stop/ })).toBeInTheDocument();
   });
 
   it('the status badge follows the recorder: Recording, then Paused while it is paused', () => {

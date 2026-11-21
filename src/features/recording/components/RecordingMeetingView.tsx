@@ -3,7 +3,7 @@
 
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Pause, Play, Square } from 'lucide-react';
+import { Clock, Pause, Play, Square } from 'lucide-react';
 import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { Button, Icon, Text, TitlebarSpacer } from '@shared/ui';
@@ -44,6 +44,10 @@ const Controls: React.FC<{ paused: boolean; busy: boolean; beforeStop: () => Pro
     <Button variant="secondary" size="sm" disabled={busy} onClick={() => void (paused ? recording.resume() : recording.pause()).catch(report('pause'))}>
       <Icon icon={paused ? Play : Pause} size="xs" />
       {paused ? 'Resume' : 'Pause'}
+    </Button>
+    <Button variant="secondary" size="sm" disabled={busy} onClick={() => void beforeStop().catch(report('save notes')).then(() => recording.stop(true)).catch(report('save for later'))}>
+      <Icon icon={Clock} size="xs" />
+      {LIVE.copy.saveForLater}
     </Button>
     <Button variant="outline" size="sm" disabled={busy} onClick={() => void beforeStop().catch(report('save notes')).then(() => recording.stop()).catch(report('stop'))}>
       <Icon icon={Square} size="xs" className="fill-current" />

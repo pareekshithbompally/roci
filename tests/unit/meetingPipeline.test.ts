@@ -165,6 +165,28 @@ describe('meetingPipeline.run', () => {
     live.active.mockReturnValue(false);
   });
 
+  it('Save for later keeps the whole in-call transcript and writes no summary', async () => {
+    live.active.mockReturnValue(true);
+    live.finish.mockResolvedValue({ complete: true, entries: [{ source: 'microphone', startMs: 0, endMs: 3_000, text: 'Ship Friday.', timed: true }] });
+    meetingPipeline.recorded('m1', true);
+    await vi.waitFor(() => expect(status).toEqual({ status: 'transcribed' }));
+    expect(saves.saveTranscript).toHaveBeenCalledWith(expect.objectContaining({ text: '[00:00] You: Ship Friday.' }));
+    expect(ai.processTranscript).not.toHaveBeenCalled();
+    expect(ai.transcribeAudio).not.toHaveBeenCalled();
+    live.active.mockReturnValue(false);
+  });
+
+  it('Save for later with a draft that has a gap leaves the meeting waiting for Transcribe', async () => {
+    live.active.mockReturnValue(true);
+    live.finish.mockResolvedValue({ complete: false, entries: [] });
+    meetingPipeline.recorded('m1', true);
+    await vi.waitFor(() => expect(live.finish).toHaveBeenCalled());
+    expect(saves.saveTranscript).not.toHaveBeenCalled();
+    expect(ai.transcribeAudio).not.toHaveBeenCalled();
+    expect(status).toEqual({ status: 'captured' });
+    live.active.mockReturnValue(false);
+  });
+
   it('does nothing for a recording that failed to record', async () => {
     status = { status: 'failed', failedStep: 'record', error: 'no audio' };
     await meetingPipeline.run('m1');

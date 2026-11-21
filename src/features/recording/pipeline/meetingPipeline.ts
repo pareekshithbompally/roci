@@ -19,7 +19,7 @@ import type { AppSettings, MeetingDetail, MeetingIndexEntry, StoredTranscriptSeg
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { MeetingStatus, MeetingStep } from '@shared/types/meetingPhase';
 import type { MeetingContext } from '@core/ai/prompts/transcription.prompt';
-import { draftEntriesOf, liveTranscript, liveTranscriptResult } from '@features/recording/live';
+import { draftEntriesOf, liveTranscript, liveTranscriptResult, type LiveEntry } from '@features/recording/live';
 
 /** What the steps need from the app, read when a run starts. */
 export interface PipelineContext {
@@ -106,15 +106,28 @@ const transcribeRecording = (id: string, context: PipelineContext): StepWork => 
   await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model: speechModelOf(context) });
 };
 
-/** Just after Stop: the in-call transcript finishes its last chunks and, when nothing was lost, is the meeting's transcript —
- *  each line labelled by the side that said it. A draft with a gap, or no words, is replaced by the whole recording's. */
+/** The in-call transcript saved as the meeting's, each line labelled by the side that said it. */
+async function saveLiveTranscript(id: string, entries: LiveEntry[], context: PipelineContext): Promise<void> {
+  const { formatted, segments } = formatTranscript(liveTranscriptResult(entries));
+  await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model: speechModelOf(context) });
+}
+
+/** Just after Stop: the in-call transcript finishes its last chunks and, when nothing was lost, is the meeting's transcript.
+ *  A draft with a gap, or no words, is replaced by the whole recording's. */
 const transcribeAfterRecording = (id: string, context: PipelineContext): StepWork => async (signal) => {
   const draft = await liveTranscript.finish(id, signal);
   signal.throwIfAborted();
   if (!draft?.complete || draft.entries.length === 0) return transcribeRecording(id, context)(signal);
-  const { formatted, segments } = formatTranscript(liveTranscriptResult(draft.entries));
-  await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model: speechModelOf(context) });
+  await saveLiveTranscript(id, draft.entries, context);
 };
+
+/** Save for later: the in-call transcript is kept when it is whole; nothing is transcribed again and no summary is written, so
+ *  the meeting waits for Summarize (or Transcribe, when there was no whole transcript). */
+async function keepForLater(id: string, context: PipelineContext): Promise<void> {
+  const draft = await liveTranscript.finish(id);
+  if (!draft?.complete || draft.entries.length === 0) return;
+  await runStep(id, 'transcribe', () => saveLiveTranscript(id, draft.entries, context));
+}
 
 function storedTranscript(meeting: MeetingDetail): Transcript {
   if (!meeting.transcript?.text) throw new Error('This meeting has no transcript to summarize.');
@@ -225,9 +238,13 @@ export const meetingPipeline = {
 
   /** A recording just stopped. With an in-call transcript the meeting reads as transcribing at once while its last chunks
    *  finish (the draft stays on screen); without one it is transcribed only when the user asked for that. Then the summary
-   *  follows. */
-  recorded(id: string): void {
+   *  follows. `later` (Save for later): the in-call transcript is kept and nothing more runs. */
+  recorded(id: string, later = false): void {
     const live = liveTranscript.active(id);
+    if (later) {
+      if (live) void Promise.resolve().then(() => keepForLater(id, contextOrThrow())).catch(report('Save for later', id));
+      return;
+    }
     if (!live && !readContext?.().settings.autoTranscribe) return;
     void Promise.resolve()
       .then(() => {

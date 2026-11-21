@@ -129,8 +129,8 @@ export const recording = {
     }
   },
 
-  /** Stops capture; the meeting is saved as "Not transcribed" (or transcribes now, per the setting). */
-  async stop(): Promise<string | null> {
+  /** Stops capture; the meeting is transcribed and summarized (per the settings), or with `later` keeps only its live transcript. */
+  async stop(later = false): Promise<string | null> {
     const { meetingId: recordingId } = useRecordingStore.getState();
     useRecordingStore.setState({ busy: true });
     try {
@@ -140,7 +140,7 @@ export const recording = {
         useAppStore.getState().setSelectedHistoryId(meetingId);
         useAppStore.getState().setActiveResultTab('transcript');
         useAppStore.getState().setStatus(AppStatus.RESULTS);
-          meetingPipeline.recorded(meetingId);
+        meetingPipeline.recorded(meetingId, later);
       }
       return meetingId;
     } catch (error: unknown) {
