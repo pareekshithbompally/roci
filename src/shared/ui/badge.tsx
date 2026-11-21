@@ -32,7 +32,7 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 function surfaceOf(variant: BadgeVariant, solid?: boolean, tinted?: boolean): string {
   if (solid) return cn(DOT[variant], 'text-on-accent tabular-nums');
-  return tinted ? cn(TINT[variant], 'px-2') : 'text-muted';
+  return tinted ? TINT[variant] : 'text-muted';
 }
 
 export function Badge({ variant = 'default', dot = true, solid, tinted, className, children, ...props }: BadgeProps) {

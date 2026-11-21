@@ -146,8 +146,13 @@ describe('RecordingMeetingView', () => {
     
     const { rerender } = render(<RecordingMeetingView />);
     expect(screen.getByText('Recording')).toBeInTheDocument();
+    // a chunk that was only skipped is no warning: the transcript carries on
     meetingLiveActions.fail();
     rerender(<RecordingMeetingView />);
-    expect(screen.getByText('Live transcript unavailable. Audio is still recording safely.')).toBeInTheDocument();
+    expect(screen.queryByText(/Live transcript unavailable/)).not.toBeInTheDocument();
+    meetingLiveActions.fail('Add your OpenAI API key in Settings › Providers.');
+    rerender(<RecordingMeetingView />);
+    expect(screen.getByText('Live transcript unavailable. Audio is still recording safely. Add your OpenAI API key in Settings › Providers.')).toBeInTheDocument();
+    expect(screen.queryByText('Listening for speech…')).not.toBeInTheDocument();
   });
 });

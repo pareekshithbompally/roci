@@ -23,12 +23,16 @@ type SavePrice = (row: PriceRow, price: ModelPrice | null) => void;
 const rateText = (rate: number | undefined) => (rate === undefined ? '' : String(rate));
 
 /** One rate: your price, models.dev's as the placeholder. Leaving the field saves it with the other rates as they stand
- *  (yours, else models.dev's); emptying every rate clears your price. Free models show a dash. */
+ *  (yours, else models.dev's). Emptying a token rate drops the token pair, emptying the per-minute rate drops it; with no rate
+ *  left your price is cleared. Free models show a dash. */
 const RateField: React.FC<{ row: PriceRow; rate: Rate; onSave: SavePrice }> = ({ row, rate, onSave }) => {
   const [text, setText] = useState(rateText(row.own?.[rate]));
   if (row.source === 'free') return <Text variant="figure" tone="muted">—</Text>;
   const save = () => {
-    const typed = Object.fromEntries(RATES.map((r) => [r, r === rate ? text : rateText(row.own?.[r] ?? row.catalog?.[r])])) as PriceText;
+    const cleared = !text.trim();
+    const pair = (r: Rate) => r !== 'perMinute' && rate !== 'perMinute';
+    const keep = (r: Rate) => rateText(cleared ? row.own?.[r] : row.own?.[r] ?? row.catalog?.[r]);
+    const typed = Object.fromEntries(RATES.map((r) => [r, r === rate || (cleared && pair(r)) ? text : keep(r)])) as PriceText;
     const price = parsePrice(typed);
     if (price !== undefined && (price || row.own)) onSave(row, price);
   };

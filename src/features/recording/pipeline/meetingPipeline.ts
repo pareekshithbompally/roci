@@ -121,12 +121,16 @@ const transcribeAfterRecording = (id: string, context: PipelineContext): StepWor
   await saveLiveTranscript(id, draft.entries, context);
 };
 
-/** Save for later: the in-call transcript is kept when it is whole; nothing is transcribed again and no summary is written, so
- *  the meeting waits for Summarize (or Transcribe, when there was no whole transcript). */
+/** Save for later: the meeting reads as transcribing while its last live chunks finish; a whole in-call transcript is kept,
+ *  nothing is transcribed again and no summary is written, so it waits for Summarize. With no whole transcript the step ends
+ *  as cancelled, and the meeting waits for Transcribe. */
 async function keepForLater(id: string, context: PipelineContext): Promise<void> {
-  const draft = await liveTranscript.finish(id);
-  if (!draft?.complete || draft.entries.length === 0) return;
-  await runStep(id, 'transcribe', () => saveLiveTranscript(id, draft.entries, context));
+  await runStep(id, 'transcribe', async (signal) => {
+    const draft = await liveTranscript.finish(id, signal);
+    if (draft?.complete && draft.entries.length > 0) return saveLiveTranscript(id, draft.entries, context);
+    running.get(id)?.abort();
+    signal.throwIfAborted();
+  });
 }
 
 function storedTranscript(meeting: MeetingDetail): Transcript {

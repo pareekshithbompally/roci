@@ -61,7 +61,6 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
   const paused = useRecordingPaused();
   const busy = useRecordingBusy();
   const segments = useDraftSegments(meetingId);
-  const failed = useMeetingLiveStore((s) => s.failed);
   const reason = useMeetingLiveStore((s) => s.reason);
   const partial = useMeetingLiveStore((s) => s.partial);
   // a streaming model's words still being revised wait under the last line, faint, until they settle
@@ -77,8 +76,9 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
   const transcript: WorkspaceTranscript = {
     label: NOTES.copy.liveTranscript,
     segments,
-    notice: failed ? [LIVE.copy.unavailable, reason].filter(Boolean).join(' ') : undefined,
-    empty: speechSelectionOf(settings) ? LIVE.copy.empty : LIVE.copy.noModel,
+    // a reason means the live transcript stopped; without one it only fell behind or missed a chunk, and carries on
+    notice: reason ? `${LIVE.copy.unavailable} ${reason}` : undefined,
+    empty: reason ? '' : speechSelectionOf(settings) ? LIVE.copy.empty : LIVE.copy.noModel,
     footer: drafting || undefined,
     follow: true,
   };

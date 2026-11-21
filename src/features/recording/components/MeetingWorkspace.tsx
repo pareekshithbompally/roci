@@ -39,7 +39,7 @@ const TranscriptBody: React.FC<WorkspaceTranscript> = ({ segments, text, empty, 
 
   useEffect(() => {
     if (follow && atEnd.current) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: reduceMotion ? 'auto' : 'smooth' });
-  }, [segments, follow, reduceMotion]);
+  }, [segments, footer, follow, reduceMotion]);
 
   const onScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
