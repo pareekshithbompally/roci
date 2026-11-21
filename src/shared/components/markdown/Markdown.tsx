@@ -1,24 +1,19 @@
 /** The single markdown renderer: Streamdown for streaming and static content, so finishing never shifts layout. */
 
-import React, { memo, useMemo, useDeferredValue } from 'react';
+import React, { memo, useDeferredValue } from 'react';
 import { defaultRehypePlugins, Streamdown } from 'streamdown';
 import { code } from '@streamdown/code';
 import { createMathPlugin } from '@streamdown/math';
 import 'katex/dist/katex.min.css';
 import remarkGfm from 'remark-gfm';
-import { rehypeCitationMarkers } from '@shared/utils/inlineCitationInjector';
 import { normalizeMath } from '@shared/utils/mathMarkup';
-import { InlineCitationMarker } from './InlineCitationMarker';
 import { MarkdownTable } from './MarkdownTable';
 import { MarkdownLink } from './MarkdownLink';
-import type { WebCitation } from '@shared/types';
 
 interface MarkdownProps {
   content: string;
   streaming?: boolean;
   messageId?: string;
-  /** When provided, enables inline citation marker rendering */
-  webCitations?: WebCitation[];
   /** `aside`: content beside the answer (the model's thinking) — muted, smaller and tight. */
   variant?: 'answer' | 'aside';
 }
@@ -27,17 +22,15 @@ interface MarkdownProps {
 const REMARK_PLUGINS = [remarkGfm];
 /** Code blocks, and math (KaTeX) in `$$…$$`; normalizeMath turns the other ways models write math into it. */
 const STREAMDOWN_PLUGINS = { code, math: createMathPlugin({ errorColor: 'var(--text-muted)' }) };
-const REHYPE_PLUGINS_DEFAULT = [defaultRehypePlugins.harden];
-const REHYPE_PLUGINS_CITATIONS = [defaultRehypePlugins.harden, rehypeCitationMarkers];
+const REHYPE_PLUGINS = [defaultRehypePlugins.harden];
 /** Tables render through the kit (Streamdown's own table chrome isn't themeable here); links open through the app's opener. */
-const BASE_COMPONENTS = { table: MarkdownTable, a: MarkdownLink };
+const COMPONENTS = { table: MarkdownTable, a: MarkdownLink };
 /** No Streamdown link dialog: a link opens in the browser, as in native apps. */
 const LINK_SAFETY = { enabled: false };
 
 const MarkdownInner: React.FC<MarkdownProps> = ({
   content,
   streaming,
-  webCitations,
   variant = 'answer',
 }) => {
   // While streaming, render the deferred value so token bursts coalesce into one re-parse.
@@ -45,27 +38,6 @@ const MarkdownInner: React.FC<MarkdownProps> = ({
   const effectiveContent = normalizeMath(streaming ? deferredContent : content);
 
   if (!content) return null;
-
-  const hasCitations = !!(webCitations && webCitations.length > 0);
-
-  const rehypePlugins = hasCitations ? REHYPE_PLUGINS_CITATIONS : REHYPE_PLUGINS_DEFAULT;
-
-  const components = useMemo(() => {
-    if (!hasCitations) return BASE_COMPONENTS;
-    return {
-      ...BASE_COMPONENTS,
-      span: (props: Record<string, unknown>) => {
-        const dataCite = props.dataCite as string | undefined;
-        if (dataCite) {
-          const sourceIndices = dataCite.split(',').map(Number);
-          return <InlineCitationMarker sourceIndices={sourceIndices} webCitations={webCitations!} />;
-        }
-        // Default span rendering
-        const { node, ...rest } = props;
-        return <span {...rest as React.HTMLAttributes<HTMLSpanElement>} />;
-      },
-    };
-  }, [hasCitations, webCitations]);
 
   return (
     <div className="markdown-content" data-variant={variant}>
@@ -75,8 +47,8 @@ const MarkdownInner: React.FC<MarkdownProps> = ({
         animated={streaming ? false : { animation: 'fadeIn', duration: 500 }}
         className="size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
         remarkPlugins={REMARK_PLUGINS}
-        rehypePlugins={rehypePlugins}
-        components={components}
+        rehypePlugins={REHYPE_PLUGINS}
+        components={COMPONENTS}
         plugins={STREAMDOWN_PLUGINS}
         linkSafety={LINK_SAFETY}
       >
@@ -91,6 +63,5 @@ export const Markdown = memo(
   (prev, next) =>
     prev.content === next.content &&
     prev.streaming === next.streaming &&
-    prev.webCitations === next.webCitations &&
     prev.variant === next.variant
 );

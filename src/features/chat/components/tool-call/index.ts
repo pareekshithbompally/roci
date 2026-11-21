@@ -6,3 +6,5 @@ export { MeetingResultsBody, parseMeetingResults } from './MeetingResultsBody';
 export type { MeetingResultRow } from './MeetingResultsBody';
 export { toolCallTitle, formatExecutionMs } from './toolCallTitle';
 export { toolCallIcon } from './toolCallIcons';
+export { toolCallView } from './toolCallView';
+export type { ToolCallView } from './toolCallView';

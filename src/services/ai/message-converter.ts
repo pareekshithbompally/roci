@@ -1,66 +1,20 @@
-/** ChatMessage[] → AI SDK ModelMessage[]. */
+/** A chat's messages → the model's input, by the AI SDK's own `convertToModelMessages`. */
 
-import { pruneMessages } from 'ai';
-import type { ModelMessage, FilePart, TextPart } from 'ai';
+import { convertToModelMessages, pruneMessages } from 'ai';
+import type { DataUIPart, ModelMessage, TextPart, ToolSet } from 'ai';
 import { attachedMeetingsText, formatSentAt } from '@core/ai';
-import type { ChatMessage, ChatPart } from '@shared/types';
+import type { ChatData, ChatMessage } from '@shared/types';
 
-function base64ToUint8Array(base64: string): Uint8Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
+/** What the model reads for a question's own data parts: when it was sent, and its attached meetings. */
+function dataPartText(part: DataUIPart<ChatData>): TextPart {
+  if (part.type === 'data-sentAt') return { type: 'text', text: formatSentAt(part.data.at) };
+  return { type: 'text', text: attachedMeetingsText(part.data.context) };
 }
 
-function chatPartToSDKPart(part: ChatPart): TextPart | FilePart | null {
-  switch (part.type) {
-    case 'text':
-      return { type: 'text', text: part.text };
-    case 'image':
-      if (part.source.kind === 'data') {
-        return { type: 'file', mediaType: part.mimeType, data: base64ToUint8Array(part.source.base64) };
-      }
-      if (part.source.kind === 'url') {
-        return { type: 'file', mediaType: part.mimeType, data: new URL(part.source.url) };
-      }
-      return { type: 'text', text: '[Attached image: unsupported source]' };
-    case 'audio':
-    case 'video':
-    case 'document':
-      if (part.source.kind === 'data') {
-        return {
-          type: 'file',
-          data: base64ToUint8Array(part.source.base64),
-          mediaType: part.mimeType,
-          ...(part.type === 'document' && { filename: (part as Extract<ChatPart, { type: 'document' }>).fileName }),
-        };
-      }
-      return { type: 'text', text: `[Attached ${part.type}: unsupported source]` };
-    default:
-      return null;
-  }
-}
-
-/** A question: when it was sent, its text, its attachments as file parts, then the meetings attached to it. */
-function userMessage(msg: ChatMessage): ModelMessage {
-  const attachments = (msg.parts ?? []).filter((part) => part.type !== 'text' && part.type !== 'tool_call').flatMap((part) => chatPartToSDKPart(part) ?? []);
-  const content: Array<TextPart | FilePart> = [
-    { type: 'text', text: formatSentAt(msg.timestamp) },
-    ...(msg.text ? [{ type: 'text' as const, text: msg.text }] : []),
-    ...attachments,
-    ...(msg.meetingContext ? [{ type: 'text' as const, text: attachedMeetingsText(msg.meetingContext) }] : []),
-  ];
-  return { role: 'user', content };
-}
-
-/** A reply the model gave: not an error, nor one of Roci's own notices (those carry no model). */
-const isModelReply = (msg: ChatMessage): boolean => !msg.isError && !!msg.provider;
-
-/** A reply as its model made it (thinking, tool calls and results, the provider's own data); a reply that never finished is its text. */
-function replyMessages(msg: ChatMessage): ModelMessage[] {
-  return msg.exchange ?? [{ role: 'assistant', content: msg.text }];
+/** A settled question or model reply; replies still streaming, errors and Roci's own notices (no model) stay out. */
+function isConversation({ role, metadata }: ChatMessage): boolean {
+  if (metadata?.state === 'loading' || metadata?.state === 'streaming') return false;
+  return role === 'user' || (!metadata?.isError && !!metadata?.provider);
 }
 
 /** Every tool the conversation called. */
@@ -70,13 +24,15 @@ function toolNamesIn(messages: ModelMessage[]): string[] {
   return [...new Set(names)];
 }
 
-/** The chat for its model, exactly as that model made it (a chat keeps one model): questions with their attachments and
- *  attached meetings, each reply whole. Calls to tools this call doesn't have (turned off since) are pruned, as providers
- *  refuse a history naming tools they weren't given. Loading/streaming messages, errors and Roci's notices are left out. */
-export function toSDKMessages(messages: ChatMessage[], tools: readonly string[]): ModelMessage[] {
-  const conversation = messages
-    .filter((m) => m.state !== 'loading' && m.state !== 'streaming' && (m.role === 'user' || isModelReply(m)))
-    .flatMap((msg) => (msg.role === 'user' ? [userMessage(msg)] : replyMessages(msg)));
-  const gone = toolNamesIn(conversation).filter((name) => !tools.includes(name));
+/** The chat for its model (a chat keeps one model), replies whole with their tool calls and the provider's own data. Calls to
+ *  tools this call doesn't have (turned off since) are pruned, as providers refuse a history naming tools they weren't given;
+ *  a stopped reply's unfinished tool calls are left out. */
+export async function toModelMessages(messages: ChatMessage[], tools: ToolSet): Promise<ModelMessage[]> {
+  const conversation = await convertToModelMessages(messages.filter(isConversation), {
+    tools,
+    ignoreIncompleteToolCalls: true,
+    convertDataPart: dataPartText,
+  });
+  const gone = toolNamesIn(conversation).filter((name) => !(name in tools));
   return gone.length > 0 ? pruneMessages({ messages: conversation, toolCalls: [{ type: 'all', tools: gone }] }) : conversation;
 }

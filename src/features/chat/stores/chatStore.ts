@@ -3,26 +3,15 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import type { MutableRefObject } from 'react';
-import type {
-  ChatSession,
-  ChatMessage,
-  ChatPart,
-  AppSettings,
-  MeetingCitation,
-  WebCitation,
-  InlineCitationSpan,
-  ReasoningEffort,
-} from '@shared/types';
+import type { ChatSession, ChatMessage, ChatMetadata, ChatPart, AppSettings, FileUIPart, ReasoningEffort } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import { chatService } from '@services/chat.service';
 import { resolveChatExtrasModel, resolveChatModel } from '@shared/utils/modelResolver';
-import type { StreamMetadata } from '@services/ai/types';
+import type { StreamProgress } from '@services/ai/types';
 import { contextPipeline } from '@extensions/context-pipeline';
 import { orchestrate } from '@extensions/tool-orchestrator';
 import { streamingStore } from './streamingStore';
-import type { ToolCallPatch } from './streamingStore';
-import type { ToolActivity } from '@extensions/tool-orchestrator/types';
 import { formatChatTimeContext, type ChatToolset } from '@core/ai';
 import { generateChatExtras } from '@services/ai/chatExtras';
 import { logUsage } from '@extensions/usage';
@@ -33,47 +22,18 @@ import { AppStatus } from '@shared/types';
 import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
 import { notifyAppEvent } from '@shared/utils/appEvents';
 import { itemCountsQuery, itemEdits, refreshItems } from '@shared/query/items';
-import { CHAT_MAX_ATTACHMENTS, TOOL_RESULT_PREVIEW_CHARS } from '@config/chat.config';
+import { CHAT_MAX_ATTACHMENTS } from '@config/chat.config';
 import { UI_CONFIG } from '@config/ui.config';
 import { canSendDraft, chatModelOf, draftTitle } from '@features/chat/utils';
 import type { ModelRef } from '@services/ai/models';
 import { errorMessage } from '@shared/utils/errors';
+import { messageText } from '@shared/utils/chatParts';
 
 /** "Reply ready" while Roci is in the background (Settings › Notifications › Chat replies). */
 function notifyReply(sessionId: string, text: string): void {
   const max = NOTIFICATIONS_CONFIG.chat.bodyMaxChars;
   const body = text.length > max ? `${text.slice(0, max - 1)}…` : text;
   notifyAppEvent({ id: `chat:${sessionId}`, kind: 'chatReplies', tone: 'success', inFront: 'quiet', title: 'Reply ready', body });
-}
-
-/** What one tool event changes on its row in the streaming message. */
-function toolCallPatch(activity: ToolActivity): ToolCallPatch {
-  const { toolName, source } = activity;
-  switch (activity.phase) {
-    case 'start':
-      return { toolName, source, status: 'calling' };
-    case 'input':
-      return { toolName, source, arguments: activity.arguments };
-    case 'end': {
-      const { content, isError, executionMs } = activity.result;
-      return {
-        toolName,
-        source,
-        ...(activity.arguments && { arguments: activity.arguments }),
-        status: isError ? 'error' : 'complete',
-        result: { content: content.slice(0, TOOL_RESULT_PREVIEW_CHARS), isError, executionMs },
-      };
-    }
-  }
-}
-
-/** Adds a tool's meeting citations, keeping each meeting's best-scoring one. */
-function mergeCitations(into: MeetingCitation[], citations: MeetingCitation[]): void {
-  for (const citation of citations) {
-    const existingIdx = into.findIndex((c) => c.meetingId === citation.meetingId);
-    if (existingIdx === -1) into.push(citation);
-    else if (citation.score > into[existingIdx].score) into[existingIdx] = citation;
-  }
 }
 
 // ── Module-level refs ──
@@ -218,7 +178,15 @@ function patchMessage(sessionId: string, messageId: string, patch: (message: Cha
   return updated;
 }
 
-const isUnsettled = (message: ChatMessage): boolean => message.state === 'loading' || message.state === 'streaming';
+const withMetadata = (message: ChatMessage, metadata: Partial<ChatMetadata>): ChatMessage =>
+  ({ ...message, metadata: { ...message.metadata, ...metadata } });
+
+/** A reply settled with these parts and metadata. */
+function settle(sessionId: string, messageId: string, parts: ChatPart[], metadata: Partial<ChatMetadata> = {}): ChatSession | undefined {
+  return patchMessage(sessionId, messageId, (m) => ({ ...withMetadata(m, { ...metadata, state: 'complete' }), parts }));
+}
+
+const isUnsettled = ({ metadata }: ChatMessage): boolean => metadata.state === 'loading' || metadata.state === 'streaming';
 
 /** The one save path, used whenever a message settles. Disk only ever holds settled messages. */
 function saveSession(session: ChatSession | undefined): void {
@@ -229,15 +197,15 @@ function saveSession(session: ChatSession | undefined): void {
 /** Earlier replies' follow-up suggestions go once a new question is asked. */
 const withoutSuggestions = (messages: ChatMessage[]): ChatMessage[] =>
   messages.map((message) => {
-    if (!message.suggestions?.length) return message;
-    const { suggestions: _, ...rest } = message;
-    return rest;
+    if (!message.metadata.suggestions?.length) return message;
+    const { suggestions: _, ...metadata } = message.metadata;
+    return { ...message, metadata };
   });
 
 /** What one send carries. */
 interface Question {
   text: string;
-  attachments: ChatPart[];
+  attachments: FileUIPart[];
   meetings: MeetingListItem[];
 }
 
@@ -248,16 +216,17 @@ function questionToSend(textOverride: string | undefined): Question {
   return { text: input.trim(), attachments: pendingAttachments, meetings: selectedMeetingRefs };
 }
 
-/** The question as a message: its text, then its attachments and chosen meetings. */
+/** The question as a message: when it was sent (for the model), its text, then its attachments and chosen meetings. */
 function questionMessage({ text, attachments, meetings }: Question): ChatMessage {
-  const textPart: ChatPart[] = text ? [{ type: 'text', text }] : [];
+  const now = Date.now();
   return {
-    id: Date.now().toString(),
+    id: now.toString(),
     role: 'user',
-    text,
-    parts: attachments.length > 0 ? [...textPart, ...attachments] : undefined,
-    meetingRefs: meetings.length > 0 ? meetings.map((m) => ({ id: m.id, title: m.title })) : undefined,
-    timestamp: Date.now(),
+    parts: [{ type: 'data-sentAt', data: { at: now } }, ...(text ? [{ type: 'text' as const, text }] : []), ...attachments],
+    metadata: {
+      createdAt: now,
+      ...(meetings.length > 0 && { meetingRefs: meetings.map((m) => ({ id: m.id, title: m.title })) }),
+    },
   };
 }
 
@@ -277,6 +246,8 @@ function targetSessionFor({ text, attachments }: Question): ChatSession | undefi
 
 // ── Generating a reply ──
 
+/** What a reply stopped before its first word says. */
+const STOPPED_REPLY = '[Stopped]';
 const NO_MODEL_REPLY = 'Please select a model from the picker in the toolbar before sending a message.';
 const lockedModelGoneReply = ({ model }: ModelRef) =>
   `This chat runs on ${model}, which isn't available now. Start a new chat to use another model.`;
@@ -291,11 +262,8 @@ interface ReplyRequest {
   isNewSession: boolean;
 }
 
-/** What the stream gathered beside its text: citations, and when the first word arrived. */
+/** When the reply's first word arrived. */
 interface StreamTally {
-  meetingCitations: MeetingCitation[];
-  webCitations: WebCitation[];
-  inlineCitations: InlineCitationSpan[];
   firstTextAt: number;
 }
 
@@ -304,8 +272,9 @@ interface StreamTally {
 function withMeetingContext(reply: Reply, messages: ChatMessage[], meetingContext: string): ChatMessage[] {
   const question = messages.at(-1);
   if (!question) return messages;
-  patchMessage(reply.sessionId, question.id, (m) => ({ ...m, meetingContext }));
-  return [...messages.slice(0, -1), { ...question, meetingContext }];
+  const withMeetings = (m: ChatMessage): ChatMessage => ({ ...m, parts: [...m.parts, { type: 'data-meetings', data: { context: meetingContext } }] });
+  patchMessage(reply.sessionId, question.id, withMeetings);
+  return [...messages.slice(0, -1), withMeetings(question)];
 }
 
 /** Streams the reply into `streamingStore`; every callback is a no-op once the reply is stopped. */
@@ -327,14 +296,13 @@ async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTal
     if (streaming) return;
     streaming = true;
     useChatStore.setState({ aiActivity: null });
-    patchMessage(reply.sessionId, reply.messageId, (m) => ({ ...m, state: 'streaming' }));
+    patchMessage(reply.sessionId, reply.messageId, (m) => withMetadata(m, { state: 'streaming' }));
   };
-
-  const webUrls = new Set<string>();
 
   return orchestrate(
     {
       messages,
+      messageId: reply.messageId,
       model: resolved,
       prompt: {
         meetingCount: (await queryClient.fetchQuery(itemCountsQuery)).meetings,
@@ -346,35 +314,17 @@ async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTal
       reasoningEffort: session.reasoningEffort ?? 'provider-default',
     },
     {
-      onChunk: (chunk, metadata) => {
-        if (!isLive(reply)) return;
-        if (metadata) {
-          for (const citation of metadata.webCitations ?? []) {
-            if (webUrls.has(citation.url)) continue;
-            webUrls.add(citation.url);
-            tally.webCitations.push(citation);
-          }
-          tally.inlineCitations.push(...(metadata.inlineCitations ?? []));
-          useChatStore.setState({ aiActivity: metadata });
-        }
-        if (!chunk) return;
+      onParts: (parts) => {
+        if (!isLive(reply) || parts.length === 0) return;
         markStreaming();
-        if (tally.firstTextAt === 0) tally.firstTextAt = Date.now();
-        streamingStore.push(chunk);
+        if (tally.firstTextAt === 0 && messageText({ parts })) tally.firstTextAt = Date.now();
+        streamingStore.update(parts);
       },
-      onReasoning: (text, generation) => {
-        if (!isLive(reply)) return;
-        markStreaming();
-        streamingStore.pushReasoning(text, generation);
+      onProgress: (progress) => {
+        if (isLive(reply)) useChatStore.setState({ aiActivity: progress });
       },
-      onToolActivity: (activity) => {
-        if (!isLive(reply)) return;
-        markStreaming();
-        streamingStore.upsertToolCall(activity.toolCallId, toolCallPatch(activity));
-        if (activity.phase !== 'end') return;
-        mergeCitations(tally.meetingCitations, activity.result.citations ?? []);
-        // An image the tool made joins the reply right after the tool's row, and is saved with it.
-        if (activity.result.image) streamingStore.addPart(activity.result.image);
+      onGeneration: (stats) => {
+        if (isLive(reply)) streamingStore.setGeneration(stats);
       },
     }
   );
@@ -402,14 +352,14 @@ function afterReply(reply: Reply, request: ReplyRequest, text: string, tools: Ch
   })
     .then(({ title, suggestions }) => {
       if (title) useChatStore.getState().renameSession(reply.sessionId, title);
-      if (suggestions.length > 0) saveSession(patchMessage(reply.sessionId, reply.messageId, (m) => ({ ...m, suggestions })));
+      if (suggestions.length > 0) saveSession(patchMessage(reply.sessionId, reply.messageId, (m) => withMetadata(m, { suggestions })));
     })
     .catch((error: unknown) => console.error('[ChatStore] Titles & follow-ups failed:', error));
 }
 
 /** Runs one reply to its end: complete, failed, or (via Stop) settled elsewhere. Every outcome is saved once. */
 async function generateReply(reply: Reply, request: ReplyRequest): Promise<void> {
-  const tally: StreamTally = { meetingCitations: [], webCitations: [], inlineCitations: [], firstTextAt: 0 };
+  const tally: StreamTally = { firstTextAt: 0 };
   try {
     const result = await streamReply(reply, request, tally);
     if (!result || !isLive(reply)) return; // Stop settled and saved it.
@@ -417,35 +367,23 @@ async function generateReply(reply: Reply, request: ReplyRequest): Promise<void>
     logUsage({ category: 'chat', sessionId: reply.sessionId, provider: result.provider, model: result.model, usage: result.tokenUsage })
       .catch((e: unknown) => console.error('[UsageLog] chat:', e));
 
-    const streamed = streamingStore.finish();
-    const parts = streamed.parts.filter((p) => p.type !== 'text' || p.text.length > 0);
-    const usage = result.tokenUsage;
-    saveSession(patchMessage(reply.sessionId, reply.messageId, (m) => ({
-      ...m,
-      text: streamed.text,
-      parts: parts.length > 0 ? parts : undefined,
-      state: 'complete',
+    streamingStore.finish();
+    const { parts, tokenUsage: usage, context } = result;
+    saveSession(settle(reply.sessionId, reply.messageId, parts, {
       tokensPerSecond: tokensPerSecond(usage?.outputTokens, tally.firstTextAt),
-      context: result.context,
-      usage: result.tokenUsage,
-      exchange: result.exchange,
-      ...(tally.meetingCitations.length > 0 && { meetingCitations: tally.meetingCitations }),
-      ...(tally.webCitations.length > 0 && { webCitations: tally.webCitations }),
-      ...(tally.inlineCitations.length > 0 && { inlineCitations: tally.inlineCitations }),
-    })));
+      context,
+      usage,
+    }));
     endReply(reply);
-    notifyReply(reply.sessionId, streamed.text);
-    afterReply(reply, request, streamed.text, result.toolset);
+    const text = messageText({ parts });
+    notifyReply(reply.sessionId, text);
+    afterReply(reply, request, text, result.toolset);
   } catch (error: unknown) {
     if (!isLive(reply)) return; // Stopped: the abort surfaced as an error, and Stop already settled it.
     console.error('[ChatStore] Error sending message:', error);
     streamingStore.reset();
-    saveSession(patchMessage(reply.sessionId, reply.messageId, (m) => ({
-      ...m,
-      text: errorMessage(error) || 'Failed to get response',
-      isError: true,
-      state: 'complete',
-    })));
+    const text = errorMessage(error) || 'Failed to get response';
+    saveSession(settle(reply.sessionId, reply.messageId, [{ type: 'text', text }], { isError: true }));
     endReply(reply);
   }
 }
@@ -465,8 +403,9 @@ export interface ChatStoreState {
   draftMeetingId: string | null;
   /** The thinking level picked before a new chat exists; the chat keeps it once created. */
   draftReasoningEffort: ReasoningEffort;
-  aiActivity: StreamMetadata | null;
-  pendingAttachments: ChatPart[];
+  /** What happens before the reply's first word (the model list, a model load, reading the prompt). */
+  aiActivity: StreamProgress | null;
+  pendingAttachments: FileUIPart[];
 
   setInput: (input: string) => void;
   setCurrentSessionId: (id: string | null) => void;
@@ -498,13 +437,9 @@ export interface ChatStoreState {
 
 // ── Store ──
 
-/** One attachment part for a picked file, by its kind. */
-function attachmentPart(file: File, base64: string): ChatPart {
-  const source = { kind: 'data' as const, base64 };
-  if (file.type.startsWith('image/')) return { type: 'image', mimeType: file.type, source, alt: file.name };
-  if (file.type.startsWith('audio/')) return { type: 'audio', mimeType: file.type, source };
-  if (file.type.startsWith('video/')) return { type: 'video', mimeType: file.type, source, alt: file.name };
-  return { type: 'document', mimeType: file.type || 'application/octet-stream', source, fileName: file.name };
+/** An attachment as the AI SDK's file part: the file inline as a data URL, with its name. */
+function attachmentPart(mediaType: string, base64: string, filename: string): FileUIPart {
+  return { type: 'file', mediaType, url: `data:${mediaType};base64,${base64}`, filename };
 }
 
 export const useChatStore = create<ChatStoreState>((set, get) => ({
@@ -602,7 +537,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   addAttachment: async (file) => {
     if (get().pendingAttachments.length >= CHAT_MAX_ATTACHMENTS) return;
     try {
-      const part = attachmentPart(file, await fileToBase64(file));
+      const part = attachmentPart(file.type || 'application/octet-stream', await fileToBase64(file), file.name);
       set((state) => ({ pendingAttachments: [...state.pendingAttachments, part] }));
     } catch (error: unknown) {
       console.error('[ChatStore] Failed to add attachment:', error);
@@ -615,7 +550,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   addScreenshotAttachment: (base64, name) =>
     set((state) => {
       if (state.pendingAttachments.length >= CHAT_MAX_ATTACHMENTS) return state;
-      const part: ChatPart = { type: 'image', mimeType: 'image/png', source: { kind: 'data', base64 }, alt: name };
+      const part = attachmentPart('image/png', base64, name);
       return { pendingAttachments: [...state.pendingAttachments, part] };
     }),
 
@@ -661,10 +596,11 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
     // A chat keeps the model of its first reply; a new chat takes the chat model setting.
     const locked = chatModelOf(session);
     const resolved = settings ? resolveChatModel(settings, providers || [], locked) : null;
-    const answer: ChatMessage = { id: reply.messageId, role: 'model', text: '', timestamp: Date.now() };
+    const answer: ChatMessage = { id: reply.messageId, role: 'assistant', parts: [], metadata: { createdAt: Date.now() } };
     if (!settings || !resolved) {
       const text = locked ? lockedModelGoneReply(locked) : NO_MODEL_REPLY;
-      const hinted: ChatSession = { ...session, messages: [...session.messages, { ...answer, text, state: 'complete' }] };
+      const notice: ChatMessage = { ...answer, parts: [{ type: 'text', text }], metadata: { createdAt: Date.now(), state: 'complete' } };
+      const hinted: ChatSession = { ...session, messages: [...session.messages, notice] };
       putSession(hinted);
       saveSession(hinted);
       endReply(reply);
@@ -674,7 +610,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
     // The reply's placeholder lives in memory only; it is saved once it settles.
     putSession({
       ...session,
-      messages: [...session.messages, { ...answer, provider: resolved.provider, model: resolved.modelId, state: 'loading' }],
+      messages: [...session.messages, { ...answer, metadata: { createdAt: Date.now(), provider: resolved.provider, model: resolved.modelId, state: 'loading' } }],
     });
     await generateReply(reply, { session, question, resolved, settings, providers: providers || [], isNewSession });
   },
@@ -683,13 +619,8 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
     const reply = activeReply;
     if (!reply) return;
     reply.controller.abort();
-    const streamed = streamingStore.finish();
-    saveSession(patchMessage(reply.sessionId, reply.messageId, (m) => ({
-      ...m,
-      text: streamed.text || m.text || '[Stopped]',
-      parts: streamed.parts.length > 0 ? streamed.parts : m.parts,
-      state: 'complete',
-    })));
+    const parts = streamingStore.finish();
+    saveSession(settle(reply.sessionId, reply.messageId, messageText({ parts }) ? parts : [...parts, { type: 'text', text: STOPPED_REPLY }]));
     endReply(reply);
   },
 }));

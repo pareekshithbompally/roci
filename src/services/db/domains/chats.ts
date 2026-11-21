@@ -1,12 +1,26 @@
 /** Chats domain — list/get/upsert/rename/delete chat sessions. */
 
-import { call, extractDataBlob, rowToMessage } from '@services/db/internal';
+import { call, rowToMessage, toRowRole } from '@services/db/internal';
+import type { ChatMessageRow } from '@services/db/internal';
 import type { ChatMessage, ChatSession } from '@shared/types';
-import { appFileOf } from '@shared/utils/chatParts';
+import { generatedImageOf, messageText } from '@shared/utils/chatParts';
 
-/** Every app-data file the messages show (images, speech…): the chat owns exactly these. */
+/** Every app-data file the messages show (images tools made): the chat owns exactly these. */
 function assetPathsOf(messages: ChatMessage[]): string[] {
-  return messages.flatMap((msg) => (msg.parts ?? []).map(appFileOf).filter((path): path is string => path !== null));
+  return messages.flatMap((msg) => msg.parts.flatMap((part) => generatedImageOf(part)?.path ?? []));
+}
+
+/** A message as its row: the plain text (search reads it), provider and model as columns, parts and metadata whole in `data`. */
+function messageRow({ id, role, parts, metadata }: ChatMessage) {
+  return {
+    id,
+    role: toRowRole(role),
+    text: messageText({ parts }),
+    provider: metadata.provider ?? null,
+    model: metadata.model ?? null,
+    data: JSON.stringify({ parts, metadata }),
+    created_at: metadata.createdAt,
+  };
 }
 
 export const chats = {
@@ -17,16 +31,7 @@ export const chats = {
       title: string;
       meeting_id: string | null;
       last_message_at: number;
-      messages: Array<{
-        id: string;
-        seq: number;
-        role: string;
-        text: string;
-        provider: string | null;
-        model: string | null;
-        data: string | null;
-        created_at: number;
-      }>;
+      messages: ChatMessageRow[];
     }>('chats_get', { id });
 
     return {
@@ -47,18 +52,7 @@ export const chats = {
         meeting_id: session.meetingId ?? null,
         last_message_at: session.lastMessageAt,
         asset_paths: assetPathsOf(session.messages),
-        messages: session.messages.map((msg) => {
-          const data = extractDataBlob(msg);
-          return {
-            id: msg.id,
-            role: msg.role,
-            text: msg.text,
-            provider: msg.provider ?? null,
-            model: msg.model ?? null,
-            data: data ? JSON.stringify(data) : null,
-            created_at: msg.timestamp,
-          };
-        }),
+        messages: session.messages.map(messageRow),
       },
     });
   },

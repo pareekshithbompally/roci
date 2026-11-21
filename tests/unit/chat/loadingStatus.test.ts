@@ -4,12 +4,12 @@ import { CHAT_LOADING_COPY, CHAT_LOADING_DETAIL } from '@config/chat.config';
 
 describe('loadingStatusOf', () => {
   it('shows the server-reported stage with its percent', () => {
-    expect(loadingStatusOf({ progress: { stage: 'loading-draft', percent: 95 } }))
+    expect(loadingStatusOf({ stage: 'loading-draft', percent: 95 }))
       .toEqual({ label: CHAT_LOADING_COPY['loading-draft'], percent: 95, detail: null });
   });
 
   it('shows the time left while reading the prompt', () => {
-    expect(loadingStatusOf({ progress: { stage: 'reading-prompt', percent: 56, secondsLeft: 3 } }).detail)
+    expect(loadingStatusOf({ stage: 'reading-prompt', percent: 56, secondsLeft: 3 }).detail)
       .toBe(CHAT_LOADING_DETAIL.secondsLeft(3));
   });
 

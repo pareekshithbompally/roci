@@ -28,7 +28,8 @@ import { useRecordingMeetingId } from '@features/recording';
 import { platform } from '@platform/index';
 import { formatClock } from '@shared/utils/formatters';
 import type { MeetingListItem } from '@services/meetingReferenceService';
-import type { ChatPart } from '@shared/types';
+import type { FileUIPart } from '@shared/types';
+import { mediaKind, type MediaKind } from '@shared/utils/chatParts';
 import type { SpeechState } from '@features/chat/hooks/useSpeechInput';
 import { DotScope } from '@features/chat/components/dot-scope';
 import { LiveTranscript } from '@features/chat/components/voice/LiveTranscript';
@@ -69,7 +70,7 @@ interface ChatInputProps {
   /** Callback when meeting selection changes */
   onMeetingSelect?: (meetings: MeetingListItem[]) => void;
   /** Pending file attachments */
-  attachments?: ChatPart[];
+  attachments?: FileUIPart[];
   /** Callback to add a file attachment */
   onAttach?: (file: File) => void;
   /** Callback to remove a pending attachment by index */
@@ -92,20 +93,17 @@ interface ChatInputProps {
   onSpeechCancel?: () => void;
 }
 
+/** What an attachment without a name is called, by its kind. */
+const UNNAMED_ATTACHMENT: Record<MediaKind, string> = { image: 'Image', audio: 'Audio', video: 'Video', document: 'File' };
+
 /** Get a display name for an attachment part */
-function getAttachmentName(part: ChatPart): string {
-  switch (part.type) {
-    case 'image': return part.alt || 'Image';
-    case 'audio': return 'Audio';
-    case 'video': return part.alt || 'Video';
-    case 'document': return part.fileName;
-    default: return 'File';
-  }
+function getAttachmentName(part: FileUIPart): string {
+  return part.filename || UNNAMED_ATTACHMENT[mediaKind(part.mediaType)];
 }
 
-/** Get the icon for an attachment type */
-function AttachmentIcon({ type }: { type: ChatPart['type'] }) {
-  switch (type) {
+/** Get the icon for an attachment kind */
+function AttachmentIcon({ kind }: { kind: MediaKind }) {
+  switch (kind) {
     case 'image': return <Icon icon={ImageIcon} size="xs" />;
     case 'audio': return <Icon icon={Music} size="xs" />;
     case 'video': return <Icon icon={Film} size="xs" />;
@@ -460,9 +458,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 radius="md"
                 className="flex items-center gap-1.5 px-2 py-1"
               >
-                {part.type === 'image' && part.source.kind === 'data' ? (() => {
-                  const imgSrc = `data:${part.mimeType};base64,${part.source.base64}`;
-                  const imgAlt = part.alt || 'attachment';
+                {mediaKind(part.mediaType) === 'image' ? (() => {
+                  const imgSrc = part.url;
+                  const imgAlt = part.filename || 'attachment';
                   return (
                     <Surface radius="md" className="shrink-0 overflow-hidden">
                       <img
@@ -474,7 +472,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     </Surface>
                   );
                 })() : (
-                  <AttachmentIcon type={part.type} />
+                  <AttachmentIcon kind={mediaKind(part.mediaType)} />
                 )}
                 <Text variant="helper" tone="muted" truncate className="max-w-32">{getAttachmentName(part)}</Text>
                 {onRemoveAttachment && (

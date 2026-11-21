@@ -1,9 +1,9 @@
 import React from 'react';
-import type { ToolCallPart } from '@shared/types';
+import type { ToolCallView } from './toolCallView';
 import { DefaultToolBody } from './DefaultToolBody';
 import { MeetingResultsBody } from './MeetingResultsBody';
 
-type ToolBody = React.FC<{ part: ToolCallPart }>;
+type ToolBody = React.FC<{ part: ToolCallView }>;
 
 /** Built-in tools with a specialised body; everything else gets Input/Output. */
 const BODIES: Record<string, ToolBody> = {
@@ -12,12 +12,12 @@ const BODIES: Record<string, ToolBody> = {
 };
 
 /** Picks the body renderer for a tool call. MCP tools always use the default body. */
-export function toolBodyFor(part: ToolCallPart): ToolBody {
+export function toolBodyFor(part: ToolCallView): ToolBody {
   if (part.source) return DefaultToolBody;
   return BODIES[part.toolName] ?? DefaultToolBody;
 }
 
-export const ToolCallBody: React.FC<{ part: ToolCallPart }> = ({ part }) => {
+export const ToolCallBody: React.FC<{ part: ToolCallView }> = ({ part }) => {
   const Body = toolBodyFor(part);
   return <Body part={part} />;
 };

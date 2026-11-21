@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { AppSettings, ChatSession } from '@shared/types';
+import type { AppSettings, ChatPart, ChatSession } from '@shared/types';
+import { messageText } from '@shared/utils/chatParts';
 
 const persist = vi.fn().mockResolvedValue(undefined);
 vi.mock('@services/chat.service', () => ({
@@ -18,13 +19,19 @@ vi.mock('@services/unifiedAIService', () => ({ unifiedAIService: { generateTitle
 const notify = vi.fn();
 vi.mock('@shared/utils/appEvents', () => ({ notifyAppEvent: (...args: unknown[]) => notify(...args) }));
 
-/** A stream the test drives: push words, then finish (normally, as the SDK does after an abort) or fail. */
-type Callbacks = { onChunk: (chunk: string) => void };
-const streams: { callbacks: Callbacks; finish: () => void; fail: (e: Error) => void }[] = [];
+/** A stream the test drives: the reply's words so far, then finish (normally, as the SDK does after an abort) or fail. */
+type Callbacks = { onParts: (parts: ChatPart[]) => void };
+interface Stream { say: (text: string) => void; finish: () => void; fail: (e: Error) => void }
+const streams: Stream[] = [];
 vi.mock('@extensions/tool-orchestrator', () => ({
   orchestrate: (_req: unknown, callbacks: Callbacks) =>
     new Promise((resolve, reject) => {
-      streams.push({ callbacks, finish: () => resolve({ provider: 'openai', model: 'm', tokenUsage: undefined }), fail: reject });
+      let parts: ChatPart[] = [];
+      streams.push({
+        say: (text) => callbacks.onParts((parts = [{ type: 'text', text }])),
+        finish: () => resolve({ provider: 'openai', model: 'm', tokenUsage: undefined, parts }),
+        fail: reject,
+      });
     }),
 }));
 
@@ -32,7 +39,10 @@ import { useChatStore, injectChatRefs } from '@features/chat/stores/chatStore';
 
 const settings = { chatModel: 'm', transcriptionModel: '', apiKey: '' } as AppSettings;
 const sessionOf = (id: string) => useChatStore.getState().loadedSessions.get(id) as ChatSession;
-const replyOf = (id: string) => sessionOf(id).messages.at(-1)!;
+const replyOf = (id: string) => {
+  const reply = sessionOf(id).messages.at(-1)!;
+  return { text: messageText(reply), ...reply.metadata };
+};
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
 /** Sends `text` in a new chat and waits until its stream is open. */
@@ -54,7 +64,7 @@ describe('stopping a reply', () => {
 
   it('keeps what was written, saves it once, and ignores the request finishing afterwards', async () => {
     const id = await ask('hi');
-    streams[0].callbacks.onChunk('Hello');
+    streams[0].say('Hello');
     useChatStore.getState().stopGeneration();
     expect(replyOf(id)).toMatchObject({ text: 'Hello', state: 'complete' });
     await vi.waitFor(() => expect(persist).toHaveBeenCalledTimes(2)); // the question, then the stopped reply
@@ -81,8 +91,8 @@ describe('stopping a reply', () => {
     const second = await ask('two');
     await vi.waitFor(() => expect(streams).toHaveLength(2));
 
-    streams[0].callbacks.onChunk('stale');
-    streams[1].callbacks.onChunk('fresh');
+    streams[0].say('stale');
+    streams[1].say('fresh');
     streams[1].finish();
     await vi.waitFor(() => expect(replyOf(second).state).toBe('complete'));
     expect(replyOf(second).text).toBe('fresh');
@@ -99,7 +109,7 @@ describe('stopping a reply', () => {
   it('never writes a reply in progress to disk', async () => {
     await ask('hi');
     for (const [saved] of persist.mock.calls as [ChatSession][]) {
-      expect(saved.messages.some((m) => m.state === 'loading' || m.state === 'streaming')).toBe(false);
+      expect(saved.messages.some((m) => m.metadata.state === 'loading' || m.metadata.state === 'streaming')).toBe(false);
     }
   });
 });

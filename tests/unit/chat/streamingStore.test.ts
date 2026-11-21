@@ -1,46 +1,38 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { streamingStore } from '@features/chat/stores/streamingStore';
+import type { ChatPart } from '@shared/types';
 
-describe('streamingStore.upsertToolCall', () => {
+const text = (t: string): ChatPart => ({ type: 'text', text: t, state: 'streaming' });
+
+describe('streamingStore', () => {
   beforeEach(() => streamingStore.start('msg'));
 
-  it('adds a calling row after the text streamed so far', () => {
-    streamingStore.push('Let me check.');
-    streamingStore.upsertToolCall('c1', { toolName: 'webSearch', status: 'calling' });
-    expect(streamingStore.getSnapshot().parts).toEqual([
-      { type: 'text', text: 'Let me check.' },
-      { type: 'tool_call', toolCallId: 'c1', toolName: 'webSearch', arguments: {}, status: 'calling' },
-    ]);
+  it('ends with the latest parts the SDK built, even before a frame showed them', () => {
+    streamingStore.update([text('Let')]);
+    streamingStore.update([text('Let me check.')]);
+    expect(streamingStore.finish()).toEqual([text('Let me check.')]);
+    expect(streamingStore.getSnapshot()).toMatchObject({ msgId: null, parts: [] });
   });
 
-  it('fills the same row in place as the tool progresses', () => {
-    streamingStore.upsertToolCall('c1', { toolName: 'webSearch', status: 'calling' });
-    streamingStore.upsertToolCall('c1', { toolName: 'webSearch', arguments: { query: 'ai' } });
-    streamingStore.upsertToolCall('c1', { toolName: 'webSearch', status: 'complete', result: { content: 'x', isError: false } });
-    expect(streamingStore.getSnapshot().parts).toEqual([
-      { type: 'tool_call', toolCallId: 'c1', toolName: 'webSearch', arguments: { query: 'ai' }, status: 'complete', result: { content: 'x', isError: false } },
-    ]);
+  it('starts each reply empty, on its own message', () => {
+    streamingStore.update([text('old')]);
+    streamingStore.start('next');
+    expect(streamingStore.getSnapshot()).toEqual({ msgId: 'next', parts: [], generation: null });
+    expect(streamingStore.finish()).toEqual([]);
   });
 
-  it('creates the row when the first event is not a start', () => {
-    streamingStore.upsertToolCall('c2', { toolName: 'get_meeting', arguments: { meeting_id: 'm1' } });
-    expect(streamingStore.getSnapshot().parts).toEqual([
-      { type: 'tool_call', toolCallId: 'c2', toolName: 'get_meeting', arguments: { meeting_id: 'm1' }, status: 'calling' },
-    ]);
+  it('keeps nothing on reset (a failed reply)', () => {
+    streamingStore.update([text('half')]);
+    streamingStore.reset();
+    expect(streamingStore.finish()).toEqual([]);
   });
-});
 
-describe('streamingStore.addPart', () => {
-  beforeEach(() => streamingStore.start('msg'));
-
-  it("puts a tool's image right after its row, before the text that follows, and keeps it on finish", () => {
-    const image = { type: 'image' as const, mimeType: 'image/png', source: { kind: 'file' as const, path: 'images/a.png' }, alt: 'a fox' };
-    streamingStore.push('Drawing it.');
-    streamingStore.upsertToolCall('c1', { toolName: 'generate_image', status: 'complete' });
-    streamingStore.addPart(image);
-    streamingStore.push('Here it is.');
-    const { parts } = streamingStore.finish();
-    expect(parts.map((p) => p.type)).toEqual(['text', 'tool_call', 'image', 'text']);
-    expect(parts[2]).toEqual(image);
+  it('shows the parts and a local server’s tokens and speed together, once per frame', async () => {
+    const generation = { tokens: 12, elapsedMs: 400, tokensPerSecond: 30 };
+    streamingStore.setGeneration(generation);
+    streamingStore.update([text('Hi')]);
+    expect(streamingStore.getSnapshot().parts).toEqual([]);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(streamingStore.getSnapshot()).toEqual({ msgId: 'msg', parts: [text('Hi')], generation });
   });
 });

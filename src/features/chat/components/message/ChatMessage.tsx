@@ -5,55 +5,33 @@ import type { ChatMessageProps } from './types';
 import { cn } from '@shared/ui';
 
 export const ChatMessage: React.FC<ChatMessageProps> = memo(({
-  id, role, text, parts, meetingRefs, timestamp, suggestions, onSuggestionClick,
-  isLastMessage = false, provider, model,
-  state = 'complete', loadingStatus, context, tokensPerSecond, usage,
-  meetingCitations,
-  isCopied, actions, citationHandlers,
-  webCitations, inlineCitations, isError,
+  message, onSuggestionClick, isLastMessage = false, loadingStatus, isCopied, actions, citationHandlers,
 }) => {
-  const isUser = role === 'user';
+  const isUser = message.role === 'user';
 
   return (
     <div className={cn('flex gap-3', isUser ? 'justify-end' : 'justify-start')}>
       {isUser ? (
-        <UserMessage id={id} text={text} parts={parts} meetingRefs={meetingRefs} timestamp={timestamp} isCopied={isCopied} actions={actions} />
+        <UserMessage message={message} isCopied={isCopied} actions={actions} />
       ) : (
         <AssistantMessage
-          id={id} text={text} parts={parts} timestamp={timestamp}
-          suggestions={suggestions} onSuggestionClick={onSuggestionClick}
-          isLastMessage={isLastMessage} provider={provider} model={model}
-          state={state} loadingStatus={loadingStatus}
-          context={context} tokensPerSecond={tokensPerSecond} usage={usage}
-          meetingCitations={meetingCitations}
-          isCopied={isCopied} actions={actions} citationHandlers={citationHandlers}
-          webCitations={webCitations} inlineCitations={inlineCitations}
-          isError={isError}
+          message={message} onSuggestionClick={onSuggestionClick} isLastMessage={isLastMessage}
+          loadingStatus={loadingStatus} isCopied={isCopied} actions={actions} citationHandlers={citationHandlers}
         />
       )}
     </div>
   );
 }, (prev, next) => {
-  if (prev.state !== next.state) return false;
-  if (next.state === 'streaming') return true;
+  if (prev.message.metadata.state !== next.message.metadata.state) return false;
+  // The streaming body re-renders on its own (streamingStore); the message around it holds still.
+  if (next.message.metadata.state === 'streaming') return true;
   return (
-    prev.id === next.id &&
-    prev.text === next.text &&
-    prev.parts === next.parts &&
-    prev.meetingRefs === next.meetingRefs &&
+    prev.message === next.message &&
     prev.loadingStatus === next.loadingStatus &&
     prev.isCopied === next.isCopied &&
     prev.isLastMessage === next.isLastMessage &&
-    prev.suggestions === next.suggestions &&
-    prev.context === next.context &&
-    prev.tokensPerSecond === next.tokensPerSecond &&
-    prev.usage === next.usage &&
-    prev.meetingCitations === next.meetingCitations &&
     prev.actions === next.actions &&
-    prev.citationHandlers === next.citationHandlers &&
-    prev.webCitations === next.webCitations &&
-    prev.inlineCitations === next.inlineCitations &&
-    prev.isError === next.isError
+    prev.citationHandlers === next.citationHandlers
   );
 });
 

@@ -6,10 +6,10 @@ import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { costOf, priceOf } from '@extensions/usage';
 import { formatCost, formatCostOrUnknown } from '@extensions/usage/format';
 import { CHAT_COST_COPY } from '@config/chat.config';
-import type { ChatMessage } from '@shared/types';
+import type { ChatMessage, ChatMetadata } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 
-type PricedReply = Pick<ChatMessage, 'provider' | 'model' | 'usage'>;
+type PricedReply = Pick<ChatMetadata, 'provider' | 'model' | 'usage'>;
 
 /** A reply's cost in USD; undefined when its price or tokens are unknown. */
 export function replyCost(providers: ModelProvider[], { provider, model, usage }: PricedReply): number | undefined {
@@ -19,7 +19,7 @@ export function replyCost(providers: ModelProvider[], { provider, model, usage }
 
 /** The chat's replies that recorded their tokens: their summed cost, and how many have no price; null before any. */
 export function chatCostOf(providers: ModelProvider[], messages: ChatMessage[]): { total: number; unpriced: number } | null {
-  const costs = messages.filter((m) => m.role === 'model' && m.usage).map((m) => replyCost(providers, m));
+  const costs = messages.filter((m) => m.role === 'assistant' && m.metadata.usage).map((m) => replyCost(providers, m.metadata));
   if (costs.length === 0) return null;
   return {
     total: costs.reduce<number>((sum, cost) => sum + (cost ?? 0), 0),

@@ -53,27 +53,8 @@ export async function call<T>(command: string, args?: Record<string, unknown>): 
   }
 }
 
-/** Extract the JSON data blob fields from a ChatMessage */
-export function extractDataBlob(msg: ChatMessage): Record<string, unknown> | undefined {
-  const data: Record<string, unknown> = {};
-  if (msg.parts !== undefined) data.parts = msg.parts;
-  if (msg.meetingRefs !== undefined) data.meetingRefs = msg.meetingRefs;
-  if (msg.meetingContext !== undefined) data.meetingContext = msg.meetingContext;
-  if (msg.suggestions !== undefined) data.suggestions = msg.suggestions;
-  if (msg.meetingCitations !== undefined) data.meetingCitations = msg.meetingCitations;
-  if (msg.webCitations !== undefined) data.webCitations = msg.webCitations;
-  if (msg.inlineCitations !== undefined) data.inlineCitations = msg.inlineCitations;
-  if (msg.tokensPerSecond !== undefined) data.tokensPerSecond = msg.tokensPerSecond;
-  if (msg.context !== undefined) data.context = msg.context;
-  if (msg.usage !== undefined) data.usage = msg.usage;
-  if (msg.exchange !== undefined) data.exchange = msg.exchange;
-  if (msg.state !== undefined) data.state = msg.state;
-  if (msg.isError !== undefined) data.isError = msg.isError;
-  return Object.keys(data).length > 0 ? data : undefined;
-}
-
-/** Reconstitute a ChatMessage from a Rust row */
-export function rowToMessage(row: {
+/** A message row as the store returns it. */
+export interface ChatMessageRow {
   id: string;
   seq: number;
   role: string;
@@ -82,17 +63,16 @@ export function rowToMessage(row: {
   model: string | null;
   data: string | null;
   created_at: number;
-}): ChatMessage {
-  const parsed = row.data ? JSON.parse(row.data) : {};
-  return {
-    id: row.id,
-    role: row.role as 'user' | 'model',
-    text: row.text,
-    timestamp: row.created_at,
-    ...(row.provider ? { provider: row.provider } : {}),
-    ...(row.model ? { model: row.model } : {}),
-    ...parsed,
-  };
+}
+
+/** The store's own role words (`model` for a reply) ⇄ the AI SDK's. */
+export const toRowRole = (role: ChatMessage['role']): string => (role === 'assistant' ? 'model' : role);
+const fromRowRole = (role: string): ChatMessage['role'] => (role === 'model' ? 'assistant' : 'user');
+
+/** A message from its row: its parts and metadata are the row's `data`, saved whole. */
+export function rowToMessage(row: ChatMessageRow): ChatMessage {
+  const { parts, metadata } = JSON.parse(row.data ?? '{}') as Pick<ChatMessage, 'parts' | 'metadata'>;
+  return { id: row.id, role: fromRowRole(row.role), parts, metadata };
 }
 
 // ── Rust row type helpers ──

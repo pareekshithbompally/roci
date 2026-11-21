@@ -1,6 +1,6 @@
 /** Provider-agnostic tool calling interfaces. */
 
-import type { ImagePart } from '@shared/types';
+import type { GeneratedImage } from '@shared/types';
 
 // ── JSON Schema (subset used for tool parameter definitions) ──
 
@@ -82,6 +82,6 @@ export interface ToolResultMeta {
   /** UI-only citation cards to surface after search_meetings runs */
   citations?: MeetingCitation[];
   /** UI-only: an image the tool made, shown in the reply where the tool ran (generate_image). */
-  image?: ImagePart;
+  image?: GeneratedImage;
 }
 

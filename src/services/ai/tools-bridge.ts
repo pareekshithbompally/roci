@@ -71,6 +71,8 @@ export function toExecutableTools(definitions: ToolDefinition[], context: ToolCo
       description: definition.description,
       inputSchema: jsonSchema(definition.parameters as Parameters<typeof jsonSchema>[0]),
       execute: (args: Record<string, unknown>, { toolCallId }) => runTool(definition, args, context, toolCallId),
+      // The MCP server a tool came from rides on its parts in the chat (the SDK's `toolMetadata`); never sent to the model.
+      ...(definition.source && { metadata: { source: definition.source } }),
       toModelOutput: ({ output }: { output: ToolResult }) => ({ type: 'text' as const, value: output.content }),
     });
   }

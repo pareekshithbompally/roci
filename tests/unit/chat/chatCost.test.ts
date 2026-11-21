@@ -9,10 +9,10 @@ vi.mock('@services/modalities', () => ({
 import { chatCostOf } from '@features/chat/hooks/useChatCost';
 
 const reply = (id: string, provider: string, model: string, tokens?: number): ChatMessage => ({
-  id, role: 'model', text: '', timestamp: 0, provider, model,
-  ...(tokens !== undefined && { usage: { inputTokens: tokens, outputTokens: tokens } }),
+  id, role: 'assistant', parts: [],
+  metadata: { createdAt: 0, provider, model, ...(tokens !== undefined && { usage: { inputTokens: tokens, outputTokens: tokens } }) },
 });
-const question: ChatMessage = { id: 'q', role: 'user', text: 'hi', timestamp: 0 };
+const question: ChatMessage = { id: 'q', role: 'user', parts: [{ type: 'text', text: 'hi' }], metadata: { createdAt: 0 } };
 
 describe('chatCostOf', () => {
   it('sums the replies by the price rule, counting the ones with no price', () => {

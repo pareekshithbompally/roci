@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
-import type { ToolCallPart } from '@shared/types';
+import type { ToolCallView } from '@features/chat/components/tool-call';
 import { ToolCallBlock } from '@features/chat/components/tool-call';
 import { ThemeProvider } from '@shared/contexts/ThemeContext';
 
@@ -10,7 +10,7 @@ import { ThemeProvider } from '@shared/contexts/ThemeContext';
 const render = (ui: ReactElement) =>
   rtlRender(<ThemeProvider><QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider></ThemeProvider>);
 
-function part(overrides: Partial<ToolCallPart>): ToolCallPart {
+function part(overrides: Partial<ToolCallView>): ToolCallView {
   return {
     type: 'tool_call',
     toolCallId: 'call-1',

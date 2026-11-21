@@ -1,4 +1,4 @@
-import type { ToolCallPart } from '@shared/types';
+import type { ToolCallView } from './toolCallView';
 import { truncate } from '@shared/utils/formatters';
 import { extractDomain } from '@shared/utils/citationUtils';
 import { UI_CONFIG } from '@config/ui.config';
@@ -38,24 +38,24 @@ function upTo(value: unknown, noun: string): string | undefined {
   return typeof value === 'number' ? `(up to ${value} ${noun})` : undefined;
 }
 
-function queryDetail(part: ToolCallPart): string | undefined {
+function queryDetail(part: ToolCallView): string | undefined {
   const query = quoted(part.arguments.query);
   return query && `for ${query}`;
 }
 
 /** A web search: what it searched for, or the site it read when it opened a page. */
-function webDetail(part: ToolCallPart): string | undefined {
+function webDetail(part: ToolCallView): string | undefined {
   const { url } = part.arguments;
   return queryDetail(part) ?? (typeof url === 'string' && url ? `on ${extractDomain(url)}` : undefined);
 }
 
-function meetingDetail(part: ToolCallPart): string | undefined {
+function meetingDetail(part: ToolCallView): string | undefined {
   const title = part.result?.content.match(MEETING_HEADER)?.[1];
   return quoted(title ?? part.arguments.meeting_id);
 }
 
 /** Argument-derived snippet appended to the verb, per tool. */
-const DETAILS: Record<string, (part: ToolCallPart) => string | undefined> = {
+const DETAILS: Record<string, (part: ToolCallView) => string | undefined> = {
   search_meetings: queryDetail,
   search_chats: queryDetail,
   webSearch: webDetail,
@@ -74,7 +74,7 @@ export function formatToolName(toolName: string): string {
   return toolName.replace(/^server:/, '').replace(/_/g, ' ');
 }
 
-function builtInTitle(part: ToolCallPart): string {
+function builtInTitle(part: ToolCallView): string {
   const pair = LABELS[part.toolName];
   if (!pair) return part.status === 'calling' ? `Running ${formatToolName(part.toolName)}` : `Used ${formatToolName(part.toolName)}`;
   const verb = part.status === 'calling' ? pair[0] : pair[1];
@@ -82,13 +82,13 @@ function builtInTitle(part: ToolCallPart): string {
   return detail ? `${verb} ${detail}` : verb;
 }
 
-function baseTitle(part: ToolCallPart): string {
+function baseTitle(part: ToolCallView): string {
   if (part.source) return formatToolName(part.toolName);
   return builtInTitle(part);
 }
 
 /** Human title for a tool call: verb + argument for built-ins, `server · tool` for MCP, "failed" on error. */
-export function toolCallTitle(part: ToolCallPart): string {
+export function toolCallTitle(part: ToolCallView): string {
   const prefix = part.source ? `${part.source} · ` : '';
   if (part.status === 'error') return `${prefix}${formatToolName(part.toolName)} failed`;
   const suffix = part.status === 'calling' ? '…' : '';

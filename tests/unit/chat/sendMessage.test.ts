@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { ChatPart } from '@shared/types';
+import type { FileUIPart } from '@shared/types';
+import { messageText } from '@shared/utils/chatParts';
 
 const persist = vi.fn().mockResolvedValue(true);
 vi.mock('@services/chat.service', () => ({
@@ -9,7 +10,7 @@ vi.mock('@services/chat.service', () => ({
 import { useChatStore, askInNewChat, injectChatRefs } from '@features/chat/stores/chatStore';
 import { CHAT_DRAFT_COPY } from '@config/chat.config';
 
-const pdf: ChatPart = { type: 'document', mimeType: 'application/pdf', source: { kind: 'data', base64: '' }, fileName: 'plan.pdf' };
+const pdf: FileUIPart = { type: 'file', mediaType: 'application/pdf', url: 'data:application/pdf;base64,', filename: 'plan.pdf' };
 const current = () => {
   const s = useChatStore.getState();
   return s.currentSessionId ? s.loadedSessions.get(s.currentSessionId) : undefined;
@@ -32,7 +33,8 @@ describe('sending a message', () => {
     await vi.waitFor(() => expect(current()?.messages).toHaveLength(2));
 
     const [question] = current()!.messages;
-    expect(question).toMatchObject({ role: 'user', text: 'summarise yesterday' });
+    expect(question.role).toBe('user');
+    expect(messageText(question)).toBe('summarise yesterday');
     expect(useChatStore.getState().input).toBe('');
     expect(persist).toHaveBeenCalledWith(expect.objectContaining({ title: 'summarise yesterday' }));
   });
@@ -42,8 +44,8 @@ describe('sending a message', () => {
     await useChatStore.getState().sendMessage();
 
     const [question] = current()!.messages;
-    expect(question.text).toBe('');
-    expect(question.parts).toEqual([pdf]);
+    expect(messageText(question)).toBe('');
+    expect(question.parts).toEqual([{ type: 'data-sentAt', data: { at: question.metadata.createdAt } }, pdf]);
     expect(current()!.title).toBe('plan.pdf');
     expect(useChatStore.getState().pendingAttachments).toEqual([]);
   });
@@ -60,7 +62,10 @@ describe('sending a message', () => {
     useChatStore.setState({ input: 'half-typed', pendingAttachments: [pdf], selectedMeetingRefs: [meeting] });
     await useChatStore.getState().sendMessage('What changed?');
 
-    expect(current()!.messages[0]).toMatchObject({ text: 'What changed?', parts: undefined, meetingRefs: undefined });
+    const [question] = current()!.messages;
+    expect(question.parts.map((p) => p.type)).toEqual(['data-sentAt', 'text']);
+    expect(messageText(question)).toBe('What changed?');
+    expect(question.metadata.meetingRefs).toBeUndefined();
     expect(useChatStore.getState()).toMatchObject({ input: 'half-typed', pendingAttachments: [pdf], selectedMeetingRefs: [meeting] });
   });
 
@@ -69,12 +74,12 @@ describe('sending a message', () => {
     await useChatStore.getState().sendMessage();
 
     await vi.waitFor(() => expect(persist).toHaveBeenCalledTimes(2));
-    const saved = persist.mock.calls[1][0] as { messages: { state?: string }[] };
-    expect(saved.messages.every((m) => m.state !== 'loading' && m.state !== 'streaming')).toBe(true);
+    const saved = persist.mock.calls[1][0] as { messages: { metadata: { state?: string } }[] };
+    expect(saved.messages.every((m) => m.metadata.state !== 'loading' && m.metadata.state !== 'streaming')).toBe(true);
   });
 
   it('names an attachment with no name of its own generically', async () => {
-    const clip: ChatPart = { type: 'audio', mimeType: 'audio/wav', source: { kind: 'data', base64: '' } };
+    const clip: FileUIPart = { type: 'file', mediaType: 'audio/wav', url: 'data:audio/wav;base64,' };
     useChatStore.setState({ pendingAttachments: [clip] });
     await useChatStore.getState().sendMessage();
     expect(current()!.title).toBe(CHAT_DRAFT_COPY.untitledAttachment);

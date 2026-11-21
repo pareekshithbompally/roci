@@ -1,6 +1,6 @@
-/** Web citation helpers: favicon URLs, domain extraction, display labels, deduplication. */
+/** Web citation helpers: favicon URLs, domain extraction, display labels. */
 
-import type { WebCitation, InlineCitationSpan } from '@shared/types';
+import type { WebCitation } from '@shared/types';
 
 const FAVICON_BASE = 'https://www.google.com/s2/favicons';
 const WWW_PREFIX = /^www\./;
@@ -47,40 +47,4 @@ export function describeCitation({ url, title }: WebCitation): CitationLabel {
   }
   if (title && title !== linkHost) return { name: title, site: linkHost, detail: linkHost };
   return { name: linkHost, site: linkHost, detail: pagePath(url) };
-}
-
-/** Dedupe citations by URL keeping first occurrences; returns the list and an old→new index map. */
-export function deduplicateCitations(
-  citations: WebCitation[]
-): { citations: WebCitation[]; indexMap: Map<number, number> } {
-  const seen = new Map<string, number>();
-  const deduped: WebCitation[] = [];
-  const indexMap = new Map<number, number>();
-
-  for (let i = 0; i < citations.length; i++) {
-    const { url } = citations[i];
-    const existing = seen.get(url);
-
-    if (existing !== undefined) {
-      indexMap.set(i, existing);
-    } else {
-      const newIdx = deduped.length;
-      seen.set(url, newIdx);
-      indexMap.set(i, newIdx);
-      deduped.push(citations[i]);
-    }
-  }
-
-  return { citations: deduped, indexMap };
-}
-
-/** Remap inline citation source indices after deduplication (deduped per span). */
-export function remapInlineCitations(
-  spans: InlineCitationSpan[],
-  indexMap: Map<number, number>
-): InlineCitationSpan[] {
-  return spans.map(span => ({
-    ...span,
-    sourceIndices: [...new Set(span.sourceIndices.map(i => indexMap.get(i) ?? i))],
-  }));
 }

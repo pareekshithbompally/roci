@@ -1,9 +1,9 @@
 /** Agentic tool loop: one streamText call where the LLM picks tools; called only by chatStore.sendMessage(). */
 
 import { missingKey } from '@services/ai/jobModel';
-import { streamText, isStepCount } from 'ai';
-import type { ModelMessage, TextStreamPart, ToolSet } from 'ai';
-import { createModel, chatCallSettings, toSDKMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
+import { streamText, isStepCount, readUIMessageStream, toUIMessageStream } from 'ai';
+import type { StreamTextTransform, TextStreamPart, ToolSet } from 'ai';
+import { createModel, chatCallSettings, toModelMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
 import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { getModelDisplayName } from '@shared/utils/provider.utils';
@@ -22,17 +22,13 @@ import { chatToolPreferences } from '@config/chatTools.config';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { extractTokenUsage } from '@services/ai/types';
-import type { GenerationStats, StreamProgress, TokenUsage } from '@services/ai/types';
-import type { ContextTokens } from '@shared/types';
+import type { StreamProgress, TokenUsage } from '@services/ai/types';
+import type { ChatPart, ChatUIMessage, ContextTokens } from '@shared/types';
+import { errorMessage } from '@shared/utils/errors';
 import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
-import { toolActivityOf } from './toolActivity';
-import type { ToolSources } from './toolActivity';
 import { finalStepGuard } from './stepGuard';
 import { buildChatSystemPrompt, NO_TOOLS } from '@core/ai';
 import type { ChatToolset } from '@core/ai';
-
-/** Separates a model's thinking blocks (OpenAI streams each reasoning summary as its own block). */
-const REASONING_BLOCK_BREAK = '\n\n';
 
 /** Drops provider citation markers only while web search is on, so code like `arr[0]` survives otherwise. */
 export function stripWebCitations(text: string, webSearchActive: boolean): string {
@@ -40,14 +36,22 @@ export function stripWebCitations(text: string, webSearchActive: boolean): strin
   return text.replace(/<\/?cite[^>]*>/g, '').replace(/\[(\d+)\](?!\()/g, '');
 }
 
+/** The answer without citation markers, everywhere it goes: the screen, the saved chat, the next step's input. */
+const withoutCitationMarkers: StreamTextTransform<ToolSet> = () =>
+  new TransformStream({
+    transform(part, controller) {
+      controller.enqueue(part.type === 'text-delta' ? { ...part, text: stripWebCitations(part.text, true) } : part);
+    },
+  });
+
 /** The models.dev list (what each model can do) before the chat reads it; the reply says so while it's fetched. */
-async function loadModelFacts(onChunk: OrchestratorCallbacks['onChunk']): Promise<void> {
+async function loadModelFacts(onProgress: OrchestratorCallbacks['onProgress']): Promise<void> {
   if (modalitiesService.isLoaded()) return;
-  onChunk('', { progress: { stage: 'loading-catalog', percent: null } });
+  onProgress({ stage: 'loading-catalog', percent: null });
   await modalitiesService.ensureLoaded();
   if (!modalitiesService.isLoaded()) throw new AiError('network', CHAT_CATALOG_COPY.unavailable);
   // Back to the plain "working" line until the model's first word.
-  onChunk('', {});
+  onProgress(null);
 }
 
 /** The chat's model, ready to call — or why it can't run. */
@@ -63,8 +67,6 @@ function chatModelOrThrow(resolved: ResolvedModel, profile: ModelProfile): Resol
 interface ChatTools {
   /** Built-in + enabled MCP tools plus web search; undefined when none, since some providers reject an empty set. */
   tools: ToolSet | undefined;
-  /** Which MCP server each MCP tool came from, for its row in chat. */
-  sources: ToolSources;
   /** The tool groups sent, so the system prompt guides exactly these. */
   toolset: ChatToolset;
 }
@@ -72,7 +74,7 @@ interface ChatTools {
 /** Roci's tools go only to a model that takes tools; the provider's own web search goes either way. */
 async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet | undefined, mcpSettings: McpSettings, takesTools: boolean): Promise<ChatTools> {
   const webSearch = !!webSearchTools;
-  const none: ChatTools = { tools: webSearchTools, sources: new Map(), toolset: { ...NO_TOOLS, webSearch } };
+  const none: ChatTools = { tools: webSearchTools, toolset: { ...NO_TOOLS, webSearch } };
   if (!takesTools) return none;
   const { settings, providers } = options;
   const prefs = chatToolPreferences(settings);
@@ -83,67 +85,17 @@ async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet 
   const definitions = [...meetingTools, ...imageTools, ...mcpTools];
   if (definitions.length === 0) return none;
   const rociTools = toExecutableTools(definitions, { signal: options.signal, approval: 'chat' });
-  const sources = new Map(definitions.flatMap((d) => (d.source ? [[d.name, d.source] as const] : [])));
   const apps = [...new Set(mcpTools.flatMap((t) => (t.source ? [t.source] : [])))];
   const toolset = { meetings: meetingTools.length > 0, webSearch, image: imageTools.length > 0, apps };
-  return { tools: { ...rociTools, ...webSearchTools }, sources, toolset };
+  return { tools: { ...rociTools, ...webSearchTools }, toolset };
 }
 
-interface StreamState {
-  hasText: boolean;
-  /** The last thing streamed was thinking text, so a new thinking block starts a new paragraph. */
-  hasReasoning: boolean;
-  sources: Array<{ url: string; title: string }>;
-  /** Latest tokens-so-far and speed llama-server reported (its chunks arrive just before the text they carry). */
-  generation?: GenerationStats;
-}
-
-/** llama-server's own chunk: prompt-reading progress is shown, generation stats are kept for the thinking that follows. */
-function handleRaw(chunk: unknown, state: StreamState, onChunk: OrchestratorCallbacks['onChunk']): void {
+/** llama-server's own chunk (raw, so outside the UI stream): prompt-reading progress, and tokens and speed while it generates. */
+function handleRaw(chunk: unknown, callbacks: OrchestratorCallbacks): void {
   const progress = promptProgress(chunk);
-  if (progress) onChunk('', { progress });
-  state.generation = generationStats(chunk) ?? state.generation;
-}
-
-/** One stream part → UI callbacks and collected state. Throws on a stream error. */
-function handlePart(
-  part: TextStreamPart<ToolSet>,
-  state: StreamState,
-  callbacks: OrchestratorCallbacks,
-  context: { webSearchActive: boolean; toolSources: ToolSources },
-): void {
-  const { onChunk } = callbacks;
-  const activity = toolActivityOf(part, context.toolSources);
-  if (activity) {
-    state.hasReasoning = false;
-    callbacks.onToolActivity(activity);
-    return;
-  }
-  switch (part.type) {
-    case 'text-delta': {
-      state.hasText = true;
-      state.hasReasoning = false;
-      const text = stripWebCitations(part.text, context.webSearchActive);
-      if (text) onChunk(text);
-      return;
-    }
-    case 'reasoning-start':
-      if (state.hasReasoning) callbacks.onReasoning(REASONING_BLOCK_BREAK, state.generation);
-      return;
-    case 'reasoning-delta':
-      state.hasReasoning ||= part.text.length > 0;
-      callbacks.onReasoning(part.text, state.generation);
-      return;
-    case 'source':
-      if (part.sourceType === 'url') state.sources.push({ url: part.url, title: part.title || '' });
-      return;
-    case 'raw':
-      handleRaw(part.rawValue, state, onChunk);
-      return;
-    case 'error':
-      console.error('[Orchestrator] Stream error:', part.error);
-      throw part.error instanceof Error ? part.error : new Error(String(part.error ?? 'Model returned a stream error'));
-  }
+  if (progress) callbacks.onProgress(progress);
+  const stats = generationStats(chunk);
+  if (stats) callbacks.onGeneration(stats);
 }
 
 function emptyResponseError(finishReason: string | undefined): Error {
@@ -162,38 +114,72 @@ async function followLoad(resolved: ResolvedModel, llamaServer: boolean, showPro
   return () => undefined;
 }
 
+/** Reads the reply as the SDK builds it, handing on its parts at each change; the stream's own error is thrown as it came. */
+async function readReply(
+  stream: ReadableStream<TextStreamPart<ToolSet>>,
+  tools: ToolSet | undefined,
+  { messageId, signal }: Pick<OrchestratorOptions, 'messageId' | 'signal'>,
+  onParts: OrchestratorCallbacks['onParts'],
+): Promise<ChatPart[]> {
+  let failure: unknown;
+  const chunks = toUIMessageStream<ToolSet, ChatUIMessage>({
+    stream,
+    tools,
+    sendSources: true,
+    generateMessageId: () => messageId,
+    onError: (error) => {
+      failure ??= error;
+      return errorMessage(error);
+    },
+    // The error text stays what the model was told, so the chat replays as it ran.
+    redactToolErrors: false,
+  });
+  let parts: ChatPart[] = [];
+  for await (const message of readUIMessageStream<ChatUIMessage>({ stream: chunks })) {
+    if (signal?.aborted) break;
+    parts = message.parts;
+    onParts(parts);
+  }
+  if (failure !== undefined) throw failure;
+  return parts;
+}
+
+const hasText = (parts: ChatPart[]): boolean => parts.some((part) => part.type === 'text' && part.text.length > 0);
+
 /** Runs the agentic loop: the LLM decides which meeting, MCP and web search tools to call, and when to answer. */
 export async function orchestrate(
   options: OrchestratorOptions,
   callbacks: OrchestratorCallbacks,
-): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage; context?: ContextTokens; exchange: ModelMessage[]; toolset: ChatToolset }> {
+): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage; context?: ContextTokens; parts: ChatPart[]; toolset: ChatToolset }> {
   const { messages, model, prompt, settings, signal, reasoningEffort } = options;
-  const { onChunk } = callbacks;
 
-  await loadModelFacts(onChunk);
+  await loadModelFacts(callbacks.onProgress);
   const profile = profileOf(model.provider, model.model);
   const resolved = chatModelOrThrow(model, profile);
   const webSearchTools = chatToolPreferences(settings).webSearch ? getWebSearchTools(resolved) : undefined;
   const mcpSettings = await loadMcpSettings();
-  const { tools, sources: toolSources, toolset } = await buildTools(options, webSearchTools, mcpSettings, profile.tools);
+  const { tools, toolset } = await buildTools(options, webSearchTools, mcpSettings, profile.tools);
   const { input, output } = profile;
   const systemPrompt = buildChatSystemPrompt({ ...prompt, tools: toolset, modalities: { input, output } });
   const { maxToolCalls } = mcpSettings;
   // A local llama-server reports loading the model and reading the prompt before it replies.
   const reportsProgress = (await listStyleOf(resolved.provider, { baseUrl: resolved.baseUrl })) === 'llama-server';
 
-  const stopFollowingLoad = await followLoad(resolved, reportsProgress, (progress) => onChunk('', { progress }));
+  const stopFollowingLoad = await followLoad(resolved, reportsProgress, callbacks.onProgress);
 
-  const state: StreamState = { hasText: false, hasReasoning: false, sources: [] };
   // From the subscription on, the listener is released however the request ends (including a throw while it's set up).
   try {
     const result = streamText({
       model: createModel(resolved, { webSearch: !!webSearchTools, ...(reportsProgress && { llamaServer: { reasoningEffort } }) }),
       ...chatCallSettings(resolved, reasoningEffort),
       instructions: systemPrompt,
-      messages: toSDKMessages(messages, Object.keys(tools ?? {})),
+      messages: await toModelMessages(messages, tools ?? {}),
       abortSignal: signal,
-      includeRawChunks: reportsProgress,
+      ...(webSearchTools && { experimental_transform: withoutCitationMarkers }),
+      ...(reportsProgress && {
+        include: { rawChunks: true },
+        onChunk: ({ chunk }) => { if (chunk.type === 'raw') handleRaw(chunk.rawValue, callbacks); },
+      }),
       ...(tools && {
         tools,
         toolChoice: 'auto' as const,
@@ -203,20 +189,15 @@ export async function orchestrate(
       }),
     });
 
-    for await (const part of result.stream) {
-      if (signal?.aborted) break;
-      handlePart(part, state, callbacks, { webSearchActive: !!webSearchTools, toolSources });
-    }
-
-    if (!state.hasText && !signal?.aborted) throw emptyResponseError(await result.finishReason);
-    if (state.sources.length > 0) onChunk('', { webCitations: state.sources });
+    const parts = await readReply(result.stream, tools, options, callbacks.onParts);
+    if (!hasText(parts) && !signal?.aborted) throw emptyResponseError(await result.finishReason);
 
     return {
       provider: resolved.provider,
       model: resolved.modelId,
       tokenUsage: extractTokenUsage(await result.usage),
       context: contextOf((await result.steps).at(-1)?.usage),
-      exchange: await result.responseMessages,
+      parts,
       toolset,
     };
   } finally {

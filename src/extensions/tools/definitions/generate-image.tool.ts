@@ -35,7 +35,7 @@ export function generateImageTool(deps: { settings: AppSettings; providers: Mode
       // No file path for the model: it would echo it as a link. The image joins the reply right after this tool's row.
       return ok(
         `Created a ${aspectRatio} image with ${image.model}. It is already shown to the user in this reply, so don't link, embed or describe where it is saved.`,
-        { image: { type: 'image', mimeType: image.mediaType, source: { kind: 'file', path: image.appPath }, alt: prompt } },
+        { image: { mediaType: image.mediaType, path: image.appPath, alt: prompt } },
       );
     },
   });

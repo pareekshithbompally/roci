@@ -1,6 +1,6 @@
 import React from 'react';
 import { Surface, Text } from '@shared/ui';
-import type { ToolCallPart } from '@shared/types';
+import type { ToolCallView } from './toolCallView';
 
 const JSON_INDENT = 2;
 
@@ -33,7 +33,7 @@ function ToolSection({ label, text, isError }: ToolSectionProps) {
 }
 
 /** Raw Input (arguments) and Output (result) of any tool call. */
-export const DefaultToolBody: React.FC<{ part: ToolCallPart }> = ({ part }) => (
+export const DefaultToolBody: React.FC<{ part: ToolCallView }> = ({ part }) => (
   <div className="flex flex-col gap-2">
     <ToolSection label="Input" text={JSON.stringify(part.arguments, null, JSON_INDENT)} />
     {part.result && (

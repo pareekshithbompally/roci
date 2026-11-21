@@ -5,17 +5,10 @@ import {
   CONTEXT_WARNING_PERCENT,
   CONTEXT_CRITICAL_PERCENT,
 } from '@shared/hooks/useContextUsage';
-import type { ChatMessage } from '@shared/types';
+import type { ChatMessage, ContextTokens } from '@shared/types';
 
-function msg(overrides: Partial<ChatMessage> = {}): ChatMessage {
-  return {
-    id: 'm1',
-    role: 'model',
-    text: 'hello',
-    timestamp: 0,
-    state: 'complete',
-    ...overrides,
-  };
+function msg({ id = 'm1', context }: { id?: string; context?: ContextTokens } = {}): ChatMessage {
+  return { id, role: 'assistant', parts: [{ type: 'text', text: 'hello' }], metadata: { createdAt: 0, state: 'complete', context } };
 }
 
 describe('contextLevelFor', () => {
@@ -62,7 +55,7 @@ describe('deriveContextUsage', () => {
   });
 
   it('ignores user messages when measuring', () => {
-    const messages = [{ ...msg({ id: 'u', ...ctx(99_999, 0) }), role: 'user' as const }, msg({ id: 'a', ...ctx(100, 100) })];
+    const messages: ChatMessage[] = [{ ...msg({ id: 'u', ...ctx(99_999, 0) }), role: 'user' }, msg({ id: 'a', ...ctx(100, 100) })];
     expect(deriveContextUsage(messages, 1000)).toMatchObject({ used: 200, percent: 20 });
   });
 });

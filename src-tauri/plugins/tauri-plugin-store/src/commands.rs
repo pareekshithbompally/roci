@@ -3497,6 +3497,46 @@ pub(crate) mod tests {
         assert!(got.messages[1].data.is_none());
     }
 
+    #[test]
+    fn saving_a_chat_records_its_sdk_tool_parts_as_tool_calls() {
+        let conn = db();
+        let data = r#"{"parts":[
+            {"type":"step-start"},
+            {"type":"tool-search_meetings","state":"output-available","output":{"content":"ok","isError":false,"meta":{"executionMs":120}}},
+            {"type":"tool-get_meeting","state":"output-available","output":{"content":"gone","isError":true,"meta":{"executionMs":30}}},
+            {"type":"dynamic-tool","toolName":"notion:search","state":"output-error","errorText":"boom"},
+            {"type":"text","text":"Done."}
+        ],"metadata":{"createdAt":5}}"#;
+        let input = ChatsUpsertInput {
+            id: "c1".into(),
+            title: "Chat".into(),
+            meeting_id: None,
+            asset_paths: vec![],
+            last_message_at: 5,
+            messages: vec![ChatMessageInput {
+                id: "m1".into(),
+                role: "model".into(),
+                text: "Done.".into(),
+                provider: None,
+                model: None,
+                data: Some(data.into()),
+                created_at: 5,
+            }],
+            created_at: None,
+        };
+        chats_upsert_impl(&conn, &input).expect("upsert ok");
+
+        let rows: Vec<(String, bool, Option<f64>)> = conn
+            .prepare("SELECT tool, ok, duration_ms FROM tool_calls WHERE chat_id = 'c1' ORDER BY rowid").unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).unwrap()
+            .collect::<Result<_, _>>().unwrap();
+        assert_eq!(rows, vec![
+            ("search_meetings".into(), true, Some(120.0)),
+            ("get_meeting".into(), false, Some(30.0)),
+            ("notion:search".into(), false, None),
+        ]);
+    }
+
     fn msg(id: &str, text: &str) -> ChatMessageInput {
         ChatMessageInput { id: id.into(), role: "user".into(), text: text.into(), provider: None, model: None, data: None, created_at: 1 }
     }

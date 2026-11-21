@@ -1,6 +1,6 @@
 import React from 'react';
 import { Surface, Text } from '@shared/ui';
-import type { ToolCallPart } from '@shared/types';
+import type { ToolCallView } from './toolCallView';
 import { DefaultToolBody } from './DefaultToolBody';
 
 export interface MeetingResultRow {
@@ -60,7 +60,7 @@ function MeetingRow({ row }: { row: MeetingResultRow }) {
 }
 
 /** search_meetings / list_meetings results as a meeting list; raw Input/Output when unparseable. */
-export const MeetingResultsBody: React.FC<{ part: ToolCallPart }> = ({ part }) => {
+export const MeetingResultsBody: React.FC<{ part: ToolCallView }> = ({ part }) => {
   const rows = part.result && !part.result.isError ? parseMeetingResults(part.result.content) : [];
   if (rows.length === 0) return <DefaultToolBody part={part} />;
   return (

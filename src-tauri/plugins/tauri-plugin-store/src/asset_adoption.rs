@@ -107,7 +107,7 @@ mod tests {
         db.execute_batch(
             r#"INSERT INTO chats (id, title, created_at, last_message_at) VALUES ('c1', 'Chat', 0, 0);
                INSERT INTO chat_messages (id, chat_id, seq, role, data, created_at)
-                   VALUES ('m1', 'c1', 0, 'model', '{"parts":[{"source":{"kind":"file","path":"images/shown.png"}}]}', 0);"#,
+                   VALUES ('m1', 'c1', 0, 'model', '{"parts":[{"type":"tool-generate_image","state":"output-available","output":{"meta":{"image":{"path":"images/shown.png"}}}}]}', 0);"#,
         )
         .unwrap();
 

@@ -8,7 +8,7 @@ const getWebSearchTools = vi.hoisted(() => vi.fn());
 vi.mock('@services/ai', () => ({
   createModel: () => ({}),
   chatCallSettings: () => ({}),
-  toSDKMessages: () => [],
+  toModelMessages: async () => [],
   getWebSearchTools,
   toExecutableTools: () => ({}),
 }));
@@ -49,10 +49,20 @@ vi.mock('@shared/query/queryClient', () => ({ queryClient: { invalidateQueries }
 
 import { orchestrate } from '@extensions/tool-orchestrator';
 
-/** A reply that streams one word and ends. */
-function replyOnce() {
+/** The SDK's stream parts for `parts`, as `streamText` hands them on. */
+const streamOf = (parts: object[]) => new ReadableStream({
+  start(controller) {
+    parts.forEach((part) => controller.enqueue(part));
+    controller.close();
+  },
+});
+
+const WORDS = [{ type: 'text-start', id: 't' }, { type: 'text-delta', id: 't', text: 'Hi' }, { type: 'text-end', id: 't' }];
+
+/** A reply that streams `parts` (one word by default) and ends. */
+function replyOnce(parts: object[] = WORDS) {
   streamText.mockReturnValue({
-    stream: (async function* () { yield { type: 'text-delta', text: 'Hi' }; })(),
+    stream: streamOf([{ type: 'start' }, ...parts, { type: 'finish', finishReason: 'stop', totalUsage: {} }]),
     finishReason: Promise.resolve('stop'),
     // Two steps (a tool call, then the answer): `usage` sums them, the last step is what the window holds.
     usage: Promise.resolve({ inputTokens: 1_900, outputTokens: 120 }),
@@ -60,13 +70,12 @@ function replyOnce() {
       { usage: { inputTokens: 900, outputTokens: 20 } },
       { usage: { inputTokens: 1_000, outputTokens: 100, inputTokenDetails: { cacheReadTokens: 900 } } },
     ]),
-    responseMessages: Promise.resolve([{ role: 'assistant', content: 'Hi' }]),
   });
 }
 
-const callbacks = { onChunk: vi.fn(), onReasoning: vi.fn(), onToolActivity: vi.fn() };
+const callbacks = { onParts: vi.fn(), onProgress: vi.fn(), onGeneration: vi.fn() };
 const run = (settings: Partial<AppSettings>) =>
-  orchestrate({ messages: [], model: resolved.current as never, prompt: { meetingCount: 0, timeContext: '' }, settings: settings as AppSettings, providers: [], reasoningEffort: 'provider-default' }, callbacks);
+  orchestrate({ messages: [], messageId: 'r1', model: resolved.current as never, prompt: { meetingCount: 0, timeContext: '' }, settings: settings as AppSettings, providers: [], reasoningEffort: 'provider-default' }, callbacks);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -104,7 +113,52 @@ describe('orchestrate — context use', () => {
     const result = await run({});
     expect(result.context).toEqual({ prompt: 1_000, cached: 900, reply: 100 });
     expect(result.tokenUsage).toMatchObject({ inputTokens: 1_900, outputTokens: 120 });
-    expect(result.exchange).toEqual([{ role: 'assistant', content: 'Hi' }]);
+  });
+});
+
+describe('orchestrate — the reply as the SDK builds it', () => {
+  it('hands on the reply\'s parts as they grow, and returns them whole', async () => {
+    const result = await run({});
+    expect(result.parts).toEqual([{ type: 'text', text: 'Hi', state: 'done' }]);
+    expect(callbacks.onParts).toHaveBeenLastCalledWith(result.parts);
+  });
+
+  it('shows a tool call and its result in one part, with the MCP server it came from', async () => {
+    replyOnce([
+      { type: 'tool-call', toolCallId: 'c1', toolName: 'notion:search', input: { q: 'x' }, toolMetadata: { source: 'notion' } },
+      { type: 'tool-result', toolCallId: 'c1', toolName: 'notion:search', input: { q: 'x' }, output: { content: 'found', isError: false } },
+      ...WORDS,
+    ]);
+    const { parts } = await run({});
+    expect(parts[0]).toMatchObject({
+      type: 'tool-notion:search', toolCallId: 'c1', state: 'output-available', input: { q: 'x' },
+      output: { content: 'found', isError: false }, toolMetadata: { source: 'notion' },
+    });
+  });
+
+  it('strips web citation markers from the answer while web search is on, and only then', async () => {
+    await run({});
+    type Transform = (options: { tools: object; stopStream: () => void }) => TransformStream<object, { text?: string }>;
+    const [{ experimental_transform: transform }] = streamText.mock.calls[0] as [{ experimental_transform: Transform }];
+    const reader = streamOf([{ type: 'text-delta', id: 't', text: 'Ships Friday [1].' }])
+      .pipeThrough(transform({ tools: {}, stopStream: () => undefined })).getReader();
+    expect((await reader.read()).value).toMatchObject({ text: 'Ships Friday .' });
+
+    getWebSearchTools.mockReturnValue(undefined);
+    replyOnce();
+    await run({});
+    expect(streamText.mock.calls[1][0]).not.toHaveProperty('experimental_transform');
+  });
+
+  it('throws the stream\'s own error, not a generic one', async () => {
+    const failure = new Error('rate limited');
+    replyOnce([{ type: 'error', error: failure }]);
+    await expect(run({})).rejects.toBe(failure);
+  });
+
+  it('refuses a reply with no words', async () => {
+    replyOnce([]);
+    await expect(run({})).rejects.toThrow(/no text response/);
   });
 });
 
@@ -132,14 +186,14 @@ describe('orchestrate — the models.dev list', () => {
   it('says it is getting the model list on a Mac without one, then goes back to the plain line', async () => {
     catalog.loaded = false;
     await run({});
-    expect(callbacks.onChunk).toHaveBeenNthCalledWith(1, '', { progress: { stage: 'loading-catalog', percent: null } });
-    expect(callbacks.onChunk).toHaveBeenNthCalledWith(2, '', {});
+    expect(callbacks.onProgress).toHaveBeenNthCalledWith(1, { stage: 'loading-catalog', percent: null });
+    expect(callbacks.onProgress).toHaveBeenNthCalledWith(2, null);
     expect(streamText).toHaveBeenCalledOnce();
   });
 
   it('says nothing about it once the list is loaded', async () => {
     await run({});
-    expect(callbacks.onChunk).not.toHaveBeenCalledWith('', { progress: { stage: 'loading-catalog', percent: null } });
+    expect(callbacks.onProgress).not.toHaveBeenCalled();
   });
 
   it('stops with a plain reason when the list can\'t be downloaded, before calling the model', async () => {

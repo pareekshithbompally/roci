@@ -1,13 +1,53 @@
-/** Chat parts that carry media, and the app-data file a part shows. */
+/** Reads a chat message's SDK parts: its text, what its tools returned (citations, a generated image), its web sources. */
 
-import type { ChatPart, MediaSource } from '@shared/types';
+import { isTextUIPart, isToolUIPart } from 'ai';
+import type { ChatMessage, ChatPart, GeneratedImage, MeetingCitation, WebCitation } from '@shared/types';
+import type { ToolResult } from '@extensions/tools/types';
+import { isRecord } from '@shared/utils/validators';
 
-export type MediaPart = Extract<ChatPart, { source: MediaSource }>;
+/** The kinds of media a message shows, from a file's media type. */
+export type MediaKind = 'image' | 'audio' | 'video' | 'document';
 
-export const isMediaPart = (part: ChatPart): part is MediaPart =>
-  part.type === 'image' || part.type === 'audio' || part.type === 'video' || part.type === 'document';
+export function mediaKind(mediaType: string): MediaKind {
+  const [kind] = mediaType.split('/');
+  return kind === 'image' || kind === 'audio' || kind === 'video' ? kind : 'document';
+}
 
-/** The app-data path a part shows (`images/….png`), or null when it shows a URL, inline data or no media. */
-export function appFileOf(part: ChatPart): string | null {
-  return isMediaPart(part) && part.source.kind === 'file' ? part.source.path : null;
+/** A message's words: its text parts joined. */
+export function messageText(message: Pick<ChatMessage, 'parts'>): string {
+  return message.parts.filter(isTextUIPart).map((part) => part.text).join('');
+}
+
+function isToolResult(value: unknown): value is ToolResult {
+  return isRecord(value) && typeof value.content === 'string' && typeof value.isError === 'boolean';
+}
+
+/** What one of Roci's tools returned (text, failure, its UI-only meta); null for other parts and provider tools. */
+export function toolResultOf(part: ChatPart): ToolResult | null {
+  if (!isToolUIPart(part) || part.state !== 'output-available' || part.providerExecuted) return null;
+  return isToolResult(part.output) ? part.output : null;
+}
+
+/** The image a tool made, shown right after its row; null when the part made none. */
+export function generatedImageOf(part: ChatPart): GeneratedImage | null {
+  return toolResultOf(part)?.meta?.image ?? null;
+}
+
+/** The meetings a message's tools cited, each meeting once with its best-scoring excerpt. */
+export function meetingCitationsOf(parts: readonly ChatPart[]): MeetingCitation[] {
+  const best = new Map<string, MeetingCitation>();
+  for (const citation of parts.flatMap((part) => toolResultOf(part)?.meta?.citations ?? [])) {
+    const kept = best.get(citation.meetingId);
+    if (!kept || citation.score > kept.score) best.set(citation.meetingId, citation);
+  }
+  return [...best.values()];
+}
+
+/** The web pages a reply's search used, each URL once, in the order they arrived. */
+export function webCitationsOf(parts: readonly ChatPart[]): WebCitation[] {
+  const byUrl = new Map<string, WebCitation>();
+  for (const part of parts) {
+    if (part.type === 'source-url' && !byUrl.has(part.url)) byUrl.set(part.url, { url: part.url, title: part.title ?? '' });
+  }
+  return [...byUrl.values()];
 }

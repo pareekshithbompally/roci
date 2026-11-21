@@ -5,13 +5,6 @@ export interface WebCitation {
   snippet?: string;
 }
 
-/** Maps a span of response text to its web citation sources */
-export interface InlineCitationSpan {
-  startIndex: number;
-  endIndex: number;
-  sourceIndices: number[];
-}
-
 /** Provider type for routing */
 export type ProviderType = 'gemini' | 'anthropic' | 'openai' | 'mistral' | 'groq' | 'openai-compat' | 'apple-intelligence' | 'on-device';
 
@@ -77,11 +70,4 @@ export interface GenerationStats {
   /** Time spent generating so far, ms. */
   elapsedMs: number;
   tokensPerSecond: number;
-}
-
-/** Stream metadata for UI state */
-export interface StreamMetadata {
-  progress?: StreamProgress;
-  webCitations?: WebCitation[];
-  inlineCitations?: InlineCitationSpan[];
 }

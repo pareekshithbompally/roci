@@ -1,11 +1,11 @@
-import type { ModelMessage } from 'ai';
+import type { DynamicToolUIPart, FileUIPart, ToolUIPart, UIMessage } from 'ai';
 import type { AudioCaptureSource } from '@config/audio.config';
 import type { MeetingCitation } from '@extensions/tools/types';
-import type { WebCitation, InlineCitationSpan, TokenUsage } from '@services/ai/types';
+import type { WebCitation, TokenUsage } from '@services/ai/types';
 import type { ReadAloudEngine } from '@config/readAloud.config';
 import type { StorageConfig } from '@config/storage.config';
 import type { MeetingStatus } from './meetingPhase';
-export type { MeetingCitation, WebCitation, InlineCitationSpan };
+export type { MeetingCitation, WebCitation, FileUIPart };
 
 export interface ActionItem {
   id: string;
@@ -85,42 +85,12 @@ export interface TranscriptSegment {
   timestamp: number;
 }
 
-/** Source for media content in chat messages */
-export type MediaSource =
-  | { kind: 'url'; url: string }
-  | { kind: 'data'; base64: string }
-  /** A file in the app's data folder, by its path inside it (`images/….png`); the folder itself can move (iOS app updates). */
-  | { kind: 'file'; path: string };
-
-/** A single content part within a chat message */
-export type ChatPart =
-  | { type: 'text'; text: string }
-  /** The model's thinking before or between its answer, as the provider streamed it. */
-  | { type: 'reasoning'; text: string }
-  | { type: 'image'; mimeType: string; source: MediaSource; alt?: string }
-  | { type: 'audio'; mimeType: string; source: MediaSource; durationMs?: number }
-  | { type: 'video'; mimeType: string; source: MediaSource; alt?: string }
-  | { type: 'document'; mimeType: string; source: MediaSource; fileName: string }
-  | {
-      type: 'tool_call';
-      toolCallId: string;
-      toolName: string;
-      /** MCP server that ran the tool; absent for built-in tools. */
-      source?: string;
-      arguments: Record<string, unknown>;
-      status: 'calling' | 'complete' | 'error';
-      result?: {
-        content: string;
-        isError: boolean;
-        executionMs?: number;
-      };
-    };
-
-/** A tool's row in a chat message: Roci's own tools, MCP tools, and providers' built-in ones (web search). */
-export type ToolCallPart = Extract<ChatPart, { type: 'tool_call' }>;
-
-/** An image in a chat message: an attachment, or one a tool made (saved under app data). */
-export type ImagePart = Extract<ChatPart, { type: 'image' }>;
+/** An image a tool made, kept in the app's data folder by its path inside it (`images/….png`); the folder itself can move (iOS app updates). */
+export interface GeneratedImage {
+  mediaType: string;
+  path: string;
+  alt?: string;
+}
 
 /** One model call's share of the context window, in tokens. */
 export interface ContextTokens {
@@ -130,37 +100,40 @@ export interface ContextTokens {
   reply: number;
 }
 
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'model';
-  text: string;
-  /** Multimodal content parts (text, images, audio, video) */
-  parts?: ChatPart[];
-  /** Meeting references attached as context for this message */
-  meetingRefs?: Array<{ id: string; title: string }>;
-  /** A question's attached meetings as the model read them when they were attached; sent with the question on every later turn. */
-  meetingContext?: string;
-  timestamp: number;
-  suggestions?: string[];
+/** What Roci keeps on a chat message beside its parts. */
+export interface ChatMetadata {
+  /** When the question was sent, or the reply started. */
+  createdAt: number;
   provider?: string;
   model?: string;
   state?: 'loading' | 'streaming' | 'complete';
   isError?: boolean;
-  /** Tokens per second during streaming */
+  /** Meetings attached to a question, as its chips show them. */
+  meetingRefs?: Array<{ id: string; title: string }>;
+  suggestions?: string[];
   tokensPerSecond?: number;
   /** What the context window holds after this reply: its last model call's prompt (the cached part) and reply, in tokens. */
   context?: ContextTokens;
   /** Every model call of the reply summed, tool steps included: what it cost, by the one price rule. */
   usage?: TokenUsage;
-  /** The reply as its model produced it (every step's assistant and tool messages, with the provider's own data); later turns send it back to that provider. */
-  exchange?: ModelMessage[];
-  /** Meeting citations gathered from tool calls */
-  meetingCitations?: MeetingCitation[];
-  /** Web search citations attached to this response */
-  webCitations?: WebCitation[];
-  /** Inline citation spans (char offsets → webCitations indices) */
-  inlineCitations?: InlineCitationSpan[];
 }
+
+/** Parts only the model reads: when the question was sent, and the text of its attached meetings. */
+export type ChatData = {
+  sentAt: { at: number };
+  meetings: { context: string };
+};
+
+/** The AI SDK's message with Roci's metadata and data parts, as the SDK builds it while streaming. */
+export type ChatUIMessage = UIMessage<ChatMetadata, ChatData>;
+
+/** A chat message in the AI SDK's own format, always with Roci's metadata; the SDK turns it back into model input. */
+export type ChatMessage = ChatUIMessage & { metadata: ChatMetadata };
+
+export type ChatPart = ChatMessage['parts'][number];
+
+/** A tool call in a message: Roci's tools and MCP tools (`tool-<name>`), and providers' built-in ones (web search). */
+export type ChatToolPart = ToolUIPart | DynamicToolUIPart;
 
 /** How hard a model thinks before answering, in the AI SDK's own `reasoning` levels: `provider-default` leaves it to the model, `none` turns it off. */
 export type ReasoningEffort = 'provider-default' | 'none' | 'low' | 'medium' | 'high' | 'max';

@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { canSendDraft, draftTitle } from '@features/chat/utils';
 import { CHAT_DRAFT_COPY, CHAT_TITLE_MAX_CHARS } from '@config/chat.config';
-import type { ChatPart } from '@shared/types';
+import type { FileUIPart } from '@shared/types';
 
-const pdf: ChatPart = { type: 'document', mimeType: 'application/pdf', source: { kind: 'data', base64: '' }, fileName: 'plan.pdf' };
-const clip: ChatPart = { type: 'audio', mimeType: 'audio/wav', source: { kind: 'data', base64: '' } };
+const pdf: FileUIPart = { type: 'file', mediaType: 'application/pdf', url: 'data:application/pdf;base64,', filename: 'plan.pdf' };
+const clip: FileUIPart = { type: 'file', mediaType: 'audio/wav', url: 'data:audio/wav;base64,' };
 
 describe('chat draft', () => {
   it('can be sent with words, an attachment, or both, but not empty', () => {

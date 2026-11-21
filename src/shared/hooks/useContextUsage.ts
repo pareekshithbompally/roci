@@ -30,7 +30,7 @@ export function contextLevelFor(percent: number): ContextLevel {
 /** The chat's context use after its last measured reply; null when the window or the use is unknown. */
 export function deriveContextUsage(messages: ChatMessage[], contextTotal: number | null): ContextUsage | null {
   if (contextTotal == null || contextTotal <= 0) return null;
-  const context = messages.filter((m) => m.role === 'model' && m.context).at(-1)?.context;
+  const context = messages.filter((m) => m.role === 'assistant' && m.metadata.context).at(-1)?.metadata.context;
   if (!context) return null;
   const used = context.prompt + context.reply;
   const percent = Math.min(100, Math.round((used / contextTotal) * 100));

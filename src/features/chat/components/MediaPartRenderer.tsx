@@ -1,4 +1,4 @@
-/** Renders a chat's media parts (an image opens in the kit Lightbox); a removed file shows as removed. */
+/** Renders a chat's media: attached files and tool-made images (an image opens in the kit Lightbox); a removed file shows as removed. */
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -9,54 +9,52 @@ import { FileText, FileX, ImageOff, VideoOff, VolumeX, type LucideIcon } from 'l
 import { Icon, Lightbox, Surface, Text, Thumbnail } from '@shared/ui';
 import { RemovedNotice } from '@shared/components';
 import { StorageConfig } from '@config/storage.config';
-import type { ChatPart } from '@shared/types';
-import { appFileOf, isMediaPart, type MediaPart } from '@shared/utils/chatParts';
+import type { FileUIPart, GeneratedImage } from '@shared/types';
+import { mediaKind, type MediaKind } from '@shared/utils/chatParts';
 
-const REMOVED_ICON: Record<MediaPart['type'], LucideIcon> = { image: ImageOff, audio: VolumeX, video: VideoOff, document: FileX };
+/** What a message shows as media: an attached file (the SDK's file part), or an image a tool made. */
+export type ChatMedia = FileUIPart | GeneratedImage;
+
+const REMOVED_ICON: Record<MediaKind, LucideIcon> = { image: ImageOff, audio: VolumeX, video: VideoOff, document: FileX };
 
 /** A kept file's URL through Tauri's asset protocol, or null once its asset row is gone. */
 async function keptFileUrl(appPath: string): Promise<string | null> {
   return (await store.assets.exists(appPath)) ? assetsService.fileUrl(appPath) : null;
 }
 
-/** A part's `src`: a URL or inline data as is, a kept file's cached asset URL, or null once the file was removed. */
-function useMediaSrc(part: ChatPart): string | null | undefined {
-  const media = isMediaPart(part) ? part : null;
-  const source = media?.source ?? null;
-  const file = appFileOf(part);
+/** The media's `src`: an attachment's own URL, a kept file's cached asset URL, or null once the file was removed. */
+function useMediaSrc(media: ChatMedia): string | null | undefined {
+  const appPath = 'path' in media ? media.path : null;
   const { data: fileUrl } = useQuery({
-    queryKey: queryKeys.appFileUrl(file ?? ''),
-    queryFn: () => keptFileUrl(file ?? ''),
-    enabled: file !== null,
+    queryKey: queryKeys.appFileUrl(appPath ?? ''),
+    queryFn: () => keptFileUrl(appPath ?? ''),
+    enabled: appPath !== null,
     staleTime: Infinity,
   });
-  if (!media || !source) return undefined;
-  if (source.kind === 'url') return source.url;
-  if (source.kind === 'data') return `data:${media.mimeType};base64,${source.base64}`;
-  return fileUrl;
+  return 'url' in media ? media.url : fileUrl;
 }
 
 interface MediaPartRendererProps {
-  part: ChatPart;
+  media: ChatMedia;
 }
 
-export const MediaPartRenderer: React.FC<MediaPartRendererProps> = ({ part }) => {
+export const MediaPartRenderer: React.FC<MediaPartRendererProps> = ({ media }) => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const src = useMediaSrc(part);
+  const src = useMediaSrc(media);
+  const kind = mediaKind(media.mediaType);
+  const name = 'url' in media ? media.filename : media.alt;
 
-  // Every hook runs before this early return (rules of hooks); the rest is plain derivation.
-  if (!isMediaPart(part)) return null;
-  if (src === null) return <RemovedNotice icon={REMOVED_ICON[part.type]} label={StorageConfig.removed[part.type]} />;
+  if (src === null) return <RemovedNotice icon={REMOVED_ICON[kind]} label={StorageConfig.removed[kind]} />;
   const handleOpen = () => setLightboxOpen(true);
 
-  switch (part.type) {
+  switch (kind) {
     case 'image':
       return (
         <>
           <div className="my-2 max-w-xs">
-            <Thumbnail src={src ?? ''} alt={part.alt || 'AI generated image'} onOpen={handleOpen} shape="natural" />
+            <Thumbnail src={src ?? ''} alt={name || 'AI generated image'} onOpen={handleOpen} shape="natural" />
           </div>
-          {src && <Lightbox src={src} alt={part.alt || 'AI generated image'} open={lightboxOpen} onOpenChange={setLightboxOpen} />}
+          {src && <Lightbox src={src} alt={name || 'AI generated image'} open={lightboxOpen} onOpenChange={setLightboxOpen} />}
         </>
       );
     case 'audio':
@@ -72,7 +70,7 @@ export const MediaPartRenderer: React.FC<MediaPartRendererProps> = ({ part }) =>
       return (
         <Surface radius="lg" className="max-w-xs my-2 overflow-hidden">
           <video src={src} controls className="block w-full h-auto" preload="metadata">
-            {part.alt || 'AI generated video'}
+            {name || 'AI generated video'}
           </video>
         </Surface>
       );
@@ -80,11 +78,9 @@ export const MediaPartRenderer: React.FC<MediaPartRendererProps> = ({ part }) =>
       return (
         <Surface variant="subtle" radius="lg" className="flex items-center gap-2 px-3 py-2 my-1">
           <Icon icon={FileText} size="sm" tone="muted" className="shrink-0" />
-          <Text variant="helper" truncate className="max-w-48">{part.fileName}</Text>
+          <Text variant="helper" truncate className="max-w-48">{name}</Text>
         </Surface>
       );
-    default:
-      return null;
   }
 };
 

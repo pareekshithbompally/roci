@@ -1,5 +1,4 @@
 import React, { memo, useMemo, useRef } from 'react';
-import { Markdown } from '@shared/components';
 import { AnimatedProviderIcon } from '@features/chat/components/AnimatedProviderIcon';
 import { useStreamingText } from '@features/chat/stores/streamingStore';
 import { getProviderTitle } from '@shared/utils/provider.utils';
@@ -7,14 +6,13 @@ import { useModelLabel } from '@shared/hooks/useModelLabel';
 import { Progress, Text } from '@shared/ui';
 import { useReadAloud } from '@shared/hooks/useReadAloud';
 import { useSpeechHighlight } from '@shared/hooks/useSpeechHighlight';
-import { injectCitationTokens } from '@shared/utils/inlineCitationInjector';
+import { meetingCitationsOf, messageText, webCitationsOf } from '@shared/utils/chatParts';
 import PartsList from './PartsList';
 import { loadingStatusOf } from './loadingStatus';
 import { useReplyCost } from '@features/chat/hooks/useChatCost';
 import AssistantActionBar from './AssistantActionBar';
 import ErrorMessageBox from './ErrorMessageBox';
 import type { AssistantMessageProps } from './types';
-import type { ChatPart, WebCitation, InlineCitationSpan } from '@shared/types';
 
 /** "localhost:9931 · Gemma": the provider, then the model by its display name (its rename, if any); one name when they match. */
 function ProviderModelLabel({ provider, model }: { provider?: string; model?: string }) {
@@ -46,57 +44,14 @@ const StreamingContent = memo(({ msgId }: { msgId: string }) => {
 
 StreamingContent.displayName = 'StreamingContent';
 
-/** Renders completed message content from parts or text fallback */
-const CompletedContent: React.FC<{
-  text: string;
-  parts?: ChatPart[];
-  messageId: string;
-  webCitations?: WebCitation[];
-  inlineCitations?: InlineCitationSpan[];
-}> = ({ text, parts, messageId, webCitations, inlineCitations }) => {
-  const hasInline = !!(inlineCitations?.length && webCitations?.length);
-
-  const processText = useMemo(() => {
-    if (!hasInline) return undefined;
-    return (t: string) => injectCitationTokens(t, inlineCitations!);
-  }, [hasInline, inlineCitations]);
-
-  const processedText = useMemo(() => {
-    if (!hasInline) return text;
-    return injectCitationTokens(text, inlineCitations!);
-  }, [text, hasInline, inlineCitations]);
-
-  if (parts && parts.length > 0) {
-    return (
-      <PartsList
-        parts={parts}
-        messageId={messageId}
-        streaming={false}
-        processText={processText}
-        webCitations={hasInline ? webCitations : undefined}
-      />
-    );
-  }
-
-  return (
-    <Markdown
-      content={processedText}
-      streaming={false}
-      messageId={messageId}
-      webCitations={hasInline ? webCitations : undefined}
-    />
-  );
-};
-
 const AssistantMessage: React.FC<AssistantMessageProps> = ({
-  id, text, parts, timestamp,
-  suggestions, onSuggestionClick, isLastMessage,
-  provider, model, state, loadingStatus,
-  context, tokensPerSecond, usage,
-  meetingCitations,
-  isCopied, actions, citationHandlers,
-  webCitations, inlineCitations, isError,
+  message, onSuggestionClick, isLastMessage, loadingStatus, isCopied, actions, citationHandlers,
 }) => {
+  const { id, parts, metadata } = message;
+  const { provider, model, state = 'complete', isError, context, tokensPerSecond, usage, suggestions, createdAt } = metadata;
+  const text = useMemo(() => messageText({ parts }), [parts]);
+  const meetingCitations = useMemo(() => meetingCitationsOf(parts), [parts]);
+  const webCitations = useMemo(() => webCitationsOf(parts), [parts]);
   const cost = useReplyCost({ provider, model, usage });
   const isLoading = state === 'loading';
   const status = loadingStatus ?? loadingStatusOf(null);
@@ -130,13 +85,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             ) : isError && text ? (
               <ErrorMessageBox errorText={text} />
             ) : (
-              <CompletedContent
-                text={text}
-                parts={parts}
-                messageId={id}
-                webCitations={webCitations}
-                inlineCitations={inlineCitations}
-              />
+              <PartsList parts={parts} messageId={id} streaming={false} />
             )}
           </div>
 
@@ -145,7 +94,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             <AssistantActionBar
               id={id}
               text={text}
-              timestamp={timestamp}
+              timestamp={createdAt}
               isLastMessage={isLastMessage}
               isCopied={isCopied}
               context={context}

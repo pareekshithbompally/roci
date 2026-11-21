@@ -3,8 +3,7 @@ import { Layers } from 'lucide-react';
 import { Badge, Disclosure, Icon, Text } from '@shared/ui';
 import { CHAT_ACTIVITY_COPY, CHAT_REASONING_COPY } from '@config/chat.config';
 import { META_SEPARATOR } from '@config/ui.config';
-import type { ToolCallPart } from '@shared/types';
-import { ToolCallBlock, formatExecutionMs, toolCallTitle } from '@features/chat/components/tool-call';
+import { ToolCallBlock, formatExecutionMs, toolCallTitle, type ToolCallView } from '@features/chat/components/tool-call';
 import type { GenerationStats } from '@services/ai/types';
 import { ReasoningBlock } from './ReasoningBlock';
 import type { ActivityPart, IndexedPart } from './groupActivity';
@@ -18,7 +17,7 @@ interface ActivityRunProps {
 }
 
 const toolParts = (items: IndexedPart<ActivityPart>[]) =>
-  items.map((item) => item.part).filter((part): part is ToolCallPart => part.type === 'tool_call');
+  items.map((item) => item.part).filter((part): part is ToolCallView => part.type === 'tool_call');
 
 /** "Thought · Used 3 tools", naming only what the run did. */
 function runTitle(items: IndexedPart<ActivityPart>[]): string {

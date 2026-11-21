@@ -5,6 +5,8 @@ import { defineTool, fail, idFrom, ok, toolDate } from '@extensions/tools/contra
 import { chatService } from '@services/chat.service';
 import { MAX_CHAT_MESSAGES_FOR_LLM } from '@extensions/tools/constants';
 import { errorMessage } from '@shared/utils/errors';
+import { messageText } from '@shared/utils/chatParts';
+import type { ChatSession } from '@shared/types';
 
 export const getChatTool = defineTool({
   name: 'get_chat',
@@ -14,7 +16,7 @@ export const getChatTool = defineTool({
   input: z.object({ chat_id: idFrom('search_chats or list_chats') }),
 
   async execute({ chat_id }) {
-    let session;
+    let session: ChatSession | null;
     try {
       session = await chatService.loadSession(chat_id);
     } catch (error: unknown) {
@@ -42,11 +44,10 @@ export const getChatTool = defineTool({
     ];
 
     for (const msg of messages) {
-      if (!msg.text?.trim()) continue;
+      const full = messageText(msg);
+      if (!full.trim()) continue;
       const role = msg.role === 'user' ? 'User' : 'Assistant';
-      const text = msg.text.length > 800
-        ? msg.text.slice(0, 800) + '...[truncated]'
-        : msg.text;
+      const text = full.length > 800 ? full.slice(0, 800) + '...[truncated]' : full;
       lines.push(`${role}: ${text}`, '');
     }
 

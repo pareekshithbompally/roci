@@ -225,29 +225,13 @@ export const ChatShell: React.FC<ChatShellProps> = ({
               {currentMessages.map((message, index) => (
                 <ChatMessage
                   key={message.id}
-                  id={message.id}
-                  role={message.role}
-                  text={message.text}
-                  parts={message.parts}
-                  meetingRefs={message.meetingRefs}
-                  timestamp={message.timestamp}
-                  suggestions={message.suggestions}
+                  message={message}
                   onSuggestionClick={(suggestion) => sendMessage(suggestion)}
                   isLastMessage={index === currentMessages.length - 1}
-                  provider={message.provider}
-                  model={message.model}
-                  state={message.state}
-                  loadingStatus={message.state === 'loading' ? replyStatus : undefined}
-                  context={message.context}
-                  tokensPerSecond={message.tokensPerSecond}
-                  usage={message.usage}
-                  meetingCitations={message.meetingCitations}
+                  loadingStatus={message.metadata.state === 'loading' ? replyStatus : undefined}
                   isCopied={copiedMessageId === message.id}
                   actions={sharedActions}
                   citationHandlers={citationHandlers}
-                  webCitations={message.webCitations}
-                  inlineCitations={message.inlineCitations}
-                  isError={message.isError}
                 />
               ))}
             </div>

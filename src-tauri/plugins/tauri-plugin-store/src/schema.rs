@@ -176,15 +176,18 @@ const TOOL_CALLS_DDL: &str = "
     CREATE INDEX IF NOT EXISTS idx_tool_calls_created ON tool_calls(created_at);
     CREATE INDEX IF NOT EXISTS idx_tool_calls_chat ON tool_calls(chat_id);";
 
-/// The tool-call rows of one chat's saved messages (`?1`), or of every chat (`?1` NULL). A message whose data isn't JSON
-/// adds none rather than failing the save.
+/// The tool-call rows of one chat's saved messages (`?1`), or of every chat (`?1` NULL), read from the AI SDK's tool parts:
+/// `tool-<name>`, or `dynamic-tool` with its `toolName`. A call is ok once it answered without Roci's `isError`. A message
+/// whose data isn't JSON adds none rather than failing the save.
 pub(crate) const FILL_TOOL_CALLS: &str = "
     INSERT INTO tool_calls (chat_id, tool, ok, duration_ms, created_at)
-    SELECT m.chat_id, json_extract(p.value, '$.toolName'), json_extract(p.value, '$.status') IS 'complete',
-           json_extract(p.value, '$.result.executionMs'), m.created_at
+    SELECT m.chat_id,
+           COALESCE(json_extract(p.value, '$.toolName'), substr(json_extract(p.value, '$.type'), 6)),
+           json_extract(p.value, '$.state') IS 'output-available' AND COALESCE(json_extract(p.value, '$.output.isError'), 0) = 0,
+           json_extract(p.value, '$.output.meta.executionMs'), m.created_at
     FROM chat_messages m, json_each(CASE WHEN json_valid(m.data) THEN m.data END, '$.parts') p
     WHERE (?1 IS NULL OR m.chat_id = ?1)
-      AND json_extract(p.value, '$.type') = 'tool_call' AND json_extract(p.value, '$.toolName') IS NOT NULL";
+      AND (json_extract(p.value, '$.type') LIKE 'tool-%' OR json_extract(p.value, '$.type') = 'dynamic-tool')";
 
 /// Dictations made in the app, newest first.
 const DICTATIONS_DDL: &str = "

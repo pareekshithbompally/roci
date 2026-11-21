@@ -3,7 +3,7 @@ import { Badge, Disclosure, Icon, Text } from '@shared/ui';
 import type { DisclosureVariant } from '@shared/ui';
 import { ServerIcon } from '@shared/components';
 import { useMcpServerInfo } from '@features/settings/hooks';
-import type { ToolCallPart } from '@shared/types';
+import type { ToolCallView } from './toolCallView';
 import { formatExecutionMs, toolCallTitle } from './toolCallTitle';
 import { toolCallIcon } from './toolCallIcons';
 import { ToolCallBody } from './ToolCallBody';
@@ -15,13 +15,13 @@ function McpToolGlyph({ source }: { source: string }) {
 }
 
 /** The server icon for MCP tools, else the tool's glyph; it never swaps while the call runs. */
-function ToolCallGlyph({ part }: { part: ToolCallPart }) {
+function ToolCallGlyph({ part }: { part: ToolCallView }) {
   if (part.source) return <McpToolGlyph source={part.source} />;
   return <Icon icon={toolCallIcon(part.toolName)} size="xs" tone="faint" className="shrink-0" />;
 }
 
 /** Trailing meta: a failure badge on error, the duration once complete. */
-function ToolCallMeta({ part }: { part: ToolCallPart }) {
+function ToolCallMeta({ part }: { part: ToolCallView }) {
   if (part.status === 'error') return <Badge variant="error" className="shrink-0">Failed</Badge>;
   const ms = part.result?.executionMs;
   if (part.status !== 'complete' || ms === undefined) return null;
@@ -29,7 +29,7 @@ function ToolCallMeta({ part }: { part: ToolCallPart }) {
 }
 
 export interface ToolCallBlockProps {
-  part: ToolCallPart;
+  part: ToolCallView;
   /** `inline` at the top of a reply, flush with its text; `row` (default) when nested in a folded run. */
   variant?: DisclosureVariant;
 }

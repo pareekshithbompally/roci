@@ -7,9 +7,9 @@ import {
   parseMeetingResults,
   toolBodyFor,
 } from '@features/chat/components/tool-call';
-import type { ToolCallPart } from '@shared/types';
+import type { ToolCallView } from '@features/chat/components/tool-call';
 
-function part(overrides: Partial<ToolCallPart>): ToolCallPart {
+function part(overrides: Partial<ToolCallView>): ToolCallView {
   return {
     type: 'tool_call',
     toolCallId: 'call-1',

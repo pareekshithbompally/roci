@@ -1,5 +1,5 @@
 export { createModel, getWebSearchTools, chatCallSettings } from './provider';
 export { toExecutableTools, runTool } from './tools-bridge';
-export { toSDKMessages } from './message-converter';
+export { toModelMessages } from './message-converter';
 export { generateChatExtras } from './chatExtras';
-export type { TokenUsage, StreamMetadata, ProviderType, WebCitation, InlineCitationSpan } from './types';
+export type { TokenUsage, ProviderType, WebCitation } from './types';

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { isFileUIPart } from 'ai';
 import { formatClockTime } from '@shared/utils/formatters';
 import { Copy, Check, FileAudio, FileX } from 'lucide-react';
 import { MediaPartRenderer } from '@features/chat/components/MediaPartRenderer';
@@ -7,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { store } from '@services/db';
 import { queryKeys } from '@shared/query/queryKeys';
 import { StorageConfig } from '@config/storage.config';
+import { messageText } from '@shared/utils/chatParts';
 import type { UserMessageProps } from './types';
 
 /** Which of a message's meetings were deleted since; none until the store answers, so a slow read never says "removed". */
@@ -39,8 +41,11 @@ const MeetingChips: React.FC<{ refs: Array<{ id: string; title: string }> }> = (
   );
 };
 
-const UserMessage: React.FC<UserMessageProps> = ({ id, text, parts, meetingRefs, timestamp, isCopied, actions }) => {
+const UserMessage: React.FC<UserMessageProps> = ({ message, isCopied, actions }) => {
   const { onCopy } = actions;
+  const { id, parts, metadata: { meetingRefs, createdAt } } = message;
+  const text = useMemo(() => messageText({ parts }), [parts]);
+  const attachments = useMemo(() => parts.filter(isFileUIPart), [parts]);
 
   return (
     <div className="flex flex-col items-end max-w-[75%]">
@@ -51,11 +56,9 @@ const UserMessage: React.FC<UserMessageProps> = ({ id, text, parts, meetingRefs,
           {text}
         </Text>
         {/* User attachments */}
-        {parts && parts.filter(p => p.type !== 'text').length > 0 && (
+        {attachments.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
-            {parts.filter(p => p.type !== 'text').map((part, i) => (
-              <MediaPartRenderer key={i} part={part} />
-            ))}
+            {attachments.map((part, i) => <MediaPartRenderer key={i} media={part} />)}
           </div>
         )}
         {/* Copy icon for user messages */}
@@ -71,11 +74,9 @@ const UserMessage: React.FC<UserMessageProps> = ({ id, text, parts, meetingRefs,
       </Surface>
 
       {/* Timestamp */}
-      {timestamp && (
-        <Text as="div" variant="helper" tone="faint" className="mt-1">
-          {formatClockTime(timestamp)}
-        </Text>
-      )}
+      <Text as="div" variant="helper" tone="faint" className="mt-1">
+        {formatClockTime(createdAt)}
+      </Text>
     </div>
   );
 };
