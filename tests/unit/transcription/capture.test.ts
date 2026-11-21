@@ -48,6 +48,19 @@ describe('live dictation', () => {
     expect(transcribe).not.toHaveBeenCalled();
   });
 
+  it('keeps the engine\'s own spacing: a word settled in two pieces stays one word, a full stop stays on its word', async () => {
+    const settled = ['I am not a good hum', 'I am not a good human being', 'I am not a good human being in dictation mode', 'I am not a good human being in dictation mode.'];
+    let fed = 0;
+    const pieces: LiveStream = {
+      feed: async () => ({ committed: settled[Math.min(fed++, settled.length - 1)], tentative: '' }),
+      finish: async () => settled.at(-1) ?? '',
+      cancel: async () => undefined,
+    };
+    const capture = await liveCapture(mic, async () => pieces, vi.fn(), vi.fn());
+    settled.forEach(() => tap.slice?.(new Float32Array(1_600)));
+    expect(await capture.finish()).toBe('I am not a good human being in dictation mode.');
+  });
+
   it('a stream the model refuses gives way to the clip, so nothing said is lost', async () => {
     const transcribe = vi.fn(async () => 'Ship it Friday.');
     const capture = await liveCapture(mic, () => Promise.reject(new Error("streaming transcription with whisper-1")), vi.fn(), transcribe);

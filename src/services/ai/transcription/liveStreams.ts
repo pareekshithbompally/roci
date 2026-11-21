@@ -10,6 +10,7 @@ export interface StreamLine<S extends string> {
   source: S;
   startMs: number;
   endMs: number;
+  /** As the engine spaced it: a piece may start mid-word or with its own space. */
   text: string;
 }
 
@@ -61,11 +62,14 @@ export function liveStreams<S extends string>(open: (source: S) => Promise<LiveS
     endMs: 0,
   });
 
-  /** The text settled since last time becomes a line spanning the audio it came from. */
+  /** The text settled since last time becomes a line spanning the audio it came from, its spacing as the engine wrote it (a final
+   *  text may come back trimmed, so the two are compared without leading space). */
   const settle = (source: S, stream: SourceStream, committed: string) => {
-    const added = (committed.startsWith(stream.committed) ? committed.slice(stream.committed.length) : committed).trim();
+    const had = stream.committed.trimStart();
+    const now = committed.trimStart();
+    const added = now.startsWith(had) ? now.slice(had.length) : now;
     stream.committed = committed;
-    if (!added) return;
+    if (!added.trim()) return;
     sink.line({ source, startMs: stream.since ?? stream.endMs, endMs: stream.endMs, text: added });
     stream.since = null;
   };

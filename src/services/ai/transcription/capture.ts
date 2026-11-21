@@ -59,7 +59,7 @@ export async function liveCapture(
   const text: LiveText = { committed: '', tentative: '' };
   const show = () => onText({ ...text });
   const mic = liveStreams<'mic'>(open, {
-    line: (line) => { text.committed = [text.committed, line.text].filter(Boolean).join(' '); show(); },
+    line: (line) => { text.committed += line.text; show(); },
     partial: (_source, tentative) => { text.tentative = tentative; show(); },
     fail: (reason) => { failure ??= reason; },
   });
