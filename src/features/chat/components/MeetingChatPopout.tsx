@@ -5,7 +5,7 @@ import { ChevronDown, Maximize2, SquarePen } from 'lucide-react';
 import { IconButton, Surface, Text } from '@shared/ui';
 import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { UI_CONFIG } from '@config/ui.config';
-import { closeMeetingChat, expandMeetingChat, useChatCurrentSessionId, useChatStore } from '@features/chat/stores/chatStore';
+import { closeMeetingChat, expandMeetingChat, useChatCurrentSessionId, useChatStore } from '@features/chat/stores';
 import { ChatShell } from './ChatShell';
 
 interface MeetingChatPopoutProps {

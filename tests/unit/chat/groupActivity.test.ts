@@ -44,6 +44,25 @@ describe('groupActivity', () => {
     ])).toEqual(['text']);
   });
 
+  it('shows text blocks back to back as one answer (Anthropic opens a block per cited claim)', () => {
+    const segments = groupActivity([text('Ships Friday'), text(', per the sync.')]);
+    expect(segments).toEqual([{ kind: 'text', item: { part: 'Ships Friday, per the sync.', index: 1, key: 0 } }]);
+  });
+
+  it('shows nothing for empty blocks, so they neither split a run nor add an empty row', () => {
+    expect(shape([thought('a'), call('1'), text(''), thought(''), call('2')])).toEqual(['RTT']);
+  });
+
+  it('keeps a merged thinking row on its first key while its live index moves on', () => {
+    const [run] = groupActivity([thought('First.'), thought('Then.')]);
+    expect(run.kind === 'activity' && run.items[0]).toMatchObject({ index: 1, key: 0 });
+  });
+
+  it('has no live step once a tool\'s image closed it', () => {
+    const image = { mediaType: 'image/png', path: 'images/a.png' };
+    expect(liveIndexOf(groupActivity([call('1', { image })]))).toBeNull();
+  });
+
   it('remembers where each part sits in the message, and which is the newest shown', () => {
     const segments = groupActivity([text('hi'), call('1'), step]);
     expect(segments[1].kind === 'activity' && segments[1].items[0].index).toBe(1);

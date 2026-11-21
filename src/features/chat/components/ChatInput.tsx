@@ -1,8 +1,7 @@
 /** Chat composer: send, shortcuts, @ mentions, attachments, web search, and voice input. */
 
 import React, { KeyboardEvent, useRef, useEffect, useState, useCallback } from 'react';
-import { createPortal } from 'react-dom';
-import { ArrowUp, Square, Plus, X, FileText, Music, Film, Image as ImageIcon, Mic, Pause, Play } from 'lucide-react';
+import { ArrowUp, Square, Plus, Mic } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { MeetingMentionPopup } from './MeetingMentionPopup';
 import { ContextChips } from './ContextChips';
@@ -14,11 +13,9 @@ import { useAttachOptions } from '@features/chat/hooks/useAttachOptions';
 import { useToolCatalog } from '@features/chat/hooks';
 import { toolsShare } from './tools/toolsShare';
 import { ComposerAddMenu } from './ComposerAddMenu';
-import { ContextRing, Icon, IconButton, Input, Popover, PopoverAnchor, Surface, Text, Textarea, cn } from '@shared/ui';
+import { ContextRing, IconButton, Input, Popover, PopoverAnchor, Surface, Text, Textarea, cn } from '@shared/ui';
 import type { ContextRingCost } from '@shared/ui';
 import type { ContextUsage } from '@shared/hooks/useContextUsage';
-import {
-} from '@shared/ui';
 import { LAYOUT } from '@config/layout.config';
 import { shortcutLabel } from '@features/shortcuts';
 import { registerChatComposer } from '@features/chat/stores';
@@ -26,23 +23,15 @@ import { canSendDraft } from '@features/chat/utils';
 import { COMPOSER_MAX_HEIGHT_PX, DICTATION_COPY } from '@config/chat.config';
 import { useRecordingMeetingId } from '@features/recording';
 import { platform } from '@platform/index';
-import { formatClock } from '@shared/utils/formatters';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import type { FileUIPart } from '@shared/types';
-import { mediaKind, type MediaKind } from '@shared/utils/chatParts';
 import type { SpeechState } from '@features/chat/hooks/useSpeechInput';
-import { DotScope } from '@features/chat/components/dot-scope';
-import { LiveTranscript } from '@features/chat/components/voice/LiveTranscript';
 import type { LiveText } from '@services/ai/transcription';
 import { useFormFactor } from '@platform/formFactor';
-import { DOT_SCOPE_CONFIG } from '@config/dotScope.config';
-import {
-  voiceTransition,
-  voicePillSettled,
-  voicePillCollapsed,
-  VOICE_HANDOFF_S,
-} from './voice/voiceTransition';
-
+import { AttachmentStrip } from './AttachmentStrip';
+import { VoicePill } from './voice/VoicePill';
+import { useVoicePill } from './voice/useVoicePill';
+import { voiceTransition } from './voice/voiceTransition';
 
 /** Phone: one short placeholder (iOS); the rotating hints are a desktop affordance (⌘ shortcuts, @). */
 const PHONE_PLACEHOLDER = 'Ask anything';
@@ -93,24 +82,6 @@ interface ChatInputProps {
   onSpeechCancel?: () => void;
 }
 
-/** What an attachment without a name is called, by its kind. */
-const UNNAMED_ATTACHMENT: Record<MediaKind, string> = { image: 'Image', audio: 'Audio', video: 'Video', document: 'File' };
-
-/** Get a display name for an attachment part */
-function getAttachmentName(part: FileUIPart): string {
-  return part.filename || UNNAMED_ATTACHMENT[mediaKind(part.mediaType)];
-}
-
-/** Get the icon for an attachment kind */
-function AttachmentIcon({ kind }: { kind: MediaKind }) {
-  switch (kind) {
-    case 'image': return <Icon icon={ImageIcon} size="xs" />;
-    case 'audio': return <Icon icon={Music} size="xs" />;
-    case 'video': return <Icon icon={Film} size="xs" />;
-    default: return <Icon icon={FileText} size="xs" />;
-  }
-}
-
 export const ChatInput: React.FC<ChatInputProps> = ({
   value,
   onChange,
@@ -145,7 +116,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [showMentionPopup, setShowMentionPopup] = useState(false);
   // One hint per composer (picked when it opens): it varies between chats without a timer waking the app.
   const [hintIndex] = useState(() => Math.floor(Math.random() * PLACEHOLDER_HINTS.length));
-  const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
   // Phone (iOS): one row — + (opens the Add sheet) · the field · mic or send; the top bar owns the model.
   const phone = useFormFactor() === 'phone';
   const recordingMeetingId = useRecordingMeetingId();
@@ -251,48 +221,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   const canSend = !isLoading && !disabled && canSendDraft(value, attachments);
-  const isStarting = speechState === 'starting';
-  const isRecording = speechState === 'recording';
-  const isPaused = speechState === 'paused';
-  const isTranscribing = speechState === 'transcribing';
-  const isCapturing = isStarting || isRecording || isPaused || isTranscribing;
-
-  // ── Recording pill geometry & orchestration ───────────────────────────────
   const reduceMotion = useReducedMotion() ?? false;
-  const composer = DOT_SCOPE_CONFIG.composer;
-  const scopeZoom = composer.plateHeight / DOT_SCOPE_CONFIG.tuning.height;
-
-  // Pill holds through a handoff beat after transcription so the processing state is seen.
-  const [overlayOpen, setOverlayOpen] = useState(false);
-  useEffect(() => {
-    if (isCapturing) {
-      setOverlayOpen(true);
-      return;
-    }
-    const timer = setTimeout(() => setOverlayOpen(false), VOICE_HANDOFF_S * 1000);
-    return () => clearTimeout(timer);
-  }, [isCapturing]);
-
-  // Pill owns the slot from capture start until the handoff beat; it rises in and sinks back mirrored.
-  const voiceActive = isCapturing || overlayOpen;
-  const handoff = !isCapturing && overlayOpen;
-
-  // Recording shape from mic press (flat traces while warming up); processing shape once transcription starts.
-  const scopeStage: 'recording' | 'processing' =
-    isTranscribing || handoff ? 'processing' : 'recording';
-  const scopeLabel = isTranscribing || handoff
-    ? 'Transcribing'
-    : isStarting ? 'Starting' : isPaused ? 'Paused' : 'Recording';
-
-  // Escape is the master kill switch at every stage of the capture.
-  useEffect(() => {
-    if (!voiceActive || !onSpeechCancel) return;
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') onSpeechCancel();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [voiceActive, onSpeechCancel]);
+  // The pill owns the slot from capture start until the handoff beat after transcription.
+  const pill = useVoicePill(speechState, onSpeechCancel);
+  const voiceActive = pill.active;
 
   // Return the caret to the textarea once the box has expanded back.
   const wasVoiceActive = useRef(false);
@@ -302,9 +234,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
     wasVoiceActive.current = voiceActive;
   }, [voiceActive]);
-
-  // Composer returns as one unit, titles and buttons as a second beat; tweens only, never springs.
-  const formattedElapsed = formatClock(speechElapsed);
 
   // The field and the send controls, arranged by the layout below (Mac: box + toolbar; phone: one row).
   const canDictate = showSpeechInput && !!onSpeechStart && !isLoading;
@@ -351,226 +280,85 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     </div>
   );
 
+  // Mac: the toolbar under the field (attach, model, tools, thinking, context gauge, then send).
+  const toolbar = (
+    <div className="flex items-center justify-between px-3 pb-2">
+      <div className="flex items-center gap-0.5">
+        {/* Attach: files and screenshots only; tools have their own picker. */}
+        {onAttach && <ComposerAddMenu attachOptions={attach.options} onPickFiles={openFilePicker} disabled={disabled} onScreenshot={attach.images ? onScreenshot : undefined} />}
+        <ModelPicker compact />
+        <ToolsPicker catalog={toolCatalog} />
+        <ReasoningPicker />
+        {/* Context-window gauge (hides when the limit is unknown or no usage yet). */}
+        <ContextRing usage={contextUsage ?? null} tools={toolsShare(toolCatalog)} cost={chatCost ?? undefined} />
+      </div>
+      {sendControls}
+    </div>
+  );
+
   return (
     <div className={cn('relative px-4 py-2', LAYOUT.chatColumn, phone && 'flex items-end gap-2')}>
       {/* Phone (Messages): the round + stands apart from the capsule field; while dictating the pill has the row alone. */}
       {phone && !voiceActive && <IconButton icon={Plus} label="Add" size="fab" variant="bar" onClick={() => setAddOpen(true)} />}
       <Popover anchored open={showMentionPopup} onOpenChange={(open) => { if (!open) closeMentionPopup(); }}>
-      <PopoverAnchor asChild>
-      {/* Composer never unmounts (an exit flashes box chrome); the pill is an overlay that moves no layout. */}
-      <Surface
-        data-testid="composer-frame"
-        variant={voiceActive ? 'plain' : 'field'}
-        radius={phone ? 'field' : 'xl'}
-        className={cn('relative transition-[background-color,box-shadow] duration-300 ease-out', phone && 'min-w-0 flex-1')}
-      >
-        <AnimatePresence initial={false}>
-          {voiceActive && (
+        <PopoverAnchor asChild>
+          {/* Composer never unmounts (an exit flashes box chrome); the pill is an overlay that moves no layout. */}
+          <Surface
+            data-testid="composer-frame"
+            variant={voiceActive ? 'plain' : 'field'}
+            radius={phone ? 'field' : 'xl'}
+            className={cn('relative transition-[background-color,box-shadow] duration-300 ease-out', phone && 'min-w-0 flex-1')}
+          >
+            <AnimatePresence initial={false}>
+              {voiceActive && (
+                <VoicePill
+                  key="voice"
+                  pill={pill}
+                  speechState={speechState}
+                  stream={micStream}
+                  liveText={liveText}
+                  elapsed={speechElapsed}
+                  reduceMotion={reduceMotion}
+                  onStop={onSpeechStop}
+                  onTogglePause={onSpeechTogglePause}
+                  onCancel={onSpeechCancel}
+                />
+              )}
+            </AnimatePresence>
+            {/* Composer: always mounted, fades flat while the pill owns the slot. */}
             <motion.div
-              key="voice"
-              data-testid="voice-pill"
-              role="region"
-              aria-label={scopeLabel}
-              className="absolute inset-x-0 bottom-0 z-10 flex flex-col items-center px-4 py-4"
-              initial={voicePillCollapsed}
-              animate={voicePillSettled}
-              exit={{ ...voicePillCollapsed, transition: voiceTransition(reduceMotion, 'pillOut') }}
-              transition={voiceTransition(reduceMotion, 'pillIn')}
+              data-testid="composer-box"
+              initial={false}
+              animate={{ opacity: voiceActive ? 0 : 1 }}
+              transition={voiceTransition(reduceMotion, voiceActive ? 'composerOut' : 'composerIn')}
+              aria-hidden={voiceActive || undefined}
+              inert={voiceActive || undefined}
+              style={voiceActive ? { pointerEvents: 'none' } : undefined}
             >
-              <DotScope
-                stage={scopeStage}
-                stream={isPaused ? null : micStream}
-                label={scopeLabel}
-                zoom={scopeZoom}
-                margins={{ x: composer.marginX, y: composer.marginY }}
-              />
-              {/* Live words sit right under the pill; the controls go below them, so neither squeezes the other on a phone. */}
-              {liveText && <LiveTranscript text={liveText} />}
-              {/* Fixed height keeps the pill pinned while its controls swap. */}
-              <div className="mt-3 flex h-16 items-start justify-center">
-                <AnimatePresence initial={false} mode="wait">
-                {(isRecording || isPaused) ? (
-                  <motion.div
-                    key="controls"
-                    className="flex flex-col items-center gap-1.5"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4, transition: voiceTransition(reduceMotion, 'controlOut') }}
-                    transition={voiceTransition(reduceMotion, 'controlIn')}
-                  >
-                    <div className="flex items-center gap-2">
-                      {/* Stop — ends capture, transcription takes over */}
-                      <IconButton icon={Square} label="Stop recording" variant="danger" filled onClick={onSpeechStop} />
-                      {/* Pause / Resume */}
-                      <IconButton
-                        icon={isPaused ? Play : Pause}
-                        filled
-                        label={isPaused ? 'Resume recording' : 'Pause recording'}
-                        variant="outline"
-                        onClick={onSpeechTogglePause}
-                      />
-                    </div>
-                    <Text variant="caption" tone="muted" className="tabular-nums leading-none">
-                      {formattedElapsed}
-                    </Text>
-                  </motion.div>
-                ) : isTranscribing ? (
-                  <motion.div
-                    key="cancel"
-                    className="flex flex-col items-center gap-1.5"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4, transition: voiceTransition(reduceMotion, 'controlOut') }}
-                    transition={voiceTransition(reduceMotion, 'controlIn')}
-                  >
-                    {/* The pill already reads "Transcribing", so cancel is the only control. */}
-                    <IconButton icon={X} label="Cancel voice input" variant="danger" onClick={onSpeechCancel} />
-                  </motion.div>
-                ) : null}
-                </AnimatePresence>
-              </div>
+              <ContextChips meetings={selectedMeetings} onRemove={handleRemoveMeeting} />
+              <AttachmentStrip attachments={attachments} onRemove={onRemoveAttachment} />
+              <Input ref={fileInputRef} type="file" multiple accept={attach.accept} onChange={handleFileChange} className="hidden" />
+              {phone ? (
+                <div className="flex items-end gap-1 p-1 pl-4">
+                  {textField}
+                  {sendControls}
+                </div>
+              ) : (
+                <>
+                  {textField}
+                  {toolbar}
+                </>
+              )}
             </motion.div>
-          )}
-        </AnimatePresence>
-        {/* Composer — always mounted, fades flat while the pill owns the slot. */}
-        <motion.div
-          data-testid="composer-box"
-          initial={false}
-          animate={{ opacity: voiceActive ? 0 : 1 }}
-          transition={voiceTransition(reduceMotion, voiceActive ? 'composerOut' : 'composerIn')}
-          aria-hidden={voiceActive || undefined}
-          inert={voiceActive || undefined}
-          style={voiceActive ? { pointerEvents: 'none' } : undefined}
-        >
-        {/* Context Chips */}
-        <ContextChips
-          meetings={selectedMeetings}
-          onRemove={handleRemoveMeeting}
-        />
+          </Surface>
+        </PopoverAnchor>
 
-        {/* Attachment Preview Strip */}
-        {attachments.length > 0 && (
-          <div className="flex flex-wrap gap-2 px-3 pt-2">
-            {attachments.map((part, index) => (
-              <Surface
-                key={index}
-                variant="inset"
-                radius="md"
-                className="flex items-center gap-1.5 px-2 py-1"
-              >
-                {mediaKind(part.mediaType) === 'image' ? (() => {
-                  const imgSrc = part.url;
-                  const imgAlt = part.filename || 'attachment';
-                  return (
-                    <Surface radius="md" className="shrink-0 overflow-hidden">
-                      <img
-                        src={imgSrc}
-                        alt={imgAlt}
-                        className="block w-8 h-8 object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                        onClick={() => setPreviewImage({ src: imgSrc, alt: imgAlt })}
-                      />
-                    </Surface>
-                  );
-                })() : (
-                  <AttachmentIcon kind={mediaKind(part.mediaType)} />
-                )}
-                <Text variant="helper" tone="muted" truncate className="max-w-32">{getAttachmentName(part)}</Text>
-                {onRemoveAttachment && (
-                  <IconButton icon={X} label="Remove attachment" size="sm" onClick={() => onRemoveAttachment(index)} />
-                )}
-              </Surface>
-            ))}
-          </div>
-        )}
-
-        {/* Hidden file input */}
-        <Input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept={attach.accept}
-          onChange={handleFileChange}
-          className="hidden"
-        />
-
-        {phone ? (
-          <div className="flex items-end gap-1 p-1 pl-4">
-            {textField}
-            {sendControls}
-          </div>
-        ) : (
-          <>
-        {textField}
-        {/* Toolbar mounts only while idle, so it never competes with the pill's controls. */}
-          <div className="flex items-center justify-between px-3 pb-2">
-            {/* Left: Attach, model, tools, thinking, context gauge — toolbar-size controls, close together */}
-            <div className="flex items-center gap-0.5">
-              {/* Attach — files and screenshots only; tools have their own picker */}
-              {onAttach && <ComposerAddMenu attachOptions={attach.options} onPickFiles={openFilePicker} disabled={disabled} onScreenshot={attach.images ? onScreenshot : undefined} />}
-
-              <ModelPicker compact />
-              <ToolsPicker catalog={toolCatalog} />
-              <ReasoningPicker />
-
-              {/* Context-window gauge (hides when the limit is unknown or no usage yet) */}
-              <ContextRing usage={contextUsage ?? null} tools={toolsShare(toolCatalog)} cost={chatCost ?? undefined} />
-            </div>
-
-            {sendControls}
-          </div>
-          </>
-        )}
-            </motion.div>
-      </Surface>
-      </PopoverAnchor>
-
-      {/* Meeting Mention Popup (renders as PopoverContent) */}
-      <MeetingMentionPopup
-        selectedIds={selectedMeetings.map(m => m.id)}
-        onSelect={handleMeetingSelect}
-        onClose={focusInput}
-      />
+        {/* Meeting Mention Popup (renders as PopoverContent) */}
+        <MeetingMentionPopup selectedIds={selectedMeetings.map((m) => m.id)} onSelect={handleMeetingSelect} onClose={focusInput} />
       </Popover>
 
       {phone && (
         <ComposerAddSheet open={addOpen} onOpenChange={setAddOpen} attachOptions={attach.options} onPickFiles={onAttach && !disabled ? openFilePicker : undefined} contextUsage={contextUsage} toolCatalog={toolCatalog} />
-      )}
-
-      {/* Image Quick Look Overlay — portaled to body to escape overflow-hidden ancestors */}
-      {previewImage && createPortal(
-        <Surface
-          variant="scrim"
-          className="fixed inset-0 z-modal flex items-center justify-center animate-fade-in"
-          onClick={() => setPreviewImage(null)}
-          onKeyDown={(e) => { if (e.key === 'Escape') setPreviewImage(null); }}
-          tabIndex={-1}
-          role="dialog"
-          ref={(el) => el?.focus()}
-        >
-          <Surface
-            radius="lg"
-            className="relative max-w-[80vw] max-h-[80vh] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img
-              src={previewImage.src}
-              alt={previewImage.alt}
-              className="max-w-[80vw] max-h-[80vh] object-contain"
-            />
-            <IconButton
-              icon={X}
-              label="Close preview"
-              size="sm"
-              variant="secondary"
-              className="absolute top-2 right-2"
-              onClick={() => setPreviewImage(null)}
-            />
-            <Surface variant="floating" className="absolute bottom-0 inset-x-0 px-3 py-2">
-              <Text variant="helper" tone="muted">{previewImage.alt}</Text>
-            </Surface>
-          </Surface>
-        </Surface>,
-        document.body,
       )}
     </div>
   );

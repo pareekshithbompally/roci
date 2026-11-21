@@ -25,14 +25,14 @@ import { extractTokenUsage } from '@services/ai/types';
 import type { StreamProgress, TokenUsage } from '@services/ai/types';
 import type { ChatPart, ChatUIMessage, ContextTokens } from '@shared/types';
 import { errorMessage } from '@shared/utils/errors';
+import { messageText } from '@shared/utils/chatParts';
 import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
 import { finalStepGuard } from './stepGuard';
 import { buildChatSystemPrompt, NO_TOOLS } from '@core/ai';
 import type { ChatToolset } from '@core/ai';
 
-/** Drops provider citation markers only while web search is on, so code like `arr[0]` survives otherwise. */
-export function stripWebCitations(text: string, webSearchActive: boolean): string {
-  if (!webSearchActive) return text;
+/** Drops provider citation markers; used only while web search is on, so code like `arr[0]` survives otherwise. */
+export function stripWebCitations(text: string): string {
   return text.replace(/<\/?cite[^>]*>/g, '').replace(/\[(\d+)\](?!\()/g, '');
 }
 
@@ -40,7 +40,7 @@ export function stripWebCitations(text: string, webSearchActive: boolean): strin
 const withoutCitationMarkers: StreamTextTransform<ToolSet> = () =>
   new TransformStream({
     transform(part, controller) {
-      controller.enqueue(part.type === 'text-delta' ? { ...part, text: stripWebCitations(part.text, true) } : part);
+      controller.enqueue(part.type === 'text-delta' ? { ...part, text: stripWebCitations(part.text) } : part);
     },
   });
 
@@ -114,7 +114,8 @@ async function followLoad(resolved: ResolvedModel, llamaServer: boolean, showPro
   return () => undefined;
 }
 
-/** Reads the reply as the SDK builds it, handing on its parts at each change; the stream's own error is thrown as it came. */
+/** Reads the reply as the SDK builds it, handing on its parts at each change. An error the stream reports is thrown as it
+ *  came; a stream that breaks off rejects the result's own promises (usage, steps), which the caller awaits. */
 async function readReply(
   stream: ReadableStream<TextStreamPart<ToolSet>>,
   tools: ToolSet | undefined,
@@ -143,8 +144,6 @@ async function readReply(
   if (failure !== undefined) throw failure;
   return parts;
 }
-
-const hasText = (parts: ChatPart[]): boolean => parts.some((part) => part.type === 'text' && part.text.length > 0);
 
 /** Runs the agentic loop: the LLM decides which meeting, MCP and web search tools to call, and when to answer. */
 export async function orchestrate(
@@ -190,7 +189,7 @@ export async function orchestrate(
     });
 
     const parts = await readReply(result.stream, tools, options, callbacks.onParts);
-    if (!hasText(parts) && !signal?.aborted) throw emptyResponseError(await result.finishReason);
+    if (!messageText({ parts }) && !signal?.aborted) throw emptyResponseError(await result.finishReason);
 
     return {
       provider: resolved.provider,

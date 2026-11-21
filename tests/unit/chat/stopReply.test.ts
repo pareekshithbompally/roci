@@ -21,7 +21,7 @@ vi.mock('@shared/utils/appEvents', () => ({ notifyAppEvent: (...args: unknown[])
 
 /** A stream the test drives: the reply's words so far, then finish (normally, as the SDK does after an abort) or fail. */
 type Callbacks = { onParts: (parts: ChatPart[]) => void };
-interface Stream { say: (text: string) => void; finish: () => void; fail: (e: Error) => void }
+interface Stream { say: (text: string) => void; show: (parts: ChatPart[]) => void; finish: () => void; fail: (e: Error) => void }
 const streams: Stream[] = [];
 vi.mock('@extensions/tool-orchestrator', () => ({
   orchestrate: (_req: unknown, callbacks: Callbacks) =>
@@ -29,6 +29,7 @@ vi.mock('@extensions/tool-orchestrator', () => ({
       let parts: ChatPart[] = [];
       streams.push({
         say: (text) => callbacks.onParts((parts = [{ type: 'text', text }])),
+        show: (next) => callbacks.onParts((parts = next)),
         finish: () => resolve({ provider: 'openai', model: 'm', tokenUsage: undefined, parts }),
         fail: reject,
       });
@@ -97,6 +98,22 @@ describe('stopping a reply', () => {
     await vi.waitFor(() => expect(replyOf(second).state).toBe('complete'));
     expect(replyOf(second).text).toBe('fresh');
     expect(replyOf(first).text).toBe('[Stopped]');
+  });
+
+  it('keeps saying what is under way until something shows (an empty block opened first is not a word)', async () => {
+    const id = await ask('hi');
+    streams[0].show([{ type: 'step-start' }, { type: 'text', text: '' }]);
+    expect(replyOf(id).state).toBe('loading');
+    streams[0].say('Hello');
+    expect(replyOf(id).state).toBe('streaming');
+  });
+
+  it('keeps the work a reply showed when stopped, without a "[Stopped]" line under it', async () => {
+    const id = await ask('hi');
+    const tool: ChatPart = { type: 'tool-search_meetings', toolCallId: 't1', state: 'input-available', input: {} };
+    streams[0].show([{ type: 'step-start' }, tool]);
+    useChatStore.getState().stopGeneration();
+    expect(sessionOf(id).messages.at(-1)!.parts).toEqual([{ type: 'step-start' }, tool]);
   });
 
   it('saves a failed reply with its reason', async () => {

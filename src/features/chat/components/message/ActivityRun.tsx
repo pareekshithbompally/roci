@@ -54,9 +54,9 @@ function ActivityRows({ items, liveIndex, generation, nested }: ActivityRunProps
   const variant = nested ? 'row' : 'inline';
   return (
     <>
-      {items.map(({ part, index }) =>
+      {items.map(({ part, index, key }) =>
         part.type === 'reasoning' ? (
-          <ReasoningBlock key={index} text={part.text} thinking={index === liveIndex} generation={generation} variant={variant} />
+          <ReasoningBlock key={key} text={part.text} thinking={index === liveIndex} generation={generation} variant={variant} />
         ) : (
           <ToolCallBlock key={part.toolCallId} part={part} variant={variant} />
         ),

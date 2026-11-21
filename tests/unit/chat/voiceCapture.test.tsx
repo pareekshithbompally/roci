@@ -27,6 +27,13 @@ vi.mock('@features/chat/components/ModelPicker', () => ({
 vi.mock('@features/chat/components/ReasoningPicker', () => ({
   ReasoningPicker: () => null,
 }));
+/** What the composer may attach depends on the chat's model (Settings): any file here. */
+vi.mock('@features/chat/hooks/useAttachOptions', () => ({ useAttachOptions: () => ({ accept: '*', options: [], images: false }) }));
+/** The tool catalog reads Settings; the composer only hands it to the (stubbed) pickers and the context ring. */
+vi.mock('@features/chat/hooks', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@features/chat/hooks')>()),
+  useToolCatalog: () => ({ modelSupportsTools: false, enabledCount: 0, enabledTokens: 0 }),
+}));
 
 const baseProps = {
   value: '',
@@ -148,5 +155,27 @@ describe('ChatInput voice capture', () => {
     );
     expect(screen.getByRole('textbox')).toBeInTheDocument();
     expect(screen.getByTestId('composer-frame')).toBe(frame);
+  });
+});
+
+describe('ChatInput attachments', () => {
+  const photo = { type: 'file' as const, mediaType: 'image/png', url: 'data:image/png;base64,AA==', filename: 'photo.png' };
+  const pdf = { type: 'file' as const, mediaType: 'application/pdf', url: 'data:application/pdf;base64,AA==', filename: 'plan.pdf' };
+  const clip = { type: 'file' as const, mediaType: 'audio/wav', url: 'data:audio/wav;base64,AA==' };
+
+  it('shows each attachment by name (an unnamed one by its kind), and removes the one asked', () => {
+    const onRemoveAttachment = vi.fn();
+    render(<ChatInput {...baseProps} speechState="idle" attachments={[photo, pdf, clip]} onRemoveAttachment={onRemoveAttachment} />);
+    expect(screen.getByText('photo.png')).toBeInTheDocument();
+    expect(screen.getByText('plan.pdf')).toBeInTheDocument();
+    expect(screen.getByText('Audio')).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove attachment' })[1]);
+    expect(onRemoveAttachment).toHaveBeenCalledWith(1);
+  });
+
+  it('opens an image attachment full size', async () => {
+    render(<ChatInput {...baseProps} speechState="idle" attachments={[photo]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'photo.png' }));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
   });
 });

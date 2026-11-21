@@ -6,6 +6,8 @@ export const StorageConfig = {
     cache: 'cache',
     cacheAudio: 'cache/audio',
     cacheApi: 'cache/api',
+    /** Copies of chat attachments handed to another app to open (Preview, Pages …); emptied at launch. */
+    cacheOpen: 'cache/open',
   },
 
   /** Every kept file kind by its folder; `assets.rs` MANAGED_DIRS and the tauri.conf.json asset scope list the same. */

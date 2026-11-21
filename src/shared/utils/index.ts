@@ -7,8 +7,6 @@ export * from './validators';
 // Citation utilities
 export * from './citationUtils';
 
-// Inline citation injection
-
 // Todo utilities
 export * from './todo.utils';
 

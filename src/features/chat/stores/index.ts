@@ -8,14 +8,18 @@ export {
 export type { TodoProposal } from './todoProposalStore';
 export {
   useChatStore,
-  focusChatComposer,
-  startNewChat,
-  openChat,
-  askInNewChat,
-  registerChatComposer,
   injectChatRefs,
   useChatCurrentSessionId,
   useChatReasoningEffort,
   useChatModelLock,
   useCurrentSession,
 } from './chatStore';
+export {
+  focusChatComposer,
+  startNewChat,
+  openChat,
+  askInNewChat,
+  registerChatComposer,
+  expandMeetingChat,
+  closeMeetingChat,
+} from './chatNavigation';

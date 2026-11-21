@@ -41,6 +41,10 @@
     "os:default",
     "process:default",
     "opener:default",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [{ "path": "$APPDATA/cache/open/**" }]
+    },
     "store:default",
     "calendar:default",
     "notifications:default",

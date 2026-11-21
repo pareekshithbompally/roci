@@ -7,7 +7,7 @@ vi.mock('@services/chat.service', () => ({
   chatService: { persistSession: (...args: unknown[]) => persist(...args), renameSession: vi.fn(), deleteSession: vi.fn() },
 }));
 
-import { useChatStore, askInNewChat, injectChatRefs } from '@features/chat/stores/chatStore';
+import { useChatStore, askInNewChat, injectChatRefs } from '@features/chat/stores';
 import { CHAT_DRAFT_COPY } from '@config/chat.config';
 
 const pdf: FileUIPart = { type: 'file', mediaType: 'application/pdf', url: 'data:application/pdf;base64,', filename: 'plan.pdf' };

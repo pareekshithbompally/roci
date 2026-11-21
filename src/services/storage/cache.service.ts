@@ -128,6 +128,13 @@ class CacheService {
     }
   }
 
+  /** A copy of `bytes` as `name` for another app to open; returns its path. Copies go at the next launch. */
+  async openCopy(name: string, bytes: Uint8Array): Promise<string> {
+    const path = `${await pathsService.getOpenCachePath()}${Date.now()}-${name.replace(/[/\\]/g, '_')}`;
+    await writeFile(path, bytes);
+    return path;
+  }
+
   async clearExpired(): Promise<StorageResult<number>> {
     let clearedCount = 0;
 
@@ -139,6 +146,9 @@ class CacheService {
       // Clear expired API cache
       const apiPath = await pathsService.getApiCachePath();
       clearedCount += await this.clearExpiredInDirectory(apiPath);
+
+      // Copies handed to other apps last run are done with
+      clearedCount += await this.clearDirectory(await pathsService.getOpenCachePath());
 
       console.log('[CacheService] Cleared expired cache entries:', clearedCount);
       return { success: true, data: clearedCount };
@@ -162,6 +172,8 @@ class CacheService {
       // Clear API cache
       const apiPath = await pathsService.getApiCachePath();
       clearedCount += await this.clearDirectory(apiPath);
+
+      clearedCount += await this.clearDirectory(await pathsService.getOpenCachePath());
 
       console.log('[CacheService] Cleared all cache:', clearedCount);
       return { success: true, data: clearedCount };

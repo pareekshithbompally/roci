@@ -64,7 +64,8 @@ function statusOf(result: ToolCallView['result']): ToolCallView['status'] {
 }
 
 export function toolCallView(part: ChatToolPart): ToolCallView {
-  const input = isRecord(part.input) ? part.input : {};
+  // Arguments show once the call is whole, not as partial JSON while the model writes them.
+  const input = part.state !== 'input-streaming' && isRecord(part.input) ? part.input : {};
   const result = resultOf(part);
   const source = part.toolMetadata?.source;
   return {

@@ -18,6 +18,10 @@ describe('toolCallView', () => {
       .toMatchObject({ toolName: 'notion:search', arguments: { q: 'x' }, status: 'calling' });
   });
 
+  it('shows no arguments while the model is still writing them', () => {
+    expect(toolCallView(part({ state: 'input-streaming', input: { query: 'pro' } })).arguments).toEqual({});
+  });
+
   it("ends a Roci tool with its result and timing", () => {
     const output = { toolCallId: 'c1', content: '2 meetings', isError: false, meta: { toolName: 'search_meetings', executionMs: 42 } };
     expect(toolCallView(part({ state: 'output-available', input: { query: 'budget' }, output })))

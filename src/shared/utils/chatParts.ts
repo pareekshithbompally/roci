@@ -13,6 +13,13 @@ export function mediaKind(mediaType: string): MediaKind {
   return kind === 'image' || kind === 'audio' || kind === 'video' ? kind : 'document';
 }
 
+/** A part the reply shows: words, thinking or a tool call; the empty blocks some providers open (Gemini's signed text,
+ *  OpenAI's reasoning with no summary) show nothing. */
+export function isShownPart(part: ChatPart): boolean {
+  if (part.type === 'text' || part.type === 'reasoning') return part.text.length > 0;
+  return isToolUIPart(part);
+}
+
 /** A message's words: its text parts joined. */
 export function messageText(message: Pick<ChatMessage, 'parts'>): string {
   return message.parts.filter(isTextUIPart).map((part) => part.text).join('');

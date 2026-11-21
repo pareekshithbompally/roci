@@ -16,7 +16,7 @@ export const SESSION_SEARCH_MIN_QUERY_LENGTH = 2;
 /** Max results per source type returned by search_sessions (a full list, Show All, asks for more). */
 export const SESSION_SEARCH_LIMIT = 6;
 
-/** A tool row keeps this much of a tool's output for its expanded view. */
+/** How much of a tool's output its row shows when opened (the chat keeps the whole output, which the model reads back). */
 export const TOOL_RESULT_PREVIEW_CHARS = 500;
 
 /** Attachments one message can carry. */

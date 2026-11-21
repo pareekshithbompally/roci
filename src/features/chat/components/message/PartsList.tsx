@@ -25,11 +25,10 @@ const PartsList: React.FC<PartsListProps> = ({ parts, messageId, streaming, gene
     if (segment.kind === 'activity') {
       const items = settings.hideToolCalls ? segment.items.filter(({ part }) => part.type !== 'tool_call') : segment.items;
       if (items.length === 0) return null;
-      return <ActivityRun key={`run-${items[0].index}`} items={items} liveIndex={liveIndex} generation={generation} />;
+      return <ActivityRun key={`run-${items[0].key}`} items={items} liveIndex={liveIndex} generation={generation} />;
     }
-    if (segment.kind === 'media') return <MediaPartRenderer key={`media-${segment.item.index}`} media={segment.item.part} />;
-    const { part: text, index } = segment.item;
-    return text ? <Markdown key={index} content={text} streaming={streaming} messageId={messageId} /> : null;
+    if (segment.kind === 'media') return <MediaPartRenderer key={`media-${segment.item.key}`} media={segment.item.part} />;
+    return <Markdown key={segment.item.key} content={segment.item.part} streaming={streaming} messageId={messageId} />;
   };
 
   return <>{segments.map(render)}</>;

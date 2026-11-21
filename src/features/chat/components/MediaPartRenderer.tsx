@@ -1,4 +1,5 @@
-/** Renders a chat's media: attached files and tool-made images (an image opens in the kit Lightbox); a removed file shows as removed. */
+/** Renders a chat's media: attached files and tool-made images (an image opens in the kit Lightbox, a document in its default
+ *  app on the Mac); a removed file shows as removed. */
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -6,7 +7,9 @@ import { assetsService } from '@services/storage';
 import { store } from '@services/db';
 import { queryKeys } from '@shared/query/queryKeys';
 import { FileText, FileX, ImageOff, VideoOff, VolumeX, type LucideIcon } from 'lucide-react';
-import { Icon, Lightbox, Surface, Text, Thumbnail } from '@shared/ui';
+import { Icon, Lightbox, Row, Surface, Text, Thumbnail } from '@shared/ui';
+import { platform } from '@platform/index';
+import { openAttachment } from '@features/chat/utils';
 import { RemovedNotice } from '@shared/components';
 import { StorageConfig } from '@config/storage.config';
 import type { FileUIPart, GeneratedImage } from '@shared/types';
@@ -32,6 +35,25 @@ function useMediaSrc(media: ChatMedia): string | null | undefined {
     staleTime: Infinity,
   });
   return 'url' in media ? media.url : fileUrl;
+}
+
+/** A document by its name; on the Mac a press opens it in its default app. */
+function DocumentChip({ media, name }: { media: ChatMedia; name?: string }) {
+  const body = (
+    <>
+      <Icon icon={FileText} size="sm" tone="muted" className="shrink-0" />
+      <Text variant="helper" truncate className="max-w-48">{name}</Text>
+    </>
+  );
+  return (
+    <Surface variant="subtle" radius="lg" className="my-1 inline-flex">
+      {platform.hasFileManager && 'url' in media ? (
+        <Row className="w-auto" aria-label={`Open ${name ?? 'file'}`} onClick={() => void openAttachment(media)}>{body}</Row>
+      ) : (
+        <div className="flex items-center gap-2 px-3 py-2">{body}</div>
+      )}
+    </Surface>
+  );
 }
 
 interface MediaPartRendererProps {
@@ -75,12 +97,7 @@ export const MediaPartRenderer: React.FC<MediaPartRendererProps> = ({ media }) =
         </Surface>
       );
     case 'document':
-      return (
-        <Surface variant="subtle" radius="lg" className="flex items-center gap-2 px-3 py-2 my-1">
-          <Icon icon={FileText} size="sm" tone="muted" className="shrink-0" />
-          <Text variant="helper" truncate className="max-w-48">{name}</Text>
-        </Surface>
-      );
+      return <DocumentChip media={media} name={name} />;
   }
 };
 

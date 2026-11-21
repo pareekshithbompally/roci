@@ -46,6 +46,7 @@ class PathsService {
       StorageConfig.directories.cache,
       StorageConfig.directories.cacheAudio,
       StorageConfig.directories.cacheApi,
+      StorageConfig.directories.cacheOpen,
     ];
     console.log('[PathsService] Creating', directories.length, 'directories:', directories);
 
@@ -91,6 +92,12 @@ class PathsService {
   async getAudioCachePath(): Promise<string> {
     const base = await this.getBasePath();
     const fullPath = await join(base, StorageConfig.directories.cacheAudio);
+    return this.ensureTrailingSeparator(fullPath);
+  }
+
+  async getOpenCachePath(): Promise<string> {
+    const base = await this.getBasePath();
+    const fullPath = await join(base, StorageConfig.directories.cacheOpen);
     return this.ensureTrailingSeparator(fullPath);
   }
 

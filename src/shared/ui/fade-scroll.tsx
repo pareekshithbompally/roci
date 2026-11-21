@@ -46,7 +46,12 @@ function useFadingEdges(scroller: React.RefObject<HTMLDivElement | null>, conten
   return { top, bottom };
 }
 
-export const FadeScroll = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, children, ...props }, ref) => {
+interface FadeScrollProps extends React.HTMLAttributes<HTMLDivElement> {
+  /** Content is at least as tall as the scroll area, a column, so an empty state can fill what's left and centre in it. */
+  fill?: boolean;
+}
+
+export const FadeScroll = forwardRef<HTMLDivElement, FadeScrollProps>(({ className, children, fill, ...props }, ref) => {
   const scroller = useRef<HTMLDivElement | null>(null);
   const content = useRef<HTMLDivElement | null>(null);
   const edges = useFadingEdges(scroller, content);
@@ -63,7 +68,7 @@ export const FadeScroll = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
       data-fade-bottom={edges.bottom || undefined}
       {...props}
     >
-      <div ref={content}>{children}</div>
+      <div ref={content} className={fill ? 'flex min-h-full flex-col' : undefined}>{children}</div>
     </div>
   );
 });

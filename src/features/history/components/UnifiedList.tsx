@@ -11,9 +11,9 @@ import { useDeleteSession } from '@features/history/hooks/useDeleteSession';
 import { SidebarShimmer } from '@features/history/components/SidebarShimmer';
 import { SIDEBAR_SHIMMER_ROWS } from '@config/chat.config';
 import { UnifiedSidebarItem } from './UnifiedSidebarItem';
-import { RenameModal } from '@shared/components';
+import { EmptyState, RenameModal } from '@shared/components';
+import { History, SearchX } from 'lucide-react';
 import type { UnifiedSidebarItem as UnifiedSidebarItemType } from '@shared/types';
-import { Text } from '@shared/ui';
 
 /** The paged recents list: more rows load as its end scrolls into view. Search results come whole and have none. */
 export interface UnifiedListPaging {
@@ -53,11 +53,9 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
   if (paging?.loading) return <SidebarShimmer count={SIDEBAR_SHIMMER_ROWS} />;
 
   if (items.length === 0) {
-    return (
-      <Text as="div" tone="faint" className="flex items-center justify-center h-full">
-        {searchQuery ? 'No items match your search' : 'No recordings or chats yet'}
-      </Text>
-    );
+    return searchQuery
+      ? <EmptyState icon={SearchX} message="No items match your search" />
+      : <EmptyState icon={History} message="No recordings or chats yet" />;
   }
 
   const handleDelete = (item: UnifiedSidebarItemType) => {

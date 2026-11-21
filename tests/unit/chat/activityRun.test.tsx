@@ -10,10 +10,11 @@ import type { ActivityPart, IndexedPart } from '@features/chat/components/messag
 const wrap = (ui: ReactElement) => <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>;
 const render = (ui: ReactElement) => rtlRender(wrap(ui));
 
-const thought: IndexedPart<ActivityPart> = { part: { type: 'reasoning', text: 'Let me check the meetings.' }, index: 0 };
+const thought: IndexedPart<ActivityPart> = { part: { type: 'reasoning', text: 'Let me check the meetings.' }, index: 0, key: 0 };
 const call = (id: string, index: number, status: 'calling' | 'complete' = 'complete'): IndexedPart<ActivityPart> => ({
   part: { type: 'tool_call', toolCallId: id, toolName: 'get_chat', arguments: {}, status, result: status === 'complete' ? { content: 'ok', isError: false, executionMs: 500 } : undefined },
   index,
+  key: index,
 });
 
 describe('ActivityRun', () => {
@@ -26,7 +27,7 @@ describe('ActivityRun', () => {
   });
 
   it('names thinking in the header while the model thinks between steps', () => {
-    const later = { part: { type: 'reasoning', text: 'Now the next one.' }, index: 2 } as IndexedPart<ActivityPart>;
+    const later = { part: { type: 'reasoning', text: 'Now the next one.' }, index: 2, key: 2 } as IndexedPart<ActivityPart>;
     render(<ActivityRun items={[thought, call('a', 1), later]} liveIndex={2} />);
     expect(screen.getByRole('button', { name: new RegExp(CHAT_REASONING_COPY.thinking) })).toHaveAttribute('aria-expanded', 'false');
   });

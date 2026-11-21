@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { ChatSession } from '@shared/types';
-import { useChatStore, injectChatRefs } from '@features/chat/stores';
+import { useChatStore, injectChatRefs, startNewChat } from '@features/chat/stores';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { chatService } from '@services/chat.service';
 import { retentionService } from '@services/storage/retention.service';
@@ -23,8 +23,12 @@ export function useChatRuntime(): void {
     injectChatRefs({ settings, providers: providers || [] });
   }, [settings, providers]);
 
-  // Chats Keep or Delete All removed leave memory, so an open one is never saved back.
-  useEffect(() => retentionService.onChatsRemoved((ids) => useChatStore.getState().forgetSessions(ids)), []);
+  // Chats Keep or Delete All removed leave memory, so an open one is never saved back; an open one gives way to a new chat.
+  useEffect(() => retentionService.onChatsRemoved((ids) => {
+    const chat = useChatStore.getState();
+    if (ids.includes(chat.currentSessionId ?? '')) startNewChat();
+    chat.forgetSessions(ids);
+  }), []);
 
   // The open chat: read from disk when it isn't in memory. The store is its only cache (gcTime 0),
   // so a chat that left memory is read fresh from disk, never from a stale query copy.

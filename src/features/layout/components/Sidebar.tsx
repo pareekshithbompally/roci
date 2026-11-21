@@ -132,7 +132,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </header>
         <div className="shrink-0 px-2">{destinations}</div>
-        <FadeScroll ref={listContainerRef} className="flex-1 px-2 pb-2">{list}</FadeScroll>
+        <FadeScroll ref={listContainerRef} fill className="flex-1 px-2 pb-2">{list}</FadeScroll>
         {/* Bottom right, under Search and New chat: Activity while work runs (downloads, model loads), then Settings. */}
         <footer className="flex shrink-0 items-center justify-end gap-2 px-4 pt-2 pb-4">
           <ActivityButton />
@@ -177,7 +177,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Everything between Search and Settings scrolls; an edge fades only while there is more beyond it */}
-      <FadeScroll ref={listContainerRef} className="flex-1 px-2 pb-1">
+      <FadeScroll ref={listContainerRef} fill className="flex-1 px-2 pb-1">
         {isSettingsView ? (
           <>
             <RowGroupLabel>Settings</RowGroupLabel>

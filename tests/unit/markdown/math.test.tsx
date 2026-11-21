@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
 import { Markdown } from '@shared/components/markdown/Markdown';
 import { normalizeMath } from '@shared/utils/mathMarkup';
+import { ThemeProvider } from '@shared/contexts/ThemeContext';
 
-const katexCount = (content: string) => render(<Markdown content={content} />).container.querySelectorAll('.katex').length;
+/** Markdown renders inside the app's ThemeProvider (diagrams take its light/dark). */
+const katexCount = (content: string) =>
+  render(<ThemeProvider><Markdown content={content} /></ThemeProvider>).container.querySelectorAll('.katex').length;
 
 describe('markdown math', () => {
   it('renders $$…$$, $…$, \\(…\\) and \\[…\\] with KaTeX', () => {
