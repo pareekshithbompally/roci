@@ -34,7 +34,7 @@ export const MODEL_SPINE_CONFIG = {
 
   /** Last-resort description by model id, first match wins; a model matching none is unknown. */
   nameRules: [
-    { pattern: /tts|text-to-speech/i, input: ['text'], output: ['audio'] },
+    { pattern: /tts|text-to-speech|^aura-/i, input: ['text'], output: ['audio'] },
     { pattern: /transcribe|whisper|parakeet|canary|moonshine|scribe|^nova-\d/i, input: ['audio'], output: ['text'] },
     { pattern: /voxtral/i, input: ['text', 'audio'], output: ['text'] },
     { pattern: /embed/i, input: ['text'], output: ['vector'] },

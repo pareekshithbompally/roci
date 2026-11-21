@@ -1,4 +1,5 @@
-/** Model facts (modalities, tools, thinking, context) and pricing from models.dev, cached on disk. */
+/** Model facts (modalities, tools, thinking, context) and pricing from models.dev, cached on disk; Roci's seed describes the
+ *  speech providers' models models.dev doesn't list. */
 
 import { exists, readTextFile, rename, writeTextFile } from '@tauri-apps/plugin-fs';
 import { appDataDir, join } from '@tauri-apps/api/path';
@@ -8,6 +9,8 @@ import { queryKeys } from '@shared/query/queryKeys';
 import { toModalities } from '@services/ai/models/report';
 import type { ModelPrice, ModelReport } from '@shared/types/modelProviders';
 import { MODEL_SPINE_CONFIG } from '@config/modelSpine.config';
+import { MODEL_SEED, type SeedModel } from '@config/modelSeed.config';
+import type { ListedModel } from '@services/ai/models/report';
 
 /** A price per 1M tokens, with the cache rates when the catalog states them (cached input costs the input rate otherwise). */
 export interface ModelPricing extends ModelPrice {
@@ -113,6 +116,9 @@ function reportOf(model: ModelsDevModel): ModelReport {
   };
 }
 
+/** A seeded model as the catalog describes its models. */
+const asCatalogModel = (model: SeedModel): ModelsDevModel => ({ id: model.id, modalities: model.modalities });
+
 /** The catalog as kept on disk, with when it was fetched. */
 interface SavedCatalog {
   fetchedAt: number;
@@ -171,8 +177,19 @@ class ModalitiesService {
     }
   }
 
-  /** Find the raw model entry from cached data */
+  /** A model's entry: models.dev's, else Roci's seed for the providers models.dev doesn't list. */
   private findModel(providerName: string, modelId: string): ModelsDevModel | null {
+    const seeded = MODEL_SEED[providerName]?.[modelId];
+    return this.findInCatalog(providerName, modelId) ?? (seeded ? asCatalogModel(seeded) : null);
+  }
+
+  /** The seeded models of a provider models.dev doesn't list, as a model list reports them (Add Model offers them). */
+  seededModels(providerName: string): ListedModel[] {
+    return Object.values(MODEL_SEED[providerName] ?? {}).map((model) => ({ id: model.id, report: reportOf(asCatalogModel(model)) }));
+  }
+
+  /** Find the raw model entry from cached data */
+  private findInCatalog(providerName: string, modelId: string): ModelsDevModel | null {
     if (!cachedData) return null;
 
     const modelsDevProviderId = PROVIDER_NAME_MAP[providerName] ?? providerName;

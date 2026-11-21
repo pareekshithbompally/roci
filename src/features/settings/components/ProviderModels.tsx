@@ -7,6 +7,7 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { ModelIcon, ModelLabel, RenameModal, ModelChips } from '@shared/components';
 import { isEmptyReport, profileOf, shownProfile } from '@services/ai/models';
+import { modalitiesService } from '@services/modalities';
 import type { ListedModel } from '@services/ai/models';
 import { confirm } from '@shared/stores/confirmStore';
 import { getModelDisplayName } from '@shared/utils/provider.utils';
@@ -19,13 +20,13 @@ interface ProviderModelsProps {
   provider: ModelProvider;
   /** Loads the model list Add searches; absent for local servers, which sync their own models. */
   connection?: ProviderConnection;
-  /** No model list to load (speech-only providers): Add takes the model's name as typed. */
+  /** No model list to load (speech-only providers): Add offers the seeded models, or takes a name as typed. */
   addByName?: boolean;
 }
 
 interface AddModelPickerProps {
   provider: string;
-  /** Absent: nothing to load, the model is added by its name. */
+  /** Absent: nothing to load; the seeded models are offered, and any name can be added as typed. */
   connection?: ProviderConnection;
   added: ReadonlySet<string>;
   onAdd: (model: ListedModel) => void;
@@ -49,7 +50,7 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState('');
   const status = connection?.status;
-  const available = status?.state === 'connected' ? status.models : [];
+  const available = connection ? (status?.state === 'connected' ? status.models : []) : modalitiesService.seededModels(provider);
   const typed = search.trim();
   const unlisted = typed !== '' && !added.has(typed) && !available.some((m) => m.id === typed);
 
