@@ -172,6 +172,9 @@ const App: React.FC = () => {
       toast.showToast('Could not switch the speech model', 'error');
     }
   };
+  // the menu bar's handler is set once at launch; the ref keeps it on this render's providers and settings
+  const applySpeechModelRef = useRef(applySpeechModel);
+  applySpeechModelRef.current = applySpeechModel;
 
   /** What each menu bar action does here (Rust handles the window, update, next-meeting and recent-meeting rows itself). */
   const menubarActions = (): Record<TrayAction, () => Promise<void>> => {
@@ -220,7 +223,7 @@ const App: React.FC = () => {
       const actions = menubarActions();
       await menubarService.initialize(async (action) => {
         if (action.startsWith(SPEECH_MODEL_ACTION_PREFIX)) {
-          await applySpeechModel(action.slice(SPEECH_MODEL_ACTION_PREFIX.length));
+          await applySpeechModelRef.current(action.slice(SPEECH_MODEL_ACTION_PREFIX.length));
           return;
         }
         const run = actions[action as TrayAction];
