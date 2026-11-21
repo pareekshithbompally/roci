@@ -26,6 +26,9 @@ export function TitlebarSpacer() {
 export interface PageScrollProps extends HTMLAttributes<HTMLDivElement> {
   /** Runs to the window top: content starts below the titlebar and fades out under it when scrolled. */
   underTitlebar?: boolean;
+  /** Below a fixed header instead of the titlebar: content fades out at the top edge as it scrolls under the header; at rest
+   *  it starts below the fade. */
+  fadeTop?: boolean;
   /** Content fades out at the bottom edge too (into a composer below). Scrolled to the end, the last content rests above the fade. */
   fadeBottom?: boolean;
   /** The scrollbar keeps its room even when the page fits, so a centred column sits in the same place on every page. */
@@ -34,8 +37,9 @@ export interface PageScrollProps extends HTMLAttributes<HTMLDivElement> {
 
 /** A view's vertical page scroller with edge fades; callers add layout and padding. Use `ScrollArea` for insets. */
 export const PageScroll = forwardRef<HTMLDivElement, PageScrollProps>(
-  ({ underTitlebar = true, fadeBottom = false, steady = false, className, style, children, ...props }, ref) => {
-    const fade = edgeFade({ top: underTitlebar ? safeArea : 0, bottom: fadeBottom ? edgeFadePx : 0 });
+  ({ underTitlebar = true, fadeTop = false, fadeBottom = false, steady = false, className, style, children, ...props }, ref) => {
+    const top = underTitlebar ? safeArea : fadeTop ? edgeFadePx : 0;
+    const fade = edgeFade({ top, bottom: fadeBottom ? edgeFadePx : 0 });
     return (
       <div
         ref={ref}
@@ -44,6 +48,7 @@ export const PageScroll = forwardRef<HTMLDivElement, PageScrollProps>(
         {...props}
       >
         {underTitlebar && <TitlebarSpacer />}
+        {!underTitlebar && fadeTop && <Band height={edgeFadePx} />}
         {children}
         {fadeBottom && <Band height={edgeFadePx} />}
       </div>

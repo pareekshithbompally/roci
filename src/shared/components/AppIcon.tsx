@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';
 import { queryKeys } from '@shared/query/queryKeys';
-import { Icon, IconTile, ICON_SIZE_PX, ICON_TILE_PX, type IconSize } from '@shared/ui';
+import { Icon, IconTile, ICON_SIZE_PX, LIST_ART_PX, type IconSize } from '@shared/ui';
 import { platform } from '@platform/index';
 import { UI_CONFIG } from '@config/ui.config';
 
@@ -32,14 +32,14 @@ export function useAppIcon(app: string | undefined): string | null {
   return data ?? null;
 }
 
-/** A kit icon size, or `tile`: a settings row, where the icon's visible body matches an icon tile. */
+/** A kit icon size, or `tile`: a settings row, where the icon's visible body is list-art size (like the Settings pane icons). */
 type AppIconSize = IconSize | 'tile';
 
-/** macOS draws an app icon's body inside padding, so at tile size the image is scaled up and overflows its tile-sized box evenly. */
-const TILE_IMAGE_PX = Math.round(ICON_TILE_PX / UI_CONFIG.appIconBody);
+/** macOS draws an app icon's body inside padding, so at tile size the image is scaled up and overflows its list-art box evenly. */
+const TILE_IMAGE_PX = Math.round(LIST_ART_PX / UI_CONFIG.appIconBody);
 
 const TileImage: React.FC<{ src?: string | null }> = ({ src }) => (
-  <span aria-hidden className="inline-flex shrink-0 items-center justify-center" style={{ width: ICON_TILE_PX, height: ICON_TILE_PX }}>
+  <span aria-hidden className="inline-flex shrink-0 items-center justify-center" style={{ width: LIST_ART_PX, height: LIST_ART_PX }}>
     {src && <img src={src} alt="" width={TILE_IMAGE_PX} height={TILE_IMAGE_PX} className="max-w-none shrink-0" />}
   </span>
 );

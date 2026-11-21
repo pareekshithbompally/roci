@@ -5,13 +5,13 @@ import { ICON_SIZE_PX, ICON_STROKE_WIDTH } from './icon';
 
 /** List icons (Settings rows, capabilities, usage): one icon step on every device, so a logo beside them (providers, models) matches. */
 const LIST_ICON_PX = ICON_SIZE_PX.sm;
-/** An icon image in a list row: Apple's size, larger than a glyph. */
-const LIST_ART_PX = platform.hasTouchScreen ? UI_CONFIG.listArt.touch : UI_CONFIG.listArt.desktop;
+/** App-icon-shaped art in a list row (Settings panes, Mac apps, integrations): Apple's size, larger than a glyph. */
+export const LIST_ART_PX = platform.hasTouchScreen ? UI_CONFIG.listArt.touch : UI_CONFIG.listArt.desktop;
+/** Corner radius in px for square art at list-art size that isn't already shaped (brand squares, glyph tiles). */
+export const LIST_ART_RADIUS = Math.round(LIST_ART_PX * 0.22);
 
 /** A list icon's edge in px on this device, so logos beside list icons (providers, models) match them. */
 export const ICON_TILE_PX = LIST_ICON_PX;
-/** Corner radius in px for images shown in a list icon's slot (app icons, logos). */
-export const ICON_TILE_RADIUS = Math.round(LIST_ICON_PX * 0.22);
 
 /** A line glyph (Lucide) or a Simple Icons brand mark, in currentColor. */
 export type TileGlyph = React.ComponentType<{ size?: number | string; strokeWidth?: number | string; title?: string }>;

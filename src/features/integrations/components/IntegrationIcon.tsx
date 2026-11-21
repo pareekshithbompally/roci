@@ -1,6 +1,6 @@
 import React from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { ICON_TILE_PX, ICON_TILE_RADIUS } from '@shared/ui';
+import { LIST_ART_PX, LIST_ART_RADIUS } from '@shared/ui';
 import { AppIcon, GlyphTile } from '@shared/components';
 
 interface IntegrationIconProps {
@@ -14,12 +14,12 @@ interface IntegrationIconProps {
   symbol?: LucideIcon;
 }
 
-/** An integration's icon at icon-tile size, so app icons, images and glyphs weigh the same as the tiles in other panels. */
+/** An integration's icon at list-art size, so app icons, images and glyphs match the Settings sidebar's pane icons. */
 export const IntegrationIcon: React.FC<IntegrationIconProps> = ({ app, src, glyph, symbol }) => {
   if (app) return <AppIcon app={app} size="tile" fallback={src} symbol={symbol} />;
   if (glyph) return <GlyphTile src={glyph} size="row" />;
   return (
-    <span className="shrink-0 overflow-hidden" style={{ width: ICON_TILE_PX, height: ICON_TILE_PX, borderRadius: ICON_TILE_RADIUS }}>
+    <span className="shrink-0 overflow-hidden" style={{ width: LIST_ART_PX, height: LIST_ART_PX, borderRadius: LIST_ART_RADIUS }}>
       <img src={src} alt="" className="w-full h-full" />
     </span>
   );

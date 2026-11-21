@@ -11,8 +11,8 @@ interface SettingsToolbarProps {
   title: React.ReactNode;
   /** Controls at the right of the title (Add, time range…). */
   accessory?: React.ReactNode;
-  /** A drilled-in page (Mac, iPad): ‹ in the back / forward capsule, which leads every page's title (dimmed where there is
-   *  nowhere to go, as in System Settings) so titles start at one place. A phone's bar has its own. */
+  /** A drilled-in page (Mac, iPad): the back / forward capsule before the title returns to the page it came from. A phone's
+   *  bar has its own. */
   onBack?: () => void;
   /** Goes forward again to the page last left with back (System Settings). */
   onForward?: () => void;
@@ -20,14 +20,14 @@ interface SettingsToolbarProps {
 
 const { paneToolbar } = LAYOUT;
 
-/** A pane's toolbar (macOS System Settings): back / forward, the pane's title, its controls. On a Mac it sits in the titlebar,
- *  centred on the traffic lights, and stays put while the page scrolls; its empty space still drags the window. */
+/** A pane's toolbar (macOS System Settings): back / forward, the pane's title, its controls, across the pane from its leading
+ *  edge beside the sidebar (not the centred column). On a Mac it sits in the titlebar, centred on the traffic lights, and stays
+ *  put while the page scrolls; its empty space still drags the window. */
 const SettingsToolbar: React.FC<SettingsToolbarProps> = ({ title, accessory, onBack, onForward }) => {
   const clearFloating = useFloatingSidebarControls();
   return (
     <header
       className={cn(
-        LAYOUT.settingsColumn,
         paneToolbar.base,
         'pointer-events-none flex shrink-0 items-center justify-between gap-4',
         platform.hasWindowChrome ? paneToolbar.titlebar : paneToolbar.plain,
@@ -35,9 +35,11 @@ const SettingsToolbar: React.FC<SettingsToolbarProps> = ({ title, accessory, onB
       )}
     >
       <div className="flex min-w-0 items-center gap-3">
-        <div className="pointer-events-auto">
-          <BackForward onBack={onBack} onForward={onForward} />
-        </div>
+        {(onBack || onForward) && (
+          <div className="pointer-events-auto">
+            <BackForward onBack={onBack} onForward={onForward} />
+          </div>
+        )}
         <Text as="h1" variant="title" truncate>{title}</Text>
       </div>
       {accessory && <div className="pointer-events-auto flex shrink-0 items-center gap-1">{accessory}</div>}
@@ -82,7 +84,7 @@ const DesktopPage: React.FC<SettingsPageProps> = ({ pane, title, children, ...to
     <div className={cn(LAYOUT.pageGutter, LAYOUT.pageColumnFrame)}>
       <SettingsToolbar title={title ?? paneItem(pane)?.label} {...toolbar} />
     </div>
-    <PageScroll steady underTitlebar={false} className={`min-h-0 flex-1 ${LAYOUT.pageGutter} ${paneToolbar.below} pb-6`}>
+    <PageScroll steady underTitlebar={false} fadeTop className={`min-h-0 flex-1 ${LAYOUT.pageGutter} pb-6`}>
       <div className={`${LAYOUT.settingsColumn} space-y-section`}>
         <Hero pane={pane} />
         {children}

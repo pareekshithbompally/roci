@@ -17,7 +17,7 @@ export { Spinner } from './spinner';
 export { RociMark } from './roci-mark';
 export { AppMark } from './app-mark';
 export type { IconProps, IconSize } from './icon';
-export { IconTile, ICON_TILE_PX, ICON_TILE_RADIUS } from './icon-tile';
+export { IconTile, ICON_TILE_PX, LIST_ART_PX, LIST_ART_RADIUS } from './icon-tile';
 export { PaneHero } from './pane-hero';
 export type { PaneHeroProps } from './pane-hero';
 export { Chart } from './chart';
