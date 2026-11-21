@@ -8,6 +8,8 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { ProvidersPanel } from './ProvidersPanel';
 import { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
 import { GeneralPanel } from './GeneralPanel';
+import { AboutPanel } from './AboutPanel';
+import { ShortcutsPanel } from './ShortcutsPanel';
 import { StoragePanel } from './StoragePanel';
 import { DefaultModelsPanel } from './DefaultModelsPanel';
 import { preloadUsage, UsagePanel } from '@features/usage';
@@ -30,6 +32,8 @@ const PANEL_COMPONENTS: Record<SettingsPanelType, React.FC> = {
   notifications: NotificationsPanel,
   mcp: McpServersPanel,
   usage: UsagePanel,
+  shortcuts: ShortcutsPanel,
+  about: AboutPanel,
 };
 
 const PanelView: React.FC<{ id: SettingsPanelType }> = ({ id }) =>

@@ -1,27 +1,31 @@
 /** Keyboard shortcut registry (data only), in Tauri accelerator syntax for both scopes. */
 
+import { AppWindow, ArrowLeft, Mic, Search, Settings, SquarePen, TextCursorInput, type LucideIcon } from 'lucide-react';
+
 export interface ShortcutDefinition {
   accelerator: string;
   description: string;
+  /** Its glyph in Settings › Shortcuts. */
+  icon: LucideIcon;
 }
 
 /** In-window shortcuts: matched on keydown while a Roci window has focus. */
 export const APP_SHORTCUTS = {
-  search: { accelerator: 'CommandOrControl+K', description: 'Search meetings and chats' },
-  focusChat: { accelerator: 'CommandOrControl+L', description: 'Jump to the chat composer' },
-  newChat: { accelerator: 'CommandOrControl+N', description: 'Start a new chat' },
-  openSettings: { accelerator: 'CommandOrControl+Comma', description: 'Open settings' },
-  leaveSettings: { accelerator: 'Escape', description: 'Back to the app from settings' },
+  search: { accelerator: 'CommandOrControl+K', description: 'Search meetings and chats', icon: Search },
+  focusChat: { accelerator: 'CommandOrControl+L', description: 'Jump to the chat composer', icon: TextCursorInput },
+  newChat: { accelerator: 'CommandOrControl+N', description: 'Start a new chat', icon: SquarePen },
+  openSettings: { accelerator: 'CommandOrControl+Comma', description: 'Open settings', icon: Settings },
+  leaveSettings: { accelerator: 'Escape', description: 'Back to the app from settings', icon: ArrowLeft },
 } as const satisfies Record<string, ShortcutDefinition>;
 
 export type AppShortcutId = keyof typeof APP_SHORTCUTS;
 
 /** System-wide shortcuts registered with the OS; the key is the action Rust emits on `shortcut-triggered`. */
 export const GLOBAL_SHORTCUTS = {
-  'toggle-recording': { accelerator: 'Option+Shift+R', description: 'Start or stop recording' },
-  'show-window': { accelerator: 'Option+Shift+A', description: 'Show Roci' },
-  'new-chat': { accelerator: 'Option+Shift+N', description: 'Start a new chat' },
-  'open-settings': { accelerator: 'Option+Shift+Comma', description: 'Open settings' },
+  'toggle-recording': { accelerator: 'Option+Shift+R', description: 'Start or stop recording', icon: Mic },
+  'show-window': { accelerator: 'Option+Shift+A', description: 'Show Roci', icon: AppWindow },
+  'new-chat': { accelerator: 'Option+Shift+N', description: 'Start a new chat', icon: SquarePen },
+  'open-settings': { accelerator: 'Option+Shift+Comma', description: 'Open settings', icon: Settings },
 } as const satisfies Record<string, ShortcutDefinition>;
 
 export type GlobalShortcutId = keyof typeof GLOBAL_SHORTCUTS;

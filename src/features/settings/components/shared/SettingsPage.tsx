@@ -1,6 +1,6 @@
 import React from 'react';
 import { LAYOUT } from '@config/layout.config';
-import { BackForward, PageScroll, PaneHero, Text, cn } from '@shared/ui';
+import { BackForward, PageScroll, PaneHero, Text, cn, type PaneHeroProps } from '@shared/ui';
 import { SETTINGS_NAV_ITEMS, usePaneArt } from '@features/settings/components/SettingsNav';
 import type { SettingsPanel } from '@shared/stores/appStore';
 import { useFormFactor } from '@platform/formFactor';
@@ -50,26 +50,30 @@ const SettingsToolbar: React.FC<SettingsToolbarProps> = ({ title, accessory, onB
 type SettingsPageProps = Omit<SettingsToolbarProps, 'title'> & {
   children?: React.ReactNode;
 } & (
-  /** A pane's top level: its sidebar entry sets the title and the header (icon, name, what it covers) that leads the page. */
-  | { pane: SettingsPanel; title?: never }
+  /** A pane's top level: its sidebar entry sets the title and the header (icon, name, what it covers) that leads the page;
+   *  `hero` adds to that header: a line under its name, and links or a credit below (About). */
+  | { pane: SettingsPanel; title?: never; hero?: HeroExtras }
   /** A page drilled into from a pane: its own title, no header. */
-  | { title: React.ReactNode; pane?: never }
+  | { title: React.ReactNode; pane?: never; hero?: never }
 );
 
 const paneItem = (pane?: SettingsPanel) => SETTINGS_NAV_ITEMS.find((item) => item.id === pane);
 
 /** The header of `pane`, from its sidebar entry (the one place its words are set; its icon comes from `usePaneArt`). */
-function Hero({ pane }: { pane?: SettingsPanel }) {
+/** What a pane can add to its header. */
+type HeroExtras = Pick<PaneHeroProps, 'caption' | 'footer'>;
+
+function Hero({ pane, hero }: { pane?: SettingsPanel; hero?: HeroExtras }) {
   const art = usePaneArt();
   const item = paneItem(pane);
-  return item ? <PaneHero image={art(item.id)} title={item.label} description={item.description} /> : null;
+  return item ? <PaneHero image={art(item.id)} title={item.heroTitle ?? item.label} description={item.description} {...hero} /> : null;
 }
 
 /** Phone: the screen's bar already shows the title; the screen scrolls. */
-const PhonePage: React.FC<SettingsPageProps> = ({ accessory, pane, children }) => (
-  <div className="flex flex-col gap-section px-4 pt-2 pb-6">
+const PhonePage: React.FC<SettingsPageProps> = ({ accessory, pane, hero, children }) => (
+  <div className="flex min-h-full flex-col gap-section px-4 pt-2 pb-6">
     {accessory && <div className="flex items-center justify-end gap-1">{accessory}</div>}
-    <Hero pane={pane} />
+    <Hero pane={pane} hero={hero} />
     {children}
   </div>
 );
@@ -79,14 +83,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) =>
   useFormFactor() === 'phone' ? <PhonePage {...props} /> : <DesktopPage {...props} />;
 
 /** Mac, iPad: the toolbar, then the header and rows in one column, at the same place on every pane and page. */
-const DesktopPage: React.FC<SettingsPageProps> = ({ pane, title, children, ...toolbar }) => (
+const DesktopPage: React.FC<SettingsPageProps> = ({ pane, title, hero, children, ...toolbar }) => (
   <div className="flex h-full flex-col">
     <div className={LAYOUT.pageGutter}>
       <SettingsToolbar title={title ?? paneItem(pane)?.label} {...toolbar} />
     </div>
     <PageScroll steady underTitlebar={false} fadeTop className={`min-h-0 flex-1 ${LAYOUT.pageGutter} pb-6`}>
-      <div className={`${LAYOUT.settingsColumn} space-y-section`}>
-        <Hero pane={pane} />
+      {/* A full-height column, so an empty state fills what's left and centres there, as on every screen. */}
+      <div className={`${LAYOUT.settingsColumn} flex min-h-full flex-col gap-section`}>
+        <Hero pane={pane} hero={hero} />
         {children}
       </div>
     </PageScroll>

@@ -1,15 +1,12 @@
-/** Appearance, imports, capture, transcription and version; the version comes from useSystemInfo. */
+/** Appearance, imports, capture and transcription. */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Sun, Moon, Monitor } from 'lucide-react';
 import { useThemeContext } from '@shared/contexts/ThemeContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useSystemInfo } from '@features/settings/hooks/useSystemInfo';
 import { SettingsPage } from './shared';
-import { Button, CardRow, ChoiceControl, Icon, Picker, Section, Switch, Text } from '@shared/ui';
+import { CardRow, ChoiceControl, Icon, Picker, Section, Switch } from '@shared/ui';
 
-import { useAppUpdate } from '@features/settings/hooks/useAppUpdate';
-import { AcknowledgementsDialog } from './AcknowledgementsDialog';
 import { useLiveModeLine } from '@features/settings/hooks/useSpeechModels';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
@@ -30,7 +27,6 @@ const FOOTER = {
   modelIcons: 'Model icons load from huggingface.co.',
   imports: 'How many imported audio files Roci processes at the same time.',
   afterRecording: 'Transcribe After Recording also writes the summary.',
-  setup: 'Run Setup Again shows the first-run steps, including choosing your AI.',
 } as const;
 
 const CAPTURE_HINT: Record<(typeof CAPTURE_SOURCES)[number], string> = {
@@ -43,11 +39,6 @@ export const GeneralPanel: React.FC = () => {
   const { theme, setTheme } = useThemeContext();
   const { settings, setSettings } = useSettings();
   const liveLine = useLiveModeLine();
-
-  const appUpdate = useAppUpdate();
-  const [acknowledgementsOpen, setAcknowledgementsOpen] = useState(false);
-
-  const { appVersion } = useSystemInfo();
 
   const captureSource = (settings.defaultAudioSource || 'systemAndMicrophone') as (typeof CAPTURE_SOURCES)[number];
 
@@ -165,25 +156,8 @@ export const GeneralPanel: React.FC = () => {
         </Section>
       )}
 
-      {/* App Info & Updates */}
-      <Section footer={FOOTER.setup}>
-        <CardRow title="Version" actions={<VersionStatus appVersion={appVersion} checking={appUpdate.checking} onCheck={() => void appUpdate.checkNow()} />} />
-        <CardRow title="Acknowledgements" onOpen={() => setAcknowledgementsOpen(true)} />
-        <CardRow title="Run Setup Again" tone="accent" onPress={() => setSettings({ onboarding: { completed: false } })} />
-      </Section>
-      <AcknowledgementsDialog open={acknowledgementsOpen} onOpenChange={setAcknowledgementsOpen} />
     </SettingsPage>
   );
 };
-
-/** The version number and Check for Updates; the result is a toast. */
-const VersionStatus: React.FC<{ appVersion: string; checking: boolean; onCheck: () => void }> = ({ appVersion, checking, onCheck }) => (
-  <>
-    <Text variant="figure" tone="muted">{appVersion || '…'}</Text>
-    {platform.hasUpdater && (
-      <Button variant="outline" size="sm" onClick={onCheck} loading={checking}>Check for Updates</Button>
-    )}
-  </>
-);
 
 export default GeneralPanel;
