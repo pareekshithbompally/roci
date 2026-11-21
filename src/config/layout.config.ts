@@ -25,6 +25,9 @@ export const LAYOUT = {
 
   /** Page column — Settings and the meeting view share one centred reading width */
   pageColumn: 'max-w-4xl mx-auto w-full',
+  /** A box a page column sits in that doesn't scroll (toolbar, fixed body): it keeps the scrollbar's room like a `steady`
+   *  PageScroll, so columns line up under their title and never shift between pages. */
+  pageColumnFrame: 'custom-scrollbar overflow-y-scroll',
 
   /** Plain settings pop-ups (options, sources): they hug their value up to this width, right-aligned in the row */
   settingsSelect: 'max-w-48',

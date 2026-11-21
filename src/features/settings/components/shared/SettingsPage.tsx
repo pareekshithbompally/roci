@@ -84,18 +84,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) =>
  *  fixed above columns that scroll themselves. */
 const DesktopPage: React.FC<SettingsPageProps> = ({ layout = 'scroll', pane, title, children, ...toolbar }) => (
   <div className="flex h-full flex-col">
-    <div className={LAYOUT.pageGutter}>
+    <div className={cn(LAYOUT.pageGutter, LAYOUT.pageColumnFrame)}>
       <SettingsToolbar title={title ?? paneItem(pane)?.label} {...toolbar} />
     </div>
     {layout === 'scroll' ? (
-      <PageScroll underTitlebar={false} className={`min-h-0 flex-1 ${LAYOUT.pageGutter} ${paneToolbar.below} pb-6`}>
+      <PageScroll steady underTitlebar={false} className={`min-h-0 flex-1 ${LAYOUT.pageGutter} ${paneToolbar.below} pb-6`}>
         <div className={`${LAYOUT.pageColumn} space-y-section`}>
           <Hero pane={pane} />
           {children}
         </div>
       </PageScroll>
     ) : (
-      <div className={`flex min-h-0 flex-1 ${LAYOUT.pageGutter} ${paneToolbar.below} pb-6`}>
+      <div className={`flex min-h-0 flex-1 ${LAYOUT.pageGutter} ${LAYOUT.pageColumnFrame} ${paneToolbar.below} pb-6`}>
         <div className={`${LAYOUT.pageColumn} flex min-h-0 flex-1 flex-col gap-section`}>
           <Hero pane={pane} />
           {children}

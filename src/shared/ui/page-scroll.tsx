@@ -28,16 +28,18 @@ export interface PageScrollProps extends HTMLAttributes<HTMLDivElement> {
   underTitlebar?: boolean;
   /** Content fades out at the bottom edge too (into a composer below). Scrolled to the end, the last content rests above the fade. */
   fadeBottom?: boolean;
+  /** The scrollbar keeps its room even when the page fits, so a centred column sits in the same place on every page. */
+  steady?: boolean;
 }
 
 /** A view's vertical page scroller with edge fades; callers add layout and padding. Use `ScrollArea` for insets. */
 export const PageScroll = forwardRef<HTMLDivElement, PageScrollProps>(
-  ({ underTitlebar = true, fadeBottom = false, className, style, children, ...props }, ref) => {
+  ({ underTitlebar = true, fadeBottom = false, steady = false, className, style, children, ...props }, ref) => {
     const fade = edgeFade({ top: underTitlebar ? safeArea : 0, bottom: fadeBottom ? edgeFadePx : 0 });
     return (
       <div
         ref={ref}
-        className={cn('min-h-0 overflow-y-auto custom-scrollbar', className)}
+        className={cn('min-h-0 custom-scrollbar', steady ? 'overflow-y-scroll' : 'overflow-y-auto', className)}
         style={{ ...fade, ...style }}
         {...props}
       >
