@@ -68,7 +68,7 @@ export const GeneralPanel: React.FC = () => {
   }));
 
   return (
-    <SettingsPage title="General">
+    <SettingsPage title="General" pane="general">
       {/* Appearance — theme + import processing */}
       <Section
         title="Appearance"

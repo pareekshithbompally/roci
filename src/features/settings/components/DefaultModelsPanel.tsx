@@ -185,7 +185,7 @@ export const DefaultModelsPanel: React.FC = () => {
   };
 
   return (
-    <SettingsPage title="Default Models">
+    <SettingsPage title="Default Models" pane="defaultModels">
       <Section title="Conversation" footer={FOOTERS.conversation}>
         <CapabilityRow icon={JOB_GLYPH.chat} job={JOBS.chat}>
           <ModelSelect value={settings.chatModel || undefined} choices={textChoices} onChange={(chatModel) => setSettings({ chatModel })} />

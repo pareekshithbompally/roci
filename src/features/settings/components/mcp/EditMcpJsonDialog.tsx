@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Button, Textarea } from '@shared/ui';
-import { FormDialog } from '@features/settings/components/shared';
+import { FormDialog } from '@shared/components';
 
 interface EditMcpJsonDialogProps {
   open: boolean;

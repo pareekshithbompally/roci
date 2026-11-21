@@ -21,11 +21,12 @@ import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { ReasoningEffort } from '@shared/types';
 import type { ProviderType } from '@services/ai/types';
-import { wrapLanguageModel } from 'ai';
+import { defaultSettingsMiddleware, wrapLanguageModel } from 'ai';
 import type { ImageModel, LanguageModel, LanguageModelCallOptions, SpeechModel, streamText, ToolSet, TranscriptionModel } from 'ai';
 import type { LanguageModelV4 } from '@ai-sdk/provider';
 import { serverAppOf } from '@shared/utils/provider.utils';
 import { schemaInPromptMiddleware } from '@services/ai/schemaInPrompt';
+import { callSettings, resolveTuning } from '@shared/utils/modelTuning';
 
 /** Extract custom headers from provider config (for OpenRouter, etc.) */
 function buildCustomHeaders(providerConfig: ResolvedModel['providerConfig']): Record<string, string> {
@@ -50,6 +51,12 @@ export function createModel(resolved: ResolvedModel, options?: ModelOptions): La
   return serverAppOf(resolved.provider)?.ignoresSchema ? wrapLanguageModel({ model, middleware: schemaInPromptMiddleware }) : model;
 }
 
+/** A downloaded chat model with its tuning (Personalization › Model Tuning) as default call settings: a call's own win. */
+function onDeviceModel(modelId: string): LanguageModelV4 {
+  const settings = callSettings(resolveTuning(modelId));
+  return wrapLanguageModel({ model: mlxLanguageModel(modelId), middleware: defaultSettingsMiddleware({ settings }) });
+}
+
 /** The provider's own AI SDK model. */
 function providerModel(resolved: ResolvedModel, options?: ModelOptions): LanguageModelV4 {
   const fetch = getPlatformFetch();
@@ -58,7 +65,7 @@ function providerModel(resolved: ResolvedModel, options?: ModelOptions): Languag
     case 'apple-intelligence':
       return appleIntelligenceModel();
     case 'on-device':
-      return mlxLanguageModel(resolved.modelId);
+      return onDeviceModel(resolved.modelId);
     case 'anthropic': {
       const customHeaders = buildCustomHeaders(resolved.providerConfig);
       const provider = createAnthropic({

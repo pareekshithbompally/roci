@@ -8,7 +8,8 @@ import { CardRow, Section, Status } from '@shared/ui';
 import type { DotTone } from '@shared/ui';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ConnectionStatus, ProviderConnection as Connection } from '@features/settings/hooks/useProviderConnection';
-import { SecretInput, SettingsInput, renderWithLinks } from './shared';
+import { SettingsInput, renderWithLinks } from '@shared/components';
+import { SecretInput } from './shared';
 
 interface ProviderConnectionProps {
   provider: ModelProvider;

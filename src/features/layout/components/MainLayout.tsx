@@ -3,6 +3,7 @@
 import React, { useCallback, useRef, useMemo } from 'react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useSmallScreen } from '@shared/hooks/useMediaQuery';
+import { useFloatingSidebarControls } from '@shared/hooks/useFloatingSidebarControls';
 import { useAppStatus, useSelectedHistoryId, useCurrentView } from '@shared/stores/appStore';
 import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { useActivityItems } from '@shared/stores/activityStore';
@@ -10,7 +11,6 @@ import { Sidebar } from './Sidebar';
 import { CommandPalette } from '@features/palette';
 import { MeetingChat, startNewChat } from '@features/chat';
 import { PanelLeft, SquarePen } from 'lucide-react';
-import { platform } from '@platform/index';
 import { useFormFactor } from '@platform/formFactor';
 import { PhoneShell } from './PhoneShell';
 import { AppStatus } from '@shared/types';
@@ -60,7 +60,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     document.body.style.userSelect = 'none';
   }, [sidebarWidth, setLeftPanelWidth]);
 
-  const shouldOffsetMacControls = platform.hasWindowChrome && (isSmallScreen || !isLeftPanelOpen);
+  const shouldOffsetMacControls = useFloatingSidebarControls();
 
   // Meeting chat (its button or its window) only on the meeting page: other destinations keep the meeting selected underneath.
   const meetingChatAvailable = currentView === 'home' && selectedHistoryId && status === AppStatus.RESULTS;

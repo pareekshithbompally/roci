@@ -4,6 +4,7 @@ import type { MeetingCitation } from '@extensions/tools/types';
 import type { WebCitation, TokenUsage } from '@services/ai/types';
 import type { ReadAloudEngine } from '@config/readAloud.config';
 import type { StorageConfig } from '@config/storage.config';
+import type { ModelTuning, PromptTemplates, RecognitionBoost, ResponsePreferences, SavedPrompt, UserProfile } from '@config/personalization.config';
 import type { MeetingStatus } from './meetingPhase';
 export type { MeetingCitation, WebCitation, FileUIPart };
 
@@ -192,6 +193,34 @@ export type RetentionClass = 'meetings' | 'chats' | 'dictations' | keyof typeof 
 /** Days each class is kept; a class not named is kept forever. */
 export type StorageRetention = Partial<Record<RetentionClass, number>>;
 
+/** A name or term speech recognition should write the user's way, and spellings it writes instead ("sounds like"). */
+export interface VocabularyEntry {
+  term: string;
+  soundsLike: string[];
+}
+
+/** Settings › Personalization: how Roci adapts to the user. */
+export interface Personalization {
+  /** Custom vocabulary, in priority order (engines that cap the list read the first terms). */
+  vocabulary?: VocabularyEntry[];
+  /** How strongly on-device speech recognition favours the vocabulary; unset = the default. */
+  recognitionBoost?: RecognitionBoost;
+  /** On-device chat models' tuning, by model id: only what the user changed. */
+  modelTuning?: Record<string, ModelTuning>;
+  /** Who the user is (Prompts › About You). */
+  profile?: UserProfile;
+  /** How chat answers read (Prompts › Responses). */
+  responses?: ResponsePreferences;
+  /** What Roci follows in every chat (Prompts › Custom Instructions). */
+  customInstructions?: string;
+  /** The user's rewrites of prompt templates (Prompts › Prompt Templates). */
+  templates?: PromptTemplates;
+  /** Memory: chat reads the saved memories and may propose new ones (on unless false). */
+  memory?: { enabled: boolean };
+  /** Prompts the user reuses from the chat box's "/" menu, in list order. */
+  savedPrompts?: SavedPrompt[];
+}
+
 export interface AppSettings {
   /** First-run flow (permissions, then AI setup) finished or skipped; Settings › General can run it again. */
   onboarding?: {
@@ -262,6 +291,8 @@ export interface AppSettings {
   hexIntegration?: {
     enabled: boolean;
   };
+  /** Settings › Personalization: custom vocabulary and recognition boost. */
+  personalization?: Personalization;
   /** macOS Reminders integration (EventKit): action items ↔ a reminders list */
   remindersIntegration?: {
     enabled: boolean;

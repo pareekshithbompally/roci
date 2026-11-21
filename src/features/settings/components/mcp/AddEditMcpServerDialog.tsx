@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { Braces } from 'lucide-react';
 import type { McpServerConfig } from '@config/mcp.config';
 import { Button, IconButton, Tabs, Text, Textarea } from '@shared/ui';
-import { FormDialog, KeyValueEditor, SettingsInput, StringListEditor } from '@features/settings/components/shared';
+import { FormDialog, SettingsInput } from '@shared/components';
+import { KeyValueEditor, StringListEditor } from '@features/settings/components/shared';
 import {
   EMPTY_FORM,
   configFromForm,

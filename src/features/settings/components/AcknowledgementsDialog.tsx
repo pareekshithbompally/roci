@@ -7,7 +7,7 @@ import mitText from '@config/licenses/MIT.txt?raw';
 import apacheText from '@config/licenses/Apache-2.0.txt?raw';
 import bsd3Text from '@config/licenses/BSD-3-Clause.txt?raw';
 import iscText from '@config/licenses/ISC.txt?raw';
-import { FormDialog } from './shared';
+import { FormDialog } from '@shared/components';
 
 const LICENSE_TEXTS: Record<LicenseTextId, string> = {
   MIT: mitText,

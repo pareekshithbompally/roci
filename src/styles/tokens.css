@@ -92,6 +92,8 @@
   --bg-grouped-card: var(--bg-layer-2);
   /* Card and sheet corners, list row height (macOS); iOS sets its own below. */
   --radius-card: 12px;
+  /* A large app-icon tile (pane header): the macOS icon's corner, ~22% of its edge. */
+  --radius-tile: 14px;
   --radius-sheet: 16px;
   --row-min-h: 44px;
   /* List rhythm: icon-to-text gap in a row, space between groups (macOS System Settings). */
@@ -107,6 +109,8 @@
   --bg-accent: var(--copper-600);
   /* Copper-washed surface: a branded secondary box (onboarding lists and choices) on a neutral panel. */
   --bg-accent-wash: color-mix(in srgb, var(--copper-400) 24%, var(--grey-50));
+  /* A pane header's glyph tile: copper, lit from the top. */
+  --bg-accent-tile: linear-gradient(180deg, var(--copper-500), var(--copper-600));
   /* The sentence being read aloud (::highlight(read-aloud)): a soft accent tint behind the text */
   --bg-speaking: color-mix(in srgb, var(--bg-accent) 16%, transparent);
   --bg-knob: var(--grey-50);
@@ -263,6 +267,7 @@ html.platform-ios.dark {
   --bg-scrim: rgb(0 0 0 / 0.6);
   --bg-speaking: color-mix(in srgb, var(--bg-accent) 30%, transparent);
   --bg-accent-wash: color-mix(in srgb, var(--copper-600) 30%, var(--grey-1100));
+  --bg-accent-tile: linear-gradient(180deg, var(--copper-400), var(--copper-500));
   --bg-base-glass: color-mix(in srgb, var(--grey-1100) 90%, transparent);
   --bg-deep-glass: color-mix(in srgb, var(--grey-1200) 85%, transparent);
   --bg-raised-glass: color-mix(in srgb, var(--grey-1000) 92%, transparent);

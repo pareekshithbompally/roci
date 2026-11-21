@@ -98,6 +98,7 @@ export const ACKNOWLEDGEMENTS: readonly AcknowledgementGroup[] = [
       { name: 'SQLite', url: 'https://sqlite.org', license: 'Public domain' },
       { name: 'rusqlite', url: 'https://github.com/rusqlite/rusqlite', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2014-2021 The rusqlite developers' },
       { name: 'sqlite-vec', url: 'https://github.com/asg017/sqlite-vec', license: 'MIT OR Apache-2.0', text: 'MIT' },
+      { name: 'GraphQLite', url: 'https://github.com/colliery-io/graphqlite', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2025 GraphQLite Contributors' },
       { name: 'Tokio', url: 'https://github.com/tokio-rs/tokio', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) Tokio Contributors' },
       { name: 'reqwest', url: 'https://github.com/seanmonstar/reqwest', license: 'MIT OR Apache-2.0', text: 'MIT', copyright: 'Copyright (c) 2016 Sean McArthur' },
       { name: 'Serde', url: 'https://github.com/serde-rs/serde', license: 'MIT OR Apache-2.0', text: 'MIT' },

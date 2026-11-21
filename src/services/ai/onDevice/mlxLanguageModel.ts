@@ -10,7 +10,8 @@ import type {
   LanguageModelV4StreamResult,
   LanguageModelV4Usage,
 } from '@ai-sdk/provider';
-import { convertToBase64, getTopLevelMediaType } from '@ai-sdk/provider-utils';
+import { convertToBase64, getTopLevelMediaType, parseProviderOptions } from '@ai-sdk/provider-utils';
+import { z } from 'zod';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import { textOf, toolResultText } from '@services/ai/promptText';
 import { mlxCancel, mlxChat, type MlxChatRequest, type MlxChatResult, type MlxMessage } from '@services/mlx.service';
@@ -51,21 +52,36 @@ function toTurns(message: Message): MlxMessage[] {
   }
 }
 
-function toRequest(modelId: string, options: LanguageModelV4CallOptions): MlxChatRequest {
-  const defaults = LOCAL_MODELS_CONFIG.chatSampling[modelId];
+/** The on-device provider's own options: what the AI SDK has no name for (see `callSettings`). */
+const onDeviceOptions = z.object({
+  /** The tuned reply length: for free replies only (a schema reply runs until it's complete). */
+  maxOutputTokens: z.number().int().optional(),
+  minP: z.number().optional(),
+  repetitionPenalty: z.number().optional(),
+  penaltyContext: z.number().int().optional(),
+  contextTokens: z.number().int().optional(),
+  kvBits: z.union([z.literal(4), z.literal(8)]).optional(),
+});
+
+async function toRequest(options: LanguageModelV4CallOptions): Promise<MlxChatRequest> {
   const tools = options.tools?.flatMap((tool) =>
     tool.type === 'function' ? [{ type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.inputSchema } }] : []);
   // The AI SDK's structured output: MLX decodes to the schema (the grammar allows only tokens that keep it valid).
   const schema = options.responseFormat?.type === 'json' ? options.responseFormat.schema : undefined;
+  const { maxOutputTokens: tunedLength, ...own } =
+    (await parseProviderOptions({ provider: LOCAL_MODELS_CONFIG.provider.id, providerOptions: options.providerOptions, schema: onDeviceOptions })) ?? {};
   return {
     streamId: Math.floor(Math.random() * Number.MAX_SAFE_INTEGER),
     messages: options.prompt.flatMap(toTurns),
     ...(tools && tools.length > 0 && { tools }),
     ...(schema && { schema: JSON.stringify(schema) }),
-    maxTokens: options.maxOutputTokens,
-    temperature: options.temperature ?? defaults?.temperature,
-    topP: options.topP ?? defaults?.topP,
-    topK: options.topK ?? defaults?.topK,
+    maxTokens: options.maxOutputTokens ?? (schema ? undefined : tunedLength),
+    temperature: options.temperature,
+    topP: options.topP,
+    topK: options.topK,
+    presencePenalty: options.presencePenalty,
+    frequencyPenalty: options.frequencyPenalty,
+    ...own,
   };
 }
 
@@ -77,12 +93,12 @@ function usageOf(result: MlxChatResult): LanguageModelV4Usage {
 }
 
 /** Streams a reply; Stop (the abort signal) or cancelling the stream ends generation on the device. */
-function stream(modelId: string, options: LanguageModelV4CallOptions): Promise<LanguageModelV4StreamResult> {
-  const request = toRequest(modelId, options);
+async function stream(modelId: string, options: LanguageModelV4CallOptions): Promise<LanguageModelV4StreamResult> {
+  const request = await toRequest(options);
   let textOpen = false;
   let calledTools = false;
   const stop = () => void mlxCancel(request.streamId);
-  return Promise.resolve({
+  return {
     stream: new ReadableStream<LanguageModelV4StreamPart>({
       start(controller) {
         // Stopped before it began (a superseded update): nothing runs, nothing waits for the GPU.
@@ -113,7 +129,7 @@ function stream(modelId: string, options: LanguageModelV4CallOptions): Promise<L
       },
       cancel: stop,
     }),
-  });
+  };
 }
 
 /** The whole reply at once, collected from the stream. */

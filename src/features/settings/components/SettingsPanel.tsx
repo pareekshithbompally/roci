@@ -11,6 +11,7 @@ import { GeneralPanel } from './GeneralPanel';
 import { StoragePanel } from './StoragePanel';
 import { DefaultModelsPanel } from './DefaultModelsPanel';
 import { preloadUsage, UsagePanel } from '@features/usage';
+import { PersonalizationPanel } from '@features/personalization';
 import { IntegrationsPanel } from './IntegrationsPanel';
 import { NotificationsPanel } from './NotificationsPanel';
 import { McpServersPanel } from './mcp';
@@ -23,6 +24,7 @@ const PANEL_COMPONENTS: Record<SettingsPanelType, React.FC> = {
   general: GeneralPanel,
   storage: StoragePanel,
   defaultModels: DefaultModelsPanel,
+  personalization: PersonalizationPanel,
   providers: ProvidersPanel,
   integrations: IntegrationsPanel,
   notifications: NotificationsPanel,

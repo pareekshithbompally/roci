@@ -16,6 +16,13 @@ export const LAYOUT = {
   collapsedControls: 'left-[88px]',
   collapsedControlsFlush: 'left-3',
 
+  /** A pane's toolbar in the macOS titlebar: 28px controls centred on the traffic lights (y≈29: 15px + 28px/2), like the
+   *  sidebar header, with room beneath before the page (`below`); `clearFloating` starts it after the sidebar's floating buttons (left-[88px] + two 32px buttons + gap). */
+  paneToolbar: { base: 'relative z-30', titlebar: 'pt-[15px] pb-3 h-[55px]', plain: 'pt-6 pb-3', clearFloating: 'pl-[136px]', below: 'pt-8' },
+
+  /** Proposal cards above the chat box: past a few rows the list scrolls inside the card. */
+  proposalList: 'max-h-64 overflow-y-auto',
+
   /** Page column — Settings and the meeting view share one centred reading width */
   pageColumn: 'max-w-4xl mx-auto w-full',
 

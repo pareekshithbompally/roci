@@ -88,6 +88,8 @@ export default {
       backgroundImage: {
         'tint-hover': 'linear-gradient(var(--bg-hover), var(--bg-hover))',
         'tint-pressed': 'linear-gradient(var(--bg-pressed), var(--bg-pressed))',
+        // A pane header's glyph tile (kit PaneHero).
+        'accent-tile': 'var(--bg-accent-tile)',
         // Running-work label: a brighter band sweeps across faint text (Text `shimmer`).
         'text-shimmer': 'linear-gradient(90deg, var(--text-faint) 35%, var(--text-primary) 50%, var(--text-faint) 65%)',
         // AI at work: a copper band sweeping across a row (kit AiPending).
@@ -97,7 +99,7 @@ export default {
       },
       backgroundSize: { shimmer: '200% 100%' },
       // Grouped-list shape (tokens.css): macOS values by default, iOS under html.platform-ios.
-      borderRadius: { card: 'var(--radius-card)', sheet: 'var(--radius-sheet)', field: 'calc(var(--control-md) / 2)' },
+      borderRadius: { card: 'var(--radius-card)', tile: 'var(--radius-tile)', sheet: 'var(--radius-sheet)', field: 'calc(var(--control-md) / 2)' },
       minHeight: { row: 'var(--row-min-h)' },
       // A table cell takes its row's height as a minimum (tables ignore min-height on cells).
       height: { row: 'var(--row-min-h)' },

@@ -41,7 +41,7 @@ export const NotificationsPanel: React.FC = () => {
   const controls = useNotificationControls();
 
   return (
-    <SettingsPage title="Notifications">
+    <SettingsPage title="Notifications" pane="notifications">
       <Section title={`${platform.systemName} notifications`} footer="Roci notifies you while it is in the background.">
         <PermissionRow controls={controls} />
       </Section>

@@ -16,6 +16,69 @@ import { useFormFactor } from '@platform/formFactor';
 const SHELL = 'p-0 flex flex-col max-h-[var(--radix-popover-content-available-height)]';
 const LIST = 'max-h-80 min-h-0 flex-1';
 
+interface CommandPopoverContentProps {
+  searchPlaceholder: string;
+  /** Controlled search text, for callers that act on what was typed (e.g. add a name the list lacks). */
+  search?: string;
+  onSearchChange?: (search: string) => void;
+  /** `false`: the caller lists only what matches (it searches the store itself). */
+  filter?: boolean;
+  /** What shows when nothing matches. */
+  empty: React.ReactNode;
+  side?: 'top' | 'bottom';
+  align?: 'start' | 'end';
+  /** `false` keeps it on `side` near a window edge (it shortens and scrolls) instead of flipping. */
+  avoidCollisions?: boolean;
+  width?: 'lg' | 'xl';
+  /** Closed: the caller puts focus back itself (e.g. into the chat box that opened it). */
+  onClose?: () => void;
+  className?: string;
+  children: React.ReactNode;
+}
+
+/** The searchable list inside a Popover the caller owns (the composer shares one between its "@" and "/" pickers). */
+export function CommandPopoverContent({
+  searchPlaceholder,
+  search,
+  onSearchChange,
+  filter = true,
+  empty,
+  side = 'top',
+  align = 'start',
+  avoidCollisions,
+  width = 'xl',
+  onClose,
+  className,
+  children,
+}: CommandPopoverContentProps) {
+  return (
+    <PopoverContent
+      side={side}
+      align={align}
+      avoidCollisions={avoidCollisions}
+      sideOffset={UI_CONFIG.picker.sideOffset}
+      collisionPadding={UI_CONFIG.picker.collisionPadding}
+      width={width}
+      className={cn(SHELL, className)}
+      onCloseAutoFocus={
+        onClose &&
+        ((e) => {
+          e.preventDefault();
+          onClose();
+        })
+      }
+    >
+      <Command className="min-h-0" shouldFilter={filter}>
+        <CommandInput placeholder={searchPlaceholder} value={search} onValueChange={onSearchChange} />
+        <CommandList className={LIST}>
+          <CommandEmpty>{empty}</CommandEmpty>
+          {children}
+        </CommandList>
+      </Command>
+    </PopoverContent>
+  );
+}
+
 interface CommandPopoverProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -81,23 +144,18 @@ export function CommandPopover({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent
+      <CommandPopoverContent
+        searchPlaceholder={searchPlaceholder}
+        search={search}
+        onSearchChange={onSearchChange}
+        empty={emptyText}
         side={side}
         align={align}
         avoidCollisions={avoidCollisions}
-        sideOffset={UI_CONFIG.picker.sideOffset}
-        collisionPadding={UI_CONFIG.picker.collisionPadding}
-        width="xl"
-        className={cn(SHELL, className)}
+        className={className}
       >
-        <Command className="min-h-0">
-          <CommandInput placeholder={searchPlaceholder} value={search} onValueChange={onSearchChange} />
-          <CommandList className={LIST}>
-            <CommandEmpty>{emptyText}</CommandEmpty>
-            {children}
-          </CommandList>
-        </Command>
-      </PopoverContent>
+        {children}
+      </CommandPopoverContent>
     </Popover>
   );
 }

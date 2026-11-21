@@ -3,6 +3,7 @@
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
+import type { KvBits } from '@config/personalization.config';
 import type { ModelLoad } from '@services/localModels.service';
 import type { StreamProgress } from '@services/ai/types';
 
@@ -28,6 +29,15 @@ export interface MlxChatRequest {
   temperature?: number;
   topP?: number;
   topK?: number;
+  minP?: number;
+  repetitionPenalty?: number;
+  presencePenalty?: number;
+  frequencyPenalty?: number;
+  /** How many recent tokens the three penalties count. */
+  penaltyContext?: number;
+  /** The most tokens the model keeps in mind; older ones roll off. */
+  contextTokens?: number;
+  kvBits?: KvBits;
 }
 
 /** One piece of a reply, as generated. `arguments` is the tool input as JSON text. */

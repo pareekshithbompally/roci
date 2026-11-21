@@ -30,8 +30,8 @@ type ProviderUpdate = Partial<ModelProvider> | ((current: ModelProvider) => Part
 interface SettingsContextValue extends SettingsState {
   /** Get selected provider */
   selectedProvider: ModelProvider | undefined;
-  /** Set app settings */
-  setSettings: (settings: Partial<AppSettings>) => void;
+  /** Set app settings: the changes, or computed from the settings as they are now (so quick successive edits all land). */
+  setSettings: (updates: Partial<AppSettings> | ((current: AppSettings) => Partial<AppSettings>)) => void;
   /** Add a provider */
   addProvider: (provider: ModelProvider) => void;
   /** Updates as given, or computed from the provider as saved now (for async results that must not overwrite newer edits). */
@@ -77,6 +77,7 @@ const PERSISTED_SETTINGS: Record<keyof AppSettings, true> = {
   liveTranscription: true,
   notifications: true,
   onboarding: true,
+  personalization: true,
   readAloudEngine: true,
   readAloudVoice: true,
   remindersIntegration: true,
@@ -399,10 +400,10 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     schedulePersist();
   }, [queryClient, schedulePersist]);
 
-  const setSettings = useCallback((updates: Partial<AppSettings>) => {
+  const setSettings = useCallback((updates: Partial<AppSettings> | ((current: AppSettings) => Partial<AppSettings>)) => {
     updateCache(prev => ({
       ...prev,
-      settings: { ...prev.settings, ...updates },
+      settings: { ...prev.settings, ...(typeof updates === 'function' ? updates(prev.settings) : updates) },
     }));
   }, [updateCache]);
 

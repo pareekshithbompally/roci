@@ -11,6 +11,7 @@ import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
 import { useAppUpdate, useUpdateRuntime } from '@features/settings';
 import { useMenubarSpeechModels, useMenubarReports, useStorageRetention, useLocalModelDownloads, useLocalModelIdle, freshSpeechSources } from '@features/settings';
+import { useSpeechVocabulary } from '@features/personalization';
 import { RemindersView } from '@features/todos';
 import { GalleryView } from '@features/gallery';
 import { DictationsView } from '@features/dictations';
@@ -87,6 +88,7 @@ const App: React.FC = () => {
   useDownloadToasts();
   useLocalModelDownloads();
   useLocalModelIdle();
+  useSpeechVocabulary();
   useStorageRetention();
   useRemindersRuntime();
   useHexRuntime();

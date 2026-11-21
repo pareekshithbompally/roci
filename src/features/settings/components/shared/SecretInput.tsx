@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { Eye, EyeOff, Copy, Check } from 'lucide-react';
 import { useCopiedFlag } from '@shared/hooks';
-import { SettingsInput } from './SettingsInput';
+import { SettingsInput } from '@shared/components';
 import { Button, Icon } from '@shared/ui';
 
 interface SecretInputProps {

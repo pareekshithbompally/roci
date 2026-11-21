@@ -33,12 +33,34 @@ export const UI_CONFIG = {
 
   /** A glyph on an app-icon-sized tile, so a bare glyph weighs the same as the app icons beside it. */
   glyphTile: { tile: 34, glyph: 24 },
+  /** A Settings pane's header: its glyph's tile and the glyph (px). */
+  paneHero: { tile: 64, glyph: 36 },
   /** Bar chart (usage trends): plot height (taller on touch), bar cap and gap, data-end radius, axis gutters, label density, dimmed bars. */
   /** Data tables: rows shown before the table scrolls inside its card (its header stays). */
   table: {
     visibleRows: 10,
     /** The search field above a table: short, at the trailing end (Finder, Mail). */
     searchWidth: 'w-56',
+  },
+  /** A setting's control on its row (System Settings): a slider, the value beside it, a number field. */
+  settingControl: { slider: 'w-40', value: 'w-10', field: 'w-28' },
+  /** The knowledge graph (GraphView): most nodes drawn (the most central), node sizes by PageRank, layout iterations, plot
+   *  heights. */
+  graph: {
+    maxNodes: 200,
+    /** Node radius in px: least and most central. */
+    nodeSize: { min: 4, max: 16 },
+    /** A memory's node, smaller than any entity. */
+    factSize: 3,
+    /** ForceAtlas2 steps, run once before the first draw (no animation). */
+    layoutIterations: 300,
+    /** Labels show for nodes drawn at least this size (px); every label shows on hover or selection. */
+    labelThreshold: 8,
+    /** Everything but the selection and its neighbours fades to this. */
+    dimOpacity: 0.15,
+    height: { settings: 420, meeting: 360 },
+    /** Expanded into a sheet: this share of the window's height. */
+    expandedHeight: 0.72,
   },
   chart: {
     /** The trend's plot, dates included (px). */
