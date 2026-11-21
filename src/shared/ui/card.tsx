@@ -33,6 +33,8 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   actions?: React.ReactNode;
   /** Control below the copy instead of beside it (wide editors, lists). */
   stacked?: boolean;
+  /** The description wraps in full instead of truncating to one line (attributions, notices). */
+  wrap?: boolean;
   /** `start` pins status + actions to the title line when the description runs long. */
   align?: 'center' | 'start';
   /** Drill-down row (iOS): the whole row is the button and a chevron ends it. */
@@ -46,7 +48,7 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   disabled?: boolean;
 }
 
-export function CardRow({ title, description, leading, status, actions, stacked, align = 'center', onOpen, onPress, tone, disabled, className, children, ...props }: CardRowProps) {
+export function CardRow({ title, description, leading, status, actions, stacked, wrap, align = 'center', onOpen, onPress, tone, disabled, className, children, ...props }: CardRowProps) {
   const press = disabled ? undefined : onOpen ?? onPress;
   // Phone: the copy keeps the width — state reads under the description, the side holds only the control.
   const phone = useFormFactor() === 'phone';
@@ -82,7 +84,7 @@ export function CardRow({ title, description, leading, status, actions, stacked,
       <div className={cn('flex min-w-0', trailing && !stacked ? 'max-w-[70%] shrink-0' : 'flex-1')}>
         <div className="min-w-0">
           <Text as="p" variant="body" tone={tone} truncate>{title}</Text>
-          {description && <Text as="p" variant="helper" tone="muted" truncate className="mt-0.5">{description}</Text>}
+          {description && <Text as="p" variant="helper" tone="muted" truncate={!wrap} className="mt-0.5">{description}</Text>}
           {status && phone && <div className="mt-1 flex items-center gap-2">{status}</div>}
         </div>
       </div>

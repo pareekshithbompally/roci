@@ -6,9 +6,9 @@ Where a project offers a choice of licences, the entry names the one Roci uses.
 
 This file is generated from `src/config/acknowledgements.config.ts` by `npm run notices`. Do not edit it by hand.
 
-## Derived code
+## Hex and Jan
 
-Parts of Roci are derived from these projects.
+Parts of Roci's code come from these open-source apps, used under their licences.
 
 ### Hex
 
@@ -25,6 +25,8 @@ Parts of Roci are derived from these projects.
 
 ## Application framework
 
+Roci's app shell on macOS and iOS, its state and its data checks.
+
 ### Tauri and Tauri plugins
 
 - Licence: Apache-2.0 OR MIT (used under MIT)
@@ -37,17 +39,23 @@ Parts of Roci are derived from these projects.
 - Source: <https://github.com/facebook/react>
 - Copyright (c) Meta Platforms, Inc. and affiliates.
 
-### TanStack Query
+### TanStack Query and Table
 
 - Licence: MIT
 - Source: <https://github.com/TanStack/query>
-- Copyright (c) 2021-present Tanner Linsley
+- Copyright (c) 2016-present Tanner Linsley
 
 ### Zustand
 
 - Licence: MIT
 - Source: <https://github.com/pmndrs/zustand>
 - Copyright (c) 2019 Paul Henschel
+
+### Zod
+
+- Licence: MIT
+- Source: <https://github.com/colinhacks/zod>
+- Copyright (c) 2025 Colin McDonnell
 
 ### Temporal Polyfill
 
@@ -56,6 +64,8 @@ Parts of Roci are derived from these projects.
 - Copyright (c) 2024 Adam Shaw
 
 ## Interface
+
+Controls, icons, animation, chat formatting, charts, the knowledge graph and audio waveforms.
 
 ### Radix UI Primitives
 
@@ -87,12 +97,6 @@ Parts of Roci are derived from these projects.
 - Source: <https://github.com/emilkowalski/sonner>
 - Copyright (c) 2023 Emil Kowalski
 
-### Schedule-X
-
-- Licence: MIT
-- Source: <https://github.com/schedule-x/schedule-x>
-- Copyright 2023 Tom Österlund
-
 ### React Resizable Panels
 
 - Licence: MIT
@@ -110,7 +114,7 @@ Parts of Roci are derived from these projects.
 - Source: <https://github.com/vercel/streamdown>
 - Copyright 2023 Vercel, Inc.
 
-### remark-gfm and unist-util-visit
+### remark-gfm
 
 - Licence: MIT
 - Source: <https://github.com/remarkjs/remark-gfm>
@@ -121,6 +125,37 @@ Parts of Roci are derived from these projects.
 - Licence: BSD-3-Clause
 - Source: <https://github.com/highlightjs/highlight.js>
 - Copyright (c) 2006, Ivan Sagalaev
+
+### KaTeX
+
+- Licence: MIT
+- Source: <https://github.com/KaTeX/KaTeX>
+- Copyright (c) 2013-2020 Khan Academy and other contributors
+
+### Mermaid
+
+- Licence: MIT
+- Source: <https://github.com/mermaid-js/mermaid>
+- Copyright (c) 2014 - 2022 Knut Sveidqvist
+
+### Apache ECharts
+
+- Licence: Apache-2.0
+- Source: <https://github.com/apache/echarts>
+- Copyright 2017-2026 The Apache Software Foundation
+- This product includes software developed at The Apache Software Foundation (https://www.apache.org/).
+
+### sigma.js
+
+- Licence: MIT
+- Source: <https://github.com/jacomyal/sigma.js>
+- Copyright (c) 2012-2026 Alexis Jacomy, Guillaume Plique, Benoît Simard
+
+### graphology
+
+- Licence: MIT
+- Source: <https://github.com/graphology/graphology>
+- Copyright (c) 2016-2021 Guillaume Plique (Yomguithereal)
 
 ### wavesurfer.js
 
@@ -141,27 +176,30 @@ Parts of Roci are derived from these projects.
 
 ## AI and speech
 
+Calling AI providers, running models on this device, transcribing speech and serving tools to coding agents.
+
 ### Vercel AI SDK
 
 - Licence: Apache-2.0
 - Source: <https://github.com/vercel/ai>
 - Copyright 2023 Vercel, Inc.
 
-### Transformers.js
-
-- Licence: Apache-2.0
-- Source: <https://github.com/huggingface/transformers.js>
-
-### ONNX Runtime Web
+### MLX Swift
 
 - Licence: MIT
-- Source: <https://github.com/microsoft/onnxruntime>
-- Copyright (c) Microsoft Corporation
+- Source: <https://github.com/ml-explore/mlx-swift>
+- Copyright (c) 2023 ml-explore
 
-### Voice Activity Detection (vad-web)
+### MLX Swift LM
 
-- Licence: ISC
-- Source: <https://github.com/ricky0123/vad>
+- Licence: MIT
+- Source: <https://github.com/ml-explore/mlx-swift-lm>
+- Copyright (c) 2024 ml-explore
+
+### swift-transformers
+
+- Licence: Apache-2.0
+- Source: <https://github.com/huggingface/swift-transformers>
 
 ### transcribe.cpp
 
@@ -169,10 +207,11 @@ Parts of Roci are derived from these projects.
 - Source: <https://github.com/handy-computer/transcribe.cpp>
 - Copyright (c) 2026 The transcribe.cpp authors
 
-### Phonon (ptts)
+### MLX Audio Swift
 
-- Licence: MIT OR Apache-2.0 (used under MIT)
-- Source: <https://github.com/gradium-ai/xn-ptts>
+- Licence: MIT
+- Source: <https://github.com/Neywa-Labs/mlx-audio-swift>
+- Copyright (c) 2025 Prince Canuma
 
 ### MCP Rust SDK (rmcp)
 
@@ -181,6 +220,8 @@ Parts of Roci are derived from these projects.
 - Copyright (c) 2024-2025 Model Context Protocol a Series of LF Projects, LLC.
 
 ## Audio, storage and system
+
+Recording audio, the roci.db database with its search and knowledge graph, and talking to macOS.
 
 ### cpal
 
@@ -231,6 +272,12 @@ Parts of Roci are derived from these projects.
 - Licence: MIT OR Apache-2.0 (used under MIT)
 - Source: <https://github.com/asg017/sqlite-vec>
 
+### GraphQLite
+
+- Licence: MIT
+- Source: <https://github.com/colliery-io/graphqlite>
+- Copyright (c) 2025 GraphQLite Contributors
+
 ### Tokio
 
 - Licence: MIT
@@ -257,11 +304,31 @@ Parts of Roci are derived from these projects.
 
 Roci downloads these from Hugging Face only when you choose to use them.
 
-### EmbeddingGemma 300M
+### Qwen3.5 9B
 
-- Licence: Gemma Terms of Use
-- Source: <https://ai.google.dev/gemma/terms>
-- Gemma is provided under and subject to the Gemma Terms of Use found at ai.google.dev/gemma/terms.
+- Licence: Apache-2.0
+- Source: <https://huggingface.co/Qwen/Qwen3.5-9B>
+
+### MiniCPM5 2B
+
+- Licence: Apache-2.0
+- Source: <https://huggingface.co/openbmb/MiniCPM5-2B>
+
+### Granite 4.2 3B
+
+- Licence: Apache-2.0
+- Source: <https://huggingface.co/ibm-granite/granite-4.2-3b>
+
+### Ternary Bonsai 2 4B
+
+- Licence: Apache-2.0
+- Source: <https://huggingface.co/prism-ml/Ternary-Bonsai-2-4B-mlx-2bit>
+- Created using Bonsai by Prism ML. Built from Qwen3.5-4B, Copyright 2026 Alibaba Cloud, Apache-2.0.
+
+### Qwen3 Embedding 0.6B
+
+- Licence: Apache-2.0
+- Source: <https://huggingface.co/Qwen/Qwen3-Embedding-0.6B>
 
 ### Parakeet Unified EN 0.6B
 
@@ -275,10 +342,25 @@ Roci downloads these from Hugging Face only when you choose to use them.
 - Source: <https://huggingface.co/openai/whisper-large-v3-turbo>
 - Copyright (c) 2022 OpenAI
 
-### Phonon 31M and voices
+### Kokoro 82M
+
+- Licence: Apache-2.0
+- Source: <https://huggingface.co/hexgrad/Kokoro-82M>
+
+### Kokoro English pronunciation data
+
+- Licence: MIT
+- Source: <https://huggingface.co/beshkenadze/kitten-tts-g2p>
+
+### Phonon and voices
 
 - Licence: Apache-2.0
 - Source: <https://huggingface.co/gradium/phonon-31m-en>
+
+### Ming 3.0 TTS
+
+- Licence: MIT
+- Source: <https://huggingface.co/inclusionAI/Ming-3.0-tts-0.5B>
 
 ### Silero VAD
 
