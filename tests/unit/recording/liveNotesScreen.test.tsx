@@ -1,7 +1,9 @@
+import type React from 'react';
 /** AI notes on the record screen through the real path: transcript arrives → an update runs on the cadence → points show. */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const refresh = vi.hoisted(() => vi.fn());
 vi.mock('@services/ai/liveNotes', () => ({ refreshLiveNotes: refresh }));
@@ -25,6 +27,9 @@ vi.mock('@features/notes', () => ({
 
 // eslint-disable-next-line import/first
 import { RecordingMeetingView } from '@features/recording/components/RecordingMeetingView';
+
+/** The app's query provider (model logos read through it). */
+const withQuery = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>;
 // eslint-disable-next-line import/first
 import { mirrorOf, useRecordingStore } from '@features/recording/stores/recordingStore';
 // eslint-disable-next-line import/first
@@ -48,7 +53,7 @@ describe('AI notes on the record screen', () => {
   it('write the meeting\'s points on the cadence with no notes typed, and keep adding', async () => {
     refresh.mockResolvedValueOnce({ points: [{ text: 'Q3 budget: 1.2M approved.' }], filled: [] });
     refresh.mockResolvedValueOnce({ points: [{ text: 'Hiring paused until January.' }], filled: [] });
-    render(<RecordingMeetingView />);
+    render(<RecordingMeetingView />, { wrapper: withQuery });
 
     await act(async () => meetingLiveActions.set([line(0, 5_000, 'Budget is approved at 1.2 million.')]));
     expect(refresh).not.toHaveBeenCalled();

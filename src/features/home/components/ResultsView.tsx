@@ -24,6 +24,7 @@ import { MeetingStatsPopover } from './MeetingStatsPopover';
 import { MeetingSourceIcon } from './MeetingSourceIcon';
 import { SummaryTab } from './SummaryTab';
 import { RelatedTab } from './RelatedTab';
+import { TabPage } from './TabPage';
 import { KNOWLEDGE_GRAPH } from '@config/knowledge.config';
 import { useMeetingStats } from '@features/home/hooks/useMeetingStats';
 import type { HistoryItem, ProcessedResult } from '@shared/types';
@@ -42,7 +43,6 @@ import {
   Text,
   TitlebarSpacer,
   Tooltip,
-  cn,
 } from '@shared/ui';
 import type { TabItem } from '@shared/ui';
 import { TODOS_CONFIG } from '@config/todos.config';
@@ -303,17 +303,13 @@ export const ResultsView: React.FC = () => {
         <SummaryTab result={result} phase={phase} meetingId={currentHistoryItem?.id} />
       ) : activeResultTab === 'related' && currentHistoryItem ? (
         // Keyed by meeting: opening a related meeting starts its tab fresh, at the top.
-        <div key={currentHistoryItem.id} className={cn('flex-1 overflow-y-auto custom-scrollbar pt-4', LAYOUT.pageGutter, LAYOUT.meetingChatClearance)}>
-          <div className={`${LAYOUT.pageColumn} flex flex-col gap-6`}>
-            <RelatedTab meetingId={currentHistoryItem.id} />
-          </div>
-        </div>
+        <TabPage key={currentHistoryItem.id}>
+          <RelatedTab meetingId={currentHistoryItem.id} />
+        </TabPage>
       ) : (
-        <div className={cn('flex-1 overflow-y-auto custom-scrollbar pt-4', LAYOUT.pageGutter, LAYOUT.meetingChatClearance)}>
-          <div className={`${LAYOUT.pageColumn} min-h-full flex flex-col`}>
-            <TodoList creating={addingTodo} onCreatingChange={setAddingTodo} />
-          </div>
-        </div>
+        <TabPage>
+          <TodoList creating={addingTodo} onCreatingChange={setAddingTodo} />
+        </TabPage>
       )}
     </motion.div>
   );

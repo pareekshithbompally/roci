@@ -29,6 +29,9 @@ export const MEETING_LIVE_CONFIG = {
   copy: {
     /** Stops and keeps the audio and live transcript; the summary waits for Summarize. */
     saveForLater: 'Save for Later',
+    /** The recording's models, named under its title. */
+    transcribing: 'Transcribing with',
+    summarizing: 'Summarizing with',
     /** A meeting's empty transcript while its final one is being made. */
     finalizing: 'Building the final transcript…',
     none: 'No transcript yet.',

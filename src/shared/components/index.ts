@@ -5,6 +5,8 @@ export { ConfirmHost } from './ConfirmHost';
 export { EmptyState } from './EmptyState';
 export { ProposalCard } from './ProposalCard';
 export { FormDialog } from './FormDialog';
+export { ModelCreditLine, ModelName } from './ModelCreditLine';
+export type { ModelCredit, ModelCreditItem } from './ModelCreditLine';
 export { EditableList } from './EditableList';
 export { SettingsInput, renderWithLinks } from './SettingsInput';
 export type { ProposalCardProps, ProposalItem } from './ProposalCard';

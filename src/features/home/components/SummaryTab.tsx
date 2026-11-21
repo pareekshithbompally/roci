@@ -4,13 +4,14 @@
 
 import React from 'react';
 import { SummaryView, SummaryWriting } from '@features/summary';
-import { useMeetingStats, type ModelCredit } from '@features/home/hooks/useMeetingStats';
+import { useMeetingStats } from '@features/home/hooks/useMeetingStats';
 import { LAYOUT } from '@config/layout.config';
 import { SUMMARY_CONFIG as SUMMARY } from '@config/summary.config';
-import { FadeScroll, cn } from '@shared/ui';
+import { cn } from '@shared/ui';
 import { isMeetingBusy, type MeetingPhase } from '@shared/types/meetingPhase';
 import type { ProcessedResult } from '@shared/types';
-import { ModelCreditLine } from './ModelCreditLine';
+import { ModelCreditLine, type ModelCredit } from '@shared/components';
+import { TabPage } from './TabPage';
 
 interface SummaryPaneProps {
   result: Pick<ProcessedResult, 'summary' | 'structuredSummary'>;
@@ -23,17 +24,15 @@ export const SummaryPane: React.FC<SummaryPaneProps> = ({ result, phase, transcr
   const writing = !result.summary && !result.structuredSummary && isMeetingBusy(phase);
   return (
     <>
-      <FadeScroll className={cn('flex-1 pt-4 pb-6', LAYOUT.pageGutter)}>
-        <div className={LAYOUT.pageColumn}>
-          {writing
-            ? <SummaryWriting label={phase.kind === 'summarizing' ? SUMMARY.copy.summarizing : SUMMARY.copy.transcribing} />
-            : <SummaryView summary={result.summary} structuredSummary={result.structuredSummary} />}
-        </div>
-      </FadeScroll>
+      <TabPage>
+        {writing
+          ? <SummaryWriting label={phase.kind === 'summarizing' ? SUMMARY.copy.summarizing : SUMMARY.copy.transcribing} />
+          : <SummaryView summary={result.summary} structuredSummary={result.structuredSummary} />}
+      </TabPage>
       {(transcribedBy || summarizedBy) && (
         <div className={cn('shrink-0 py-3', LAYOUT.pageGutter)}>
           <div className={LAYOUT.pageColumn}>
-            <ModelCreditLine transcribedBy={transcribedBy} summarizedBy={summarizedBy} />
+            <ModelCreditLine credits={[{ label: SUMMARY.copy.transcribedBy, credit: transcribedBy }, { label: SUMMARY.copy.summarizedBy, credit: summarizedBy }]} />
           </div>
         </div>
       )}

@@ -4,6 +4,9 @@ export const SUMMARY_CONFIG = {
   /** Action items listed in the summary; the rest are in the To-dos tab. */
   actionPreview: 5,
   copy: {
+    /** The finished meeting's credit line. */
+    transcribedBy: 'Transcribed by',
+    summarizedBy: 'Summarized by',
     overview: 'Overview',
     decisions: 'Decisions',
     actions: 'Action items',

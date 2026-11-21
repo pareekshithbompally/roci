@@ -7,12 +7,8 @@ import { recordingsService } from '@services/storage';
 import { getMeetingUsage, type MeetingUsage } from '@extensions/usage';
 import { queryKeys } from '@shared/query/queryKeys';
 import type { MeetingDetail } from '@shared/types';
+import type { ModelCredit } from '@shared/components';
 
-/** A model that worked on the meeting; `provider` is empty when the stored id doesn't name one. */
-export interface ModelCredit {
-  provider: string;
-  model: string;
-}
 
 export interface SummaryCredit extends ModelCredit {
   inputTokens: number;

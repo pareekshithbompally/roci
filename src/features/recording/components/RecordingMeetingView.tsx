@@ -7,7 +7,7 @@ import { Clock, Pause, Play, Square } from 'lucide-react';
 import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { Button, Icon, Text, TitlebarSpacer } from '@shared/ui';
-import { MeetingStatus } from '@shared/components';
+import { MeetingStatus, ModelCreditLine } from '@shared/components';
 import type { MeetingPhase } from '@shared/types/meetingPhase';
 import { LAYOUT } from '@config/layout.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
@@ -45,10 +45,13 @@ const Controls: React.FC<{ paused: boolean; busy: boolean; beforeStop: () => Pro
       <Icon icon={paused ? Play : Pause} size="xs" />
       {paused ? 'Resume' : 'Pause'}
     </Button>
-    <Button variant="secondary" size="sm" disabled={busy} onClick={() => void beforeStop().catch(report('save notes')).then(() => recording.stop(true)).catch(report('save for later'))}>
-      <Icon icon={Clock} size="xs" />
-      {LIVE.copy.saveForLater}
-    </Button>
+    {/* Offered once paused: keep the audio and transcribe later, instead of now. */}
+    {paused && (
+      <Button variant="secondary" size="sm" disabled={busy} onClick={() => void beforeStop().catch(report('save notes')).then(() => recording.stop(true)).catch(report('save for later'))}>
+        <Icon icon={Clock} size="xs" />
+        {LIVE.copy.saveForLater}
+      </Button>
+    )}
     <Button variant="outline" size="sm" disabled={busy} onClick={() => void beforeStop().catch(report('save notes')).then(() => recording.stop()).catch(report('stop'))}>
       <Icon icon={Square} size="xs" className="fill-current" />
       {busy ? 'Stopping…' : 'Stop'}
@@ -70,7 +73,8 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
   const { settings } = useSettings();
   const meeting = useMeetingBrief(meetingId);
   const clock = useClock();
-  const { type, flush, modelProblem } = useLiveNotes(meetingId, true);
+  const { type, flush, modelProblem, model } = useLiveNotes(meetingId, true);
+  const speech = speechSelectionOf(settings);
 
   const title = meeting?.title ?? 'Recording';
   const transcript: WorkspaceTranscript = {
@@ -93,7 +97,15 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
             <MeetingStatus phase={paused ? PAUSED : RECORDING} display="badge" />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <Text variant="figureSmall" tone="muted">{clock}</Text>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+              <Text variant="figureSmall" tone="muted">{clock}</Text>
+              <ModelCreditLine
+                credits={[
+                  { label: LIVE.copy.transcribing, credit: speech?.model ? { provider: speech.provider, model: speech.model } : null },
+                  { label: LIVE.copy.summarizing, credit: model ? { provider: model.provider, model: model.modelId } : null },
+                ]}
+              />
+            </div>
             <Controls paused={paused} busy={busy} beforeStop={flush} />
           </div>
         </div>

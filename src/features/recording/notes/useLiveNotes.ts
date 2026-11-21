@@ -108,5 +108,5 @@ export function useLiveNotes(meetingId: string, live: boolean) {
     typingTimer.current = setTimeout(onTypingPause, NOTES.typingIdleMs);
   }, [onTypingPause]);
 
-  return { type, flush, modelProblem };
+  return { type, flush, modelProblem, model };
 }
