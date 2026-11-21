@@ -81,39 +81,22 @@ pub fn hybrid_search(
         let fts_query = sanitize_fts_query(&params.query_text);
         if !fts_query.is_empty() {
             if scoped {
-                // Scoped: JOIN with chunks to filter by meeting_id
-                let placeholders: String = allowed_meeting_ids
-                    .iter()
-                    .map(|_| "?")
-                    .collect::<Vec<_>>()
-                    .join(",");
-                let sql = format!(
-                    "SELECT f.rowid, f.rank
-                     FROM chunks_fts f
-                     JOIN chunks c ON c.id = f.rowid
-                     WHERE f.chunks_fts MATCH ?1
-                       AND c.meeting_id IN ({})
-                     ORDER BY f.rank
-                     LIMIT ?2",
-                    placeholders
-                );
-                let mut stmt = conn.prepare(&sql)
+                // Scoped: JOIN with chunks to filter by meeting_id (the ids as one JSON list, as the scoped vector search takes them)
+                let ids = serde_json::to_string(&allowed_meeting_ids.iter().collect::<Vec<_>>()).map_err(|e| e.to_string())?;
+                let mut stmt = conn
+                    .prepare(
+                        "SELECT f.rowid, f.rank
+                         FROM chunks_fts f
+                         JOIN chunks c ON c.id = f.rowid
+                         WHERE f.chunks_fts MATCH ?1
+                           AND c.meeting_id IN (SELECT value FROM json_each(?2))
+                         ORDER BY f.rank
+                         LIMIT ?3",
+                    )
                     .map_err(|e| format!("fts scoped search prepare: {}", e))?;
 
-                // Build params: [fts_query, ...meeting_ids, fetch_limit]
-                let meeting_ids_vec: Vec<&str> = allowed_meeting_ids.iter().copied().collect();
-                let mut sql_params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
-                sql_params.push(Box::new(fts_query.clone()));
-                for mid in &meeting_ids_vec {
-                    sql_params.push(Box::new(mid.to_string()));
-                }
-                sql_params.push(Box::new(fetch_limit as i64));
-
-                let param_refs: Vec<&dyn rusqlite::types::ToSql> =
-                    sql_params.iter().map(|p| p.as_ref()).collect();
-
                 let rows = stmt
-                    .query_map(&*param_refs, |row| {
+                    .query_map(rusqlite::params![fts_query, ids, fetch_limit as i64], |row| {
                         Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
                     })
                     .map_err(|e| format!("fts scoped search query: {}", e))?;

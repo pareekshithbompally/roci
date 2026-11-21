@@ -214,4 +214,36 @@ mod tests {
         tx.commit().unwrap();
         assert_eq!(without_vectors_impl(&conn).unwrap(), vec![(ItemKind::Meeting, "m2".to_string())]);
     }
+
+    #[test]
+    fn a_search_within_meetings_finds_their_words_only() {
+        let conn = db();
+        let others: Vec<String> = (0..8).map(|n| format!("other{n}")).collect();
+        for id in ["m1", "m2", "m3"].into_iter().chain(others.iter().map(String::as_str)) {
+            seed_meeting(&conn, id);
+        }
+        let piece = |text: &str| ChunkData {
+            chunk_index: 0, chunk_text: text.into(), chunk_type: "transcript".into(), embedding: None, start_pos: None, end_pos: None,
+        };
+        let tx = conn.unchecked_transaction().unwrap();
+        save_chunks(&tx, &MEETING_CHUNKS, "m1", &[piece("the quarterly budget review")]).unwrap();
+        save_chunks(&tx, &MEETING_CHUNKS, "m2", &[piece("budget for the offsite")]).unwrap();
+        save_chunks(&tx, &MEETING_CHUNKS, "m3", &[piece("budget numbers again")]).unwrap();
+        // talk without the word, so it is a word worth matching
+        for id in &others {
+            save_chunks(&tx, &MEETING_CHUNKS, id, &[piece("hiring plans and the roadmap")]).unwrap();
+        }
+        tx.commit().unwrap();
+        let within = |ids: &[&str]| {
+            let params = SearchParams {
+                embedding: Vec::new(), query_text: "budget".into(), limit: 5, mode: Some("fulltext".into()),
+                meeting_ids: Some(ids.iter().map(|id| id.to_string()).collect()),
+            };
+            let mut found: Vec<String> = hybrid_search(&conn, &params).unwrap().into_iter().map(|hit| hit.meeting_id).collect();
+            found.sort();
+            found
+        };
+        assert_eq!(within(&["m1"]), vec!["m1"]);
+        assert_eq!(within(&["m1", "m2"]), vec!["m1", "m2"]);
+    }
 }
