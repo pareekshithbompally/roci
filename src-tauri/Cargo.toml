@@ -1,6 +1,6 @@
 [package]
 name = "Roci"
-version = "1.9.1"
+version = "1.9.2"
 description = "AI-powered voice capture, transcription, and insights"
 authors = ["Pareekshith Bompally"]
 license = "MIT"
