@@ -13,8 +13,6 @@ export interface LiveText {
   tentative: string;
 }
 
-export const EMPTY_LIVE_TEXT: LiveText = { committed: '', tentative: '' };
-
 /** One running stream: 16 kHz mono audio in, the text so far out. */
 export interface LiveStream {
   feed(pcm: Float32Array): Promise<LiveText>;

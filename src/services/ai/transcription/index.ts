@@ -19,7 +19,6 @@ export type { AppleSpeechStep } from './appleSpeech';
 export { openLiveStream, runsLive, tryLiveStreams } from './live';
 export { liveStreams } from './liveStreams';
 export type { LiveStreams, StreamLine } from './liveStreams';
-export { EMPTY_LIVE_TEXT } from './streaming';
 export { recordedCapture, liveCapture } from './capture';
 export type { DictationCapture } from './capture';
 export type { LiveStream, LiveText } from './streaming';

@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { audioToRawText } from '@services/unifiedAIService';
 import { keepDictation } from '@services/dictations.service';
-import { EMPTY_LIVE_TEXT, liveCapture, recordedCapture } from '@services/ai/transcription';
+import { liveCapture, recordedCapture } from '@services/ai/transcription';
 import type { DictationCapture, LiveText } from '@services/ai/transcription';
 import type { LiveDictation } from '@features/settings';
 import { errorMessage, failureLogger } from '@shared/utils/errors';
@@ -36,7 +36,7 @@ export interface UseSpeechInputResult {
   state: SpeechState;
   /** Live microphone stream — the composer's DotScope reads its level while recording */
   stream: MediaStream | null;
-  /** The text so far while dictating live; null when dictation isn't live. */
+  /** The text so far once a live stream answers; null until then, and when dictation is not live (the plain recording pill). */
   liveText: LiveText | null;
   /** Elapsed recording time in seconds (frozen while paused) */
   elapsed: number;
@@ -130,7 +130,6 @@ export function useSpeechInput(
     // Mount the pill now; the mic warms up underneath it.
     const startedAt = Date.now();
     setState('starting');
-    if (live) setLiveText(EMPTY_LIVE_TEXT);
 
     let micStream: MediaStream;
     let capture: DictationCapture;
