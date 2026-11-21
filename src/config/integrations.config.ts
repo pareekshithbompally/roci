@@ -77,7 +77,7 @@ export const INTEGRATIONS_CONFIG = {
     section: 'Coding agents',
     server: {
       title: 'Roci MCP server',
-      description: 'Coding agents get Roci’s chat tools.',
+      description: 'Coding agents get Roci’s MCP Server.',
       ready: 'Ready',
       starting: 'Starting',
       connected: (count: number) => `${count} ${count === 1 ? 'agent' : 'agents'} connected`,

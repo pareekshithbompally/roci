@@ -97,7 +97,7 @@ const ManualSetupRow: React.FC<{ server: McpHostStatus | undefined }> = ({ serve
       description={COPY.manual.description}
       actions={
         <>
-          <Code className="break-all">{command}</Code>
+          <Code line>{command}</Code>
           <IconButton icon={Copy} label={COPY.manual.copy} size="sm" onClick={copy} />
         </>
       }
