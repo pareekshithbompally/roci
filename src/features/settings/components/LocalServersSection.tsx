@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useToast } from '@shared/contexts/ToastContext';
-import { LOCAL_EMPTY_HINT, LOCAL_SERVERS_GROUP, LOCAL_URL_DRAFT } from '@config/localServers.config';
+import { LOCAL_EMPTY_HINT, LOCAL_SERVERS_FOOTER, LOCAL_SERVERS_GROUP, LOCAL_URL_DRAFT } from '@config/localServers.config';
 import { useLocalServers } from '@features/settings/hooks/useLocalServers';
 import { ProvidersAvatar } from '@shared/components';
 import { getProviderTitle, serverAppOf } from '@shared/utils/provider.utils';
@@ -117,7 +117,7 @@ export const ServersSection: React.FC<ServersSectionProps> = ({ onOpen, onAdd })
   );
 
   return (
-    <Section title={LOCAL_SERVERS_GROUP} accessory={rescanAction} footer={rows.length === 0 ? LOCAL_EMPTY_HINT : undefined}>
+    <Section title={LOCAL_SERVERS_GROUP} accessory={rescanAction} footer={rows.length === 0 ? LOCAL_EMPTY_HINT : LOCAL_SERVERS_FOOTER}>
       {rows.map((row) => (
         <CardRow
           key={row.id}

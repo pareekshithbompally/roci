@@ -10,6 +10,7 @@ import { ADD_SERVER_TITLE, AddServerForm, ServersSection } from './LocalServersS
 import { ProviderDetail } from './ProviderDetail';
 import { OnDeviceDetail } from './OnDeviceDetail';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
+import { PROVIDERS_LIST } from '@config/providers.config';
 import { SettingsPage, usePaneDrill, type DrillPage } from './shared';
 import { useSettingsPage } from '@shared/stores/appStore';
 
@@ -58,8 +59,8 @@ export const ProvidersPanel: React.FC = () => {
 
   return (
     <SettingsPage pane="providers" onForward={drill.forward}>
-      <Section>{providerRow(ON_DEVICE_ID, openProvider)}</Section>
-      <Section title="Cloud">
+      <Section footer={PROVIDERS_LIST.onDeviceFooter}>{providerRow(ON_DEVICE_ID, openProvider)}</Section>
+      <Section title={PROVIDERS_LIST.cloudTitle} footer={PROVIDERS_LIST.cloudFooter}>
         {providers
           .filter((p) => !isLocalProviderId(p.provider))
           .map((p) => providerRow(p.provider, openProvider, <ProviderStatus state={cloudRowState(p)} />))}

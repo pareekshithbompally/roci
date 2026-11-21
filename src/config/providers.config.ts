@@ -16,6 +16,13 @@ export const MANAGED_DEFAULT_URLS: Record<string, string> = {
   groq: 'https://api.groq.com/openai/v1',
 };
 
+/** Settings › Providers list: what each section is and why you would use it (its footer), and the cloud section's heading. */
+export const PROVIDERS_LIST = {
+  onDeviceFooter: 'Models that run on this device: private, work offline and cost nothing per use, at the speed of your hardware.',
+  cloudTitle: 'Cloud',
+  cloudFooter: 'Hosted models, reached with your own API key and paid to the provider per use. The fastest and most capable; your key stays encrypted on this device.',
+} as const;
+
 /** Display order everywhere: OpenAI, Anthropic, Gemini first; the rest follow. */
 export const predefinedProviders: ModelProvider[] = [
   {
