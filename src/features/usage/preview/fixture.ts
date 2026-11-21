@@ -33,8 +33,8 @@ const CATEGORIES = [
 
 const TOOLS: ToolBreakdown[] = [
   { tool: 'web_search_exa', calls: 11, failed: 0, avg_ms: 1525, last_used: Date.now() - 3_600_000 },
-  { tool: 'search_meetings', calls: 7, failed: 1, avg_ms: 171, last_used: Date.now() - 86_400_000 },
-  { tool: 'get_meeting', calls: 7, failed: 0, avg_ms: 4, last_used: Date.now() - 2 * 86_400_000 },
+  { tool: 'find', calls: 7, failed: 1, avg_ms: 171, last_used: Date.now() - 86_400_000 },
+  { tool: 'read', calls: 7, failed: 0, avg_ms: 4, last_used: Date.now() - 2 * 86_400_000 },
   { tool: 'generate_image', calls: 3, failed: 0, avg_ms: 8031, last_used: Date.now() - 5 * 86_400_000 },
   { tool: 'server:GOOGLE_SEARCH_WEB', calls: 3, failed: 0, avg_ms: null, last_used: Date.now() - 6 * 86_400_000 },
 ];

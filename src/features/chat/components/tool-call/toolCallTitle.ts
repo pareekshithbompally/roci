@@ -1,22 +1,28 @@
-import type { ToolCallView } from './toolCallView';
+import { toolKey, type ToolCallView } from './toolCallView';
 import { truncate } from '@shared/utils/formatters';
 import { extractDomain } from '@shared/utils/citationUtils';
 import { UI_CONFIG } from '@config/ui.config';
 
-/** [in-flight, done] verbs for built-in and native provider tools. */
+/** [in-flight, done] verbs for built-in and native provider tools, by `toolKey`. */
 const LABELS: Record<string, [string, string]> = {
-  // Meeting tools
-  search_meetings: ['Searching meetings', 'Searched meetings'],
-  get_meeting: ['Retrieving meeting', 'Retrieved meeting'],
-  list_meetings: ['Listing meetings', 'Listed meetings'],
-  list_todos: ['Reading to-dos', 'Read to-dos'],
-  // Chat history + to-do tools
-  search_chats: ['Searching chats', 'Searched chats'],
-  get_chat: ['Retrieving chat', 'Retrieved chat'],
-  list_chats: ['Listing chats', 'Listed chats'],
-  create_todo: ['Drafting to-do', 'Drafted to-do'],
-  update_todo: ['Drafting to-do change', 'Drafted to-do change'],
-  delete_todo: ['Drafting to-do removal', 'Drafted to-do removal'],
+  'find.meetings': ['Searching meetings', 'Searched meetings'],
+  'find.meetings.list': ['Listing meetings', 'Listed meetings'],
+  'find.chats': ['Searching chats', 'Searched chats'],
+  'find.chats.list': ['Listing chats', 'Listed chats'],
+  'find.todos': ['Searching to-dos', 'Searched to-dos'],
+  'find.todos.list': ['Reading to-dos', 'Read to-dos'],
+  'find.memories': ['Searching memories', 'Searched memories'],
+  'find.memories.list': ['Reading memories', 'Read memories'],
+  'find.knowledge': ['Searching knowledge', 'Searched knowledge'],
+  'find.knowledge.list': ['Reading knowledge', 'Read knowledge'],
+  'read.meeting': ['Retrieving meeting', 'Retrieved meeting'],
+  'read.chat': ['Retrieving chat', 'Retrieved chat'],
+  'read.entity': ['Looking up', 'Looked up'],
+  'suggest_todo.add': ['Drafting to-do', 'Drafted to-do'],
+  'suggest_todo.update': ['Drafting to-do change', 'Drafted to-do change'],
+  'suggest_todo.delete': ['Drafting to-do removal', 'Drafted to-do removal'],
+  'suggest_memory.save': ['Drafting memory', 'Drafted memory'],
+  'suggest_memory.forget': ['Drafting memory removal', 'Drafted memory removal'],
   // Native provider tools (web search)
   webSearch: ['Searching the web', 'Searched the web'],
   googleSearch: ['Searching the web', 'Searched the web'],
@@ -24,7 +30,7 @@ const LABELS: Record<string, [string, string]> = {
   browserSearch: ['Searching the web', 'Searched the web'],
 };
 
-/** "## Meeting: <title>" — the header get_meeting's result starts with. */
+/** "## Meeting: <title>" — the header a meeting's read starts with. */
 const MEETING_HEADER = /^## Meeting: (.+)$/m;
 
 const MS_PER_SECOND = 1000;
@@ -54,19 +60,23 @@ function meetingDetail(part: ToolCallView): string | undefined {
   return quoted(title ?? part.arguments.meeting_id);
 }
 
-/** Argument-derived snippet appended to the verb, per tool. */
+/** Argument-derived snippet appended to the verb, by `toolKey`. */
 const DETAILS: Record<string, (part: ToolCallView) => string | undefined> = {
-  search_meetings: queryDetail,
-  search_chats: queryDetail,
+  'find.meetings': queryDetail,
+  'find.chats': queryDetail,
+  'find.todos': queryDetail,
+  'find.memories': queryDetail,
+  'find.knowledge': queryDetail,
   webSearch: webDetail,
   googleSearch: webDetail,
   webSearchPreview: webDetail,
   browserSearch: webDetail,
-  get_meeting: meetingDetail,
-  list_meetings: (part) => upTo(part.arguments.limit, 'meetings'),
-  list_chats: (part) => upTo(part.arguments.limit, 'chats'),
-  create_todo: (part) => quoted(part.arguments.text),
-  update_todo: (part) => quoted(part.arguments.text),
+  'read.meeting': meetingDetail,
+  'find.meetings.list': (part) => upTo(part.arguments.limit, 'meetings'),
+  'find.chats.list': (part) => upTo(part.arguments.limit, 'chats'),
+  'suggest_todo.add': (part) => quoted(part.arguments.text),
+  'suggest_todo.update': (part) => quoted(part.arguments.text),
+  'suggest_memory.save': (part) => quoted(part.arguments.text),
 };
 
 /** A tool's name to read: an MCP server tool without its `server:` prefix, words for underscores ("search meetings"). */
@@ -75,10 +85,11 @@ export function formatToolName(toolName: string): string {
 }
 
 function builtInTitle(part: ToolCallView): string {
-  const pair = LABELS[part.toolName];
+  const key = toolKey(part);
+  const pair = LABELS[key];
   if (!pair) return part.status === 'calling' ? `Running ${formatToolName(part.toolName)}` : `Used ${formatToolName(part.toolName)}`;
   const verb = part.status === 'calling' ? pair[0] : pair[1];
-  const detail = DETAILS[part.toolName]?.(part);
+  const detail = DETAILS[key]?.(part);
   return detail ? `${verb} ${detail}` : verb;
 }
 
@@ -90,7 +101,7 @@ function baseTitle(part: ToolCallView): string {
 /** Human title for a tool call: verb + argument for built-ins, `server · tool` for MCP, "failed" on error. */
 export function toolCallTitle(part: ToolCallView): string {
   const prefix = part.source ? `${part.source} · ` : '';
-  if (part.status === 'error') return `${prefix}${formatToolName(part.toolName)} failed`;
+  if (part.status === 'error') return `${prefix}${part.source ? formatToolName(part.toolName) : LABELS[toolKey(part)]?.[0] ?? formatToolName(part.toolName)} failed`;
   const suffix = part.status === 'calling' ? '…' : '';
   return `${prefix}${baseTitle(part)}${suffix}`;
 }

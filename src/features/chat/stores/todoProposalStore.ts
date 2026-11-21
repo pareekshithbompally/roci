@@ -1,16 +1,15 @@
-/** Queue of proposed todos awaiting the user's edit and confirm in TodoConfirmationBanner. */
+/** To-do changes the AI proposed in chat, waiting on the card above the chat box (TodoConfirmationBanner); an MCP agent's,
+ *  already approved, are written at once by the same commit. */
 
-import { create } from 'zustand';
 import { store } from '@services/db';
-import { UI_CONFIG } from '@config/ui.config';
 import { reminderService } from '@services/reminder.service';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { normalizeDueDate } from '@shared/utils/todo.utils';
 import { remindersSync } from '@services/reminders';
+import { createProposalQueue, type Proposal } from '@features/chat/stores/proposalQueue';
 
-export interface TodoProposal {
-  id: string;
+export interface TodoProposal extends Proposal {
   action: 'create' | 'update' | 'delete';
   /** The to-do it changes (update, delete); null when creating. */
   todoId: string | null;
@@ -28,76 +27,14 @@ export interface TodoProposal {
   /** The meeting it belongs to; null for a to-do of its own. */
   meetingId: string | null;
   meetingTitle: string | null;
-
-  status: 'pending' | 'committing' | 'committed' | 'error' | 'cancelled';
-  error?: string;
 }
 
-/** The queue; replaced on each change. */
-const useProposalStore = create<{ proposals: TodoProposal[] }>(() => ({ proposals: [] }));
-const proposals = (): TodoProposal[] => useProposalStore.getState().proposals;
-const setProposals = (next: TodoProposal[]): void => useProposalStore.setState({ proposals: next });
-/** Every proposal through `change`. */
-const mapProposals = (change: (p: TodoProposal) => TodoProposal): void => setProposals(proposals().map(change));
+/** A to-do change as a tool asks for it, before it is proposed. */
+export type TodoChange = Omit<TodoProposal, keyof Proposal>;
 
-export const todoProposalStore = {
-  /** Add a proposal to the queue (called by orchestrator — once per mutation). */
-  propose(p: TodoProposal) {
-    setProposals([...proposals(), { ...p, status: 'pending' }]);
-  },
-
-  /** Update a single field on a specific proposal (called by banner inline editing). */
-  updateField<K extends keyof TodoProposal>(id: string, field: K, value: TodoProposal[K]) {
-    mapProposals((p) => (p.id === id && p.status === 'pending' ? { ...p, [field]: value } : p));
-  },
-
-  /** Remove a single proposal from the queue without writing. */
-  remove(id: string) {
-    setProposals(proposals().filter((p) => p.id !== id));
-  },
-
-  /** Commit all pending proposals — writes to DB, schedules reminders, emits refresh event. */
-  async commitAll(): Promise<boolean> {
-    const pending = proposals().filter((p) => p.status === 'pending');
-    if (pending.length === 0) return false;
-
-    // Mark all as committing
-    mapProposals((p) => (p.status === 'pending' ? { ...p, status: 'committing' as const } : p));
-
-    let allOk = true;
-
-    for (const p of pending) {
-      try {
-        await commitSingle(p);
-        mapProposals((x) => (x.id === p.id ? { ...x, status: 'committed' as const } : x));
-      } catch (error: unknown) {
-        console.error('[TodoProposalStore] Commit failed for:', p.text, error);
-        const message = error instanceof Error ? error.message : 'Failed to save';
-        mapProposals((x) => (x.id === p.id ? { ...x, status: 'error' as const, error: message } : x));
-        allOk = false;
-      }
-    }
-
-    invalidateTodos();
-
-    // Auto-clear after short delay so committed state is visible
-    setTimeout(() => {
-      const allDone = proposals().every((p) => p.status === 'committed' || p.status === 'error');
-      if (allDone) setProposals([]);
-    }, UI_CONFIG.activityTray.settleDelay);
-
-    return allOk;
-  },
-
-  /** Cancel all pending proposals without writing. */
-  cancelAll() {
-    setProposals([]);
-  },
-};
-
-/** Write one proposal without the banner, for a caller that already has approval (an MCP coding agent). */
-export async function commitTodoProposal(p: TodoProposal): Promise<void> {
-  await commitSingle(p);
+/** Write one change without the card, for a caller that already has approval (an MCP coding agent). */
+export async function commitTodoProposal(change: TodoChange): Promise<void> {
+  await commitSingle(change);
   invalidateTodos();
 }
 
@@ -106,7 +43,7 @@ function invalidateTodos(): void {
   void queryClient.invalidateQueries({ queryKey: queryKeys.storeTodosAll() });
 }
 
-async function createTodo(p: TodoProposal): Promise<void> {
+async function createTodo(p: TodoChange): Promise<void> {
   const todoId = crypto.randomUUID();
   await store.todos.upsert({
     id: todoId,
@@ -123,7 +60,7 @@ async function createTodo(p: TodoProposal): Promise<void> {
 }
 
 /** Applies the proposal's fields over the stored to-do; what it doesn't name stays as it is. */
-async function update(p: TodoProposal, todoId: string): Promise<void> {
+async function update(p: TodoChange, todoId: string): Promise<void> {
   const [current] = await store.todos.get([todoId]);
   if (!current) throw new Error('This to-do no longer exists');
   const completed = p.done ?? current.completed;
@@ -146,7 +83,7 @@ async function remove(todoId: string): Promise<void> {
   await store.todos.delete(todoId);
 }
 
-async function remind(todoId: string, p: TodoProposal, at: string): Promise<void> {
+async function remind(todoId: string, p: TodoChange, at: string): Promise<void> {
   const ok = await reminderService.schedule({
     todoId,
     meetingId: p.meetingId,
@@ -157,11 +94,12 @@ async function remind(todoId: string, p: TodoProposal, at: string): Promise<void
   if (!ok) console.warn('[TodoProposalStore] Reminder not scheduled for:', p.text);
 }
 
-async function commitSingle(p: TodoProposal): Promise<void> {
+async function commitSingle(p: TodoChange): Promise<void> {
   if (p.action === 'create') return createTodo(p);
   if (!p.todoId) throw new Error('No to-do to change');
   return p.action === 'delete' ? remove(p.todoId) : update(p, p.todoId);
 }
 
-/** The proposals queue; re-renders when it changes. */
-export const useTodoProposals = (): TodoProposal[] => useProposalStore((s) => s.proposals);
+export const todoProposalStore = createProposalQueue<TodoProposal>('TodoProposalStore', commitSingle, invalidateTodos);
+
+export const useTodoProposals = todoProposalStore.useProposals;

@@ -5,7 +5,9 @@ export {
   commitTodoProposal,
   useTodoProposals,
 } from './todoProposalStore';
-export type { TodoProposal } from './todoProposalStore';
+export type { TodoChange, TodoProposal } from './todoProposalStore';
+export { memoryProposalStore, useMemoryProposals } from './memoryProposalStore';
+export type { MemoryProposal } from './memoryProposalStore';
 export {
   useChatStore,
   injectChatRefs,

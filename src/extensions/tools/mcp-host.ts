@@ -1,4 +1,4 @@
-/** Serves chat's tool registry to coding agents over MCP; writes run with `approval: 'caller'`. */
+/** Serves chat's tool registry to coding agents over MCP (memory is read through `find`, never written); writes run with `approval: 'caller'`. */
 
 import { runTool } from '@services/ai';
 import { mcpHostService } from '@services/mcpHost.service';

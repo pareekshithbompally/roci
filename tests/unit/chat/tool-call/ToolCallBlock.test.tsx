@@ -14,7 +14,7 @@ function part(overrides: Partial<ToolCallView>): ToolCallView {
   return {
     type: 'tool_call',
     toolCallId: 'call-1',
-    toolName: 'get_chat',
+    toolName: 'read',
     arguments: { chat_id: 's1' },
     status: 'complete',
     result: { content: 'chat body', isError: false, executionMs: 1200 },
@@ -54,7 +54,7 @@ describe('ToolCallBlock', () => {
   it('shows the failure badge on error', () => {
     render(<ToolCallBlock part={part({ status: 'error', result: { content: 'boom', isError: true, executionMs: 5 } })} />);
     expect(screen.getByText('Failed')).toBeInTheDocument();
-    expect(screen.getByText('get chat failed')).toBeInTheDocument();
+    expect(screen.getByText('Retrieving chat failed')).toBeInTheDocument();
     expect(screen.queryByText('5ms')).not.toBeInTheDocument();
   });
 

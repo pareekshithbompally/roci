@@ -16,6 +16,7 @@ import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
 import { notifyAppEvent } from '@shared/utils/appEvents';
 import { canSendDraft, chatModelOf, draftTitle } from '@features/chat/utils';
 import { errorMessage } from '@shared/utils/errors';
+import { chatPersonalization } from '@shared/utils/personalization';
 import { isShownPart, messageText } from '@shared/utils/chatParts';
 import { streamingStore } from './streamingStore';
 import type { ChatStoreState } from './chatStore';
@@ -142,6 +143,7 @@ export function createReplies(store: StoreApi<ChatStoreState>, sessions: Session
         prompt: {
           meetingCount: (await queryClient.fetchQuery(itemCountsQuery)).meetings,
           timeContext: formatChatTimeContext(),
+          personalization: await chatPersonalization(settings),
         },
         settings,
         providers,

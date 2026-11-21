@@ -1,7 +1,6 @@
 /** Built-in tools from one zod schema each: the model sees its JSON Schema, and every call (chat or an MCP agent) is
  *  checked against it before running, so a malformed call returns an error the model can read and correct. */
 
-import { localDayKey } from '@shared/utils/localDate';
 import { z } from 'zod';
 import { Temporal } from 'temporal-polyfill';
 import type { JSONSchema, ToolContext, ToolDefinition, ToolResult, ToolResultMeta } from './types';
@@ -65,17 +64,13 @@ export const localDateTime = z
 export const idFrom = (source: string, what?: string) =>
   z.string().trim().min(1).describe([what, `Copy it exactly from ${source}.`].filter(Boolean).join(' '));
 
-/** Free text the model writes. */
-/** How a to-do change happens in Roci's chat, said the same way by every to-do tool (the same descriptions go to MCP agents,
- *  whose changes save at once, so it names chat). */
+/** How a to-do change happens in Roci's chat (the same description goes to MCP agents, whose changes save at once, so it
+ *  names chat). */
 export const CONFIRMED_ON_A_CARD =
   "In Roci's chat the user confirms it on a card before it is saved: there, say you proposed it, never that it is done.";
 
+/** Free text the model writes. */
 export const text = (description: string) => z.string().trim().min(1).describe(description);
-
-/** A page size with its bounds and default. */
-export const limit = (fallback: number, max: number) =>
-  z.coerce.number().int().min(1).max(max).default(fallback).describe(`How many to return (1–${max}).`);
 
 /** Whether a local date and time (as `localDateTime` takes it) is already past here. */
 export function isPast(local: string): boolean {
@@ -101,11 +96,6 @@ export function fail(content: string): ToolResult {
 /** `Wed, Nov 18, 2026`: unambiguous for models, with the weekday for "last Tuesday". */
 export function toolDate(ms: number): string {
   return new Date(ms).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-/** `2026-11-18`, the day `ms` falls on here. */
-export function localDay(ms: number): string {
-  return localDayKey(new Date(ms));
 }
 
 /** `2026-11-18T09:00`, the time `ms` reads here: the same form the tools take. */

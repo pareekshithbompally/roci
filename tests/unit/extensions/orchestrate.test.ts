@@ -33,6 +33,7 @@ vi.mock('@extensions/tools', () => ({
   loadMcpTools: async () => [],
   generateImageTool: vi.fn(),
   GENERATE_IMAGE_TOOL: 'generate_image',
+  suggestMemoryTool: { name: 'suggest_memory' },
 }));
 
 const catalog = vi.hoisted(() => ({ loaded: true, fetches: true }));

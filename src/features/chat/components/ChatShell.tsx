@@ -10,6 +10,7 @@ import { useAppActions } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { ChatMessage, loadingStatusOf } from './message';
 import TodoConfirmationBanner from './TodoConfirmationBanner';
+import { MemoryConfirmationBanner } from './MemoryConfirmationBanner';
 import ToolApprovalBanner from './ToolApprovalBanner';
 import type { ActionProps, CitationHandlers } from './message';
 import { ChatInput } from './ChatInput';
@@ -249,7 +250,8 @@ export const ChatShell: React.FC<ChatShellProps> = ({
         transition={ANIMATION_CONFIG.chat.composerGlide}
       >
         <ToolApprovalBanner />
-        <TodoConfirmationBanner />
+        <TodoConfirmationBanner chatId={sessionId} />
+        <MemoryConfirmationBanner chatId={sessionId} />
         <ChatInput
           value={chatInput}
           onChange={setInput}

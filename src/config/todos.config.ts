@@ -9,4 +9,21 @@ export const TODOS_CONFIG = {
   add: 'Add to-do',
   /** To-dos that aren't from a meeting: their group in the list, and their reminder's title. */
   general: 'General',
+  /** The card above the chat box for to-dos the AI proposed, and its edit sheet. */
+  proposal: {
+    toConfirm: (n: number) => `${n} ${n === 1 ? 'to-do' : 'to-dos'} to confirm`,
+    saved: (n: number) => `${n} ${n === 1 ? 'to-do' : 'to-dos'} saved`,
+    confirm: 'Confirm',
+    confirmAll: (n: number) => `Confirm All (${n})`,
+    cancel: 'Cancel',
+    done: 'Done',
+    edit: 'Edit To-do',
+    text: 'To-do',
+    due: 'Due Date',
+    reminder: 'Reminder',
+    owner: 'Owner',
+    dueShort: 'Due',
+    reminderShort: 'Reminder',
+    verbs: { delete: 'Delete', done: 'Mark done', reopen: 'Reopen', update: 'Update' },
+  },
 } as const;

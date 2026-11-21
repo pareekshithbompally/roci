@@ -81,7 +81,7 @@ export interface ToolResultMeta {
   toolName: string;
   executionMs: number;
   resultCount?: number;
-  /** UI-only citation cards to surface after search_meetings runs */
+  /** UI-only citation cards: the meetings a find or read drew on */
   citations?: MeetingCitation[];
   /** UI-only: an image the tool made, shown in the reply where the tool ran (generate_image). */
   image?: GeneratedImage;

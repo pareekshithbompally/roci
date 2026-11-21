@@ -18,8 +18,8 @@ export const MAX_TRANSCRIPT_FOR_LLM = 4_000;
 
 // ── Tool-specific limits ──
 
-/** Max messages returned by get_chat tool */
+/** Most messages read reads back from a chat */
 export const MAX_CHAT_MESSAGES_FOR_LLM = 50;
 
-/** Most to-dos list_todos returns */
+/** Most to-dos find returns */
 export const MAX_TODOS_FOR_LLM = 50;

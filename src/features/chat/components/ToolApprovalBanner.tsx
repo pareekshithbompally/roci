@@ -14,7 +14,7 @@ const ToolApprovalBanner: React.FC = () => {
   const queued = pending.length - 1;
 
   return (
-    <div className="px-12 pb-1.5">
+    <div className="pb-1.5">
       <Surface
         variant="field"
         radius="xl"

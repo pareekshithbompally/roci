@@ -6,6 +6,7 @@ import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { CHAT_TITLE_MAX_CHARS, SUGGESTION_COUNT } from '@config/chat.config';
 import { generateStructured } from './structured';
 import { exchangeText } from './promptText';
+import { promptPersonalization } from '@shared/utils/personalization';
 
 export interface ChatExtras {
   /** Absent when not asked for or left empty. */
@@ -30,7 +31,7 @@ export async function generateChatExtras(options: {
   const reply: { title?: string; suggestions?: string[] } = await generateStructured({
     job: 'chatExtras',
     model: options.resolved,
-    instructions: chatExtrasPrompt(want, tools),
+    instructions: chatExtrasPrompt(want, tools, promptPersonalization()),
     prompt: exchangeText(options.question, options.reply),
     schema: chatExtrasSchema(want),
     usage: { category: 'chat-extras', sessionId: options.sessionId },

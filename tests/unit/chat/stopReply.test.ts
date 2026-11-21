@@ -10,6 +10,9 @@ vi.mock('@shared/utils/modelResolver', () => ({ resolveChatModel: () => ({ provi
 vi.mock('@extensions/context-pipeline', () => ({ contextPipeline: { resolve: async () => ({ text: '' }) } }));
 vi.mock('@services/ai/chatExtras', () => ({ generateChatExtras: async () => ({ suggestions: [] }) }));
 vi.mock('@extensions/usage', () => ({ logUsage: async () => undefined }));
+vi.mock('@shared/query/memories', () => ({
+  memoriesQuery: { queryKey: ['memories'], queryFn: async () => ({ entities: [], memories: [] }) },
+}));
 vi.mock('@shared/query/items', () => ({
   itemCountsQuery: { queryKey: ['meetings', 'items', 'counts'], queryFn: async () => ({ meetings: 0, chats: 0 }) },
   itemEdits: { rename: async () => undefined, remove: async () => undefined },

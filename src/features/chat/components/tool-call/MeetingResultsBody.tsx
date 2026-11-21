@@ -2,6 +2,7 @@ import React from 'react';
 import { Surface, Text } from '@shared/ui';
 import type { ToolCallView } from './toolCallView';
 import { DefaultToolBody } from './DefaultToolBody';
+import { ToolParameters } from './ToolParameters';
 
 export interface MeetingResultRow {
   title: string;
@@ -10,14 +11,14 @@ export interface MeetingResultRow {
   id?: string;
 }
 
-// Line shapes written by search-meetings.tool.ts and list-meetings.tool.ts.
-/** search_meetings: `1. "Title" (Jan 5, 2026)` */
+// Line shapes written by find.tool.ts for meetings: a search, and a list (no query).
+/** search: `1. "Title" (Jan 5, 2026)` */
 const SEARCH_HEAD = /^\d+\. "(.*)" \(([^)]*)\)$/;
-/** list_meetings: `1. "Title" — Jan 5, 2026 — ID: abc` */
+/** list: `1. "Title" — Jan 5, 2026 — ID: abc` */
 const LIST_ROW = /^\d+\. "(.*)" — (.+) — ID: (.+)$/;
-/** search_meetings: `   Relevance: high | Match: "snippet..."` */
+/** search: `   Relevance: high | Match: "snippet..."` */
 const MATCH_LINE = /Match: "(.*)"$/;
-/** search_meetings: `   Meeting ID: abc` */
+/** search: `   Meeting ID: abc` */
 const ID_LINE = /^Meeting ID: (.+)$/;
 
 function headRow(line: string): MeetingResultRow | undefined {
@@ -59,13 +60,16 @@ function MeetingRow({ row }: { row: MeetingResultRow }) {
   );
 }
 
-/** search_meetings / list_meetings results as a meeting list; raw Input/Output when unparseable. */
+/** A meeting find's results as a meeting list, with its parameters; the default body when unparseable. */
 export const MeetingResultsBody: React.FC<{ part: ToolCallView }> = ({ part }) => {
   const rows = part.result && !part.result.isError ? parseMeetingResults(part.result.content) : [];
   if (rows.length === 0) return <DefaultToolBody part={part} />;
   return (
-    <Surface as="ul" className="flex flex-col max-h-48 overflow-y-auto">
-      {rows.map((row, i) => <MeetingRow key={row.id ?? i} row={row} />)}
-    </Surface>
+    <div className="flex flex-col gap-2">
+      <Surface as="ul" className="flex flex-col max-h-48 overflow-y-auto">
+        {rows.map((row, i) => <MeetingRow key={row.id ?? i} row={row} />)}
+      </Surface>
+      <ToolParameters part={part} />
+    </div>
   );
 };

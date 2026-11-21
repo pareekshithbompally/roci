@@ -11,15 +11,15 @@ export async function findMeeting(id: string): Promise<HistoryItem | undefined> 
 }
 
 export function meetingNotFound(id: string): ToolResult {
-  return fail(`No meeting has the ID "${id}". Get meeting IDs from list_meetings or search_meetings.`);
+  return fail(`No meeting has the ID "${id}". Get meeting IDs from find in meetings.`);
 }
 
 export function todoNotFound(id: string): ToolResult {
-  return fail(`No to-do has the id "${id}". Get to-do ids from list_todos.`);
+  return fail(`No to-do has the id "${id}". Get to-do ids from find in todos.`);
 }
 
-/** `- [ ] Book flights (due 2026-11-20, owner Sam, reminder 2026-11-19T09:00) — id: …`: the id update_todo and
- *  delete_todo take, and dates in the form they take them. */
+/** `- [ ] Book flights (due 2026-11-20, owner Sam, reminder 2026-11-19T09:00) — id: …`: the id suggest_todo takes, and
+ *  dates in the form it takes them. */
 export function todoLine(todo: TodoEntry): string {
   const details = [
     todo.dueDate && `due ${todo.dueDate.slice(0, 10)}`,

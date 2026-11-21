@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
-import { day, defineTool, isPast, limit, localDateTime, ok, text } from '@extensions/tools/contract';
+import { day, defineTool, isPast, localDateTime, ok, text } from '@extensions/tools/contract';
 
 const run = vi.fn(async (input: unknown) => ok(JSON.stringify(input)));
 const tool = defineTool({
   name: 'probe',
   description: 'test',
-  input: z.object({ text: text('t'), limit: limit(5, 20), due_date: day.optional(), reminder_at: localDateTime.optional() }),
+  input: z.object({ text: text('t'), limit: z.coerce.number().int().min(1).max(20).default(5), due_date: day.optional(), reminder_at: localDateTime.optional() }),
   execute: run,
 });
 const ctx = { approval: 'chat' as const };

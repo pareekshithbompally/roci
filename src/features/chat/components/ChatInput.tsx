@@ -1,9 +1,11 @@
-/** Chat composer: send, shortcuts, @ mentions, attachments, web search, and voice input. */
+/** Chat composer: send, shortcuts, @ mentions, / saved prompts, attachments, web search, and voice input. */
 
 import React, { KeyboardEvent, useRef, useEffect, useState, useCallback } from 'react';
 import { ArrowUp, Square, Plus, Mic } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { MeetingMentionPopup } from './MeetingMentionPopup';
+import { SavedPromptPopup } from './SavedPromptPopup';
+import type { SavedPrompt } from '@config/personalization.config';
 import { ContextChips } from './ContextChips';
 import { ModelPicker } from './ModelPicker';
 import { ToolsPicker } from './tools/ToolsPicker';
@@ -109,11 +111,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 }) => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  /** Where the "@" or "/" that opened the popup sits in the draft. */
+  const triggerAt = useRef(-1);
   // Only what the chat's model takes is offered.
   const attach = useAttachOptions();
   // The composer's one tool catalog: the Tools menu (or the phone's sheet) and the context ring read it.
   const toolCatalog = useToolCatalog();
-  const [showMentionPopup, setShowMentionPopup] = useState(false);
+  /** The one popover over the chat box: "@" meetings or "/" saved prompts. */
+  const [popup, setPopup] = useState<'mention' | 'prompt' | null>(null);
   // One hint per composer (picked when it opens): it varies between chats without a timer waking the app.
   const [hintIndex] = useState(() => Math.floor(Math.random() * PLACEHOLDER_HINTS.length));
   // Phone (iOS): one row — + (opens the Add sheet) · the field · mic or send; the top bar owns the model.
@@ -142,9 +147,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     const newValue = e.target.value;
     const cursorPos = e.target.selectionStart || 0;
 
-    // Check if @ was just typed
-    if (newValue[cursorPos - 1] === '@' && (cursorPos === 1 || newValue[cursorPos - 2] === ' ' || newValue[cursorPos - 2] === '\n')) {
-      setShowMentionPopup(true);
+    // "@" after a space or line start picks meetings; "/" at a line start picks a saved prompt.
+    const typed = newValue[cursorPos - 1];
+    const before = newValue[cursorPos - 2];
+    const lineStart = cursorPos === 1 || before === '\n';
+    const opens = typed === '@' && (lineStart || before === ' ') ? 'mention' : typed === '/' && lineStart ? 'prompt' : null;
+    if (opens) {
+      triggerAt.current = cursorPos - 1;
+      setPopup(opens);
     }
 
     onChange(newValue);
@@ -162,18 +172,26 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       onMeetingSelect([...selectedMeetings, meeting]);
     }
 
-    // Remove the @ from input and close popup
-    const atIndex = value.lastIndexOf('@');
-    if (atIndex !== -1) {
-      onChange(value.slice(0, atIndex) + value.slice(atIndex + 1));
-    }
+    onChange(replaceTrigger('@', ''));
     closeMentionPopup();
   };
 
   // Close popup (state only — focus is restored by Radix onCloseAutoFocus)
   const closeMentionPopup = useCallback(() => {
-    setShowMentionPopup(false);
+    setPopup(null);
   }, []);
+
+  // A saved prompt takes the place of the "/" that opened the menu.
+  const handlePromptSelect = (saved: SavedPrompt) => {
+    onChange(replaceTrigger('/', saved.prompt));
+    closeMentionPopup();
+  };
+
+  // The "@" or "/" that opened the popup, replaced by `insert` (appended instead if the draft no longer has it there).
+  const replaceTrigger = (trigger: string, insert: string) => {
+    const at = triggerAt.current;
+    return value[at] === trigger ? value.slice(0, at) + insert + value.slice(at + 1) : value + insert;
+  };
 
   // Restore focus to the textarea (called by popover close lifecycle)
   const focusInput = useCallback(() => {
@@ -207,7 +225,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // While mention popup is open, don't process sends from the textarea
-    if (showMentionPopup) return;
+    if (popup) return;
     // iOS: Return is a new line; the send button sends.
     if (phone) return;
 
@@ -300,7 +318,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     <div className={cn('relative px-4 py-2', LAYOUT.chatColumn, phone && 'flex items-end gap-2')}>
       {/* Phone (Messages): the round + stands apart from the capsule field; while dictating the pill has the row alone. */}
       {phone && !voiceActive && <IconButton icon={Plus} label="Add" size="fab" variant="bar" onClick={() => setAddOpen(true)} />}
-      <Popover anchored open={showMentionPopup} onOpenChange={(open) => { if (!open) closeMentionPopup(); }}>
+      <Popover anchored open={popup !== null} onOpenChange={(open) => { if (!open) closeMentionPopup(); }}>
         <PopoverAnchor asChild>
           {/* Composer never unmounts (an exit flashes box chrome); the pill is an overlay that moves no layout. */}
           <Surface
@@ -353,8 +371,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           </Surface>
         </PopoverAnchor>
 
-        {/* Meeting Mention Popup (renders as PopoverContent) */}
-        <MeetingMentionPopup selectedIds={selectedMeetings.map((m) => m.id)} onSelect={handleMeetingSelect} onClose={focusInput} />
+        {/* "@" meetings or "/" saved prompts (each renders as PopoverContent) */}
+        {popup === 'prompt'
+          ? <SavedPromptPopup onSelect={handlePromptSelect} onClose={focusInput} />
+          : <MeetingMentionPopup selectedIds={selectedMeetings.map((m) => m.id)} onSelect={handleMeetingSelect} onClose={focusInput} />}
       </Popover>
 
       {phone && (

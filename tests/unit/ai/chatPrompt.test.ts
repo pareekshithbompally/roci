@@ -3,7 +3,7 @@ import { buildChatSystemPrompt, formatChatTimeContext, formatSentAt, formatTempo
 import type { ChatModalities, ChatToolset } from '@core/ai/prompts';
 
 const TEXT: ChatModalities = { input: ['text'], output: ['text'] };
-const ALL: ChatToolset = { meetings: true, webSearch: true, image: true, apps: ['Linear', 'Notion'] };
+const ALL: ChatToolset = { meetings: true, webSearch: true, image: true, apps: ['Linear', 'Notion'], memory: false };
 const base = { meetingCount: 42, timeContext: formatChatTimeContext() };
 const prompt = (tools: Partial<ChatToolset> = {}, extra: { meetingCount?: number; modalities?: ChatModalities } = {}) =>
   buildChatSystemPrompt({ ...base, modalities: TEXT, ...extra, tools: { ...NO_TOOLS, ...tools } });
@@ -69,7 +69,7 @@ describe('buildChatSystemPrompt', () => {
 
   it('meeting tools bring the meetings step; how to-do changes are confirmed is said by the to-do tools themselves', () => {
     const text = prompt({ meetings: true });
-    expect(text).toContain('search or list to find it, open it, then answer');
+    expect(text).toContain("find it (in the right place), read it only when the snippets don't answer, then answer");
     expect(text).not.toContain('on a card');
   });
 

@@ -2,19 +2,18 @@
  *  already, has it saved at once. Either way it is written by the one commit path the card uses. */
 
 import { commitTodoProposal, todoProposalStore } from '@features/chat';
-import type { TodoProposal } from '@features/chat';
+import type { TodoChange } from '@features/chat';
 import { isPast, localDateTimeOf, ok, fail } from './contract';
 import type { ToolContext, ToolResult } from './types';
 
-export type TodoChange = Omit<TodoProposal, 'id' | 'status'>;
+export type { TodoChange };
 
 export async function submitTodoChange(change: TodoChange, context: ToolContext, summary: string): Promise<ToolResult> {
-  const proposal: TodoProposal = { ...change, id: crypto.randomUUID(), status: 'pending' };
   if (context.approval === 'chat') {
-    todoProposalStore.propose(proposal);
+    todoProposalStore.propose({ ...change, chatId: context.sessionId ?? null });
     return ok(`Proposed: ${summary}.\nThe user confirms it on the card below the chat; it is not saved until they do.`);
   }
-  await commitTodoProposal(proposal);
+  await commitTodoProposal(change);
   return ok(`Done: ${summary}.`);
 }
 

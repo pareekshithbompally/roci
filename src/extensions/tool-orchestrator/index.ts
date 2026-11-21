@@ -15,7 +15,8 @@ import { CHAT_CATALOG_COPY } from '@config/chat.config';
 import { followModelLoad, generationStats, promptProgress } from '@services/ai/llamaServer';
 import { listStyleOf } from '@services/providers/listers';
 import { followMlxLoad } from '@services/mlx.service';
-import { toolRegistry, loadMcpSettings, loadMcpTools, generateImageTool, GENERATE_IMAGE_TOOL } from '@extensions/tools';
+import { toolRegistry, loadMcpSettings, loadMcpTools, generateImageTool, GENERATE_IMAGE_TOOL, suggestMemoryTool } from '@extensions/tools';
+import { memoryEnabled } from '@shared/utils/personalization';
 import type { McpSettings } from '@config/mcp.config';
 import { hasImageModel } from '@services/ai/image';
 import { chatToolPreferences } from '@config/chatTools.config';
@@ -23,7 +24,7 @@ import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { extractTokenUsage } from '@services/ai/types';
 import type { StreamProgress, TokenUsage } from '@services/ai/types';
-import type { ChatPart, ChatUIMessage, ContextTokens } from '@shared/types';
+import type { AppSettings, ChatPart, ChatUIMessage, ContextTokens } from '@shared/types';
 import { errorMessage } from '@shared/utils/errors';
 import { messageText } from '@shared/utils/chatParts';
 import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
@@ -71,22 +72,30 @@ interface ChatTools {
   toolset: ChatToolset;
 }
 
+/** The built-in tool groups the user's settings turn on, before the model and connected apps are known (chat sends these to
+ *  a model that takes tools; the prompt preview shows them). */
+export function selectedToolset(settings: AppSettings): Pick<ChatToolset, 'meetings' | 'image' | 'memory'> {
+  const prefs = chatToolPreferences(settings);
+  return { meetings: prefs.meetingTools, image: prefs.imageGeneration && hasImageModel(settings), memory: memoryEnabled(settings) };
+}
+
 /** Roci's tools go only to a model that takes tools; the provider's own web search goes either way. */
 async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet | undefined, mcpSettings: McpSettings, takesTools: boolean): Promise<ChatTools> {
   const webSearch = !!webSearchTools;
   const none: ChatTools = { tools: webSearchTools, toolset: { ...NO_TOOLS, webSearch } };
   if (!takesTools) return none;
   const { settings, providers } = options;
-  const prefs = chatToolPreferences(settings);
-  const reservedNames = new Set([...toolRegistry.getToolNames(), GENERATE_IMAGE_TOOL]);
-  const meetingTools = prefs.meetingTools ? toolRegistry.getTools() : [];
-  const imageTools = hasImageModel(settings) && prefs.imageGeneration ? [generateImageTool({ settings, providers })] : [];
-  const mcpTools = await loadMcpTools(reservedNames, mcpSettings, new Set(prefs.disabledMcpTools));
-  const definitions = [...meetingTools, ...imageTools, ...mcpTools];
+  const on = selectedToolset(settings);
+  const memoryTools = on.memory ? [suggestMemoryTool] : [];
+  const reservedNames = new Set([...toolRegistry.getToolNames(), GENERATE_IMAGE_TOOL, ...memoryTools.map((t) => t.name)]);
+  const meetingTools = on.meetings ? toolRegistry.getTools() : [];
+  const imageTools = on.image ? [generateImageTool({ settings, providers })] : [];
+  const mcpTools = await loadMcpTools(reservedNames, mcpSettings, new Set(chatToolPreferences(settings).disabledMcpTools));
+  const definitions = [...meetingTools, ...imageTools, ...memoryTools, ...mcpTools];
   if (definitions.length === 0) return none;
   const rociTools = toExecutableTools(definitions, { signal: options.signal, approval: 'chat', sessionId: options.sessionId });
   const apps = [...new Set(mcpTools.flatMap((t) => (t.source ? [t.source] : [])))];
-  const toolset = { meetings: meetingTools.length > 0, webSearch, image: imageTools.length > 0, apps };
+  const toolset = { meetings: meetingTools.length > 0, webSearch, image: imageTools.length > 0, apps, memory: memoryTools.length > 0 };
   return { tools: { ...rociTools, ...webSearchTools }, toolset };
 }
 

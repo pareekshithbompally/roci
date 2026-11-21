@@ -78,3 +78,17 @@ export function toolCallView(part: ChatToolPart): ToolCallView {
     result,
   };
 }
+
+/** The argument that says what a built-in tool call does: where `find` looks, what a suggestion does. */
+const MODE_ARGUMENT: Record<string, string> = { find: 'in', suggest_todo: 'action', suggest_memory: 'action' };
+
+/** One key per thing a call does, for its title, glyph and body: `find.meetings` (a search), `find.meetings.list` (no query),
+ *  `read.meeting`, `suggest_todo.add`; any other tool is its name. */
+export function toolKey({ toolName, arguments: args, source }: ToolCallView): string {
+  if (source) return toolName;
+  if (toolName === 'read') return args.chat_id ? 'read.chat' : args.entity_id ? 'read.entity' : 'read.meeting';
+  const mode = MODE_ARGUMENT[toolName];
+  if (!mode) return toolName;
+  const listing = toolName === 'find' && !args.query ? '.list' : '';
+  return `${toolName}.${String(args[mode])}${listing}`;
+}
