@@ -4,6 +4,7 @@
 
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { toAiError } from '@services/ai/errors';
 import { adapterFor } from './catalog';
 import { speechModelFor } from './pipeline';
 import { STREAMING, type LiveStream } from './streaming';
@@ -27,10 +28,26 @@ export async function tryLiveStreams(selection: SpeechSelection, providers: Mode
   return null;
 }
 
-/** Opens one stream; rejects when the model can't stream. */
+/** A stream whose failures read as one plain sentence (the one AI error translator), whatever the engine. */
+function translated(stream: LiveStream, provider: string): LiveStream {
+  const plain = (error: unknown): never => {
+    throw toAiError(error, 'speech', provider);
+  };
+  return {
+    feed: (pcm) => stream.feed(pcm).catch(plain),
+    finish: () => stream.finish().catch(plain),
+    cancel: () => stream.cancel(),
+  };
+}
+
+/** Opens one stream; rejects when the model can't stream. Its failures, opening or later, read as plain sentences. */
 export async function openLiveStream(selection: SpeechSelection, providers: ModelProvider[]): Promise<LiveStream> {
-  const engine = STREAMING[adapterFor(selection, providers) ?? 'multimodal'];
-  if (!engine) throw new Error(`${selection.model} doesn't stream.`);
-  const { model, resolved } = await speechModelFor(selection, providers);
-  return engine.open({ model, resolved, language: TRANSCRIPTION_CONFIG.language });
+  try {
+    const engine = STREAMING[adapterFor(selection, providers) ?? 'multimodal'];
+    if (!engine) throw new Error(`${selection.model} doesn't stream.`);
+    const { model, resolved } = await speechModelFor(selection, providers);
+    return translated(await engine.open({ model, resolved, language: TRANSCRIPTION_CONFIG.language }), selection.provider);
+  } catch (error: unknown) {
+    throw toAiError(error, 'speech', selection.provider);
+  }
 }

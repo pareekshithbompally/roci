@@ -1,7 +1,7 @@
 /** Every AI failure as one kind and one plain sentence saying what happened and what to do — whatever the provider (cloud
  *  SDK, Apple Intelligence, MLX). The sentence is what the user sees; the kind names the failure for logs and tests. */
 
-import { APICallError, NoObjectGeneratedError } from 'ai';
+import { APICallError, NoObjectGeneratedError, UnsupportedFunctionalityError } from 'ai';
 import { appleFailureError, isContextWindowError } from '@services/ai/apple/contextWindow';
 import { isAppleError } from '@services/ai/apple/appleIntelligence.service';
 import { getProviderTitle } from '@shared/utils/provider.utils';
@@ -20,9 +20,9 @@ export class AiError extends Error {
 }
 
 /** What the call was for: names the setting to change in the sentence. */
-export type AiJob = 'summary' | 'liveNotes' | 'chatExtras';
+export type AiJob = 'summary' | 'liveNotes' | 'chatExtras' | 'speech';
 
-const SETTING: Record<AiJob, string> = { summary: 'Summary model', liveNotes: 'Summary model', chatExtras: 'titles & follow-ups model' };
+const SETTING: Record<AiJob, string> = { summary: 'Summary model', liveNotes: 'Summary model', chatExtras: 'titles & follow-ups model', speech: 'speech model' };
 
 /** Providers' words for a prompt that didn't fit (Apple says it in its own payload). */
 const CONTEXT_WORDS = /context (length|window)|maximum context|too many tokens|prompt is too long|input is too long|exceeds the (model'?s )?context/i;
@@ -54,11 +54,15 @@ export function toAiError(error: unknown, job: AiJob, provider: string): AiError
   if (error instanceof AiError) return error;
   if (isAbort(error)) return new AiError('cancelled', 'Stopped.', { cause: error });
   if (APICallError.isInstance(error)) return apiCallError(error, job, provider);
+  // the model can't do what was asked (a live-only speech model given a recording, a file-only one asked to stream)
+  if (UnsupportedFunctionalityError.isInstance(error)) {
+    return new AiError('setup', `${getProviderTitle(provider)} doesn't support ${error.functionality}. Choose another ${SETTING[job]} in Settings › Default Models.`, { cause: error });
+  }
   if (NoObjectGeneratedError.isInstance(error)) {
     return new AiError('badReply', `The ${SETTING[job]} replied in a form Roci couldn't read. Try again, or choose another in Settings › Default Models.`, { cause: error });
   }
-  // after the SDK's own errors: an Apple payload is any coded error, so it is recognised last
-  if (isAppleError(error) || isAppleError((error as { cause?: unknown } | null)?.cause)) {
+  // after the SDK's own errors: an Apple payload is any coded error, so it is recognised last (speech engines word their own codes)
+  if (job !== 'speech' && (isAppleError(error) || isAppleError((error as { cause?: unknown } | null)?.cause))) {
     const appleJob = job === 'summary' ? 'summary' : 'model';
     return new AiError(isContextWindowError(error) ? 'contextWindow' : 'device', errorMessage(appleFailureError(error, appleJob)), { cause: error });
   }

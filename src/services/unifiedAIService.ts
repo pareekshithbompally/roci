@@ -9,7 +9,7 @@ import { MAX_AUDIO_SIZE_BYTES, MAX_AUDIO_SIZE_MB, MIN_AUDIO_SIZE_BYTES, WAV_HEAD
 import { recordUsage } from '@extensions/usage';
 import { modalitiesService } from '@services/modalities';
 import { requireSummaryModel } from '@services/ai/jobModel';
-import { AiError } from '@services/ai/errors';
+import { AiError, toAiError } from '@services/ai/errors';
 import type { MeetingContext, UserNote } from '@core/ai/prompts/transcription.prompt';
 import { store } from '@services/db';
 import type { AnalysisResult } from '@core/ai/schemas/transcription.schema';
@@ -65,7 +65,7 @@ export interface TranscribeAudioOptions extends TranscribeOptions {
 }
 
 /** The one way audio becomes text, for whole recordings and live chunks alike: checks the speech model is chosen and on,
- *  transcribes, and records usage. */
+ *  transcribes, and records usage; a failure reads as one plain sentence (the one AI error translator). */
 export async function transcribeAudio(
   audioBlob: Blob,
   settings: AppSettings,
@@ -76,7 +76,9 @@ export async function transcribeAudio(
   assertAudioSize(audioBlob, silence === 'error');
   // An audio model chosen via models.dev resolves its adapter from the catalog.
   await modalitiesService.ensureLoaded();
-  const result = await runTranscription(audioBlob, selection, providers, options);
+  const result = await runTranscription(audioBlob, selection, providers, options).catch((error: unknown) => {
+    throw toAiError(error, 'speech', selection.provider);
+  });
   if (result.usage) {
     recordUsage('transcription', { provider: selection.provider, modelId: selection.model }, result.usage, meetingId);
   }
