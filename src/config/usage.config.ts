@@ -31,6 +31,7 @@ export const USAGE_CONFIG = {
   useCases: {
     chat: 'Chat',
     'chat-extras': 'Titles & follow-ups',
+    image: 'Images',
     summary: 'Summaries',
     liveNotes: 'Live notes',
     transcription: 'Transcription',

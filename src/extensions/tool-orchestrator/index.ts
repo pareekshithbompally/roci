@@ -84,7 +84,7 @@ async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet 
   const mcpTools = await loadMcpTools(reservedNames, mcpSettings, new Set(prefs.disabledMcpTools));
   const definitions = [...meetingTools, ...imageTools, ...mcpTools];
   if (definitions.length === 0) return none;
-  const rociTools = toExecutableTools(definitions, { signal: options.signal, approval: 'chat' });
+  const rociTools = toExecutableTools(definitions, { signal: options.signal, approval: 'chat', sessionId: options.sessionId });
   const apps = [...new Set(mcpTools.flatMap((t) => (t.source ? [t.source] : [])))];
   const toolset = { meetings: meetingTools.length > 0, webSearch, image: imageTools.length > 0, apps };
   return { tools: { ...rociTools, ...webSearchTools }, toolset };

@@ -302,6 +302,7 @@ async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTal
   return orchestrate(
     {
       messages,
+      sessionId: reply.sessionId,
       messageId: reply.messageId,
       model: resolved,
       prompt: {

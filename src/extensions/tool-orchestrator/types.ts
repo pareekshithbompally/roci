@@ -9,6 +9,8 @@ import type { ChatPromptOptions } from '@core/ai';
 /** Input options for the orchestration loop */
 export interface OrchestratorOptions {
   messages: ChatMessage[];
+  /** The chat replying: its tools record the models they call under it. */
+  sessionId: string;
   /** The id the reply's message gets. */
   messageId: string;
   /** The chat's model (a chat keeps the model of its first reply). */

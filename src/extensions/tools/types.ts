@@ -50,6 +50,8 @@ export interface ToolContext {
   signal?: AbortSignal;
   /** Who confirms a write: `chat` shows a proposal; `caller` is an MCP agent that already asked the user. */
   approval: 'chat' | 'caller';
+  /** The chat the call is part of (none for an MCP agent's call): a tool that calls a model records its usage under it. */
+  sessionId?: string;
 }
 
 // ── Tool Result (returned by executor) ──

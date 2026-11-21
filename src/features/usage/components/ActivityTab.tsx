@@ -31,6 +31,7 @@ const MEASURE_LABEL = Object.fromEntries(USAGE_CONFIG.measures.map((m) => [m.val
 const USE_CASE_GLYPH: Record<string, LucideIcon> = {
   chat: JOB_GLYPH.chat,
   'chat-extras': Lightbulb,
+  image: JOB_GLYPH.images,
   summary: JOB_GLYPH.summaries,
   liveNotes: NotebookPen,
   transcription: JOB_GLYPH.transcription,

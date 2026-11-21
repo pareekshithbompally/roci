@@ -31,6 +31,7 @@ export function generateImageTool(deps: { settings: AppSettings; providers: Mode
         settings: deps.settings,
         providers: deps.providers,
         signal: context.signal,
+        sessionId: context.sessionId,
       });
       // No file path for the model: it would echo it as a link. The image joins the reply right after this tool's row.
       return ok(

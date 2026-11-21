@@ -75,7 +75,7 @@ function replyOnce(parts: object[] = WORDS) {
 
 const callbacks = { onParts: vi.fn(), onProgress: vi.fn(), onGeneration: vi.fn() };
 const run = (settings: Partial<AppSettings>) =>
-  orchestrate({ messages: [], messageId: 'r1', model: resolved.current as never, prompt: { meetingCount: 0, timeContext: '' }, settings: settings as AppSettings, providers: [], reasoningEffort: 'provider-default' }, callbacks);
+  orchestrate({ messages: [], sessionId: 'c1', messageId: 'r1', model: resolved.current as never, prompt: { meetingCount: 0, timeContext: '' }, settings: settings as AppSettings, providers: [], reasoningEffort: 'provider-default' }, callbacks);
 
 beforeEach(() => {
   vi.clearAllMocks();
