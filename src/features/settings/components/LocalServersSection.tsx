@@ -4,18 +4,17 @@
 import React, { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useToast } from '@shared/contexts/ToastContext';
-import { LOCAL_EMPTY_HINT, LOCAL_SERVERS_FOOTER, LOCAL_SERVERS_GROUP, LOCAL_URL_DRAFT } from '@config/localServers.config';
+import { ADD_SERVER, LOCAL_EMPTY_HINT, LOCAL_SERVERS_FOOTER, LOCAL_SERVERS_GROUP, LOCAL_URL_DRAFT } from '@config/localServers.config';
 import { useLocalServers } from '@features/settings/hooks/useLocalServers';
 import { ProvidersAvatar } from '@shared/components';
 import { getProviderTitle, serverAppOf } from '@shared/utils/provider.utils';
 import { platform } from '@platform/index';
-import type { ProviderRowState } from './ProviderStatus';
+import { ProviderStatus, type ProviderRowState } from './ProviderStatus';
 import { serverHost } from '@services/providers/localServers';
 import type { LocalRow } from '@services/providers/localServers';
-import { Button, CardRow, ICON_TILE_PX, IconButton, Input, Section, Status } from '@shared/ui';
-import type { DotTone } from '@shared/ui';
+import { Button, CardRow, ICON_TILE_PX, IconButton, Input, Section } from '@shared/ui';
+import { FieldRow } from './shared';
 
-export const ADD_SERVER_TITLE = 'Add Server';
 
 function rowState(row: LocalRow): ProviderRowState {
   if (!row.saved?.active) return 'off';
@@ -32,7 +31,6 @@ function rowDetail(row: LocalRow): string {
   return serverAppOf(row.id) ? `${serverHost(row.baseUrl)} · ${modelCount(row)}` : modelCount(row);
 }
 
-const ROW_TONE: Record<ProviderRowState, DotTone> = { ready: 'success', attention: 'warning', off: 'muted' };
 
 interface AddServerFormProps {
   /** The server answered and was saved under this id. */
@@ -55,7 +53,7 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onAdded, onCancel 
       else onAdded(result.id);
     } catch (error: unknown) {
       console.error('[AddServerForm] Add failed:', error);
-      showToast('Could not add that server', 'error');
+      showToast(ADD_SERVER.failed, 'error');
     } finally {
       setIsAdding(false);
     }
@@ -63,27 +61,31 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onAdded, onCancel 
 
   return (
     <form
-      className="flex flex-wrap justify-end gap-2 pt-1"
+      className="space-y-section"
       onSubmit={(e) => {
         e.preventDefault();
         void add();
       }}
     >
-      <Input
-        autoFocus
-        type="url"
-        value={address}
-        onChange={(e) => setAddress(e.target.value)}
-        onKeyDown={(e) => e.key === 'Escape' && onCancel()}
-        aria-label="Server address"
-        className="basis-full"
-      />
-      <Button variant="ghost" size="sm" onClick={onCancel} disabled={isAdding}>
-        Cancel
-      </Button>
-      <Button type="submit" variant="primary" size="sm" disabled={isAdding || !address.trim()}>
-        {isAdding ? 'Connecting…' : 'Add'}
-      </Button>
+      <Section footer={ADD_SERVER.footer}>
+        <FieldRow title={ADD_SERVER.address}>
+          <Input
+            autoFocus
+            size="sm"
+            type="url"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            onKeyDown={(e) => e.key === 'Escape' && onCancel()}
+            aria-label={ADD_SERVER.address}
+          />
+        </FieldRow>
+      </Section>
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" size="sm" onClick={onCancel} disabled={isAdding}>{ADD_SERVER.cancel}</Button>
+        <Button type="submit" variant="primary" size="sm" disabled={isAdding || !address.trim()}>
+          {isAdding ? ADD_SERVER.adding : ADD_SERVER.add}
+        </Button>
+      </div>
     </form>
   );
 };
@@ -123,11 +125,11 @@ export const ServersSection: React.FC<ServersSectionProps> = ({ onOpen, onAdd })
           key={row.id}
           title={getProviderTitle(row.id)}
           leading={<ProvidersAvatar provider={row.id} size={ICON_TILE_PX} />}
-          status={<Status tone={ROW_TONE[rowState(row)]}>{rowDetail(row)}</Status>}
+          status={<ProviderStatus state={rowState(row)} label={rowDetail(row)} />}
           onOpen={() => openRow(row)}
         />
       ))}
-      <CardRow title={ADD_SERVER_TITLE} tone="accent" onPress={onAdd} />
+      <CardRow title={ADD_SERVER.title} tone="accent" onPress={onAdd} />
     </Section>
   );
 };

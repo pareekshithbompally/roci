@@ -92,8 +92,6 @@
   --bg-grouped-card: var(--bg-layer-2);
   /* Card and sheet corners, list row height (macOS); iOS sets its own below. */
   --radius-card: 12px;
-  /* A large app-icon tile (pane header): the macOS icon's corner, ~22% of its edge. */
-  --radius-tile: 14px;
   --radius-sheet: 16px;
   --row-min-h: 44px;
   /* List rhythm: icon-to-text gap in a row, space between groups (macOS System Settings). */

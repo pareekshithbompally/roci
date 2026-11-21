@@ -81,7 +81,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) =>
 /** Mac, iPad: the toolbar, then the header and rows in one column, at the same place on every pane and page. */
 const DesktopPage: React.FC<SettingsPageProps> = ({ pane, title, children, ...toolbar }) => (
   <div className="flex h-full flex-col">
-    <div className={cn(LAYOUT.pageGutter, LAYOUT.pageColumnFrame)}>
+    <div className={LAYOUT.pageGutter}>
       <SettingsToolbar title={title ?? paneItem(pane)?.label} {...toolbar} />
     </div>
     <PageScroll steady underTitlebar={false} fadeTop className={`min-h-0 flex-1 ${LAYOUT.pageGutter} pb-6`}>

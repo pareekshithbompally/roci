@@ -6,7 +6,8 @@ import { getProviderTitle, isLocalProviderId } from '@shared/utils/provider.util
 import { ProvidersAvatar } from '@shared/components';
 import { CardRow, ICON_TILE_PX, Section } from '@shared/ui';
 import { ProviderStatus, cloudRowState } from './ProviderStatus';
-import { ADD_SERVER_TITLE, AddServerForm, ServersSection } from './LocalServersSection';
+import { AddServerForm, ServersSection } from './LocalServersSection';
+import { ADD_SERVER } from '@config/localServers.config';
 import { ProviderDetail } from './ProviderDetail';
 import { OnDeviceDetail } from './OnDeviceDetail';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
@@ -49,9 +50,9 @@ export const ProvidersPanel: React.FC = () => {
 
   const openProvider = (id: string) => drill.open(providerPage(id));
   const addServerPage: DrillPage = {
-    title: ADD_SERVER_TITLE,
+    title: ADD_SERVER.title,
     render: (close) => (
-      <SettingsPage title={ADD_SERVER_TITLE} onBack={close}>
+      <SettingsPage title={ADD_SERVER.title} onBack={close}>
         <AddServerForm onAdded={(id) => { close(); openProvider(id); }} onCancel={close} />
       </SettingsPage>
     ),

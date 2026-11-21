@@ -120,6 +120,17 @@ export const LOCAL_EMPTY_HINT = platform.runsLocalServers
   ? 'Nothing running? Start Ollama or LM Studio, then rescan, or add a server by its address.'
   : 'Add a server you run, such as one on your Mac over Tailscale, by its address.';
 
+/** Providers › Add Server: its page's words. */
+export const ADD_SERVER = {
+  title: 'Add Server',
+  address: 'Address',
+  footer: 'Roci asks the server for its models before saving it, so a typo or a server that isn’t running is caught here.',
+  cancel: 'Cancel',
+  add: 'Add',
+  adding: 'Connecting…',
+  failed: 'Could not add that server',
+} as const;
+
 /** "Add server" starts with the scheme filled in (and this device's host where servers run here). */
 export const LOCAL_URL_DRAFT = platform.runsLocalServers ? 'http://localhost:' : 'https://';
 

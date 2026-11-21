@@ -19,6 +19,7 @@ import { fillSeries, measureOf, modelName, providerName, splitEntries, toolName,
 import { bucketLabel, formatMeasure, formatMs, formatTick, formatTokens } from '@features/usage/model/format';
 import { useUsageWindow } from '@features/usage/hooks/useUsageQueries';
 import { useSetUsageRange, useUsageRange } from '@features/usage/stores/usageStore';
+import { ModelCell } from './ModelCell';
 
 const COPY = USAGE_CONFIG.copy;
 const COL = COPY.columns;
@@ -146,15 +147,7 @@ const MODEL_COLUMNS: ReadonlyArray<DataColumn<ProviderModelBreakdown>> = [
     key: 'model',
     header: COL.model,
     sortValue: (m) => modelName(m.model),
-    cell: (m) => (
-      <div className="flex min-w-0 items-center gap-2">
-        <ModelIcon provider={m.provider} modelId={m.model} size={C.rowIcon} />
-        <div className="flex min-w-0 flex-col">
-          <Text truncate>{modelName(m.model)}</Text>
-          <Text variant="caption" tone="muted" truncate>{providerName(m.provider)}</Text>
-        </div>
-      </div>
-    ),
+    cell: (m) => <ModelCell provider={m.provider} modelId={m.model} name={modelName(m.model)} caption={providerName(m.provider)} />,
   },
   { key: 'requests', header: COL.requests, align: 'end', sortValue: (m) => m.calls, cell: (m) => figure(formatMeasure('requests', m.calls)) },
   { key: 'input', header: COL.input, align: 'end', sortValue: (m) => m.input_tokens, cell: (m) => figure(formatTokens(m.input_tokens)) },

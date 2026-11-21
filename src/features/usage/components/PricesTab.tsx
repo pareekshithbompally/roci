@@ -5,14 +5,13 @@ import React, { useMemo, useState } from 'react';
 import { ChartPie } from 'lucide-react';
 import { DataTable, Input, Section, Tabs, Text, type DataColumn } from '@shared/ui';
 import { ScreenState } from '@shared/components';
-import { UI_CONFIG } from '@config/ui.config';
-import { ModelIcon } from '@shared/components';
 import { USAGE_CONFIG, type PriceScope } from '@config/usage.config';
 import { getModelDisplayName } from '@shared/utils/provider.utils';
 import type { ModelPrice } from '@shared/types/modelProviders';
 import { usePriceRows } from '@features/usage/hooks/useModelPrices';
 import { parsePrice, type PriceRow, type PriceText } from '@features/usage/model/prices';
 import { modelName, providerName } from '@features/usage/model/series';
+import { ModelCell } from './ModelCell';
 
 const COPY = USAGE_CONFIG.copy.prices;
 type Rate = keyof Required<ModelPrice>;
@@ -63,20 +62,17 @@ const inScope = (scope: PriceScope) => (row: PriceRow) =>
 
 const columns = (onSave: SavePrice): ReadonlyArray<DataColumn<PriceRow>> => [
   {
-    // The model over "Provider · where its price comes from" (as the Models table), so the rates keep the row's width.
+    // The model over "Provider · where its price comes from", so the rates keep the row's width.
     key: 'model',
     header: COPY.model,
     sortValue: (row) => modelName(row.modelId),
     cell: (row) => (
-      <div className="flex min-w-0 items-center gap-2">
-        <ModelIcon provider={row.provider} modelId={row.modelId} size={UI_CONFIG.chart.rowIcon} />
-        <div className="flex min-w-0 flex-col">
-          <Text truncate>{row.model ? getModelDisplayName(row.model) : modelName(row.modelId)}</Text>
-          <Text variant="caption" tone="muted" truncate>
-            {providerName(row.provider)} · <Text as="span" variant="caption" tone={row.source === 'unknown' ? 'warning' : 'muted'}>{COPY.sources[row.source]}</Text>
-          </Text>
-        </div>
-      </div>
+      <ModelCell
+        provider={row.provider}
+        modelId={row.modelId}
+        name={row.model ? getModelDisplayName(row.model) : modelName(row.modelId)}
+        caption={<>{providerName(row.provider)} · <Text as="span" variant="caption" tone={row.source === 'unknown' ? 'warning' : 'muted'}>{COPY.sources[row.source]}</Text></>}
+      />
     ),
   },
   // Keyed by the saved price, so a field shows it again after a save elsewhere (a row re-read).

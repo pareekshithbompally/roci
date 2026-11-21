@@ -9,7 +9,7 @@ import type { ModelProvider } from '@shared/types/modelProviders';
 /** On and usable (key set, server running), on but not usable yet, or off. */
 export type ProviderRowState = 'ready' | 'attention' | 'off';
 
-const ROW_DOT: Record<Exclude<ProviderRowState, 'off'>, DotTone> = { ready: 'success', attention: 'warning' };
+const ROW_TONE: Record<ProviderRowState, DotTone> = { ready: 'success', attention: 'warning', off: 'muted' };
 
 const ROW_LABEL: Record<ProviderRowState, string> = { ready: 'On', attention: 'Needs key', off: 'Off' };
 
@@ -19,7 +19,7 @@ export function cloudRowState(provider: ModelProvider): ProviderRowState {
   return providerSetting(provider, 'api-key') ? 'ready' : 'attention';
 }
 
-/** A provider's state as a dot and word. */
-export const ProviderStatus: React.FC<{ state: ProviderRowState }> = ({ state }) => (
-  <Status tone={state === 'off' ? 'muted' : ROW_DOT[state]}>{ROW_LABEL[state]}</Status>
+/** A provider's state as a dot and a word, or a server's own line ("localhost:11434 · 5 models") in the state's colour. */
+export const ProviderStatus: React.FC<{ state: ProviderRowState; label?: string }> = ({ state, label }) => (
+  <Status tone={ROW_TONE[state]}>{label ?? ROW_LABEL[state]}</Status>
 );
