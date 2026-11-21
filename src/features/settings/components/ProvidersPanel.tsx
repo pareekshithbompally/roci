@@ -34,13 +34,13 @@ const ProviderDetailScreen: React.FC<{ id: string }> = ({ id }) => {
   ) : null;
 };
 
-/** Phone: On this device, one row per provider (logo, name, state), then Your Servers; a row pushes its detail. */
+/** Phone: in the shared page frame, On this device, one row per provider (logo, name, state), then Your Servers; a row pushes its detail. */
 const PhoneProviders: React.FC<{ providers: ModelProvider[] }> = ({ providers }) => {
   const { push } = useNavStack();
   const open = (id: string) => push({ title: getProviderTitle(id), content: <ProviderDetailScreen id={id} /> });
 
   return (
-    <div className="flex flex-col gap-6 p-4">
+    <SettingsPage pane="providers">
       <Card>
         <CardRow
           title={getProviderTitle(ON_DEVICE_ID)}
@@ -60,7 +60,7 @@ const PhoneProviders: React.FC<{ providers: ModelProvider[] }> = ({ providers })
         ))}
       </Card>
       <PhoneServersSection onOpen={open} />
-    </div>
+    </SettingsPage>
   );
 };
 
@@ -103,11 +103,8 @@ export const ProvidersPanel: React.FC = () => {
   if (formFactor === 'phone') return <PhoneProviders providers={cloudProviders} />;
 
   return (
-    <SettingsPage
-      title="Model Providers"
-      layout="fill"
-    >
-      <div className="flex min-h-0 w-full gap-6">
+    <SettingsPage pane="providers" layout="fill">
+      <div className="flex min-h-0 w-full flex-1 gap-6">
         <ScrollArea className="w-56 shrink-0 space-y-4">
           <ProviderListItem
             provider={ON_DEVICE_ID}

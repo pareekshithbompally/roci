@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { preloadSystemInfo } from '@features/settings/hooks/useSystemInfo';
 import { useAppStore } from '@shared/stores/appStore';
-import { SETTINGS_GROUPS, SETTINGS_NAV_ITEMS } from './SettingsNav';
+import { SETTINGS_GROUPS, SETTINGS_NAV_ITEMS, usePaneArt } from './SettingsNav';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ProvidersPanel } from './ProvidersPanel';
 import { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
@@ -50,6 +50,7 @@ export function settingsScreen(id: SettingsPanelType): NavScreen {
 /** Phone: the root of the Settings sheet — sections grouped under headings; a row pushes its panel. */
 export const SettingsHome: React.FC = () => {
   const { push } = useNavStack();
+  const art = usePaneArt();
   // System and Usage data load while the user is still on this list, as on the desktop, so those panels land with it.
   useEffect(() => {
     preloadSystemInfo();
@@ -59,8 +60,8 @@ export const SettingsHome: React.FC = () => {
     <div className="flex flex-col gap-section p-4">
       {SETTINGS_GROUPS.map(({ group, items }) => (
         <Section key={group} title={group}>
-          {items.map(({ id, label, icon }) => (
-            <CardRow key={id} title={label} leading={<IconTile icon={icon} />} onOpen={() => push(settingsScreen(id))} />
+          {items.map(({ id, label }) => (
+            <CardRow key={id} title={label} leading={<IconTile image={art(id)} />} onOpen={() => push(settingsScreen(id))} />
           ))}
         </Section>
       ))}

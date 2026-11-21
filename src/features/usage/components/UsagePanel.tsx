@@ -13,7 +13,7 @@ export const UsagePanel: React.FC = () => {
   const setTab = useSetUsageTab();
   return (
     <SettingsPage
-      title={USAGE_CONFIG.copy.title}
+      pane="usage"
       accessory={<Tabs items={USAGE_CONFIG.tabs} value={tab} onValueChange={setTab} label="Usage view" />}
     >
       {tab === 'activity' ? <ActivityTab /> : <PricesTab />}

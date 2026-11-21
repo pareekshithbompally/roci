@@ -136,7 +136,7 @@ const CatalogSection: React.FC = () => {
 export const StoragePanel: React.FC = () => {
   const { data: usage } = useStorageUsage();
   return (
-    <SettingsPage title="Storage">
+    <SettingsPage pane="storage">
       {platform.hasFileManager && <StorageLocationSection />}
       <Section title="Keep" footer={retention.footer}>
         {retention.classes.map((item) => <KeepRow key={item.id} item={item} usage={usage} />)}

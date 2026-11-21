@@ -88,8 +88,6 @@ export default {
       backgroundImage: {
         'tint-hover': 'linear-gradient(var(--bg-hover), var(--bg-hover))',
         'tint-pressed': 'linear-gradient(var(--bg-pressed), var(--bg-pressed))',
-        // A pane header's glyph tile (kit PaneHero).
-        'accent-tile': 'var(--bg-accent-tile)',
         // Running-work label: a brighter band sweeps across faint text (Text `shimmer`).
         'text-shimmer': 'linear-gradient(90deg, var(--text-faint) 35%, var(--text-primary) 50%, var(--text-faint) 65%)',
         // AI at work: a copper band sweeping across a row (kit AiPending).

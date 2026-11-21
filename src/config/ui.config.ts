@@ -33,8 +33,12 @@ export const UI_CONFIG = {
 
   /** A glyph on an app-icon-sized tile, so a bare glyph weighs the same as the app icons beside it. */
   glyphTile: { tile: 34, glyph: 24 },
-  /** A Settings pane's header: its glyph's tile and the glyph (px). */
-  paneHero: { tile: 64, glyph: 36 },
+  /** A Settings pane's header: its icon's edge (px). */
+  paneHero: { tile: 64 },
+  /** Settings pane icons (Icon Composer renders), one per pane and appearance: `{dir}/{pane}-{light|dark}.webp`. */
+  settingsArt: '/images/settings',
+  /** A list row's icon image, larger than a line glyph as Apple's are (macOS sidebar 20 pt, iOS Settings 29 pt). */
+  listArt: { desktop: 20, touch: 29 },
   /** Bar chart (usage trends): plot height (taller on touch), bar cap and gap, data-end radius, axis gutters, label density, dimmed bars. */
   /** Data tables: rows shown before the table scrolls inside its card (its header stays). */
   table: {

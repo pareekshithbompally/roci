@@ -1,7 +1,7 @@
 import React from 'react';
 import { LAYOUT } from '@config/layout.config';
 import { BackForward, PageScroll, PaneHero, Text, cn } from '@shared/ui';
-import { SETTINGS_NAV_ITEMS } from '@features/settings/components/SettingsNav';
+import { SETTINGS_NAV_ITEMS, usePaneArt } from '@features/settings/components/SettingsNav';
 import type { SettingsPanel } from '@shared/stores/appStore';
 import { useFormFactor } from '@platform/formFactor';
 import { platform } from '@platform/index';
@@ -47,18 +47,24 @@ const SettingsToolbar: React.FC<SettingsToolbarProps> = ({ title, accessory, onB
   );
 };
 
-interface SettingsPageProps extends SettingsToolbarProps {
-  /** `scroll` (default): the page scrolls under the toolbar; `fill`: the body fills the pane for self-scrolling columns. */
+type SettingsPageProps = Omit<SettingsToolbarProps, 'title'> & {
+  /** `scroll` (default): the page scrolls under the toolbar; `fill`: under the header, the body (`flex-1`) fills the pane for self-scrolling columns. */
   layout?: 'scroll' | 'fill';
-  /** A pane's top level: its header (glyph, name, what it covers) leads the page. */
-  pane?: SettingsPanel;
   children?: React.ReactNode;
-}
+} & (
+  /** A pane's top level: its sidebar entry sets the title and the header (icon, name, what it covers) that leads the page. */
+  | { pane: SettingsPanel; title?: never }
+  /** A page drilled into from a pane: its own title, no header. */
+  | { title: React.ReactNode; pane?: never }
+);
 
-/** The header of `pane`, from its sidebar entry (the one place its glyph and words are set). */
+const paneItem = (pane?: SettingsPanel) => SETTINGS_NAV_ITEMS.find((item) => item.id === pane);
+
+/** The header of `pane`, from its sidebar entry (the one place its words are set; its icon comes from `usePaneArt`). */
 function Hero({ pane }: { pane?: SettingsPanel }) {
-  const item = SETTINGS_NAV_ITEMS.find((i) => i.id === pane);
-  return item?.description ? <PaneHero icon={item.icon} title={item.label} description={item.description} /> : null;
+  const art = usePaneArt();
+  const item = paneItem(pane);
+  return item ? <PaneHero image={art(item.id)} title={item.label} description={item.description} /> : null;
 }
 
 /** Phone: the screen's bar already shows the title; the screen scrolls. */
@@ -74,10 +80,12 @@ const PhonePage: React.FC<SettingsPageProps> = ({ accessory, pane, children }) =
 export const SettingsPage: React.FC<SettingsPageProps> = (props) =>
   useFormFactor() === 'phone' ? <PhonePage {...props} /> : <DesktopPage {...props} />;
 
-const DesktopPage: React.FC<SettingsPageProps> = ({ layout = 'scroll', pane, children, ...toolbar }) => (
+/** Mac, iPad: the toolbar, then the header and rows in one column at the same place on every pane; `fill` keeps the header
+ *  fixed above columns that scroll themselves. */
+const DesktopPage: React.FC<SettingsPageProps> = ({ layout = 'scroll', pane, title, children, ...toolbar }) => (
   <div className="flex h-full flex-col">
     <div className={LAYOUT.pageGutter}>
-      <SettingsToolbar {...toolbar} />
+      <SettingsToolbar title={title ?? paneItem(pane)?.label} {...toolbar} />
     </div>
     {layout === 'scroll' ? (
       <PageScroll underTitlebar={false} className={`min-h-0 flex-1 ${LAYOUT.pageGutter} ${paneToolbar.below} pb-6`}>
@@ -88,7 +96,10 @@ const DesktopPage: React.FC<SettingsPageProps> = ({ layout = 'scroll', pane, chi
       </PageScroll>
     ) : (
       <div className={`flex min-h-0 flex-1 ${LAYOUT.pageGutter} ${paneToolbar.below} pb-6`}>
-        <div className={`${LAYOUT.pageColumn} flex min-h-0 flex-1`}>{children}</div>
+        <div className={`${LAYOUT.pageColumn} flex min-h-0 flex-1 flex-col gap-section`}>
+          <Hero pane={pane} />
+          {children}
+        </div>
       </div>
     )}
   </div>

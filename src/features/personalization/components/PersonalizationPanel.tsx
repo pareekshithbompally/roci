@@ -15,7 +15,7 @@ interface PageListProps {
 }
 
 const PageList: React.FC<PageListProps> = ({ onOpen, onForward }) => (
-  <SettingsPage title={PERSONALIZATION_CONFIG.copy.title} onForward={onForward} pane="personalization">
+  <SettingsPage onForward={onForward} pane="personalization">
     <Section footer={PERSONALIZATION_CONFIG.copy.footer}>
       {PERSONALIZATION_PAGES.map((page) => (
         <CardRow

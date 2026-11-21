@@ -61,7 +61,6 @@ export const PERSONALIZATION_CONFIG = {
   ] as const satisfies ReadonlyArray<{ value: RecognitionBoost; label: string }>,
   defaultRecognitionBoost: 'normal' as RecognitionBoost,
   copy: {
-    title: 'Personalization',
     footer: 'Kept on this device; a model sees it only as part of a request.',
     vocabulary: {
       title: 'Vocabulary',

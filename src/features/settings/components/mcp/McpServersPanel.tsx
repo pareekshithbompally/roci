@@ -146,7 +146,6 @@ interface PanelShellProps {
 
 const PanelShell: React.FC<PanelShellProps> = ({ onAdd, onEditAll, actionsDisabled, children }) => (
   <SettingsPage
-    title="MCP Servers"
     pane="mcp"
     accessory={
       <>
