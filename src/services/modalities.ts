@@ -225,14 +225,16 @@ class ModalitiesService {
    *  null when neither is. */
   getPricing(providerName: string, modelId: string): ModelPricing | null {
     const cost = this.findModel(providerName, modelId)?.cost;
-    const tokens = !!cost?.input && !!cost?.output;
-    if (!cost || (!tokens && cost.per_minute === undefined)) return null;
+    if (!cost) return null;
+    const { input, output, per_minute: perMinute } = cost;
+    const tokens = !!input && !!output;
+    if (!tokens && perMinute === undefined) return null;
     return {
-      inputPer1M: tokens ? cost.input ?? 0 : 0,
-      outputPer1M: tokens ? cost.output ?? 0 : 0,
+      inputPer1M: tokens ? input : 0,
+      outputPer1M: tokens ? output : 0,
       cacheReadPer1M: cost.cache_read,
       cacheWritePer1M: cost.cache_write,
-      perMinute: cost.per_minute,
+      perMinute,
     };
   }
 
