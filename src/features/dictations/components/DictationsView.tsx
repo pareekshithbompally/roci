@@ -120,19 +120,17 @@ export const DictationsView: React.FC = () => {
     />
   );
 
-  // Title, search, then the matching rows; a quiet line only when there are dictations and the search matches none.
-  const listPane = (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex shrink-0 flex-col gap-3 px-2 pt-2 pb-2">
-        <Text as="h1" variant="pageTitle" className="px-2.5">{DICTATIONS_CONFIG.title}</Text>
-        <SearchField value={query} onChange={setQuery} onCancel={() => setQuery('')} placeholder={DICTATIONS_CONFIG.searchPlaceholder} />
-      </header>
-      <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar px-2 pb-2">
+  // Title (its text in line with the rows'), search, then the matching rows; a quiet line only when the search matches none.
+  const title = <Text as="h1" variant="pageTitle" className="shrink-0 px-2.5">{DICTATIONS_CONFIG.title}</Text>;
+  const searchAndList = (
+    <>
+      <SearchField value={query} onChange={setQuery} onCancel={() => setQuery('')} placeholder={DICTATIONS_CONFIG.searchPlaceholder} />
+      <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar pb-2">
         {dictations.length > 0
           ? <DictationList dictations={dictations} modelsById={modelsById} selectedId={selected?.id ?? null} onSelect={setSelectedId} />
           : hasAny && <Text as="p" variant="helper" tone="muted" className="px-2.5 py-2">{DICTATIONS_CONFIG.noMatch}</Text>}
       </div>
-    </div>
+    </>
   );
 
   if (isLoading || !hasAny) {
@@ -159,18 +157,28 @@ export const DictationsView: React.FC = () => {
               </header>
               <div className="flex-1 overflow-y-auto custom-scrollbar">{detail}</div>
             </>
-          ) : listPane}
+          ) : (
+            <div className="flex min-h-0 flex-1 flex-col gap-3 px-2 pt-2">
+              {title}
+              {searchAndList}
+            </div>
+          )}
         </ScreenState>
       </div>
     );
   }
 
+  // Mac: the title across the page, then the list beside the open dictation in one hairline panel (as a meeting's panes),
+  // its top level with the search field and its lines ending at its own rounded corners.
   return (
     <div className="flex h-full flex-col">
       <TitlebarSpacer />
-      <ScreenState className="flex min-h-0 flex-1">
-        <Surface edge="right" className={`${DICTATIONS_CONFIG.listColumn} flex flex-col`}>{listPane}</Surface>
-        <div className="min-w-0 flex-1 overflow-y-auto custom-scrollbar">{detail}</div>
+      <ScreenState className={`flex min-h-0 flex-1 flex-col gap-3 ${LAYOUT.pageGutter}`}>
+        {title}
+        <div className="flex min-h-0 flex-1 gap-6">
+          <div className={`${DICTATIONS_CONFIG.listColumn} flex flex-col gap-3`}>{searchAndList}</div>
+          <Surface edge={['top', 'left', 'right']} radius="lg" className="min-w-0 flex-1 overflow-y-auto custom-scrollbar">{detail}</Surface>
+        </div>
       </ScreenState>
     </div>
   );
