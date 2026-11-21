@@ -32,8 +32,8 @@ export const MODEL_SEED: Readonly<Record<string, Record<string, SeedModel>>> = {
       'nova-2-voicemail', 'nova-2-video', 'nova-2-medical', 'nova-2-drivethru', 'nova-2-automotive', 'nova-2-atc',
     ),
   ], {
-    // pre-recorded rates; Deepgram bills a live stream higher
-    'nova-3': 0.0043, 'nova-3-general': 0.0043, 'flux-general-en': 0.0065, 'flux-general-multi': 0.0078,
+    // flux streams only; nova bills recorded and live audio at different rates, which one price can't hold: unpriced
+    'flux-general-en': 0.0065, 'flux-general-multi': 0.0078,
   })),
   elevenlabs: byId(perMinute([
     ...speechToText('scribe_v3', 'scribe_v3_live', 'scribe_v2', 'scribe_v2_realtime', 'scribe_v2_medical'),

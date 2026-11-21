@@ -74,7 +74,7 @@ describe('in-call transcript', () => {
     expect(runTranscription.mock.calls[0][3]).toMatchObject({ whole: true, silence: 'empty' });
     await liveTranscript.finish('m1');
     expect(useMeetingLiveStore.getState()).toMatchObject({
-      meetingId: 'm1', live: false, failed: false, entries: [entry('microphone', 0, 6_000, 'First.'), entry('system', 6_000, 12_000, 'Second.')],
+      meetingId: 'm1', live: false, reason: '', entries: [entry('microphone', 0, 6_000, 'First.'), entry('system', 6_000, 12_000, 'Second.')],
     });
   });
 
@@ -90,7 +90,7 @@ describe('in-call transcript', () => {
     runTranscription.mockRejectedValueOnce(new Error('rate limited'));
     await liveTranscript.start('m2', read);
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000) });
-    await vi.waitFor(() => expect(useMeetingLiveStore.getState()).toMatchObject({ failed: true, reason: 'rate limited' }));
+    await vi.waitFor(() => expect(useMeetingLiveStore.getState()).toMatchObject({ reason: 'rate limited' }));
   });
 
   it('a window reloaded mid-recording joins the recorder\'s count: its first chunk is no gap', async () => {
@@ -99,7 +99,7 @@ describe('in-call transcript', () => {
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 30_000, 36_000, 0, 5) });
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 36_000, 42_000, 0, 6) });
     await vi.waitFor(() => expect(useMeetingLiveStore.getState().entries).toHaveLength(2));
-    expect(useMeetingLiveStore.getState().failed).toBe(false);
+    expect(useMeetingLiveStore.getState().reason).toBe('');
     // it missed the start, so it never stands as the transcript
     expect(await liveTranscript.finish('m-joined')).toMatchObject({ complete: false });
   });
@@ -128,7 +128,6 @@ describe('in-call transcript', () => {
     await liveTranscript.start('m4', read);
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000, 0, 0) });
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 12_000, 18_000, 0, 2) });
-    expect(useMeetingLiveStore.getState().failed).toBe(true);
     expect(await liveTranscript.finish('m4')).toMatchObject({ complete: false });
   });
 

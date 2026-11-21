@@ -77,7 +77,7 @@ const wavOf = (pcm: string): Blob => new Blob([encodeWavInt16(samplesOf(pcm), LI
 /** A chunk was lost: the draft has a gap, which the screen says (with why, when there is something to fix). */
 function markFailed(current: Session, reason?: string): void {
   current.complete = false;
-  if (session === current) meetingLiveActions.fail(reason);
+  if (reason && session === current) meetingLiveActions.fail(reason);
 }
 
 /** Stops a session's work (the chunk in flight, the queue, the streams); what it heard is no longer whole. */

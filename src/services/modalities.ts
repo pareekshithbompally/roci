@@ -185,9 +185,10 @@ class ModalitiesService {
     return this.findInCatalog(providerName, modelId) ?? (seeded ? asCatalogModel(seeded) : null);
   }
 
-  /** The seeded models of a provider models.dev doesn't list, as a model list reports them (Add Model offers them). */
+  /** The seeded models of a provider models.dev doesn't list, for Add Model to offer; nothing is reported, so a model added
+   *  from them keeps no copy of the seed's facts and is always described by this catalog (models.dev first). */
   seededModels(providerName: string): ListedModel[] {
-    return Object.values(MODEL_SEED[providerName] ?? {}).map((model) => ({ id: model.id, report: reportOf(asCatalogModel(model)) }));
+    return Object.keys(MODEL_SEED[providerName] ?? {}).map((id) => ({ id, report: {} }));
   }
 
   /** Find the raw model entry from cached data */

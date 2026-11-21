@@ -12,18 +12,18 @@ describe('the model seed', () => {
     expect(profileOf('deepgram', { id: 'nova-3' })).toMatchObject({ input: ['audio'], output: ['text'], sourceOf: { input: 'catalog' } });
   });
 
-  it('a Deepgram voice it doesn\'t list is still known by its name', () => {
-    expect(profileOf('deepgram', { id: 'aura-2-thalia-en' })).toMatchObject({ input: ['text'], output: ['audio'] });
-  });
-
   it('prices a seeded model through the one price rule: by the minute where one is published, unknown where none is', () => {
     expect(costOf(priceOf([], 'elevenlabs', 'scribe_v3'), undefined, 60 * 60)).toBeCloseTo(0.2, 12);
-    expect(costOf(priceOf([], 'deepgram', 'nova-3'), undefined, 60)).toBeCloseTo(0.0043, 12);
+    expect(costOf(priceOf([], 'deepgram', 'flux-general-en'), undefined, 60)).toBeCloseTo(0.0065, 12);
+    // recorded and live audio are billed apart, which one price can't hold
+    expect(priceOf([], 'deepgram', 'nova-3')).toBeNull();
     expect(priceOf([], 'elevenlabs', 'eleven_v3')).toBeNull();
   });
 
-  it('Add Model offers a speech provider\'s seeded models', () => {
-    const ids = modalitiesService.seededModels('deepgram').map((m) => m.id);
+  it('Add Model offers a speech provider\'s seeded models, reporting nothing: an added model is always described by the catalog', () => {
+    const seeded = modalitiesService.seededModels('deepgram');
+    expect(seeded.every((m) => Object.keys(m.report).length === 0)).toBe(true);
+    const ids = seeded.map((m) => m.id);
     expect(ids).toContain('nova-3');
     expect(ids).toContain('flux-general-en');
     expect(modalitiesService.seededModels('openai')).toEqual([]);

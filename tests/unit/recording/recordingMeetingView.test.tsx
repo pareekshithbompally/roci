@@ -146,9 +146,6 @@ describe('RecordingMeetingView', () => {
     
     const { rerender } = render(<RecordingMeetingView />);
     expect(screen.getByText('Recording')).toBeInTheDocument();
-    // a chunk that was only skipped is no warning: the transcript carries on
-    meetingLiveActions.fail();
-    rerender(<RecordingMeetingView />);
     expect(screen.queryByText(/Live transcript unavailable/)).not.toBeInTheDocument();
     meetingLiveActions.fail('Add your OpenAI API key in Settings › Providers.');
     rerender(<RecordingMeetingView />);
