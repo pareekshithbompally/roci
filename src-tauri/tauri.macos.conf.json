@@ -1,6 +1,11 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "bundle": {
+    "macOS": {
+      "files": {
+        "Resources/Metadata.appintents": "gen/appintents/Metadata.appintents"
+      }
+    },
     "resources": {
       "icons/iconTemplate.png": "icons/iconTemplate.png",
       "icons/iconTemplate@2x.png": "icons/iconTemplate@2x.png",

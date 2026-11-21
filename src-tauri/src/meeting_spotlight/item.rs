@@ -1,25 +1,8 @@
-//! One meeting as a Spotlight item (title, overview, notes, to-dos and attendees, never the transcript), and Roci's actions as items.
+//! One meeting as a Spotlight item (title, overview, notes, to-dos and attendees, never the transcript).
 
 use serde_json::Value;
 use tauri_plugin_core_spotlight::SpotlightItem;
 use tauri_plugin_store::MeetingDetail;
-
-use crate::url_actions::{action_url, SPOTLIGHT_ACTIONS};
-
-/// Roci's fixed actions (Start Recording, Open Roci, …) as Spotlight items, each id its `roci://` URL.
-pub fn action_items() -> Vec<SpotlightItem> {
-    SPOTLIGHT_ACTIONS
-        .iter()
-        .map(|action| SpotlightItem {
-            id: action_url(action.host),
-            title: action.title.to_string(),
-            description: Some(action.description.to_string()),
-            text: action.description.to_string(),
-            keywords: action.keywords.iter().map(|k| k.to_string()).collect(),
-            created_ms: 0,
-        })
-        .collect()
-}
 
 /// The Spotlight item for `detail`.
 pub fn item_for(detail: &MeetingDetail) -> SpotlightItem {

@@ -74,6 +74,12 @@ jobs:
           test -f "$APP/Contents/Resources/Assets.car" || { echo "ERROR: AppIcon.icon was not compiled (Assets.car missing)"; exit 1; }
           /usr/libexec/PlistBuddy -c "Print :CFBundleIconName" "$APP/Contents/Info.plist"
 
+      - name: Verify App Intents (Spotlight, Siri and Shortcuts actions)
+        run: |
+          APP="$(find src-tauri/target/aarch64-apple-darwin/release/bundle/macos -maxdepth 1 -name "*.app" | head -1)"
+          test -f "$APP/Contents/Resources/Metadata.appintents/extract.actionsdata" || { echo "ERROR: Metadata.appintents missing"; exit 1; }
+          strings -a "$APP/Contents/MacOS/Roci" | grep -qx "RociIntents" || { echo "ERROR: the intents are not linked into Roci"; exit 1; }
+
       - name: Get version from tag
         id: version
         run: |

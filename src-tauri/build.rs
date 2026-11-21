@@ -6,6 +6,7 @@ fn main() {
         compile_permission_guide();
         compile_choice_menu();
         compile_native_alert();
+        compile_app_intents();
     }
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("ios") {
         compile_ios_webview();
@@ -18,13 +19,29 @@ fn main() {
 
 /// `productName` and `identifier` from tauri.conf.json as `env!("APP_NAME")` / `env!("APP_IDENTIFIER")`.
 fn emit_identity() {
+    for (key, var) in [("productName", "APP_NAME"), ("identifier", "APP_IDENTIFIER")] {
+        println!("cargo:rustc-env={var}={}", conf_value(key));
+    }
+}
+
+/// A top-level string in tauri.conf.json.
+fn conf_value(key: &str) -> String {
     println!("cargo:rerun-if-changed=tauri.conf.json");
     let text = std::fs::read_to_string("tauri.conf.json").expect("read tauri.conf.json");
     let conf: serde_json::Value = serde_json::from_str(&text).expect("parse tauri.conf.json");
-    for (key, var) in [("productName", "APP_NAME"), ("identifier", "APP_IDENTIFIER")] {
-        let value = conf[key].as_str().unwrap_or_else(|| panic!("tauri.conf.json has no {key}"));
-        println!("cargo:rustc-env={var}={value}");
+    conf[key].as_str().unwrap_or_else(|| panic!("tauri.conf.json has no {key}")).to_string()
+}
+
+/// Roci's actions for Spotlight, Siri and Shortcuts (native/RociIntents.swift), with the index macOS reads them from, which
+/// the bundle carries as Contents/Resources/Metadata.appintents (tauri.macos.conf.json `bundle.macOS.files`).
+fn compile_app_intents() {
+    apple_build::SwiftLibrary {
+        name: "roci_intents",
+        module: "RociIntents",
+        sources: &["native/RociIntents.swift"],
+        frameworks: &["AppIntents"],
     }
+    .build_with_app_intents(&conf_value("identifier"), std::path::Path::new("gen/appintents"), "roci_intents_linked");
 }
 
 /// The system Swift runtime (in the OS since macOS 12; the minimum is 26) for the macOS app.
