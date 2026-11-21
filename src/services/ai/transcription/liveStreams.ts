@@ -36,6 +36,8 @@ interface SourceStream {
   /** Where the words not yet settled began, and where the audio fed so far ends (ms on the recording clock). */
   since: number | null;
   endMs: number;
+  /** It failed: no more audio goes to it. */
+  broken: boolean;
 }
 
 export interface LiveStreams<S extends string> {
@@ -49,6 +51,12 @@ export function liveStreams<S extends string>(open: (source: S) => Promise<LiveS
   const sources: Partial<Record<S, SourceStream>> = {};
   const failed = (error: unknown) => sink.fail(errorMessage(error));
 
+  /** A stream that failed takes no more audio (its frames would be sent, and counted, for nothing). */
+  const broken = (stream: SourceStream) => (error: unknown) => {
+    stream.broken = true;
+    failed(error);
+  };
+
   const streamOf = (source: S): SourceStream => (sources[source] ??= {
     opening: open(source).catch((error: unknown) => {
       failed(error);
@@ -58,6 +66,7 @@ export function liveStreams<S extends string>(open: (source: S) => Promise<LiveS
     committed: '',
     since: null,
     endMs: 0,
+    broken: false,
   });
 
   /** The text settled since last time becomes a line spanning the audio it came from (a final text may come back trimmed, so the
@@ -75,15 +84,15 @@ export function liveStreams<S extends string>(open: (source: S) => Promise<LiveS
   return {
     feed(piece, samples) {
       const stream = streamOf(piece.source);
-      stream.since ??= piece.startMs;
       stream.queue = stream.queue.then(async () => {
         const live = await stream.opening;
-        if (!live) return;
+        if (!live || stream.broken) return;
+        stream.since ??= piece.startMs;
         const text = await live.feed(samples);
         stream.endMs = piece.endMs;
         settle(piece.source, stream, text.committed);
         sink.partial(piece.source, text.tentative);
-      }).catch(failed);
+      }).catch(broken(stream));
     },
     async finish() {
       for (const [source, stream] of Object.entries(sources) as [S, SourceStream][]) {

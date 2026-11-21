@@ -61,6 +61,8 @@ type Reader = () => { settings: AppSettings; providers: ModelProvider[] };
 let session: Session | null = null;
 /** Streams opened at Record for the recording about to start; its session takes them. */
 let prepared: Partial<Record<MeetingSourceId, LiveStream>> = {};
+/** The meeting that took the prepared streams, once one has; their usage is billed to it. */
+let preparedFor: { meetingId?: string } = {};
 
 /** Abandons streams opened but never used (a side that sent no audio, or a Record that failed). */
 function cancelStreams(streams: Partial<Record<MeetingSourceId, LiveStream>>): void {
@@ -299,7 +301,11 @@ export const liveTranscript = {
     prepared = {};
     const { settings, providers } = read();
     const streams = await Promise.resolve()
-      .then(() => tryLiveStreams(readySpeechSelection(settings), providers, sides.length, () => session?.meetingId))
+      .then(() => {
+        const owner: { meetingId?: string } = {};
+        preparedFor = owner;
+        return tryLiveStreams(readySpeechSelection(settings), providers, sides.length, () => owner.meetingId);
+      })
       .catch((error: unknown) => {
         console.info('[liveTranscript] real-time unavailable, going live in chunks:', error);
         return null;
@@ -328,6 +334,7 @@ export const liveTranscript = {
       waiting: [], draining: null, streams: null, opened: prepared, tracks: new Map(), unlisten: () => undefined, complete: true,
     };
     prepared = {};
+    if (Object.keys(current.opened).length > 0) preparedFor.meetingId = meetingId;
     if (streaming) current.streams = liveStreams((side) => openStream(current, read, side), streamSink(current));
     session = current;
     current.unlisten = await listen<LiveChunk>(LIVE.chunkEvent, ({ payload }) => enqueue(current, payload, read));

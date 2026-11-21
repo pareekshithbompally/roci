@@ -75,6 +75,17 @@ describe('liveStreams — a streaming meeting source', () => {
     expect(partials.at(-1)).toBe('');
   });
 
+  it('a stream that fails mid-meeting takes no more audio and says so once', async () => {
+    const fail = vi.fn();
+    let fed = 0;
+    const breaking: LiveStream = { feed: async () => { fed++; throw new Error('connection lost'); }, finish: async () => '', cancel: async () => undefined };
+    const streams = liveStreams(async () => breaking, { line: vi.fn(), partial: vi.fn(), fail });
+    [0, 1, 2].forEach((seq) => streams.feed(frame(seq), new Float32Array(4)));
+    await streams.finish();
+    expect(fed).toBe(1);
+    expect(fail).toHaveBeenCalledTimes(1);
+  });
+
   it('a stream that cannot open says why, once, and feeds nothing', async () => {
     const fail = vi.fn();
     const streams = liveStreams(() => Promise.reject(new Error('Add your OpenAI API key in Settings › Providers.')), { line: vi.fn(), partial: vi.fn(), fail });

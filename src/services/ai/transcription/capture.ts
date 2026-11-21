@@ -96,6 +96,7 @@ export async function liveCapture(
       const text = await finalText();
       if (text === null) {
         console.info('[capture] live dictation fell back to the recorded clip:', failure);
+        void engine.then((live) => live?.cancel()).catch((error: unknown) => console.error('[capture] cancel failed:', error));
         return clip.finish();
       }
       clip.cancel();

@@ -61,6 +61,15 @@ describe('live dictation', () => {
     expect(await capture.finish()).toBe('I am not a good human being in dictation mode.');
   });
 
+  it('a stream that breaks is closed before the clip is used, so it never stays open', async () => {
+    const cancel = vi.fn(async () => undefined);
+    const breaking: LiveStream = { feed: () => Promise.reject(new Error('connection lost')), finish: vi.fn(), cancel };
+    const capture = await liveCapture(mic, async () => breaking, vi.fn(), vi.fn(async () => 'from the clip'));
+    tap.slice?.(new Float32Array(1_600));
+    expect(await capture.finish()).toBe('from the clip');
+    await vi.waitFor(() => expect(cancel).toHaveBeenCalled());
+  });
+
   it('a stream the model refuses gives way to the clip, so nothing said is lost', async () => {
     const transcribe = vi.fn(async () => 'Ship it Friday.');
     const capture = await liveCapture(mic, () => Promise.reject(new Error("streaming transcription with whisper-1")), vi.fn(), transcribe);

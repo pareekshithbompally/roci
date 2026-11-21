@@ -32,10 +32,13 @@ const display = (text: LiveText) => `${text.committed}${text.tentative}`.trim();
 export const onDeviceStreaming: StreamingEngine = {
   concurrent: 1,
   async open({ model, language }) {
-    await invoke('stt_live_start', { model, language });
+    const worded = (error: unknown): never => {
+      throw new Error(onDeviceErrorMessage(error, model), { cause: error });
+    };
+    await invoke('stt_live_start', { model, language }).catch(worded);
     return {
-      feed: (pcm) => invoke<LiveText>('stt_live_feed', new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength)),
-      finish: () => invoke<LiveText>('stt_live_finish').then(display),
+      feed: (pcm) => invoke<LiveText>('stt_live_feed', new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength)).catch(worded),
+      finish: () => invoke<LiveText>('stt_live_finish').then(display, worded),
       cancel: () => invoke('stt_live_cancel'),
     };
   },

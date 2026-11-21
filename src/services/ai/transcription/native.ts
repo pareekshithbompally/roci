@@ -4,7 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { TranscriptResult } from './types';
 
 /** One piece of text and its span in seconds (Rust `TimedText`, Swift segment). */
-export interface TimedText {
+interface TimedText {
   text: string;
   start: number;
   end: number;

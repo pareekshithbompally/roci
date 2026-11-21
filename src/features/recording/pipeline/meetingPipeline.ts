@@ -11,6 +11,7 @@ import { formatTranscript, labelSpeakers, speechSelectionOf } from '@services/ai
 import { modelKey } from '@services/ai/models';
 import { transcriptionService } from '@services/transcription.service';
 import { IMPORT_CONFIG } from '@config/audio.config';
+import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { useAppStore } from '@shared/stores/appStore';
 import { meetingProgress } from '@shared/stores/meetingProgressStore';
 import { notifyAppEvent } from '@shared/utils/appEvents';
@@ -112,12 +113,13 @@ async function saveLiveTranscript(id: string, entries: LiveEntry[], context: Pip
   await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model: speechModelOf(context) });
 }
 
-/** Just after Stop: the in-call transcript finishes its last chunks and, when nothing was lost, is the meeting's transcript.
- *  A draft with a gap, or no words, is replaced by the whole recording's. */
+/** Just after Stop: the in-call transcript finishes its last chunks and, when nothing was lost, is the meeting's transcript; a
+ *  whole one with no words means no speech (it isn't transcribed again). A draft with a gap is replaced by the recording's. */
 const transcribeAfterRecording = (id: string, context: PipelineContext): StepWork => async (signal) => {
   const draft = await liveTranscript.finish(id, signal);
   signal.throwIfAborted();
-  if (!draft?.complete || draft.entries.length === 0) return transcribeRecording(id, context)(signal);
+  if (!draft?.complete) return transcribeRecording(id, context)(signal);
+  if (draft.entries.length === 0) throw new Error(TRANSCRIPTION_CONFIG.noSpeech);
   await saveLiveTranscript(id, draft.entries, context);
 };
 
@@ -128,6 +130,7 @@ async function keepForLater(id: string, context: PipelineContext): Promise<void>
   await runStep(id, 'transcribe', async (signal) => {
     const draft = await liveTranscript.finish(id, signal);
     if (draft?.complete && draft.entries.length > 0) return saveLiveTranscript(id, draft.entries, context);
+    // no whole transcript to keep: the step ends as cancelled, and the meeting waits for Transcribe
     running.get(id)?.abort();
     signal.throwIfAborted();
   });

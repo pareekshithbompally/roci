@@ -84,7 +84,7 @@ export async function transcribeAudio(
   }
   // No speech in a whole recording is an error, so the analyzer can't invent a meeting from silence.
   if (silence === 'error' && !result.text.trim()) {
-    throw new Error('No speech detected in this recording — transcription skipped.');
+    throw new Error(TRANSCRIPTION_CONFIG.noSpeech);
   }
   return result;
 }

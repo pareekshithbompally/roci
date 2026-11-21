@@ -2510,18 +2510,19 @@ pub async fn get_meeting_usage(
 
 /// Prices a model's calls saved without a price (NULL) from their tokens and audio minutes, at the price the user just set;
 /// returns how many. Same as `costOf` in extensions/usage/pricing.ts for a user's price, which has no cache rates (cached input
-/// costs the input rate).
+/// costs the input rate): a call billed only by its audio stays unknown while the price has no per-minute rate.
 fn price_unpriced_usage_impl(
     db: &Connection,
     provider: &str,
     model: &str,
     input_per_million: f64,
     output_per_million: f64,
-    per_minute: f64,
+    per_minute: Option<f64>,
 ) -> Result<usize, StoreError> {
     Ok(db.execute(
-        "UPDATE usage_log SET estimated_cost = (input_tokens * ?3 + output_tokens * ?4) / 1000000.0 + audio_seconds / 60.0 * ?5
-         WHERE provider = ?1 AND model = ?2 AND estimated_cost IS NULL",
+        "UPDATE usage_log SET estimated_cost = (input_tokens * ?3 + output_tokens * ?4) / 1000000.0 + audio_seconds / 60.0 * COALESCE(?5, 0)
+         WHERE provider = ?1 AND model = ?2 AND estimated_cost IS NULL
+           AND (?5 IS NOT NULL OR audio_seconds = 0 OR input_tokens + output_tokens > 0)",
         rusqlite::params![provider, model, input_per_million, output_per_million, per_minute],
     )?)
 }
@@ -2539,7 +2540,7 @@ pub async fn price_unpriced_usage(
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        price_unpriced_usage_impl(db, &provider, &model, input_per_million, output_per_million, per_minute.unwrap_or(0.0))
+        price_unpriced_usage_impl(db, &provider, &model, input_per_million, output_per_million, per_minute)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
@@ -3294,7 +3295,7 @@ pub(crate) mod tests {
         unpriced("b", "other-model");
         seed_usage(&conn, "c", 2, "openrouter", "new-model", "chat", 100, 0.5);
 
-        assert_eq!(price_unpriced_usage_impl(&conn, "openrouter", "new-model", 2.0, 8.0, 0.0).unwrap(), 1);
+        assert_eq!(price_unpriced_usage_impl(&conn, "openrouter", "new-model", 2.0, 8.0, None).unwrap(), 1);
         let cost = |id: &str| -> Option<f64> {
             conn.query_row("SELECT estimated_cost FROM usage_log WHERE id = ?1", [id], |r| r.get(0)).unwrap()
         };
@@ -3312,7 +3313,8 @@ pub(crate) mod tests {
             [],
         )
         .unwrap();
-        assert_eq!(price_unpriced_usage_impl(&conn, "openai", "whisper-1", 0.0, 0.0, 0.006).unwrap(), 1);
+        assert_eq!(price_unpriced_usage_impl(&conn, "openai", "whisper-1", 2.0, 8.0, None).unwrap(), 0, "token rates alone don't price a call billed by its minutes");
+        assert_eq!(price_unpriced_usage_impl(&conn, "openai", "whisper-1", 0.0, 0.0, Some(0.006)).unwrap(), 1);
         let cost: f64 = conn.query_row("SELECT estimated_cost FROM usage_log WHERE id = 's'", [], |r| r.get(0)).unwrap();
         assert!((cost - 0.009).abs() < 1e-12, "1.5 minutes at $0.006 a minute");
     }

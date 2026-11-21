@@ -155,6 +155,15 @@ describe('meetingPipeline.run', () => {
     live.active.mockReturnValue(false);
   });
 
+  it('after Stop, a whole live transcript with no words is no speech: nothing is paid for again', async () => {
+    live.active.mockReturnValue(true);
+    live.finish.mockResolvedValue({ complete: true, entries: [] });
+    meetingPipeline.recorded('m1');
+    await vi.waitFor(() => expect(status).toMatchObject({ status: 'failed', failedStep: 'transcribe' }));
+    expect(ai.transcribeAudio).not.toHaveBeenCalled();
+    live.active.mockReturnValue(false);
+  });
+
   it('after Stop, a draft with a gap is replaced by transcribing the whole recording', async () => {
     live.active.mockReturnValue(true);
     live.finish.mockResolvedValue({ complete: false, entries: [{ source: 'microphone', startMs: 0, endMs: 3_000, text: 'We ship', timed: true }] });

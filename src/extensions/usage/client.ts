@@ -117,6 +117,8 @@ export interface MeetingUsage {
   output_tokens: number;
   /** Null when the call's price is unknown. */
   estimated_cost: number | null;
+  /** Audio a speech call heard or spoke, in seconds. */
+  audio_seconds: number;
   timestamp: number;
 }
 
