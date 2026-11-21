@@ -1,21 +1,12 @@
+//! Hybrid search over the one search index (`chunks`): BM25 keyword matches (FTS5) and nearest vectors (sqlite-vec), fused by
+//! Reciprocal Rank Fusion in one query, for one kind of owner (`meeting`, `chat`, …). Ranking happens in SQL; Rust keeps the
+//! best piece per owner. Every call runs on the store's one connection, so a search never sees half a write.
+
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::HashSet;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SearchParams {
-    /// Query embedding vector (Float32, 384-dim)
-    pub embedding: Vec<f32>,
-    /// Raw query text for FTS5 search
-    pub query_text: String,
-    /// Max results to return
-    pub limit: usize,
-    /// Search mode: "hybrid", "vector", "fulltext"
-    pub mode: Option<String>,
-    /// Optional: scope search to specific meetings (return multiple chunks per meeting)
-    pub meeting_ids: Option<Vec<String>>,
-}
-
+/// A meeting piece as search returns it (the webview's `MeetingHit`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchHit {
     pub meeting_id: String,
@@ -26,411 +17,124 @@ pub struct SearchHit {
     pub created_at: i64,
 }
 
-/// RRF constant (k=60 is standard)
-const RRF_K: f64 = 60.0;
-
-/// FTS5 rank cutoff before RRF (negative is better); near-0 hits matched only common words.
-const BM25_MIN_SCORE: f64 = -0.5;
-
-/// KNN + FTS5 merged via Reciprocal Rank Fusion, returning the best chunk per meeting.
-pub fn hybrid_search(
-    conn: &Connection,
-    params: &SearchParams,
-) -> Result<Vec<SearchHit>, String> {
-    let limit = if params.limit == 0 { 5 } else { params.limit };
-    let fetch_limit = limit * 3; // Over-fetch for better RRF merging
-    let mode = params.mode.as_deref().unwrap_or("hybrid");
-
-    // Validate embedding dimensions for vector search
-    if (mode == "hybrid" || mode == "vector") && !params.embedding.is_empty() {
-        let expected = crate::schema::DEFAULT_DIM as usize;
-        if params.embedding.len() != expected {
-            return Err(format!(
-                "Embedding dimension mismatch: expected {}, got {}",
-                expected,
-                params.embedding.len()
-            ));
-        }
-    }
-
-    let scoped = params.meeting_ids.as_ref().map_or(false, |ids| !ids.is_empty());
-
-    // Build a set of allowed meeting IDs for fast lookup during scoped search
-    let allowed_meeting_ids: std::collections::HashSet<&str> = if scoped {
-        params.meeting_ids.as_ref().unwrap().iter().map(|s| s.as_str()).collect()
-    } else {
-        std::collections::HashSet::new()
-    };
-
-    let mut chunk_scores: HashMap<i64, f64> = HashMap::new();
-
-    if mode == "hybrid" || mode == "vector" {
-        let embedding_bytes = floats_to_bytes(&params.embedding);
-        let nearest = if scoped {
-            nearest_within(conn, &embedding_bytes, &allowed_meeting_ids, fetch_limit)?
-        } else {
-            nearest_anywhere(conn, &embedding_bytes, fetch_limit)?
-        };
-        for (rank, chunk_id) in nearest.into_iter().enumerate() {
-            *chunk_scores.entry(chunk_id).or_default() += 1.0 / (RRF_K + rank as f64 + 1.0);
-        }
-    }
-
-    // FTS5 full-text search
-    if mode == "hybrid" || mode == "fulltext" {
-        let fts_query = sanitize_fts_query(&params.query_text);
-        if !fts_query.is_empty() {
-            if scoped {
-                // Scoped: JOIN with chunks to filter by meeting_id (the ids as one JSON list, as the scoped vector search takes them)
-                let ids = serde_json::to_string(&allowed_meeting_ids.iter().collect::<Vec<_>>()).map_err(|e| e.to_string())?;
-                let mut stmt = conn
-                    .prepare(
-                        "SELECT f.rowid, f.rank
-                         FROM chunks_fts f
-                         JOIN chunks c ON c.id = f.rowid
-                         WHERE f.chunks_fts MATCH ?1
-                           AND c.meeting_id IN (SELECT value FROM json_each(?2))
-                         ORDER BY f.rank
-                         LIMIT ?3",
-                    )
-                    .map_err(|e| format!("fts scoped search prepare: {}", e))?;
-
-                let rows = stmt
-                    .query_map(rusqlite::params![fts_query, ids, fetch_limit as i64], |row| {
-                        Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
-                    })
-                    .map_err(|e| format!("fts scoped search query: {}", e))?;
-
-                let mut rank = 0usize;
-                for row in rows {
-                    if let Ok((chunk_id, bm25_score)) = row {
-                        if bm25_score > BM25_MIN_SCORE {
-                            continue;
-                        }
-                        *chunk_scores.entry(chunk_id).or_default() +=
-                            1.0 / (RRF_K + rank as f64 + 1.0);
-                        rank += 1;
-                    }
-                }
-            } else {
-                let mut stmt = conn
-                    .prepare(
-                        "SELECT rowid, rank
-                         FROM chunks_fts
-                         WHERE chunks_fts MATCH ?1
-                         ORDER BY rank
-                         LIMIT ?2",
-                    )
-                    .map_err(|e| format!("fts search prepare: {}", e))?;
-
-                let rows = stmt
-                    .query_map(rusqlite::params![fts_query, fetch_limit as i64], |row| {
-                        let rowid: i64 = row.get(0)?;
-                        let bm25_score: f64 = row.get(1)?;
-                        Ok((rowid, bm25_score))
-                    })
-                    .map_err(|e| format!("fts search query: {}", e))?;
-
-                // Only include FTS results with meaningful BM25 scores in RRF.
-                let mut rank = 0usize;
-                for row in rows {
-                    if let Ok((chunk_id, bm25_score)) = row {
-                        if bm25_score > BM25_MIN_SCORE {
-                            continue; // too weak — skip without incrementing rank
-                        }
-                        *chunk_scores.entry(chunk_id).or_default() +=
-                            1.0 / (RRF_K + rank as f64 + 1.0);
-                        rank += 1;
-                    }
-                }
-            }
-        }
-    }
-
-    if chunk_scores.is_empty() {
-        return Ok(vec![]);
-    }
-
-    // Sort chunks by RRF score
-    let mut scored: Vec<(i64, f64)> = chunk_scores.into_iter().collect();
-    scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-
-    if scoped {
-        // Scoped mode: return top N chunks (multiple from same meeting)
-        let mut results: Vec<SearchHit> = Vec::with_capacity(limit);
-        for (chunk_id, score) in scored {
-            if results.len() >= limit {
-                break;
-            }
-            let result = conn.query_row(
-                "SELECT c.meeting_id, c.chunk_text, c.chunk_type, m.title, m.created_at
-                 FROM chunks c
-                 JOIN meetings m ON m.id = c.meeting_id
-                 WHERE c.id = ?1",
-                [chunk_id],
-                |row| {
-                    Ok(SearchHit {
-                        meeting_id: row.get(0)?,
-                        chunk_text: row.get(1)?,
-                        chunk_type: row.get(2)?,
-                        meeting_title: row.get(3)?,
-                        created_at: row.get(4)?,
-                        score,
-                    })
-                },
-            );
-            if let Ok(hit) = result {
-                results.push(hit);
-            }
-        }
-        Ok(results)
-    } else {
-        // Default mode: group by meeting (best chunk per meeting)
-        let mut seen_meetings: HashMap<String, SearchHit> = HashMap::new();
-
-        for (chunk_id, score) in scored {
-            let result = conn.query_row(
-                "SELECT c.meeting_id, c.chunk_text, c.chunk_type, m.title, m.created_at
-                 FROM chunks c
-                 JOIN meetings m ON m.id = c.meeting_id
-                 WHERE c.id = ?1",
-                [chunk_id],
-                |row| {
-                    Ok(SearchHit {
-                        meeting_id: row.get(0)?,
-                        chunk_text: row.get(1)?,
-                        chunk_type: row.get(2)?,
-                        meeting_title: row.get(3)?,
-                        created_at: row.get(4)?,
-                        score,
-                    })
-                },
-            );
-
-            if let Ok(hit) = result {
-                let entry = seen_meetings.entry(hit.meeting_id.clone());
-                entry
-                    .and_modify(|existing| {
-                        if hit.score > existing.score {
-                            *existing = hit.clone();
-                        }
-                    })
-                    .or_insert(hit);
-            }
-
-            if seen_meetings.len() >= limit {
-                break;
-            }
-        }
-
-        let mut results: Vec<SearchHit> = seen_meetings.into_values().collect();
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-        results.truncate(limit);
-        Ok(results)
-    }
-}
-
-// ── Chat Search ──
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ChatSearchParams {
-    pub embedding: Vec<f32>,
-    pub query_text: String,
+/// What to search: one kind of owner, the words, the query's vector (none: keywords only), how many owners to return, and
+/// optionally only these owners (then every matching piece of theirs, not just the best).
+pub struct SearchQuery<'a> {
+    pub kind: &'a str,
+    pub text: &'a str,
+    pub embedding: Option<&'a [f32]>,
     pub limit: usize,
-    pub mode: Option<String>,
+    pub within: Option<&'a [String]>,
 }
 
-/// `hybrid_search` over chat chunks, grouped by session.
-pub fn chat_hybrid_search(
-    conn: &Connection,
-    params: &ChatSearchParams,
-) -> Result<Vec<crate::commands::ChatSearchHit>, String> {
-    let limit = if params.limit == 0 { 5 } else { params.limit };
-    let fetch_limit = limit * 3;
-    let mode = params.mode.as_deref().unwrap_or("hybrid");
+/// One matching piece, best first.
+#[derive(Debug, Clone)]
+pub struct ChunkHit {
+    pub owner_id: String,
+    pub chunk_text: String,
+    pub chunk_type: String,
+    pub score: f64,
+}
 
-    if (mode == "hybrid" || mode == "vector") && !params.embedding.is_empty() {
-        let expected = crate::schema::DEFAULT_DIM as usize;
-        if params.embedding.len() != expected {
-            return Err(format!(
-                "Embedding dimension mismatch: expected {}, got {}",
-                expected,
-                params.embedding.len()
-            ));
+/// RRF's smoothing constant (60 is the standard).
+const RRF_K: f64 = 60.0;
+/// BM25 cutoff (FTS5 ranks are negative, lower is better): a match near 0 only shares common words.
+const BM25_MAX_RANK: f64 = -0.5;
+/// Each leg fetches this many times the owners asked for, so fusion has room to agree.
+const OVERFETCH: usize = 3;
+
+/// Keyword leg: BM25 order within the owner kind (and owners), weak matches dropped.
+const KEYWORD_LEG: &str = "
+    SELECT f.rowid AS chunk_id, row_number() OVER (ORDER BY f.rank) AS rank
+    FROM chunks_fts f JOIN chunks c ON c.id = f.rowid
+    WHERE chunks_fts MATCH :words AND c.owner_kind = :kind AND f.rank <= :bm25_max
+      AND (:within IS NULL OR c.owner_id IN (SELECT value FROM json_each(:within)))
+    ORDER BY f.rank LIMIT :fetch";
+
+/// Vector leg over every owner of the kind: sqlite-vec's KNN, within the kind's partition.
+const VECTOR_LEG: &str = "
+    SELECT chunk_id, row_number() OVER (ORDER BY distance) AS rank
+    FROM vec_chunks
+    WHERE embedding MATCH :vector AND k = :fetch AND owner_kind = :kind";
+
+/// Vector leg within some owners: exact distance over just their pieces (few, so cheap; KNN can't filter by owner).
+const VECTOR_LEG_WITHIN: &str = "
+    SELECT v.chunk_id, row_number() OVER (ORDER BY vec_distance_l2(v.embedding, :vector)) AS rank
+    FROM chunks c JOIN vec_chunks v ON v.chunk_id = c.id
+    WHERE c.owner_kind = :kind AND c.owner_id IN (SELECT value FROM json_each(:within))
+    ORDER BY vec_distance_l2(v.embedding, :vector) LIMIT :fetch";
+
+/// The fused query: the legs given, each piece scored Σ 1 / (RRF_K + rank), best first.
+fn fused(legs: &[&str]) -> String {
+    let ctes: Vec<String> = legs.iter().enumerate().map(|(i, leg)| format!("leg{i} AS ({leg})")).collect();
+    let union: Vec<String> = (0..legs.len()).map(|i| format!("SELECT chunk_id, rank FROM leg{i}")).collect();
+    format!(
+        "WITH {}
+         SELECT c.owner_id, c.chunk_text, c.chunk_type, s.score
+         FROM (SELECT chunk_id, SUM(1.0 / (:rrf_k + rank)) AS score FROM ({}) GROUP BY chunk_id) s
+         JOIN chunks c ON c.id = s.chunk_id
+         ORDER BY s.score DESC",
+        ctes.join(",\n"),
+        union.join(" UNION ALL ")
+    )
+}
+
+/// Each term quoted for FTS5 (operators stripped, in-word apostrophes and hyphens kept), all required.
+fn fts_words(query: &str) -> String {
+    let cleaned: String = query.chars().filter(|c| c.is_alphanumeric() || c.is_whitespace() || *c == '\'' || *c == '-').collect();
+    cleaned.split_whitespace().map(|w| format!("\"{w}\"")).collect::<Vec<_>>().join(" AND ")
+}
+
+/// A vector as sqlite-vec stores it: little-endian f32s.
+pub(crate) fn vector_bytes(vector: &[f32]) -> Vec<u8> {
+    vector.iter().flat_map(|f| f.to_le_bytes()).collect()
+}
+
+/// The best owners' pieces (one per owner), or every piece of the owners searched `within`, best first.
+pub fn hybrid_search(conn: &Connection, q: &SearchQuery) -> Result<Vec<ChunkHit>, String> {
+    if let Some(vector) = q.embedding {
+        if vector.len() != crate::schema::DEFAULT_DIM as usize {
+            return Err(format!("Embedding dimension mismatch: expected {}, got {}", crate::schema::DEFAULT_DIM, vector.len()));
         }
     }
-
-    let mut chunk_scores: HashMap<i64, f64> = HashMap::new();
-
-    // Vector KNN on chat_vec_chunks
-    if mode == "hybrid" || mode == "vector" {
-        let embedding_bytes = floats_to_bytes(&params.embedding);
-        let mut stmt = conn
-            .prepare(
-                "SELECT chunk_id, distance
-                 FROM chat_vec_chunks
-                 WHERE embedding MATCH ?1
-                 ORDER BY distance
-                 LIMIT ?2",
-            )
-            .map_err(|e| format!("chat vec search prepare: {}", e))?;
-
-        let rows = stmt
-            .query_map(
-                rusqlite::params![embedding_bytes, fetch_limit as i64],
-                |row| Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?)),
-            )
-            .map_err(|e| format!("chat vec search query: {}", e))?;
-
-        for (rank, row) in rows.enumerate() {
-            if let Ok((chunk_id, _)) = row {
-                *chunk_scores.entry(chunk_id).or_default() +=
-                    1.0 / (RRF_K + rank as f64 + 1.0);
-            }
-        }
+    let words = fts_words(q.text);
+    let mut legs = Vec::new();
+    if !words.is_empty() {
+        legs.push(KEYWORD_LEG);
     }
-
-    // FTS5 on chat_chunks_fts
-    if mode == "hybrid" || mode == "fulltext" {
-        let fts_query = sanitize_fts_query(&params.query_text);
-        if !fts_query.is_empty() {
-            let mut stmt = conn
-                .prepare(
-                    "SELECT rowid, rank
-                     FROM chat_chunks_fts
-                     WHERE chat_chunks_fts MATCH ?1
-                     ORDER BY rank
-                     LIMIT ?2",
-                )
-                .map_err(|e| format!("chat fts search prepare: {}", e))?;
-
-            let rows = stmt
-                .query_map(
-                    rusqlite::params![fts_query, fetch_limit as i64],
-                    |row| Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?)),
-                )
-                .map_err(|e| format!("chat fts search query: {}", e))?;
-
-            let mut rank = 0usize;
-            for row in rows {
-                if let Ok((chunk_id, bm25_score)) = row {
-                    if bm25_score > BM25_MIN_SCORE {
-                        continue; // too weak — skip without incrementing rank
-                    }
-                    *chunk_scores.entry(chunk_id).or_default() +=
-                        1.0 / (RRF_K + rank as f64 + 1.0);
-                    rank += 1;
-                }
-            }
-        }
+    if q.embedding.is_some() {
+        legs.push(if q.within.is_some() { VECTOR_LEG_WITHIN } else { VECTOR_LEG });
     }
-
-    if chunk_scores.is_empty() {
+    if legs.is_empty() {
         return Ok(vec![]);
     }
-
-    let mut scored: Vec<(i64, f64)> = chunk_scores.into_iter().collect();
-    scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-
-    let mut seen_sessions: HashMap<String, crate::commands::ChatSearchHit> = HashMap::new();
-
-    for (chunk_id, score) in scored {
-        let result = conn.query_row(
-            "SELECT c.chat_id, c.chunk_text, c.chunk_type, cs.title, cs.last_message_at
-             FROM chat_chunks c
-             JOIN chats cs ON cs.id = c.chat_id
-             WHERE c.id = ?1",
-            [chunk_id],
-            |row| {
-                Ok(crate::commands::ChatSearchHit {
-                    chat_id: row.get(0)?,
-                    chunk_text: row.get(1)?,
-                    chunk_type: row.get(2)?,
-                    chat_title: row.get(3)?,
-                    last_message_at: row.get(4)?,
-                    score,
-                })
-            },
-        );
-
-        if let Ok(hit) = result {
-            seen_sessions
-                .entry(hit.chat_id.clone())
-                .and_modify(|existing| {
-                    if hit.score > existing.score {
-                        *existing = hit.clone();
-                    }
-                })
-                .or_insert(hit);
-        }
-
-        if seen_sessions.len() >= limit {
-            break;
-        }
-    }
-
-    let mut results: Vec<crate::commands::ChatSearchHit> =
-        seen_sessions.into_values().collect();
-    results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-    results.truncate(limit);
-    Ok(results)
-}
-
-/// Convert f32 slice to little-endian bytes for sqlite-vec.
-fn floats_to_bytes(floats: &[f32]) -> Vec<u8> {
-    floats.iter().flat_map(|f| f.to_le_bytes()).collect()
-}
-
-/// Quotes each term for FTS5 MATCH, stripping operators but keeping in-word apostrophes and hyphens.
-fn sanitize_fts_query(query: &str) -> String {
-    let cleaned: String = query
-        .chars()
-        .filter(|c| c.is_alphanumeric() || c.is_whitespace() || *c == '\'' || *c == '-')
-        .collect();
-
-    let trimmed = cleaned.trim();
-    if trimmed.is_empty() {
-        return String::new();
-    }
-
-    // Split into words and wrap each in quotes for exact matching
-    let words: Vec<&str> = trimmed.split_whitespace().collect();
-    if words.len() == 1 {
-        return format!("\"{}\"", words[0]);
-    }
-
-    // Use AND so all terms must be present
-    words
-        .iter()
-        .map(|w| format!("\"{}\"", w))
-        .collect::<Vec<_>>()
-        .join(" AND ")
-}
-
-/// The chunks nearest `embedding` across every meeting (sqlite-vec's KNN index).
-fn nearest_anywhere(conn: &Connection, embedding: &[u8], limit: usize) -> Result<Vec<i64>, String> {
-    let mut stmt = conn
-        .prepare("SELECT chunk_id FROM vec_chunks WHERE embedding MATCH ?1 ORDER BY distance LIMIT ?2")
-        .map_err(|e| format!("vec search prepare: {}", e))?;
+    let sql = fused(&legs);
+    let within = q.within.map(|ids| serde_json::to_string(ids)).transpose().map_err(|e| e.to_string())?;
+    let vector = q.embedding.map(vector_bytes);
+    let fetch = (q.limit * OVERFETCH) as i64;
+    let named: Vec<(&str, &dyn rusqlite::ToSql)> = vec![
+        (":words", &words),
+        (":kind", &q.kind),
+        (":bm25_max", &BM25_MAX_RANK),
+        (":within", &within),
+        (":fetch", &fetch),
+        (":vector", &vector),
+        (":rrf_k", &RRF_K),
+    ];
+    let mut stmt = conn.prepare(&sql).map_err(|e| format!("search prepare: {e}"))?;
+    // Only the parameters this query's legs use.
+    let params: Vec<(&str, &dyn rusqlite::ToSql)> = named.into_iter().filter(|(name, _)| sql.contains(name)).collect();
     let rows = stmt
-        .query_map(rusqlite::params![embedding, limit as i64], |row| row.get(0))
-        .map_err(|e| format!("vec search query: {}", e))?;
-    Ok(rows.filter_map(Result::ok).collect())
+        .query_map(params.as_slice(), |row| {
+            Ok(ChunkHit { owner_id: row.get(0)?, chunk_text: row.get(1)?, chunk_type: row.get(2)?, score: row.get(3)? })
+        })
+        .map_err(|e| format!("search: {e}"))?;
+    let ranked = rows.collect::<Result<Vec<_>, _>>().map_err(|e| format!("search row: {e}"))?;
+    Ok(if q.within.is_some() { ranked.into_iter().take(q.limit).collect() } else { best_per_owner(ranked, q.limit) })
 }
 
-/// The chunks nearest `embedding` within the given meetings: exact distance over just their chunks (the KNN index can't be
-/// limited to some meetings, and a few meetings' chunks are cheap to rank directly).
-fn nearest_within(conn: &Connection, embedding: &[u8], meeting_ids: &std::collections::HashSet<&str>, limit: usize) -> Result<Vec<i64>, String> {
-    let ids = serde_json::to_string(&meeting_ids.iter().collect::<Vec<_>>()).map_err(|e| e.to_string())?;
-    let mut stmt = conn
-        .prepare(
-            "SELECT c.id FROM chunks c JOIN vec_chunks v ON v.chunk_id = c.id
-             WHERE c.meeting_id IN (SELECT value FROM json_each(?2))
-             ORDER BY vec_distance_l2(v.embedding, ?1) LIMIT ?3",
-        )
-        .map_err(|e| format!("scoped vec search prepare: {}", e))?;
-    let rows = stmt
-        .query_map(rusqlite::params![embedding, ids, limit as i64], |row| row.get(0))
-        .map_err(|e| format!("scoped vec search query: {}", e))?;
-    Ok(rows.filter_map(Result::ok).collect())
+/// The first (best) piece of each owner, up to `limit` owners.
+fn best_per_owner(ranked: Vec<ChunkHit>, limit: usize) -> Vec<ChunkHit> {
+    let mut seen = HashSet::new();
+    ranked.into_iter().filter(|hit| seen.insert(hit.owner_id.clone())).take(limit).collect()
 }

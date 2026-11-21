@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-knowledge-entity"
+description = "Enables the knowledge_entity command without any pre-configured scope."
+commands.allow = ["knowledge_entity"]
+
+[[permission]]
+identifier = "deny-knowledge-entity"
+description = "Denies the knowledge_entity command without any pre-configured scope."
+commands.deny = ["knowledge_entity"]

@@ -2,15 +2,18 @@
 name = "tauri-plugin-store"
 version = "0.1.0"
 edition = "2021"
-description = "Tauri plugin for unified SQLite storage (sqlite-vec, FTS5, knowledge graph)"
+description = "Tauri plugin for unified SQLite storage (FTS5 and sqlite-vec hybrid search, knowledge graph via GraphQLite)"
 links = "tauri-plugin-store"
 
 [build-dependencies]
 tauri-plugin = { version = "2", features = ["build"] }
+cc = "1"
 
 [dependencies]
 tauri = { version = "2.9.5" }
 rusqlite = { version = "0.31", features = ["bundled", "vtab"] }
+# Its header, for compiling GraphQLite against the same SQLite (build.rs): the version rusqlite 0.31 uses.
+libsqlite3-sys = "0.28"
 sqlite-vec = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

@@ -7,7 +7,10 @@ mod consistency;
 mod error;
 pub mod index;
 mod api_keys;
+mod graph;
+mod knowledge;
 mod meeting_steps;
+mod memories;
 mod pipeline;
 mod retention;
 mod schema;
@@ -79,7 +82,15 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             assets::notices_cleared,
             retention::storage_purge,
             usage::storage_usage,
-            // Categories (Phase 1)
+            // Memory & knowledge graph
+            memories::memory_graph,
+            memories::memories_upsert,
+            memories::memories_delete,
+            memories::memories_delete_all,
+            knowledge::knowledge_find,
+            knowledge::knowledge_entity,
+            knowledge::knowledge_graph,
+            // Categories
             commands::categories_list,
             commands::categories_rename,
             commands::categories_create,

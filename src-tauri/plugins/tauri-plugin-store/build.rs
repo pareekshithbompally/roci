@@ -13,8 +13,7 @@ const COMMANDS: &[&str] = &[
     "meetings_rename",
     "transcripts_save",
     "summaries_save",
-    // Recordings
-    // Categories
+    // Assets & storage
     "assets_create",
     "assets_page",
     "assets_count",
@@ -23,6 +22,15 @@ const COMMANDS: &[&str] = &[
     "notices_cleared",
     "storage_purge",
     "storage_usage",
+    // Memory & knowledge graph
+    "memory_graph",
+    "memories_upsert",
+    "memories_delete",
+    "memories_delete_all",
+    "knowledge_find",
+    "knowledge_entity",
+    "knowledge_graph",
+    // Categories
     "categories_list",
     "categories_rename",
     "categories_create",
@@ -71,7 +79,38 @@ const COMMANDS: &[&str] = &[
     "price_unpriced_usage",
 ];
 
+/// GraphQLite (vendor/graphqlite, see its VERSION): compiled from source with `SQLITE_CORE` against the bundled SQLite's own
+/// header (libsqlite3-sys exports it), so its calls bind straight to the SQLite it links with and it registers like
+/// sqlite-vec — no loadable library, which macOS and iOS apps can't load.
+fn compile_graphqlite() {
+    fn c_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+        for entry in std::fs::read_dir(dir).expect("read vendor/graphqlite") {
+            let path = entry.expect("vendor entry").path();
+            if path.is_dir() {
+                c_files(&path, out);
+            } else if path.extension().is_some_and(|ext| ext == "c") {
+                out.push(path);
+            }
+        }
+    }
+    let root = std::path::Path::new("vendor/graphqlite");
+    let mut files = Vec::new();
+    c_files(&root.join("src"), &mut files);
+    c_files(&root.join("parser"), &mut files);
+    cc::Build::new()
+        .files(&files)
+        .include(root.join("src/include"))
+        .include(root.join("parser"))
+        .include(std::env::var("DEP_SQLITE3_INCLUDE").expect("libsqlite3-sys exports its header"))
+        .define("SQLITE_CORE", None)
+        .opt_level(2)
+        .warnings(false)
+        .compile("graphqlite");
+    println!("cargo:rerun-if-changed=vendor/graphqlite");
+}
+
 fn main() {
+    compile_graphqlite();
     tauri_plugin::Builder::new(COMMANDS)
         .build();
 }

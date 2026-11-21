@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-memories-delete-all"
+description = "Enables the memories_delete_all command without any pre-configured scope."
+commands.allow = ["memories_delete_all"]
+
+[[permission]]
+identifier = "deny-memories-delete-all"
+description = "Denies the memories_delete_all command without any pre-configured scope."
+commands.deny = ["memories_delete_all"]

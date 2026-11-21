@@ -2,28 +2,34 @@ use crate::assets;
 use rusqlite::Connection;
 
 /// Current schema version for the new roci.db.
-pub const SCHEMA_VERSION: u32 = 15;
+pub const SCHEMA_VERSION: u32 = 16;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "mlx-community/Qwen3-Embedding-0.6B-8bit";
 pub const DEFAULT_DIM: u32 = 1024;
 
-/// Registers `sqlite_vec` once for all test modules; a second registration would panic.
-#[cfg(test)]
-pub(crate) fn register_vec_extension_once() {
-    use std::sync::Once;
-    static EXT_INIT: Once = Once::new();
+extern "C" {
+    /// GraphQLite's entry point, compiled in by build.rs.
+    fn sqlite3_graphqlite_init(
+        db: *mut rusqlite::ffi::sqlite3,
+        err: *mut *mut std::os::raw::c_char,
+        api: *const rusqlite::ffi::sqlite3_api_routines,
+    ) -> std::os::raw::c_int;
+}
 
-    EXT_INIT.call_once(|| unsafe {
-        rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(
-            sqlite_vec::sqlite3_vec_init as *const (),
-        )));
+/// Registers the store's SQLite extensions for every connection opened after: sqlite-vec (vectors) and GraphQLite (the
+/// knowledge graph, Cypher). Once per process.
+pub(crate) fn register_extensions() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| unsafe {
+        rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(sqlite_vec::sqlite3_vec_init as *const ())));
+        rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(sqlite3_graphqlite_init as *const ())));
     });
 }
 
 #[cfg(test)]
 pub(crate) fn open_migrated_test_db() -> Connection {
-    register_vec_extension_once();
+    register_extensions();
 
     let conn = Connection::open_in_memory().expect("open in-memory");
     conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
@@ -32,12 +38,12 @@ pub(crate) fn open_migrated_test_db() -> Connection {
     conn
 }
 
-/// Creates the schema in a new database, or brings a v10–v14 database to the current version with its data. Any other
+/// Creates the schema in a new database, or brings a v10–v15 database to the current version with its data. Any other
 /// version is refused, not upgraded: pre-release, there is nothing else to carry forward.
 pub fn migrate(conn: &Connection) -> Result<(), String> {
     match get_schema_version(conn) {
         0 => create_new(conn)?,
-        version @ 10..=14 => upgrade_from(conn, version)?,
+        version @ 10..=15 => upgrade_from(conn, version)?,
         SCHEMA_VERSION => {}
         other => {
             let e = format!("roci.db is schema v{other}, this build is v{SCHEMA_VERSION}: remove it to start fresh");
@@ -103,7 +109,50 @@ fn upgrade_from(conn: &Connection, version: u32) -> Result<(), String> {
     if version <= 13 {
         upgrade_v14(conn)?;
     }
-    upgrade_v15(conn)
+    if version <= 14 {
+        upgrade_v15(conn)?;
+    }
+    upgrade_v16(conn)
+}
+
+/// v15 → v16: meetings' and chats' search tables become the one search index (memories live in the graph).
+fn upgrade_v16(conn: &Connection) -> Result<(), String> {
+    let tx = conn.unchecked_transaction().map_err(|e| format!("begin v16: {}", e))?;
+    one_search_index(&tx)?;
+    set_schema_version(&tx, 16)?;
+    tx.commit().map_err(|e| format!("commit v16: {}", e))?;
+    log::info!("[store] Schema v15→v16 (one search index)");
+    Ok(())
+}
+
+/// v16: meetings' and chats' separate search tables become the one index. Their pieces move over (new ids), their vectors
+/// don't: the indexer's catch-up embeds every piece without one at launch. A database without the old tables has nothing to move.
+fn one_search_index(tx: &Connection) -> Result<(), String> {
+    let old: bool = tx
+        .query_row("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'chat_chunks'", [], |r| r.get::<_, i64>(0))
+        .map(|n| n > 0)
+        .map_err(|e| format!("v16 read search tables: {}", e))?;
+    if !old {
+        return Ok(());
+    }
+    tx.execute_batch(
+        "DROP TRIGGER IF EXISTS chunks_ai; DROP TRIGGER IF EXISTS chunks_ad; DROP TRIGGER IF EXISTS chunks_bu; DROP TRIGGER IF EXISTS chunks_au;
+         DROP TRIGGER IF EXISTS chat_chunks_ai; DROP TRIGGER IF EXISTS chat_chunks_ad; DROP TRIGGER IF EXISTS chat_chunks_bu; DROP TRIGGER IF EXISTS chat_chunks_au;
+         DROP TABLE IF EXISTS chunks_fts; DROP TABLE IF EXISTS chat_chunks_fts;
+         DROP TABLE IF EXISTS vec_chunks; DROP TABLE IF EXISTS chat_vec_chunks;
+         ALTER TABLE chunks RENAME TO meeting_chunks_v15;",
+    )
+    .map_err(|e| format!("v16 drop old search tables: {}", e))?;
+    tx.execute_batch(SEARCH_DDL).map_err(|e| format!("v16 search index: {}", e))?;
+    create_vectors(tx)?;
+    tx.execute_batch(
+        "INSERT INTO chunks (owner_kind, owner_id, chunk_index, chunk_text, chunk_type, start_pos, end_pos)
+             SELECT 'meeting', meeting_id, chunk_index, chunk_text, chunk_type, start_pos, end_pos FROM meeting_chunks_v15;
+         INSERT INTO chunks (owner_kind, owner_id, chunk_index, chunk_text, chunk_type)
+             SELECT 'chat', chat_id, chunk_index, chunk_text, chunk_type FROM chat_chunks;
+         DROP TABLE meeting_chunks_v15; DROP TABLE chat_chunks;",
+    )
+    .map_err(|e| format!("v16 move search pieces: {}", e))
 }
 
 /// v14 → v15: a provider's API key is kept encrypted in its row; a database v12 made already has the column.
@@ -166,13 +215,8 @@ fn match_embedding_model(conn: &Connection) -> Result<(), String> {
     let tx = conn.unchecked_transaction().map_err(|e| format!("begin embedding model change: {}", e))?;
     // No model recorded: no vectors were ever written to drop.
     if stored.is_some() {
-        tx.execute_batch(&format!(
-            "DROP TABLE IF EXISTS vec_chunks;
-             DROP TABLE IF EXISTS chat_vec_chunks;
-             CREATE VIRTUAL TABLE vec_chunks USING vec0(chunk_id INTEGER PRIMARY KEY, embedding float[{DEFAULT_DIM}]);
-             CREATE VIRTUAL TABLE chat_vec_chunks USING vec0(chunk_id INTEGER PRIMARY KEY, embedding float[{DEFAULT_DIM}]);"
-        ))
-        .map_err(|e| format!("drop old embeddings: {}", e))?;
+        tx.execute_batch("DROP TABLE IF EXISTS vec_chunks;").map_err(|e| format!("drop old embeddings: {}", e))?;
+        create_vectors(&tx)?;
     }
     tx.execute(
         "INSERT OR REPLACE INTO meta (key, value) VALUES ('embedding_model', ?1), ('embedding_dim', ?2)",
@@ -182,6 +226,55 @@ fn match_embedding_model(conn: &Connection) -> Result<(), String> {
     tx.commit().map_err(|e| format!("commit embedding model change: {}", e))?;
     log::info!("[store] Embedding model is now {} (old vectors dropped)", DEFAULT_MODEL);
     Ok(())
+}
+
+/// The search index: every searchable piece of a meeting, a chat or any later owner (`owner_kind`, `owner_id`), its BM25
+/// keyword index kept in step by triggers, and the owners' delete triggers that take their pieces with them (a new indexed
+/// owner adds one). Vectors are `create_vectors`'.
+const SEARCH_DDL: &str = "
+    CREATE TABLE IF NOT EXISTS chunks (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner_kind  TEXT    NOT NULL,
+        owner_id    TEXT    NOT NULL,
+        chunk_index INTEGER NOT NULL,
+        chunk_text  TEXT    NOT NULL,
+        chunk_type  TEXT    NOT NULL,
+        start_pos   INTEGER,
+        end_pos     INTEGER,
+        UNIQUE (owner_kind, owner_id, chunk_index)
+    );
+    CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(chunk_text, content=chunks, content_rowid=id, prefix='2 3');
+    CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks BEGIN
+        INSERT INTO chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
+    END;
+    CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks BEGIN
+        INSERT INTO chunks_fts(chunks_fts, rowid, chunk_text) VALUES ('delete', old.id, old.chunk_text);
+    END;
+    CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE OF chunk_text ON chunks BEGIN
+        INSERT INTO chunks_fts(chunks_fts, rowid, chunk_text) VALUES ('delete', old.id, old.chunk_text);
+        INSERT INTO chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
+    END;
+    CREATE TRIGGER IF NOT EXISTS meetings_chunks_ad AFTER DELETE ON meetings BEGIN
+        DELETE FROM chunks WHERE owner_kind = 'meeting' AND owner_id = old.id;
+    END;
+    CREATE TRIGGER IF NOT EXISTS chats_chunks_ad AFTER DELETE ON chats BEGIN
+        DELETE FROM chunks WHERE owner_kind = 'chat' AND owner_id = old.id;
+    END;";
+
+/// The pieces' vectors (sqlite-vec, partitioned by owner kind so a search reads one kind's), and the trigger that drops a
+/// piece's vector with it. Separate from `SEARCH_DDL`: vec0 is the extension's, and an embedding model change remakes it.
+fn create_vectors(conn: &Connection) -> Result<(), String> {
+    conn.execute_batch(&format!(
+        "CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
+             chunk_id INTEGER PRIMARY KEY,
+             owner_kind TEXT PARTITION KEY,
+             embedding float[{DEFAULT_DIM}]
+         );
+         CREATE TRIGGER IF NOT EXISTS chunks_vec_ad AFTER DELETE ON chunks BEGIN
+             DELETE FROM vec_chunks WHERE chunk_id = old.id;
+         END;"
+    ))
+    .map_err(|e| format!("create vectors: {}", e))
 }
 
 /// Each tool call the AI made in a chat, as its saved message shows it: read by usage over a time window.
@@ -376,28 +469,6 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
         );
         CREATE INDEX idx_meeting_categories_category ON meeting_categories(category_id);
 
-        -- ── 2.4 Derived — search, vectors, usage ─────────────────────────
-        CREATE TABLE chunks (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            meeting_id  TEXT    NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
-            chunk_index INTEGER NOT NULL,
-            chunk_text  TEXT    NOT NULL,
-            chunk_type  TEXT    NOT NULL DEFAULT 'transcript',
-            start_pos   INTEGER,
-            end_pos     INTEGER,
-            UNIQUE(meeting_id, chunk_index)
-        );
-        CREATE INDEX idx_chunks_meeting ON chunks(meeting_id);
-
-        CREATE TABLE chat_chunks (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            chat_id     TEXT    NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
-            chunk_index INTEGER NOT NULL,
-            chunk_text  TEXT    NOT NULL,
-            chunk_type  TEXT    NOT NULL DEFAULT 'turn',
-            UNIQUE(chat_id, chunk_index)
-        );
-        CREATE INDEX idx_chat_chunks_chat ON chat_chunks(chat_id);
         ",
     )
     .map_err(|e| format!("create baseline tables: {}", e))?;
@@ -407,63 +478,7 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(DICTATIONS_DDL).map_err(|e| format!("create dictations table: {}", e))?;
     conn.execute_batch(TOOL_CALLS_DDL).map_err(|e| format!("create tool calls table: {}", e))?;
 
-    // FTS5 virtual tables (must be separate from execute_batch with the rebuild step)
-    conn.execute_batch(
-        "
-        CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
-            chunk_text,
-            content=chunks,
-            content_rowid=id,
-            prefix='2 3'
-        );
-
-        CREATE VIRTUAL TABLE IF NOT EXISTS chat_chunks_fts USING fts5(
-            chunk_text,
-            content=chat_chunks,
-            content_rowid=id,
-            prefix='2 3'
-        );
-        ",
-    )
-    .map_err(|e| format!("create FTS5 virtual tables: {}", e))?;
-
-    // FTS5 sync triggers
-    conn.execute_batch(
-        "
-        -- chunks ↔ chunks_fts
-        CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks BEGIN
-            INSERT INTO chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
-        END;
-        CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks BEGIN
-            INSERT INTO chunks_fts(chunks_fts, rowid, chunk_text)
-            VALUES('delete', old.id, old.chunk_text);
-        END;
-        CREATE TRIGGER IF NOT EXISTS chunks_bu BEFORE UPDATE ON chunks BEGIN
-            INSERT INTO chunks_fts(chunks_fts, rowid, chunk_text)
-            VALUES('delete', old.id, old.chunk_text);
-        END;
-        CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks BEGIN
-            INSERT INTO chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
-        END;
-
-        -- chat_chunks ↔ chat_chunks_fts
-        CREATE TRIGGER IF NOT EXISTS chat_chunks_ai AFTER INSERT ON chat_chunks BEGIN
-            INSERT INTO chat_chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
-        END;
-        CREATE TRIGGER IF NOT EXISTS chat_chunks_ad AFTER DELETE ON chat_chunks BEGIN
-            INSERT INTO chat_chunks_fts(chat_chunks_fts, rowid, chunk_text)
-            VALUES('delete', old.id, old.chunk_text);
-        END;
-        CREATE TRIGGER IF NOT EXISTS chat_chunks_bu BEFORE UPDATE ON chat_chunks BEGIN
-            INSERT INTO chat_chunks_fts(chat_chunks_fts, rowid, chunk_text)
-            VALUES('delete', old.id, old.chunk_text);
-        END;
-        CREATE TRIGGER IF NOT EXISTS chat_chunks_au AFTER UPDATE ON chat_chunks BEGIN
-            INSERT INTO chat_chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
-        END;
-        ",
-    )
-    .map_err(|e| format!("create FTS5 triggers: {}", e))?;
+    conn.execute_batch(SEARCH_DDL).map_err(|e| format!("create search index: {}", e))?;
 
     // Usage log
     conn.execute_batch(
@@ -490,24 +505,7 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
     )
     .map_err(|e| format!("create usage_log: {}", e))?;
 
-    // sqlite-vec virtual tables (must be separate — vec0 uses its own extension)
-    conn.execute_batch(&format!(
-        "CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
-            chunk_id INTEGER PRIMARY KEY,
-            embedding float[{}]
-        );",
-        DEFAULT_DIM,
-    ))
-    .map_err(|e| format!("create vec_chunks: {}", e))?;
-
-    conn.execute_batch(&format!(
-        "CREATE VIRTUAL TABLE IF NOT EXISTS chat_vec_chunks USING vec0(
-            chunk_id INTEGER PRIMARY KEY,
-            embedding float[{}]
-        );",
-        DEFAULT_DIM,
-    ))
-    .map_err(|e| format!("create chat_vec_chunks: {}", e))?;
+    create_vectors(conn)?;
 
     // Insert metadata
     conn.execute_batch(&format!(
@@ -529,7 +527,7 @@ mod tests {
     use rusqlite::{Connection, params};
 
     fn open_test_db() -> Connection {
-        super::register_vec_extension_once();
+        super::register_extensions();
 
         let conn = Connection::open_in_memory().expect("open in-memory");
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
@@ -568,6 +566,60 @@ mod tests {
     }
 
     #[test]
+    fn the_graph_runs_on_the_store_connection() {
+        let conn = open_migrated_test_db();
+        let cypher = |q: &str| conn.query_row("SELECT cypher(?1)", [q], |r| r.get::<_, Option<String>>(0)).unwrap().unwrap_or_default();
+        cypher("MERGE (:Person {id:'p1', name:'Priya'})");
+        cypher("MERGE (:Person {id:'p1', name:'Priya'})");
+        assert_eq!(cypher("MATCH (p:Person) RETURN count(p) AS n"), r#"[{"n":1}]"#);
+    }
+
+    #[test]
+    fn v15_search_pieces_move_into_the_one_index() {
+        let conn = open_test_db();
+        init_db(&conn);
+        // The v15 search tables, as they were (each owner's pieces, keyword index and vectors apart).
+        conn.execute_batch(&format!(
+            "DROP TRIGGER meetings_chunks_ad; DROP TRIGGER chats_chunks_ad; DROP TABLE vec_chunks; DROP TABLE chunks_fts; DROP TABLE chunks;
+             CREATE TABLE chunks (id INTEGER PRIMARY KEY AUTOINCREMENT, meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+                 chunk_index INTEGER NOT NULL, chunk_text TEXT NOT NULL, chunk_type TEXT NOT NULL DEFAULT 'transcript',
+                 start_pos INTEGER, end_pos INTEGER, UNIQUE(meeting_id, chunk_index));
+             CREATE TABLE chat_chunks (id INTEGER PRIMARY KEY AUTOINCREMENT, chat_id TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+                 chunk_index INTEGER NOT NULL, chunk_text TEXT NOT NULL, chunk_type TEXT NOT NULL DEFAULT 'turn', UNIQUE(chat_id, chunk_index));
+             CREATE VIRTUAL TABLE chunks_fts USING fts5(chunk_text, content=chunks, content_rowid=id);
+             CREATE VIRTUAL TABLE chat_chunks_fts USING fts5(chunk_text, content=chat_chunks, content_rowid=id);
+             CREATE TRIGGER chunks_ai AFTER INSERT ON chunks BEGIN INSERT INTO chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text); END;
+             CREATE TRIGGER chat_chunks_ai AFTER INSERT ON chat_chunks BEGIN INSERT INTO chat_chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text); END;
+             CREATE VIRTUAL TABLE vec_chunks USING vec0(chunk_id INTEGER PRIMARY KEY, embedding float[{DEFAULT_DIM}]);
+             CREATE VIRTUAL TABLE chat_vec_chunks USING vec0(chunk_id INTEGER PRIMARY KEY, embedding float[{DEFAULT_DIM}]);
+             INSERT INTO meetings (id, title, created_at, updated_at) VALUES ('m', 'Standup', 1, 1);
+             INSERT INTO chats (id, title, created_at, last_message_at) VALUES ('c', 'Chat', 1, 1);
+             INSERT INTO chunks (meeting_id, chunk_index, chunk_text) VALUES ('m', 0, 'budget review');
+             INSERT INTO chat_chunks (chat_id, chunk_index, chunk_text) VALUES ('c', 0, 'budget question');
+             UPDATE meta SET value = '15' WHERE key = 'schema_version';"
+        ))
+        .expect("v15 search tables");
+
+        migrate(&conn).expect("upgrade");
+
+        let owners: Vec<String> = conn
+            .prepare("SELECT c.owner_kind || ':' || c.owner_id FROM chunks_fts f JOIN chunks c ON c.id = f.rowid WHERE chunks_fts MATCH 'budget' ORDER BY 1")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(owners, ["chat:c", "meeting:m"], "both pieces moved, keyword index rebuilt");
+        let left: i64 = conn
+            .query_row("SELECT COUNT(*) FROM sqlite_master WHERE name IN ('chat_chunks', 'chat_chunks_fts', 'chat_vec_chunks', 'meeting_chunks_v15')", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(left, 0, "the old tables are gone");
+        conn.execute("DELETE FROM chats WHERE id = 'c'", []).unwrap();
+        let chat_pieces: i64 = conn.query_row("SELECT COUNT(*) FROM chunks WHERE owner_kind = 'chat'", [], |r| r.get(0)).unwrap();
+        assert_eq!(chat_pieces, 0, "an owner's delete trigger is in place");
+    }
+
+    #[test]
     fn schema_creates_all_tables() {
         let conn = open_test_db();
         init_db(&conn);
@@ -590,13 +642,15 @@ mod tests {
             "categories",
             "meeting_categories",
             "chunks",
-            "chat_chunks",
             "chunks_fts",
-            "chat_chunks_fts",
             "vec_chunks",
-            "chat_vec_chunks",
             "usage_log",
             "tool_calls",
+            // GraphQLite's own (it creates and owns them; an update that renames them fails here).
+            "nodes",
+            "edges",
+            "node_labels",
+            "property_keys",
         ];
 
         let mut stmt = conn
@@ -689,7 +743,7 @@ mod tests {
         )
         .expect("insert todo");
         conn.execute(
-            "INSERT INTO chunks (meeting_id, chunk_index, chunk_text) VALUES (?1, ?2, ?3)",
+            "INSERT INTO chunks (owner_kind, owner_id, chunk_index, chunk_text, chunk_type) VALUES ('meeting', ?1, ?2, ?3, 'transcript')",
             params!["m1", 0, "chunk text"],
         )
         .expect("insert chunk");
@@ -744,7 +798,7 @@ mod tests {
         assert_eq!(todos_count, 0, "todos should cascade-delete");
 
         let chunks_count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM chunks WHERE meeting_id = ?1", params!["m1"], |r| r.get(0))
+            .query_row("SELECT COUNT(*) FROM chunks WHERE owner_kind = 'meeting' AND owner_id = ?1", params!["m1"], |r| r.get(0))
             .unwrap();
         assert_eq!(chunks_count, 0, "chunks should cascade-delete");
 
@@ -910,7 +964,7 @@ mod tests {
         conn.execute("INSERT INTO meetings (id, title, created_at, updated_at) VALUES ('m1', 'M', ?1, ?1)", params![now])
             .expect("insert meeting");
         let vector = format!("[{}]", vec!["0.1"; DEFAULT_DIM as usize].join(","));
-        conn.execute("INSERT INTO vec_chunks (chunk_id, embedding) VALUES (1, ?1)", params![vector]).expect("insert vector");
+        conn.execute("INSERT INTO vec_chunks (chunk_id, owner_kind, embedding) VALUES (1, 'meeting', ?1)", params![vector]).expect("insert vector");
         conn.execute("UPDATE meta SET value = 'old-model' WHERE key = 'embedding_model'", []).expect("set old model");
 
         migrate(&conn).expect("migrate");
@@ -919,7 +973,7 @@ mod tests {
         let model: String = conn.query_row("SELECT value FROM meta WHERE key = 'embedding_model'", [], |r| r.get(0)).unwrap();
         assert_eq!((vectors, model.as_str()), (0, DEFAULT_MODEL));
 
-        conn.execute("INSERT INTO vec_chunks (chunk_id, embedding) VALUES (2, ?1)", params![vector]).expect("insert vector");
+        conn.execute("INSERT INTO vec_chunks (chunk_id, owner_kind, embedding) VALUES (2, 'meeting', ?1)", params![vector]).expect("insert vector");
         migrate(&conn).expect("migrate again");
         let kept: i64 = conn.query_row("SELECT COUNT(*) FROM vec_chunks", [], |r| r.get(0)).unwrap();
         assert_eq!(kept, 1, "the same model keeps its vectors");

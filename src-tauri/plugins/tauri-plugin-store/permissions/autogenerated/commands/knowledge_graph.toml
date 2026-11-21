@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-knowledge-graph"
+description = "Enables the knowledge_graph command without any pre-configured scope."
+commands.allow = ["knowledge_graph"]
+
+[[permission]]
+identifier = "deny-knowledge-graph"
+description = "Denies the knowledge_graph command without any pre-configured scope."
+commands.deny = ["knowledge_graph"]

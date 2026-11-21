@@ -57,8 +57,12 @@ struct Progress {
 
 // ── Lifecycle ──
 
-/// Follows meeting and chat saves; called once from setup.
+/// Follows meeting and chat saves; called once from setup. With search's model already downloaded, the pieces still
+/// without a vector (after an upgrade, or a save while the model was busy) get one first.
 pub fn start(app: AppHandle) {
+    let embedder_installed = crate::models::catalog::search_embedder()
+        .and_then(|model| crate::models::store::installed_dir(&app, model))
+        .is_ok();
     let (sender, receiver) = mpsc::channel();
     if let Err(error) = thread::Builder::new().name("search-index".into()).spawn(move || follow(&app, &receiver)) {
         log::error!("[search-index] thread failed to start: {error}");
@@ -74,6 +78,9 @@ pub fn start(app: AppHandle) {
     tauri_plugin_store::on_chat_saved(move |id| {
         let _ = chats.send(Input::Saved(ItemKind::Chat, id.to_string()));
     });
+    if embedder_installed {
+        let _ = sender.send(Input::EmbedderReady);
+    }
     let _ = SENDER.set(sender);
 }
 

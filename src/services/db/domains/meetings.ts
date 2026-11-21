@@ -16,6 +16,7 @@ import type {
   MeetingUpsertInput,
   NewTranscript,
   SummarySaveInput,
+  MeetingKnowledge,
   TranscriptSaveInput,
   SummarySaved,
 } from '@shared/types/native';
@@ -144,7 +145,7 @@ export const meetings = {
    * Save the summary with its title, categories and action items; the meeting becomes `ready`.
    * Resolves the ids of the untouched AI to-dos the new action items replaced.
    */
-  async saveSummary(input: { meetingId: string; title: string; summary: MeetingSummary; categories: string[] }): Promise<SummarySaved> {
+  async saveSummary(input: { meetingId: string; title: string; summary: MeetingSummary; categories: string[]; knowledge?: MeetingKnowledge }): Promise<SummarySaved> {
     const { summary } = input;
     return call<SummarySaved>('summaries_save', {
       input: {
@@ -160,6 +161,7 @@ export const meetings = {
         }),
         categories: input.categories,
         action_items: summary.actionItems.map((a) => ({ text: a.text, owner: a.owner ?? null, due_date: a.dueDate ?? null })),
+        knowledge: input.knowledge ?? null,
       } satisfies SummarySaveInput,
     });
   },

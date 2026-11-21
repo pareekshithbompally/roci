@@ -138,13 +138,13 @@ pub fn search_sessions(
             let mut stmt = conn
                 .prepare(
                     "SELECT
-                         c.meeting_id,
+                         c.owner_id,
                          m.title,
                          m.created_at,
                          snippet(chunks_fts, 0, ?1, ?2, '...', ?3) as excerpt
                      FROM chunks_fts
-                     JOIN chunks c ON c.id = chunks_fts.rowid
-                     JOIN meetings m ON m.id = c.meeting_id
+                     JOIN chunks c ON c.id = chunks_fts.rowid AND c.owner_kind = 'meeting'
+                     JOIN meetings m ON m.id = c.owner_id
                      WHERE chunks_fts MATCH ?4
                      ORDER BY rank
                      LIMIT ?5",
@@ -182,14 +182,14 @@ pub fn search_sessions(
             let mut stmt = conn
                 .prepare(
                     "SELECT
-                         c.chat_id,
+                         c.owner_id,
                          cs.title,
                          cs.last_message_at,
-                         snippet(chat_chunks_fts, 0, ?1, ?2, '...', ?3) as excerpt
-                     FROM chat_chunks_fts
-                     JOIN chat_chunks c ON c.id = chat_chunks_fts.rowid
-                     JOIN chats cs ON cs.id = c.chat_id
-                     WHERE chat_chunks_fts MATCH ?4
+                         snippet(chunks_fts, 0, ?1, ?2, '...', ?3) as excerpt
+                     FROM chunks_fts
+                     JOIN chunks c ON c.id = chunks_fts.rowid AND c.owner_kind = 'chat'
+                     JOIN chats cs ON cs.id = c.owner_id
+                     WHERE chunks_fts MATCH ?4
                      ORDER BY rank
                      LIMIT ?5",
                 )

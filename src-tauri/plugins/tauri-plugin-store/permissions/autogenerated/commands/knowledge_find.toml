@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-knowledge-find"
+description = "Enables the knowledge_find command without any pre-configured scope."
+commands.allow = ["knowledge_find"]
+
+[[permission]]
+identifier = "deny-knowledge-find"
+description = "Denies the knowledge_find command without any pre-configured scope."
+commands.deny = ["knowledge_find"]

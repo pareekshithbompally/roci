@@ -24,6 +24,13 @@ Allows all store plugin commands
 - `allow-notices-cleared`
 - `allow-storage-purge`
 - `allow-storage-usage`
+- `allow-memory-graph`
+- `allow-memories-upsert`
+- `allow-memories-delete`
+- `allow-memories-delete-all`
+- `allow-knowledge-find`
+- `allow-knowledge-entity`
+- `allow-knowledge-graph`
 - `allow-categories-list`
 - `allow-categories-rename`
 - `allow-categories-create`
@@ -673,6 +680,84 @@ Denies the items_page command without any pre-configured scope.
 <tr>
 <td>
 
+`store:allow-knowledge-entity`
+
+</td>
+<td>
+
+Enables the knowledge_entity command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-knowledge-entity`
+
+</td>
+<td>
+
+Denies the knowledge_entity command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-knowledge-find`
+
+</td>
+<td>
+
+Enables the knowledge_find command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-knowledge-find`
+
+</td>
+<td>
+
+Denies the knowledge_find command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-knowledge-graph`
+
+</td>
+<td>
+
+Enables the knowledge_graph command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-knowledge-graph`
+
+</td>
+<td>
+
+Denies the knowledge_graph command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `store:allow-meetings-begin-step`
 
 </td>
@@ -900,6 +985,136 @@ Enables the meetings_upsert command without any pre-configured scope.
 <td>
 
 Denies the meetings_upsert command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-memories-delete`
+
+</td>
+<td>
+
+Enables the memories_delete command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-memories-delete`
+
+</td>
+<td>
+
+Denies the memories_delete command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-memories-delete-all`
+
+</td>
+<td>
+
+Enables the memories_delete_all command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-memories-delete-all`
+
+</td>
+<td>
+
+Denies the memories_delete_all command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-memories-list`
+
+</td>
+<td>
+
+Enables the memories_list command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-memories-list`
+
+</td>
+<td>
+
+Denies the memories_list command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-memories-upsert`
+
+</td>
+<td>
+
+Enables the memories_upsert command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-memories-upsert`
+
+</td>
+<td>
+
+Denies the memories_upsert command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-memory-graph`
+
+</td>
+<td>
+
+Enables the memory_graph command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-memory-graph`
+
+</td>
+<td>
+
+Denies the memory_graph command without any pre-configured scope.
 
 </td>
 </tr>

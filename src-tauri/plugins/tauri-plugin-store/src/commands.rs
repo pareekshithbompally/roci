@@ -2,7 +2,7 @@ use crate::{asset_adoption, assets};
 use crate::changes::{notify, MeetingChange};
 use crate::error::StoreError;
 use crate::schema;
-use rusqlite::{ffi::sqlite3_auto_extension, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, Runtime, State};
@@ -211,6 +211,8 @@ pub struct SummarySaveInput {
     pub data: String,
     pub categories: Vec<String>,
     pub action_items: Vec<ActionItemInput>,
+    /// What the meeting was about, for the knowledge graph; none keeps what it has (a summary that wasn't analysed here).
+    pub knowledge: Option<crate::knowledge::MeetingKnowledge>,
 }
 
 // ── Category Structs ──
@@ -684,11 +686,7 @@ pub async fn initialize<R: Runtime>(
 
         log::info!("[store] Opening database at {:?}", db_path);
 
-        unsafe {
-            sqlite3_auto_extension(Some(std::mem::transmute(
-                sqlite_vec::sqlite3_vec_init as *const (),
-            )));
-        }
+        schema::register_extensions();
 
         let db = Connection::open(&db_path)
             .map_err(|e| StoreError::from(format!("Failed to open database: {}", e)))?;
@@ -944,19 +942,10 @@ pub(crate) fn meetings_delete_impl(db: &Connection, id: &str) -> Result<(), Stor
 
 /// A meeting and everything it owns, inside the caller's transaction; its files are queued for `assets::drain_files`.
 pub(crate) fn delete_meeting_rows(tx: &Connection, id: &str) -> Result<(), StoreError> {
-    // vec_chunks is a virtual table with no FK cascade.
-    let chunk_ids: Vec<i64> = tx
-        .prepare("SELECT id FROM chunks WHERE meeting_id = ?1")?
-        .query_map([id], |row| row.get(0))?
-        .collect::<Result<_, _>>()?;
-    for cid in &chunk_ids {
-        tx.execute("DELETE FROM vec_chunks WHERE chunk_id = ?1", [cid])?;
-    }
-    // FTS5 triggers follow the chunks.
-    tx.execute("DELETE FROM chunks WHERE meeting_id = ?1", [id])?;
-    // CASCADE removes the meeting's transcripts, summaries, notes, todos, reminders, assets and index state.
+    // CASCADE removes the meeting's transcripts, summaries, notes, todos, reminders and assets; a trigger its search pieces.
     tx.execute("DELETE FROM meetings WHERE id = ?1", [id])?;
-    log::info!("[store] Deleted meeting {} ({} chunks)", id, chunk_ids.len());
+    crate::knowledge::forget_meeting(tx, id)?;
+    log::info!("[store] Deleted meeting {}", id);
     Ok(())
 }
 
@@ -1098,6 +1087,9 @@ fn summaries_save_impl(db: &Connection, input: &SummarySaveInput) -> Result<Summ
             added.push(id);
         }
         meetings_set_status_impl(&tx, &input.meeting_id, &MeetingStatus::at("ready"))?;
+        if let Some(knowledge) = &input.knowledge {
+            crate::knowledge::record_meeting(&tx, &input.meeting_id, knowledge, now)?;
+        }
         tx.commit()?;
         log::info!(
             "[store] Saved summary for meeting {}: action_items={} replaced={}",
@@ -1121,6 +1113,7 @@ pub(crate) fn summaries_save_for_test(db: &Connection, meeting_id: &str, title: 
             data: "{}".into(),
             categories: Vec::new(),
             action_items: vec![item("Send the brief"), item("Book the room")],
+            knowledge: None,
         },
     )
 }
@@ -1949,6 +1942,25 @@ pub enum ItemKind {
     Chat,
 }
 
+impl ItemKind {
+    /// Its `owner_kind` in the search index.
+    pub const fn index_kind(self) -> &'static str {
+        match self {
+            ItemKind::Meeting => "meeting",
+            ItemKind::Chat => "chat",
+        }
+    }
+
+    /// Whether the item with this id is still there (an indexer that read it may write after it was deleted).
+    fn exists(self, db: &Connection, id: &str) -> Result<bool, StoreError> {
+        let sql = match self {
+            ItemKind::Meeting => "SELECT EXISTS (SELECT 1 FROM meetings WHERE id = ?1)",
+            ItemKind::Chat => "SELECT EXISTS (SELECT 1 FROM chats WHERE id = ?1)",
+        };
+        Ok(db.query_row(sql, [id], |row| row.get(0))?)
+    }
+}
+
 /// One item as every list shows it: name, time and status only (no transcript, summary or messages).
 #[derive(Debug, Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
@@ -2264,16 +2276,7 @@ pub(crate) fn chats_delete_impl(db: &Connection, id: &str) -> Result<(), StoreEr
 
 /// A chat and everything it owns, inside the caller's transaction; its files are queued for `assets::drain_files`.
 pub(crate) fn delete_chat_rows(tx: &Connection, id: &str) -> Result<(), StoreError> {
-    // chat_vec_chunks is a virtual table with no FK cascade.
-    let chunk_ids: Vec<i64> = tx
-        .prepare("SELECT id FROM chat_chunks WHERE chat_id = ?1")?
-        .query_map([id], |row| row.get(0))?
-        .collect::<Result<_, _>>()?;
-    for cid in &chunk_ids {
-        tx.execute("DELETE FROM chat_vec_chunks WHERE chunk_id = ?1", [cid])?;
-    }
-    tx.execute("DELETE FROM chat_chunks WHERE chat_id = ?1", [id])?;
-    // CASCADE removes the chat's messages, assets and index state.
+    // CASCADE removes the chat's messages and assets; a trigger its search pieces.
     tx.execute("DELETE FROM chats WHERE id = ?1", [id])?;
     Ok(())
 }
@@ -2380,27 +2383,40 @@ fn dictations_delete_impl(db: &Connection, id: &str) -> Result<(), StoreError> {
 
 // ── RAG Indexing Commands ──
 
-/// One chunk (its full-text entry follows by trigger) and its vector, when it has one.
-fn insert_chunk(tx: &Connection, meeting_id: &str, chunk_index: i32, chunk: &ChunkData) -> Result<(), StoreError> {
+/// A piece's vector, replacing any it had.
+fn put_vector(tx: &Connection, kind: ItemKind, chunk_id: i64, embedding: &[f32]) -> Result<(), StoreError> {
+    tx.execute("DELETE FROM vec_chunks WHERE chunk_id = ?1", [chunk_id])?;
     tx.execute(
-        "INSERT INTO chunks (meeting_id, chunk_index, chunk_text, chunk_type, start_pos, end_pos)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        rusqlite::params![meeting_id, chunk_index, chunk.chunk_text, chunk.chunk_type, chunk.start_pos, chunk.end_pos],
+        "INSERT INTO vec_chunks (chunk_id, owner_kind, embedding) VALUES (?1, ?2, ?3)",
+        rusqlite::params![chunk_id, kind.index_kind(), crate::search::vector_bytes(embedding)],
     )?;
-    if let Some(embedding) = &chunk.embedding {
-        let bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
-        tx.execute("INSERT INTO vec_chunks (chunk_id, embedding) VALUES (?1, ?2)", rusqlite::params![tx.last_insert_rowid(), bytes])?;
-    }
     Ok(())
+}
+
+/// One meeting piece (its keyword entry follows by trigger) and its vector, when it has one.
+fn insert_chunk(tx: &Connection, meeting_id: &str, chunk_index: i32, chunk: &ChunkData) -> Result<(), StoreError> {
+    let kind = ItemKind::Meeting;
+    tx.execute(
+        "INSERT INTO chunks (owner_kind, owner_id, chunk_index, chunk_text, chunk_type, start_pos, end_pos)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        rusqlite::params![kind.index_kind(), meeting_id, chunk_index, chunk.chunk_text, chunk.chunk_type, chunk.start_pos, chunk.end_pos],
+    )?;
+    match &chunk.embedding {
+        Some(embedding) => put_vector(tx, kind, tx.last_insert_rowid(), embedding),
+        None => Ok(()),
+    }
 }
 
 /// Adds chunks after the meeting's last one, keeping what is there (a meeting indexed while it records, stretch by stretch);
 /// their own `chunk_index` is ignored. A later `upsert_chunks` (the final transcript) keeps the ones whose text it shares.
 pub(crate) fn append_chunks_impl(db: &Connection, meeting_id: &str, chunks: &[ChunkData]) -> Result<(), StoreError> {
     let tx = db.unchecked_transaction()?;
+    if !ItemKind::Meeting.exists(&tx, meeting_id)? {
+        return Ok(());
+    }
     let next: i32 = tx.query_row(
-        "SELECT COALESCE(MAX(chunk_index) + 1, 0) FROM chunks WHERE meeting_id = ?1",
-        [meeting_id],
+        "SELECT COALESCE(MAX(chunk_index) + 1, 0) FROM chunks WHERE owner_kind = ?1 AND owner_id = ?2",
+        rusqlite::params![ItemKind::Meeting.index_kind(), meeting_id],
         |row| row.get(0),
     )?;
     for (offset, chunk) in (0..).zip(chunks) {
@@ -2412,10 +2428,11 @@ pub(crate) fn append_chunks_impl(db: &Connection, meeting_id: &str, chunks: &[Ch
 
 fn index_stats_impl(db: &Connection) -> Result<IndexStats, StoreError> {
     Ok(db.query_row(
-        "SELECT (SELECT COUNT(DISTINCT meeting_id) FROM chunks),
-                (SELECT COUNT(DISTINCT chat_id) FROM chat_chunks),
-                (SELECT COUNT(*) FROM chunks WHERE chunk_type = 'transcript'),
-                (SELECT COUNT(*) FROM chat_chunks)",
+        "SELECT COUNT(DISTINCT CASE WHEN owner_kind = 'meeting' THEN owner_id END),
+                COUNT(DISTINCT CASE WHEN owner_kind = 'chat' THEN owner_id END),
+                COUNT(CASE WHEN owner_kind = 'meeting' AND chunk_type = 'transcript' THEN 1 END),
+                COUNT(CASE WHEN owner_kind = 'chat' THEN 1 END)
+         FROM chunks",
         [],
         |row| Ok(IndexStats { indexed_meetings: row.get(0)?, indexed_chats: row.get(1)?, transcript_pieces: row.get(2)?, chat_pieces: row.get(3)? }),
     )?)
@@ -2691,76 +2708,61 @@ pub async fn get_usage_summary(
 
 // ── Chat Indexing Commands ──
 
-/// Where one owner's search pieces live: meetings' and chats' have the same shape (a chat turn has no transcript positions).
-pub(crate) struct ChunkStore {
-    chunks: &'static str,
-    vectors: &'static str,
-    owner: &'static str,
-    positions: bool,
-}
-
-pub(crate) const MEETING_CHUNKS: ChunkStore = ChunkStore { chunks: "chunks", vectors: "vec_chunks", owner: "meeting_id", positions: true };
-pub(crate) const CHAT_CHUNKS: ChunkStore = ChunkStore { chunks: "chat_chunks", vectors: "chat_vec_chunks", owner: "chat_id", positions: false };
-
 /// An owner's search pieces after a save: a piece whose text is unchanged keeps its row and vector (replaced only when a new
 /// vector is sent), a changed or new piece is written, and pieces past the end are removed — so an edit writes and embeds
-/// only what changed. The full-text index follows by trigger.
-pub(crate) fn save_chunks(tx: &Connection, store: &ChunkStore, owner_id: &str, chunks: &[ChunkData]) -> Result<(), StoreError> {
-    let (table, vectors, owner) = (store.chunks, store.vectors, store.owner);
+/// only what changed. Keyword entries and vectors of removed pieces follow by trigger. An owner deleted since it was read
+/// gets nothing written (its delete trigger already ran).
+pub(crate) fn save_chunks(tx: &Connection, owner: ItemKind, owner_id: &str, chunks: &[ChunkData]) -> Result<(), StoreError> {
+    if !owner.exists(tx, owner_id)? {
+        return Ok(());
+    }
+    let kind = owner.index_kind();
     for chunk in chunks {
         let stored: Option<(i64, String)> = tx
             .query_row(
-                &format!("SELECT id, chunk_text FROM {table} WHERE {owner} = ?1 AND chunk_index = ?2"),
-                rusqlite::params![owner_id, chunk.chunk_index],
+                "SELECT id, chunk_text FROM chunks WHERE owner_kind = ?1 AND owner_id = ?2 AND chunk_index = ?3",
+                rusqlite::params![kind, owner_id, chunk.chunk_index],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .optional()?;
         let chunk_id = match stored {
             Some((id, text)) if text == chunk.chunk_text => id,
             Some((id, _)) => {
-                tx.execute(&format!("UPDATE {table} SET chunk_text = ?2, chunk_type = ?3 WHERE id = ?1"), rusqlite::params![id, chunk.chunk_text, chunk.chunk_type])?;
-                tx.execute(&format!("DELETE FROM {vectors} WHERE chunk_id = ?1"), [id])?;
+                tx.execute("UPDATE chunks SET chunk_text = ?2, chunk_type = ?3 WHERE id = ?1", rusqlite::params![id, chunk.chunk_text, chunk.chunk_type])?;
+                tx.execute("DELETE FROM vec_chunks WHERE chunk_id = ?1", [id])?;
                 id
             }
             None => {
                 tx.execute(
-                    &format!("INSERT INTO {table} ({owner}, chunk_index, chunk_text, chunk_type) VALUES (?1, ?2, ?3, ?4)"),
-                    rusqlite::params![owner_id, chunk.chunk_index, chunk.chunk_text, chunk.chunk_type],
+                    "INSERT INTO chunks (owner_kind, owner_id, chunk_index, chunk_text, chunk_type) VALUES (?1, ?2, ?3, ?4, ?5)",
+                    rusqlite::params![kind, owner_id, chunk.chunk_index, chunk.chunk_text, chunk.chunk_type],
                 )?;
                 tx.last_insert_rowid()
             }
         };
-        if store.positions {
-            tx.execute(
-                &format!("UPDATE {table} SET start_pos = ?2, end_pos = ?3 WHERE id = ?1 AND (start_pos IS NOT ?2 OR end_pos IS NOT ?3)"),
-                rusqlite::params![chunk_id, chunk.start_pos, chunk.end_pos],
-            )?;
-        }
+        tx.execute(
+            "UPDATE chunks SET start_pos = ?2, end_pos = ?3 WHERE id = ?1 AND (start_pos IS NOT ?2 OR end_pos IS NOT ?3)",
+            rusqlite::params![chunk_id, chunk.start_pos, chunk.end_pos],
+        )?;
         if let Some(embedding) = &chunk.embedding {
-            let bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
-            tx.execute(&format!("DELETE FROM {vectors} WHERE chunk_id = ?1"), [chunk_id])?;
-            tx.execute(&format!("INSERT INTO {vectors} (chunk_id, embedding) VALUES (?1, ?2)"), rusqlite::params![chunk_id, bytes])?;
+            put_vector(tx, owner, chunk_id, embedding)?;
         }
     }
-    let gone: Vec<i64> = tx
-        .prepare(&format!("SELECT id FROM {table} WHERE {owner} = ?1 AND chunk_index >= ?2"))?
-        .query_map(rusqlite::params![owner_id, chunks.len() as i64], |row| row.get(0))?
-        .collect::<Result<_, _>>()?;
-    for id in gone {
-        tx.execute(&format!("DELETE FROM {vectors} WHERE chunk_id = ?1"), [id])?;
-        tx.execute(&format!("DELETE FROM {table} WHERE id = ?1"), [id])?;
-    }
+    tx.execute(
+        "DELETE FROM chunks WHERE owner_kind = ?1 AND owner_id = ?2 AND chunk_index >= ?3",
+        rusqlite::params![kind, owner_id, chunks.len() as i64],
+    )?;
     Ok(())
 }
 
 /// The texts of an owner's search pieces that already have a vector, so a save embeds only the pieces that don't.
-pub(crate) fn embedded_chunk_texts_impl(db: &Connection, store: &ChunkStore, owner_id: &str) -> Result<Vec<String>, StoreError> {
-    let (table, vectors, owner) = (store.chunks, store.vectors, store.owner);
+pub(crate) fn embedded_chunk_texts_impl(db: &Connection, owner: ItemKind, owner_id: &str) -> Result<Vec<String>, StoreError> {
     Ok(db
-        .prepare(&format!(
-            "SELECT c.chunk_text FROM {table} c WHERE c.{owner} = ?1 AND EXISTS (SELECT 1 FROM {vectors} v WHERE v.chunk_id = c.id)"
-        ))?
-        .query_map([owner_id], |row| row.get(0))?
+        .prepare(
+            "SELECT c.chunk_text FROM chunks c
+             WHERE c.owner_kind = ?1 AND c.owner_id = ?2 AND EXISTS (SELECT 1 FROM vec_chunks v WHERE v.chunk_id = c.id)",
+        )?
+        .query_map([owner.index_kind(), owner_id], |row| row.get(0))?
         .collect::<Result<_, _>>()?)
 }
 
@@ -3063,7 +3065,7 @@ pub(crate) mod tests {
     }
 
     fn chunk_texts(conn: &Connection, meeting_id: &str) -> Vec<(i32, String)> {
-        let mut stmt = conn.prepare("SELECT chunk_index, chunk_text FROM chunks WHERE meeting_id = ?1 ORDER BY chunk_index").unwrap();
+        let mut stmt = conn.prepare("SELECT chunk_index, chunk_text FROM chunks WHERE owner_kind = 'meeting' AND owner_id = ?1 ORDER BY chunk_index").unwrap();
         stmt.query_map([meeting_id], |row| Ok((row.get(0)?, row.get(1)?))).unwrap().map(Result::unwrap).collect()
     }
 
@@ -3094,16 +3096,11 @@ pub(crate) mod tests {
         let mine = ChunkData { embedding: Some((0..dim).map(|i| if i == 1 { 1.0 } else { 0.0 }).collect()), ..stretch("budget talk") };
         append_chunks_impl(&conn, "this", &[mine]).unwrap();
         append_chunks_impl(&conn, "other", &(0..40).map(|_| near("other meeting")).collect::<Vec<_>>()).unwrap();
-        let params = crate::search::SearchParams {
-            embedding: query.clone(),
-            query_text: String::new(),
-            limit: 3,
-            mode: Some("vector".into()),
-            meeting_ids: Some(vec!["this".into()]),
-        };
-        let hits = crate::search::hybrid_search(&conn, &params).unwrap();
+        let within = vec!["this".to_string()];
+        let q = crate::search::SearchQuery { kind: "meeting", text: "", embedding: Some(&query), limit: 3, within: Some(&within) };
+        let hits = crate::search::hybrid_search(&conn, &q).unwrap();
         assert_eq!(hits.first().map(|h| h.chunk_text.as_str()), Some("budget talk"));
-        assert!(hits.iter().all(|h| h.meeting_id == "this"));
+        assert!(hits.iter().all(|h| h.owner_id == "this"));
     }
 
     fn import(conn: &Connection, id: &str, text: &str) -> bool {
@@ -3172,6 +3169,7 @@ pub(crate) mod tests {
                 ActionItemInput { text: "Follow up".into(), owner: Some("bob".into()), due_date: None },
                 ActionItemInput { text: "Send notes".into(), owner: None, due_date: Some("2026-01-01".into()) },
             ],
+            knowledge: None,
         }
     }
 
@@ -3380,7 +3378,7 @@ pub(crate) mod tests {
         // Add a note, a chunk, and a chat linked to the meeting.
         seed_note(&conn, "n1", "m1");
         conn.execute(
-            "INSERT INTO chunks (meeting_id, chunk_index, chunk_text) VALUES ('m1', 0, 'chunk text')",
+            "INSERT INTO chunks (owner_kind, owner_id, chunk_index, chunk_text, chunk_type) VALUES ('meeting', 'm1', 0, 'chunk text', 'transcript')",
             [],
         )
         .unwrap();
@@ -3407,7 +3405,7 @@ pub(crate) mod tests {
             ("notes", "meeting_id"),
             ("todos", "meeting_id"),
             ("assets", "meeting_id"),
-            ("chunks", "meeting_id"),
+            ("chunks", "owner_id"),
             ("meeting_categories", "meeting_id"),
         ] {
             let n: i64 = conn
@@ -3646,15 +3644,15 @@ pub(crate) mod tests {
         };
         let save = |pieces: &[ChunkData]| {
             let tx = conn.unchecked_transaction().unwrap();
-            save_chunks(&tx, &MEETING_CHUNKS, "m1", pieces).unwrap();
+            save_chunks(&tx, ItemKind::Meeting, "m1", pieces).unwrap();
             tx.commit().unwrap();
         };
         save(&[piece(0, "title", true, 0), piece(1, "transcript", true, 0)]);
         save(&[piece(0, "title", false, 0), piece(1, "transcript", false, 5), piece(2, "notes", true, 0)]);
-        let mut embedded = embedded_chunk_texts_impl(&conn, &MEETING_CHUNKS, "m1").unwrap();
+        let mut embedded = embedded_chunk_texts_impl(&conn, ItemKind::Meeting, "m1").unwrap();
         embedded.sort();
         assert_eq!(embedded, vec!["notes", "title", "transcript"], "a note edit embeds the notes piece only");
-        let start: i32 = conn.query_row("SELECT start_pos FROM chunks WHERE meeting_id = 'm1' AND chunk_index = 1", [], |r| r.get(0)).unwrap();
+        let start: i32 = conn.query_row("SELECT start_pos FROM chunks WHERE owner_kind = 'meeting' AND owner_id = 'm1' AND chunk_index = 1", [], |r| r.get(0)).unwrap();
         assert_eq!(start, 5, "an unchanged piece still takes its new position");
     }
 
@@ -3664,10 +3662,10 @@ pub(crate) mod tests {
         chats_upsert_impl(&conn, &chat(vec![msg("a", "hi")])).unwrap();
         let save = |turns: &[ChunkData]| {
             let tx = conn.unchecked_transaction().unwrap();
-            save_chunks(&tx, &CHAT_CHUNKS, "c1", turns).unwrap();
+            save_chunks(&tx, ItemKind::Chat, "c1", turns).unwrap();
             tx.commit().unwrap();
         };
-        let embedded = || { let mut t = embedded_chunk_texts_impl(&conn, &CHAT_CHUNKS, "c1").unwrap(); t.sort(); t };
+        let embedded = || { let mut t = embedded_chunk_texts_impl(&conn, ItemKind::Chat, "c1").unwrap(); t.sort(); t };
 
         save(&[turn(0, "one", true), turn(1, "two", true)]);
         save(&[turn(0, "one", false), turn(1, "two", false), turn(2, "three", true)]);
@@ -3675,7 +3673,7 @@ pub(crate) mod tests {
 
         save(&[turn(0, "one", false), turn(1, "two, edited", false)]);
         assert_eq!(embedded(), vec!["one"], "a changed turn loses its old vector and the turn past the end is gone");
-        let count: i64 = conn.query_row("SELECT COUNT(*) FROM chat_chunks WHERE chat_id = 'c1'", [], |r| r.get(0)).unwrap();
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM chunks WHERE owner_kind = 'chat' AND owner_id = 'c1'", [], |r| r.get(0)).unwrap();
         assert_eq!(count, 2);
     }
 

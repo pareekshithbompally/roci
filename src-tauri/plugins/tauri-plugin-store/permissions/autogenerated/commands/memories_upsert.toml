@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-memories-upsert"
+description = "Enables the memories_upsert command without any pre-configured scope."
+commands.allow = ["memories_upsert"]
+
+[[permission]]
+identifier = "deny-memories-upsert"
+description = "Denies the memories_upsert command without any pre-configured scope."
+commands.deny = ["memories_upsert"]

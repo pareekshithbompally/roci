@@ -45,7 +45,7 @@ const INSTRUCTIONS: &str = concat!(
     env!("APP_NAME"),
     " holds the user's recorded meetings (transcripts, summaries, action items), their todos, and their ",
     env!("APP_NAME"),
-    " chat history. Start with search_meetings or list_meetings, then get_meeting for one meeting in full."
+    " chat history. Use find (in meetings, chats, todos, memories or knowledge), then read for one meeting, chat or entity in full."
 );
 
 #[derive(Default)]

@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-memory-graph"
+description = "Enables the memory_graph command without any pre-configured scope."
+commands.allow = ["memory_graph"]
+
+[[permission]]
+identifier = "deny-memory-graph"
+description = "Denies the memory_graph command without any pre-configured scope."
+commands.deny = ["memory_graph"]
