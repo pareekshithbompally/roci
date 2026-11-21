@@ -63,22 +63,21 @@ const inScope = (scope: PriceScope) => (row: PriceRow) =>
 
 const columns = (onSave: SavePrice): ReadonlyArray<DataColumn<PriceRow>> => [
   {
+    // The model over "Provider · where its price comes from" (as the Models table), so the rates keep the row's width.
     key: 'model',
     header: COPY.model,
     sortValue: (row) => modelName(row.modelId),
     cell: (row) => (
       <div className="flex min-w-0 items-center gap-2">
         <ModelIcon provider={row.provider} modelId={row.modelId} size={UI_CONFIG.chart.rowIcon} />
-        <Text truncate>{row.model ? getModelDisplayName(row.model) : modelName(row.modelId)}</Text>
+        <div className="flex min-w-0 flex-col">
+          <Text truncate>{row.model ? getModelDisplayName(row.model) : modelName(row.modelId)}</Text>
+          <Text variant="caption" tone="muted" truncate>
+            {providerName(row.provider)} · <Text as="span" variant="caption" tone={row.source === 'unknown' ? 'warning' : 'muted'}>{COPY.sources[row.source]}</Text>
+          </Text>
+        </div>
       </div>
     ),
-  },
-  { key: 'provider', header: COPY.provider, sortValue: (row) => providerName(row.provider), cell: (row) => <Text tone="muted" truncate>{providerName(row.provider)}</Text> },
-  {
-    key: 'source',
-    header: COPY.source,
-    sortValue: (row) => COPY.sources[row.source],
-    cell: (row) => <Text tone={row.source === 'unknown' ? 'warning' : 'muted'}>{COPY.sources[row.source]}</Text>,
   },
   // Keyed by the saved price, so a field shows it again after a save elsewhere (a row re-read).
   { key: 'input', header: COPY.input, align: 'end', cell: (row) => <RateField key={rateText(row.own?.inputPer1M)} row={row} rate="inputPer1M" onSave={onSave} /> },

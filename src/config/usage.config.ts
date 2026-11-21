@@ -63,8 +63,6 @@ export const USAGE_CONFIG = {
     prices: {
       label: 'Model prices',
       model: 'Model',
-      provider: 'Provider',
-      source: 'Price from',
       input: 'Input $ / 1M',
       output: 'Output $ / 1M',
       perMinute: 'Audio $ / min',
