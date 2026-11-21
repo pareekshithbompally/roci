@@ -23,5 +23,5 @@ export const MeetingStatus: React.FC<MeetingStatusProps> = ({ phase, display }) 
   }
 
   if (phase.kind === 'ready') return null;
-  return <Badge variant={style.badge}>{label}</Badge>;
+  return <Badge variant={style.badge} tinted>{label}</Badge>;
 };

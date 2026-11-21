@@ -70,8 +70,10 @@ describe('RecordingMeetingView', () => {
     render(<RecordingMeetingView />);
 
     expect(screen.getByText('Test Meeting')).toBeInTheDocument();
-    expect(screen.getByText('01:05 · Recording')).toBeInTheDocument();
-    expect(screen.getByText(/labelled by who said them/)).toBeInTheDocument();
+    expect(screen.getByText('01:05')).toBeInTheDocument();
+    // the state is a badge beside the title, not a line under the transcript
+    expect(screen.getByText('Recording')).toBeInTheDocument();
+    expect(screen.getByText('Listening for speech…')).toBeInTheDocument();
 
     meetingLiveActions.set([
       { source: 'microphone', startMs: 0, endMs: 2_000, text: 'Shall we start?', timed: true },
@@ -83,7 +85,7 @@ describe('RecordingMeetingView', () => {
     expect(screen.getByText('You')).toBeInTheDocument();
     expect(screen.getByText('Others')).toBeInTheDocument();
     expect(screen.getByText('Sounds good.')).toBeInTheDocument();
-    expect(screen.getByText('Listening…')).toBeInTheDocument();
+    expect(screen.queryByText('Listening…')).not.toBeInTheDocument();
   });
 
   it('stop hands off to the results view on the transcript tab', async () => {
@@ -126,9 +128,9 @@ describe('RecordingMeetingView', () => {
     startRecording();
     
     const { rerender } = render(<RecordingMeetingView />);
-    expect(screen.getByText('01:05 · Recording')).toBeInTheDocument();
+    expect(screen.getByText('Recording')).toBeInTheDocument();
     meetingLiveActions.fail();
     rerender(<RecordingMeetingView />);
-    expect(screen.getByText(/Live transcript unavailable/)).toBeInTheDocument();
+    expect(screen.getByText('Live transcript unavailable. Audio is still recording safely.')).toBeInTheDocument();
   });
 });

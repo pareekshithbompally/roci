@@ -142,7 +142,6 @@ const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phas
     segments: saved ? result.segments ?? [] : draft,
     text: saved ? result.transcript : undefined,
     empty: busy ? LIVE.copy.finalizing : meetingPhaseDetail(phase) ?? LIVE.copy.none,
-    footer: !saved && busy ? LIVE.copy.finalizing : undefined,
     follow: false,
   };
   return (

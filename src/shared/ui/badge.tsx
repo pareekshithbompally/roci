@@ -12,19 +12,35 @@ const DOT: Record<BadgeVariant, string> = {
   info: 'bg-info',
 };
 
+/** A status that calls out: its colour behind the label (the callout tints). */
+const TINT: Record<BadgeVariant, string> = {
+  default: 'bg-layer-2 text-muted',
+  success: 'bg-success-subtle text-success',
+  warning: 'bg-warning-subtle text-warning',
+  error: 'bg-danger-subtle text-danger',
+  info: 'bg-info-subtle text-info',
+};
+
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant;
   dot?: boolean;
   /** Filled count pill (no dot) */
   solid?: boolean;
+  /** The one status a screen calls out: a tinted pill in the variant's colour. */
+  tinted?: boolean;
 }
 
-export function Badge({ variant = 'default', dot = true, solid, className, children, ...props }: BadgeProps) {
+function surfaceOf(variant: BadgeVariant, solid?: boolean, tinted?: boolean): string {
+  if (solid) return cn(DOT[variant], 'text-on-accent tabular-nums');
+  return tinted ? cn(TINT[variant], 'px-2') : 'text-muted';
+}
+
+export function Badge({ variant = 'default', dot = true, solid, tinted, className, children, ...props }: BadgeProps) {
   return (
     <span
       className={cn(
         'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-subheadline font-medium',
-        solid ? cn(DOT[variant], 'text-on-accent tabular-nums') : 'text-muted',
+        surfaceOf(variant, solid, tinted),
         className,
       )}
       {...props}

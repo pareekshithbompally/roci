@@ -3,7 +3,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import { Surface, Tabs, Text } from '@shared/ui';
+import { Callout, Surface, Tabs, Text } from '@shared/ui';
 import { useFormFactor } from '@platform/formFactor';
 import { LIVE_NOTES_CONFIG as NOTES, type PhoneSection } from '@config/liveNotes.config';
 import { ParsedTranscript } from '@features/transcription';
@@ -17,7 +17,9 @@ export interface WorkspaceTranscript {
   text?: string;
   /** Shown while there are no segments. */
   empty: string;
-  /** One quiet line under the last segment ("Listening…", or why the live transcript stopped). */
+  /** Why the live transcript stopped, above it (audio still records). */
+  notice?: string;
+  /** A streaming model's words still being revised, faint under the last turn. */
   footer?: string;
   /** Keep the newest line in view while the reader stays at the end (recording). */
   follow: boolean;
@@ -29,7 +31,7 @@ interface MeetingWorkspaceProps {
 }
 
 /** The transcript, scrolling inside its pane; while following, it stays on the newest line unless the reader scrolled back. */
-const TranscriptBody: React.FC<WorkspaceTranscript> = ({ segments, text, empty, footer, follow }) => {
+const TranscriptBody: React.FC<WorkspaceTranscript> = ({ segments, text, empty, notice, footer, follow }) => {
   const hasLines = segments.length > 0 || !!text;
   const reduceMotion = useReducedMotion() ?? false;
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -46,6 +48,7 @@ const TranscriptBody: React.FC<WorkspaceTranscript> = ({ segments, text, empty, 
 
   return (
     <div ref={scrollRef} onScroll={onScroll} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 pb-4 space-y-2">
+      {notice && <Callout variant="warning">{notice}</Callout>}
       {hasLines ? <ParsedTranscript text={text} segments={segments} /> : <EmptyLine>{empty}</EmptyLine>}
       {footer && hasLines && <Text as="p" variant="reading" tone="faint">{footer}</Text>}
     </div>

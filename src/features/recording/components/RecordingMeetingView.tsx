@@ -6,7 +6,9 @@ import { motion } from 'framer-motion';
 import { Pause, Play, Square } from 'lucide-react';
 import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { Button, Dot, Icon, Text, TitlebarSpacer } from '@shared/ui';
+import { Button, Icon, Text, TitlebarSpacer } from '@shared/ui';
+import { MeetingStatus } from '@shared/components';
+import type { MeetingPhase } from '@shared/types/meetingPhase';
 import { LAYOUT } from '@config/layout.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { META_SEPARATOR } from '@config/ui.config';
@@ -19,6 +21,7 @@ import { useLiveNotes, useLiveNotesStore } from '@features/recording/notes';
 import { MeetingWorkspace, type WorkspaceTranscript } from './MeetingWorkspace';
 
 const VIEW = ANIMATION_CONFIG.view;
+const RECORDING: MeetingPhase = { kind: 'recording' };
 
 const report = (step: string) => (error: unknown) => console.error(`[RecordingMeetingView] ${step} failed:`, error);
 
@@ -66,12 +69,12 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
   const { type, flush, modelProblem } = useLiveNotes(meetingId, true);
 
   const title = meeting?.title ?? 'Recording';
-  const unavailable = [LIVE.copy.unavailable, reason].filter(Boolean).join(' ');
   const transcript: WorkspaceTranscript = {
     label: NOTES.copy.liveTranscript,
     segments,
-    empty: failed ? unavailable : speechSelectionOf(settings) ? LIVE.copy.empty : LIVE.copy.noModel,
-    footer: failed ? unavailable : paused ? undefined : drafting || LIVE.copy.listening,
+    notice: failed ? [LIVE.copy.unavailable, reason].filter(Boolean).join(' ') : undefined,
+    empty: speechSelectionOf(settings) ? LIVE.copy.empty : LIVE.copy.noModel,
+    footer: drafting || undefined,
     follow: true,
   };
 
@@ -81,11 +84,11 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
       <div className={`${LAYOUT.pageGutter} pt-3 pb-3`}>
         <div className={`${LAYOUT.pageColumn} space-y-2`}>
           <div className="flex min-w-0 items-center gap-2">
-            <Dot tone="danger" pulse={!paused && !busy} />
             <Text as="h1" variant="pageTitle" truncate>{title}</Text>
+            <MeetingStatus phase={RECORDING} display="badge" />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <Text variant="figureSmall" tone="muted">{[clock, paused ? LIVE.copy.paused : LIVE.copy.recording].join(META_SEPARATOR)}</Text>
+            <Text variant="figureSmall" tone="muted">{[clock, paused && LIVE.copy.paused].filter(Boolean).join(META_SEPARATOR)}</Text>
             <Controls paused={paused} busy={busy} beforeStop={flush} />
           </div>
         </div>
