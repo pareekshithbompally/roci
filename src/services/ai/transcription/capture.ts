@@ -3,8 +3,6 @@
 import { stripNonSpeech } from './format';
 import { tapPcm } from './pcmTap';
 import type { LiveStream, LiveText } from './streaming';
-import { liveStreams } from './liveStreams';
-import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 
 export interface DictationCapture {
   pause(): void;
@@ -44,9 +42,9 @@ export function recordedCapture(stream: MediaStream, transcribe: (audio: Blob) =
   };
 }
 
-/** Streams the mic through the one stream loop (liveStreams), reporting the settled words and the ones still being revised as
- *  they come, and records the clip beside it: a stream the model refuses or that breaks gives way to the clip, transcribed
- *  whole, so nothing said is lost. */
+/** Feeds the mic to one live stream and shows the engine's own text as it comes (settled words, then the ones still being
+ *  revised); the dictation is the engine's final text. The clip is recorded beside it: a stream the model refuses or that
+ *  breaks gives way to the clip, transcribed whole, so nothing said is lost. */
 export async function liveCapture(
   stream: MediaStream,
   open: () => Promise<LiveStream>,
@@ -55,21 +53,35 @@ export async function liveCapture(
 ): Promise<DictationCapture> {
   const clip = recordedCapture(stream, transcribe);
   let paused = false;
-  let failure: string | null = null;
-  const text: LiveText = { committed: '', tentative: '' };
-  const show = () => onText({ ...text });
-  const mic = liveStreams<'mic'>(open, {
-    line: (line) => { text.committed += line.text; show(); },
-    partial: (_source, tentative) => { text.tentative = tentative; show(); },
-    fail: (reason) => { failure ??= reason; },
+  let failure: unknown = null;
+  const failed = (error: unknown) => {
+    failure ??= error;
+  };
+  const engine = open().catch((error: unknown) => {
+    failed(error);
+    return null;
   });
-  let heardMs = 0;
+  // feeds run one at a time, in order
+  let feeding = Promise.resolve();
   const tap = await tapPcm(stream, (pcm) => {
     if (paused || failure) return;
-    const endMs = heardMs + (pcm.length * 1_000) / TRANSCRIPTION_CONFIG.sampleRate;
-    mic.feed({ source: 'mic', startMs: heardMs, endMs }, pcm);
-    heardMs = endMs;
+    feeding = feeding.then(async () => {
+      const live = await engine;
+      if (!live || failure) return;
+      const text = await live.feed(pcm);
+      onText({ committed: text.committed.trimStart(), tentative: text.tentative });
+    }).catch(failed);
   });
+  /** The engine's final text, or null when the stream failed. */
+  const finalText = async (): Promise<string | null> => {
+    await feeding;
+    const live = await engine;
+    if (!live || failure) return null;
+    return live.finish().catch((error: unknown) => {
+      failed(error);
+      return null;
+    });
+  };
   return {
     pause: () => {
       paused = true;
@@ -81,18 +93,18 @@ export async function liveCapture(
     },
     finish: async () => {
       tap.stop();
-      await mic.finish();
-      if (failure) {
+      const text = await finalText();
+      if (text === null) {
         console.info('[capture] live dictation fell back to the recorded clip:', failure);
         return clip.finish();
       }
       clip.cancel();
-      return stripNonSpeech(text.committed);
+      return stripNonSpeech(text);
     },
     cancel: () => {
       tap.stop();
-      mic.cancel();
       clip.cancel();
+      void engine.then((live) => live?.cancel()).catch((error: unknown) => console.error('[capture] cancel failed:', error));
     },
   };
 }

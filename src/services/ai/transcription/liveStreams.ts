@@ -1,6 +1,5 @@
-/** Streaming transcription of one or more sources (dictation: the mic; a meeting: you and the call): one stream per source,
- *  audio fed in order; each stretch of text the model settles becomes a line, and the words it is still revising are reported
- *  until they settle. The one stream-session loop dictation and meetings share. */
+/** A streaming meeting: one stream per side (you and the call), audio fed in order; each stretch of text the model settles
+ *  becomes a line, and the words it is still revising are reported until they settle. */
 
 import { errorMessage } from '@shared/utils/errors';
 import type { LiveStream } from './streaming';
@@ -10,7 +9,6 @@ export interface StreamLine<S extends string> {
   source: S;
   startMs: number;
   endMs: number;
-  /** As the engine spaced it: a piece may start mid-word or with its own space. */
   text: string;
 }
 
@@ -62,14 +60,14 @@ export function liveStreams<S extends string>(open: (source: S) => Promise<LiveS
     endMs: 0,
   });
 
-  /** The text settled since last time becomes a line spanning the audio it came from, its spacing as the engine wrote it (a final
-   *  text may come back trimmed, so the two are compared without leading space). */
+  /** The text settled since last time becomes a line spanning the audio it came from (a final text may come back trimmed, so the
+   *  two are compared without leading space). */
   const settle = (source: S, stream: SourceStream, committed: string) => {
     const had = stream.committed.trimStart();
     const now = committed.trimStart();
-    const added = now.startsWith(had) ? now.slice(had.length) : now;
+    const added = (now.startsWith(had) ? now.slice(had.length) : now).trim();
     stream.committed = committed;
-    if (!added.trim()) return;
+    if (!added) return;
     sink.line({ source, startMs: stream.since ?? stream.endMs, endMs: stream.endMs, text: added });
     stream.since = null;
   };

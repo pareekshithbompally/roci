@@ -281,7 +281,7 @@ async function openStream(current: Session, read: Reader, side: MeetingSourceId)
 function streamSink(current: Session) {
   return {
     line(line: StreamLine<MeetingSourceId>) {
-      current.entries.push({ ...line, text: line.text.trim(), timed: false });
+      current.entries.push({ ...line, timed: false });
       showDraft(current);
     },
     partial(source: MeetingSourceId, text: string) {

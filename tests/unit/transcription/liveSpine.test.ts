@@ -70,8 +70,7 @@ describe('liveStreams — a streaming meeting source', () => {
     });
     [0, 1, 2].forEach((seq) => streams.feed(frame(seq), new Float32Array(4)));
     await streams.finish();
-    // each line keeps the engine's spacing; a meeting trims its lines, dictation joins them as they are
-    expect(lines).toEqual(['Okay', ' lets', ' start']);
+    expect(lines).toEqual(['Okay', 'lets', 'start']);
     expect(partials).toContain('start');
     expect(partials.at(-1)).toBe('');
   });
