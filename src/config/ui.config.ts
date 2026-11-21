@@ -35,7 +35,11 @@ export const UI_CONFIG = {
   glyphTile: { tile: 34, glyph: 24 },
   /** Bar chart (usage trends): plot height (taller on touch), bar cap and gap, data-end radius, axis gutters, label density, dimmed bars. */
   /** Data tables: rows shown before the table scrolls inside its card (its header stays). */
-  table: { visibleRows: 10 },
+  table: {
+    visibleRows: 10,
+    /** The search field above a table: short, at the trailing end (Finder, Mail). */
+    searchWidth: 'w-56',
+  },
   chart: {
     /** The trend's plot, dates included (px). */
     trendHeight: 200,

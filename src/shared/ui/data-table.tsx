@@ -87,10 +87,21 @@ export function DataTable<T>({ columns, rows, rowKey, label, search, sort, acces
   return (
     <div className={cn('overflow-hidden', GROUPED_SURFACE)}>
       {(search || accessory) && (
+        // The scope bar leads; the search field trails, short, with its match count before it (macOS toolbars).
         <div className="flex items-center gap-3 px-4 py-2">
-          {search && <SearchField value={query} onChange={setQuery} onCancel={() => setQuery('')} placeholder={search.placeholder} className="min-w-0 flex-1" />}
-          {query && <Text variant="caption" tone="muted">{`${shown.length} of ${rows.length}`}</Text>}
           {accessory}
+          <div className="ml-auto flex min-w-0 items-center gap-3">
+            {query && <Text variant="caption" tone="muted">{`${shown.length} of ${rows.length}`}</Text>}
+            {search && (
+              <SearchField
+                value={query}
+                onChange={setQuery}
+                onCancel={() => setQuery('')}
+                placeholder={search.placeholder}
+                className={cn('min-w-0', UI_CONFIG.table.searchWidth)}
+              />
+            )}
+          </div>
         </div>
       )}
       {/* One row more than shown: the header row. */}
