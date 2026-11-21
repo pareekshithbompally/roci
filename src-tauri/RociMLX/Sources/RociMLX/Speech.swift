@@ -6,6 +6,8 @@ import MLXAudioTTS
 
 struct SpeakRequest: Decodable, Sendable {
     let modelDir: String
+    /// The package's model type when the config names none it knows (the catalog's `loads_as`); nil: the config decides.
+    let modelType: String?
     let text: String
     /// The model's speaker name; nil for its default voice.
     let voice: String?
@@ -25,7 +27,7 @@ final class Speaker: @unchecked Sendable {
 extension Engine {
     /// Little-endian float32 samples as base64, with their rate.
     func speak(_ request: SpeakRequest) async throws -> [String: any Sendable] {
-        let speaker = try await speakerModel(request.modelDir)
+        let speaker = try await speakerModel(request.modelDir, type: request.modelType)
         let audio = try await speaker.model.generate(
             text: request.text, voice: request.voice, refAudio: nil, refText: nil, language: nil)
         let samples = audio.asArray(Float.self)

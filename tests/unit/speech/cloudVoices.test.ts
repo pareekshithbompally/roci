@@ -13,7 +13,7 @@ describe('cloud voice engines', () => {
   it('a cloud engine key holds provider and model; the system and downloaded voices are not cloud engines', () => {
     expect(parseModelKey(modelKey({ provider: 'gemini', model: 'gemini-3.8-flash-tts' }))).toEqual({ provider: 'gemini', model: 'gemini-3.8-flash-tts' });
     expect(parseModelKey('macos')).toBeNull();
-    expect(parseModelKey('pocket-tts')).toBeNull();
+    expect(parseModelKey('phonon')).toBeNull();
   });
 
   it('offers only the voice models the user added, on providers that speak', () => {

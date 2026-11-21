@@ -101,12 +101,9 @@ actor Engine {
         Memory.clearCache()
     }
 
-    func speakerModel(_ dir: String) async throws -> Speaker {
+    func speakerModel(_ dir: String, type: String?) async throws -> Speaker {
         if let loaded = speaker, loaded.dir == dir { return loaded }
         speaker = nil
-        // A config without `model_type` (Kokoro) is named by its folder, the catalog id, never by the rest of the path.
-        let folder = URL(filePath: dir)
-        let type = Self.declaredType(folder) == nil ? folder.lastPathComponent : nil
         let model = try await reportingLoad(role: "voice", dir: dir) { try await TTS.loadModel(modelRepo: dir, modelType: type) }
         let loaded = Speaker(dir: dir, model: model)
         speaker = loaded
@@ -320,10 +317,6 @@ actor Engine {
     }
 
     /// The model type its config.json declares, if any.
-    private static func declaredType(_ folder: URL) -> String? {
-        config(folder)?["model_type"] as? String
-    }
-
     private static func config(_ folder: URL) -> [String: Any]? {
         guard let data = try? Data(contentsOf: folder.appending(path: "config.json")) else { return nil }
         return try? JSONSerialization.jsonObject(with: data) as? [String: Any]

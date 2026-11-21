@@ -24,6 +24,9 @@ pub struct Source {
     revision: &'static str,
 }
 
+/// Phonon's voice catalog (Gradium): its voices download beside the model.
+static PHONON_VOICES: Source = Source { repository: "gradium/phonon-voices", revision: "0ee17205f254b5abc43b266c8a0f215565c352f7" };
+
 pub struct ModelFile {
     /// Path in its repository, and under the model's folder.
     pub name: &'static str,
@@ -45,6 +48,8 @@ pub struct LocalModel {
     pub files: &'static [ModelFile],
     /// A voice model's speakers, the first its default; empty when it has one voice.
     pub voices: &'static [Voice],
+    /// The audio package's model type when the model's config.json names none it knows; None: its config decides.
+    pub loads_as: Option<&'static str>,
 }
 
 /// A voice model's speaker: the name the model knows it by, and the name Roci shows.
@@ -72,43 +77,63 @@ impl LocalModel {
 /// Picker order within each kind: the live-capable speech models first.
 pub const MODELS: &[LocalModel] = &[
     LocalModel {
-        id: "smollm3-3b",
-        maker: "HuggingFaceTB",
-        name: "SmolLM3 3B",
+        id: "qwen3.5-9b",
+        maker: "Qwen",
+        name: "Qwen3.5 9B",
         kind: Kind::Chat,
         streams: false,
         voices: &[],
-        source: Source { repository: "mlx-community/SmolLM3-3B-4bit", revision: "d3a7e0594d6642dbcfb7d149bed8b0bdf49f95ce" },
+        loads_as: None,
+        source: Source { repository: "mlx-community/Qwen3.5-9B-4bit", revision: "8b2b98c00a6b4d291155e4890773ca8f769aee53" },
         files: &[
-            ModelFile { name: "chat_template.jinja", bytes: 5_499, sha256: "0dab472abbdc499c8d82acae3ad6e8404f672d2d50d9df582181daf062f66eb7", source: None },
-            ModelFile { name: "config.json", bytes: 2_394, sha256: "6d0046fc9fc07c74601b25107b8ff96077dc9c63941492f2856743eabc2a3d99", source: None },
-            ModelFile { name: "generation_config.json", bytes: 182, sha256: "3458d62b3f9654f4bbe285223b0f4e5a1e67cae61c92bb6aeaadf04468bf9e01", source: None },
-            ModelFile { name: "model.safetensors", bytes: 1_730_051_993, sha256: "d501e6193d7eb84e10d3c377007d1fc4b4b2fa08799dd10fa4f6a75033334a70", source: None },
-            ModelFile { name: "model.safetensors.index.json", bytes: 58_800, sha256: "64148ac05ad909f2fc69ec126ef9efe38545512a41914bdba17d1dc29437c19d", source: None },
-            ModelFile { name: "special_tokens_map.json", bytes: 289, sha256: "12403efb970f069ba62ddf3b66166a27254be4a198166b61ad1ee604bd3a4515", source: None },
-            ModelFile { name: "tokenizer.json", bytes: 17_208_819, sha256: "7b6a500b662a34eb3f0374db856ba4ad7de4c81040571d78dc0d357238930005", source: None },
-            ModelFile { name: "tokenizer_config.json", bytes: 50_387, sha256: "59a64b39f05ee0acf7479bbccf99a44d9e481c1a4a494eb03838ae3c35eb29be", source: None },
+            ModelFile { name: "chat_template.jinja", bytes: 7_756, sha256: "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715", source: None },
+            ModelFile { name: "config.json", bytes: 3_331, sha256: "a96942cb6a8a1d3f1d17514d81a1925d04362a6a3233b389d13012211baaa9f8", source: None },
+            ModelFile { name: "model-00001-of-00002.safetensors", bytes: 5_349_771_222, sha256: "a68b87558c6ef43f74c2bd63ce7e9092ceddc3101f3def0030774bae5f42aadd", source: None },
+            ModelFile { name: "model-00002-of-00002.safetensors", bytes: 600_449_850, sha256: "b0a770bf8469c7f3f18756a0e0283f1c1174344a83e059a4e483f6af4907352d", source: None },
+            ModelFile { name: "model.safetensors.index.json", bytes: 123_592, sha256: "dd023913fb87cfdae27fb11dcf695117c925833796ccac3c64117d6652d8ff1e", source: None },
+            ModelFile { name: "preprocessor_config.json", bytes: 390, sha256: "27225450ac9c6529872ee1924fcb0962ff5634834f817040f444118116f4e516", source: None },
+            ModelFile { name: "processor_config.json", bytes: 1_300, sha256: "14932921ca485d458a04dafd8069fbb0a4505622a48208d19ed247115801385b", source: None },
+            ModelFile { name: "tokenizer.json", bytes: 19_989_343, sha256: "87a7830d63fcf43bf241c3c5242e96e62dd3fdc29224ca26fed8ea333db72de4", source: None },
+            ModelFile { name: "tokenizer_config.json", bytes: 1_139, sha256: "e98f1901ac6f0adff67b1d540bfa0c36ac1a0cf59eb72ed78146ef89aafa1182", source: None },
+            ModelFile { name: "video_preprocessor_config.json", bytes: 385, sha256: "7768af27c1fafa9cc9011c1dc20067e03f8915e03b63504550e11d5066986d13", source: None },
+            ModelFile { name: "vocab.json", bytes: 6_722_759, sha256: "ce99b4cb2983d118806ce0a8b777a35b093e2000a503ebde25853284c9dfa003", source: None },
         ],
     },
     LocalModel {
-        id: "granite-4.0-h-micro",
-        maker: "ibm-granite",
-        name: "Granite 4.0 H Micro",
+        id: "minicpm5-2b",
+        maker: "openbmb",
+        name: "MiniCPM5 2B",
         kind: Kind::Chat,
         streams: false,
         voices: &[],
-        source: Source { repository: "mlx-community/granite-4.0-h-micro-4bit", revision: "0a29e17503da7de371af61a0a532853810637627" },
+        loads_as: None,
+        source: Source { repository: "openbmb/MiniCPM5-2B-MLX", revision: "c8c072dbfbc5ce9c8faf3fbff9665b86fdc29c62" },
         files: &[
-            ModelFile { name: "chat_template.jinja", bytes: 6_099, sha256: "fed2756d2d24e127b951dcf139d0b03ab7db8ef23a456128ebc9c2db4901d476", source: None },
-            ModelFile { name: "config.json", bytes: 2_256, sha256: "d42f4e62696734e58fc57f733c3ca83ebb5a21f774de16d8b00010d36b08c98e", source: None },
-            ModelFile { name: "generation_config.json", bytes: 147, sha256: "7c04cb9d2ba771f7528fba5a7104999cdaf7566d02b5fbd58472829f62716177", source: None },
-            ModelFile { name: "merges.txt", bytes: 916_646, sha256: "b6fe424e334903f7fb84d3a106d9730455f4744b9fe3c21ee136d97a00e72502", source: None },
-            ModelFile { name: "model.safetensors", bytes: 1_796_848_117, sha256: "573654ce0613804f3e0e5ec692b039f907f13c88273dc08993b9adbeb04428f1", source: None },
-            ModelFile { name: "model.safetensors.index.json", bytes: 62_836, sha256: "7506c4d473813c56dbe385ed0a243e497c5eec18d52e15d3e6efb317bf00e1f0", source: None },
-            ModelFile { name: "special_tokens_map.json", bytes: 579, sha256: "c08676c49fd7969a3130f72be6d4bf34da66aa484a6e21dffe359893a1bd5f2e", source: None },
-            ModelFile { name: "tokenizer.json", bytes: 7_153_421, sha256: "e2bad66439538cb4d5a7580680932432ed9ece9d3b8577e675512bdf11599253", source: None },
-            ModelFile { name: "tokenizer_config.json", bytes: 17_659, sha256: "a5ec5daab12ba090a90f3dd169c8f9c275557013a87b9c1258dc7cb497a35c86", source: None },
-            ModelFile { name: "vocab.json", bytes: 1_612_704, sha256: "8af71076de8b0b626eed0f4c984faf0a7c062479164b2a31308a948524d4f69c", source: None },
+            ModelFile { name: "chat_template.jinja", bytes: 9_060, sha256: "cc945752db555d60949b16989df4ccfeb52a313d6b4b5c5229dd786e2e9fcf1c", source: None },
+            ModelFile { name: "config.json", bytes: 886, sha256: "deb9ca33e863cbc84a9ab7209cd924fc05505dc33270c807d47f1b78fbd53a50", source: None },
+            ModelFile { name: "generation_config.json", bytes: 213, sha256: "9ac4f32e5f32358697a9f438a3ea89ef80e6ba786c72c49e932f9f21c122fdb1", source: None },
+            ModelFile { name: "model.safetensors", bytes: 1_416_035_216, sha256: "c207798696a4a454e7ac211b25227625466c693335941cee8904fb922f295cc1", source: None },
+            ModelFile { name: "model.safetensors.index.json", bytes: 68_721, sha256: "ccf202e0a06fe3c7eb8f354cfb29412a5e64956ad895413d4d9267ae4b3a6045", source: None },
+            ModelFile { name: "tokenizer.json", bytes: 9_894_271, sha256: "3e065a558a034185fe299917b398685c1facd0169a9eea1e629eb30c171fed81", source: None },
+            ModelFile { name: "tokenizer_config.json", bytes: 435, sha256: "b89503c3e5070c6b6d33daf2e20cb4a5c88537c1670d9b7e0cfb4506a61448a9", source: None },
+        ],
+    },
+    LocalModel {
+        id: "granite-4.2-3b",
+        maker: "ibm-granite",
+        name: "Granite 4.2 3B",
+        kind: Kind::Chat,
+        streams: false,
+        voices: &[],
+        loads_as: None,
+        source: Source { repository: "ibm-granite/granite-4.2-3b-q4-mlx", revision: "0c6f39b1827afd5eb2c1c3b13751929857434953" },
+        files: &[
+            ModelFile { name: "chat_template.jinja", bytes: 9_013, sha256: "f0ba43f79b3cabca5e5a7584c77aec92f49feae45cdf7779c87d9fc54cd90258", source: None },
+            ModelFile { name: "config.json", bytes: 1_185, sha256: "bfcb1a01587dae223af89f07b960f0b456ef9fe9576167a126aa807941b213d7", source: None },
+            ModelFile { name: "generation_config.json", bytes: 207, sha256: "1b9baf0a7959d31d7fb58ff6b506c27d09a73d395cadccc7e6dd1d4b7e43fd9d", source: None },
+            ModelFile { name: "model.safetensors", bytes: 2_059_005_430, sha256: "a71cf9297827b3c3d6ad426081b67c423044f6576632dabe40e7590552fd267d", source: None },
+            ModelFile { name: "tokenizer.json", bytes: 7_153_414, sha256: "883975314d58743726347caaf2c32ac89afd5ad57222cffbc4f052f2ab27b2d7", source: None },
+            ModelFile { name: "tokenizer_config.json", bytes: 436, sha256: "0b1cc678b9fbde8ce90c81e0f6483c4e1696dfa377330e42a88106416b96e659", source: None },
         ],
     },
     LocalModel {
@@ -118,6 +143,7 @@ pub const MODELS: &[LocalModel] = &[
         kind: Kind::Chat,
         streams: false,
         voices: &[],
+        loads_as: None,
         source: Source { repository: "prism-ml/Ternary-Bonsai-2-4B-mlx-2bit", revision: "dff2caaa23fa8706164c44c10f1b58feb405f76a" },
         files: &[
             ModelFile { name: "chat_template.jinja", bytes: 7_756, sha256: "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715", source: None },
@@ -136,6 +162,7 @@ pub const MODELS: &[LocalModel] = &[
         kind: Kind::Embedding,
         streams: false,
         voices: &[],
+        loads_as: None,
         source: Source { repository: "mlx-community/Qwen3-Embedding-0.6B-8bit", revision: "407ad2329cd30702720aafe83f74a1ba30fdfbca" },
         files: &[
             ModelFile { name: "added_tokens.json", bytes: 707, sha256: "c0284b582e14987fbd3d5a2cb2bd139084371ed9acbae488829a1c900833c680", source: None },
@@ -160,6 +187,7 @@ pub const MODELS: &[LocalModel] = &[
         kind: Kind::Speech,
         streams: true,
         voices: &[],
+        loads_as: None,
         source: Source { repository: "handy-computer/parakeet-unified-en-0.6b-gguf", revision: "7e948f21b7bdbac698d3318db9d350f1096f3b6c" },
         files: &[ModelFile {
             name: "parakeet-unified-en-0.6b-Q8_0.gguf",
@@ -175,6 +203,7 @@ pub const MODELS: &[LocalModel] = &[
         kind: Kind::Speech,
         streams: true,
         voices: &[],
+        loads_as: None,
         source: Source { repository: "handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf", revision: "53ce288f69326b415aeef030cfcb02a08a8096dd" },
         files: &[ModelFile {
             name: "nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf",
@@ -190,6 +219,7 @@ pub const MODELS: &[LocalModel] = &[
         kind: Kind::Speech,
         streams: false,
         voices: &[],
+        loads_as: None,
         source: Source { repository: "handy-computer/whisper-large-v3-turbo-gguf", revision: "d222c9f621c1128299248f2ded4d8a1820519780" },
         files: &[ModelFile {
             name: "whisper-large-v3-turbo-Q8_0.gguf",
@@ -205,6 +235,7 @@ pub const MODELS: &[LocalModel] = &[
         kind: Kind::Speech,
         streams: false,
         voices: &[],
+        loads_as: None,
         source: Source { repository: "handy-computer/whisper-small-gguf", revision: "4afdc7942ecf1997f359deae48a63506b062eac4" },
         files: &[ModelFile {
             name: "whisper-small-Q8_0.gguf",
@@ -220,6 +251,7 @@ pub const MODELS: &[LocalModel] = &[
         kind: Kind::Speech,
         streams: false,
         voices: &[],
+        loads_as: None,
         source: Source { repository: "handy-computer/cohere-transcribe-03-2026-gguf", revision: "dfa4adebb64f3076b7b6b90b721275cc069cb421" },
         files: &[ModelFile {
             name: "cohere-transcribe-03-2026-Q8_0.gguf",
@@ -227,6 +259,64 @@ pub const MODELS: &[LocalModel] = &[
             sha256: "931916663432fd895423a4291a8400221802b288967ca2d435fc5e3141c9e71e",
             source: None,
         }],
+    },
+    LocalModel {
+        id: "phonon",
+        maker: "gradium",
+        name: "Phonon",
+        kind: Kind::Voice,
+        streams: false,
+        // A voice's id is its file's name in `voices/`, as the model reads it (lowercased); US then UK, four each.
+        voices: &[
+            Voice { id: "nbpkqmvs3cjeq2j8", name: "Zoey" },
+            Voice { id: "niwiov5vti5ermj8", name: "Juniper" },
+            Voice { id: "4szhfmpw-p46ywgs", name: "Harper" },
+            Voice { id: "lmdiye0oa377qh6z", name: "Easton" },
+            Voice { id: "40qrmvgaxfiunp9f", name: "Micah" },
+            Voice { id: "0zlapszfvllnaegl", name: "Trevor" },
+            Voice { id: "6pwnv0nq4wu7rvbt", name: "Maeve" },
+            Voice { id: "x6nceqf285gr04gb", name: "Alfie" },
+        ],
+        loads_as: Some("phonon"),
+        source: Source { repository: "gradium/phonon-31m-en", revision: "8f7a37c94a4c58b04c8287300c53f11d2e208eae" },
+        files: &[
+            ModelFile { name: "config.json", bytes: 4_634, sha256: "b5d0f88353638370d94035b7d73d7d6577c0554d78f8d7ecfd40490aae39ae85", source: None },
+            ModelFile { name: "model.safetensors", bytes: 102_823_920, sha256: "8a04cf833cfe69b67c2ec968b2d31244655b9accc84ade9c0ebcc176f2074607", source: None },
+            ModelFile { name: "tokenizer.model", bytes: 65_045, sha256: "82e4572006d64d483317074c22c368e87779640b6f3a9dcd07b7caae32b030ce", source: None },
+            ModelFile { name: "voices/NbpkqMVS3CJeq2j8.safetensors", bytes: 256_136, sha256: "97c7f8c253413574406ab80dd23f49c3ebb2517163b00a9bf86b9c4cf43e7e23", source: Some(&PHONON_VOICES) },
+            ModelFile { name: "voices/NIWIOv5vTi5eRMj8.safetensors", bytes: 256_136, sha256: "444378eb06b7c492b86e8fc7d13e4db1a3c0cf3e68891a960bf6f0a41a13ef35", source: Some(&PHONON_VOICES) },
+            ModelFile { name: "voices/4SZHfMpw-p46Ywgs.safetensors", bytes: 256_136, sha256: "6b3da6e2d796a20c51af892c482bd6509fb88267a221aff83c870843dee2a123", source: Some(&PHONON_VOICES) },
+            ModelFile { name: "voices/LMDIYE0Oa377Qh6Z.safetensors", bytes: 256_136, sha256: "45c582673cb20edb04ddcca2b5a8865ddfb0a82599efadb269021e87d20fbdd4", source: Some(&PHONON_VOICES) },
+            ModelFile { name: "voices/40QrMVgAxFiUnP9f.safetensors", bytes: 256_136, sha256: "0de1098d1051686a138d068e83ff09deb5053328bc74ec9541a1fdb90bfc24da", source: Some(&PHONON_VOICES) },
+            ModelFile { name: "voices/0zLApsZfVLLNaEGl.safetensors", bytes: 256_136, sha256: "dc1341c8937af5534e6bbcc5c0fc5e7c10312229b59061228074f93683fe2261", source: Some(&PHONON_VOICES) },
+            ModelFile { name: "voices/6PWnV0Nq4wu7RVBT.safetensors", bytes: 256_136, sha256: "56494ee67d533ad227ff0dfd0b1c13ff5aa91f1ad6e596e66c2986ba3005e844", source: Some(&PHONON_VOICES) },
+            ModelFile { name: "voices/X6NceqF285Gr04gb.safetensors", bytes: 256_136, sha256: "4de75497fff3030168e8aa6dca23ffeb332b1bc8c25d0bf3507ceadac953ae9c", source: Some(&PHONON_VOICES) },
+        ],
+    },
+    LocalModel {
+        id: "ming-tts",
+        maker: "inclusionAI",
+        name: "Ming 3.0 TTS",
+        kind: Kind::Voice,
+        streams: false,
+        voices: &[
+            Voice { id: "US_James", name: "James" },
+            Voice { id: "UK_Charlotte", name: "Charlotte" },
+        ],
+        loads_as: None,
+        source: Source { repository: "mlx-community/Ming-3.0-tts-0.5B-8bit", revision: "d0d1da6f627e4b3f20cc2db6ba4aee86d45343ad" },
+        files: &[
+            ModelFile { name: "added_tokens.json", bytes: 1_785, sha256: "34394b1e16d7da2db16618bd43a0f970902ade0075480bcd812fe62d559ec319", source: None },
+            ModelFile { name: "campplus.safetensors", bytes: 27_699_096, sha256: "a479586bd8f8f96cdb414eaa2fa07c6cd54d6d1636562e2d75a0211cb3b0a6fd", source: None },
+            ModelFile { name: "config.json", bytes: 6_087, sha256: "8ea3e685a870fd1a535d3b4a4c975fc20c4fca56e67acdef06fe40004064c73b", source: None },
+            ModelFile { name: "merges.txt", bytes: 1_671_853, sha256: "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5", source: None },
+            ModelFile { name: "model.safetensors", bytes: 1_573_366_591, sha256: "e88a4b53cb5b705703e961389f3d7f0e8b72c240b4dad796bf9961cc018971fc", source: None },
+            ModelFile { name: "model.safetensors.index.json", bytes: 201_850, sha256: "f59991abebed1a4f798a9488568af496d925e6eea507450aa8051a06f475a2ce", source: None },
+            ModelFile { name: "special_tokens_map.json", bytes: 2_726, sha256: "2c2ec51b9da5db654ac20de8310350d0c9c1a65918ae0181b80dacd2919b4fc3", source: None },
+            ModelFile { name: "tokenizer.json", bytes: 11_431_389, sha256: "87d54ca3b44ea2f822ba39a0a45cb1b61644bd6606d9d3536dea75367bffb06d", source: None },
+            ModelFile { name: "tokenizer_config.json", bytes: 16_260, sha256: "12d6162c815edef24f8606e65b60d43fe0d92b0a4e150a0db8fa01c523aaf36a", source: None },
+            ModelFile { name: "vocab.json", bytes: 2_776_833, sha256: "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910", source: None },
+        ],
     },
     LocalModel {
         id: "kokoro",
@@ -240,6 +330,7 @@ pub const MODELS: &[LocalModel] = &[
             Voice { id: "am_michael", name: "Michael" },
             Voice { id: "am_fenrir", name: "Fenrir" },
         ],
+        loads_as: Some("kokoro"),
         source: Source { repository: "mlx-community/Kokoro-82M-bf16", revision: "a71e4d38b236d968966a2002c4c895dbd12b1c3c" },
         files: &[
             ModelFile { name: "config.json", bytes: 2_351, sha256: "5abb01e2403b072bf03d04fde160443e209d7a0dad49a423be15196b9b43c17f", source: None },
@@ -248,79 +339,6 @@ pub const MODELS: &[LocalModel] = &[
             ModelFile { name: "voices/af_heart.safetensors", bytes: 522_320, sha256: "2c1c733b0e6576c810e268d3e440c21dea4e0f0131a3ba4cfc98d7fe6136d094", source: None },
             ModelFile { name: "voices/am_fenrir.safetensors", bytes: 522_320, sha256: "9abed964b906c4cae6f404d9849e76260689aea862bc6ca85fc3f5207ba96538", source: None },
             ModelFile { name: "voices/am_michael.safetensors", bytes: 522_320, sha256: "3940147ded35deba0bb52e8132f89b719298e0520258c34584358aa5a24da2ea", source: None },
-        ],
-    },
-    LocalModel {
-        id: "soprano",
-        maker: "ekwek",
-        name: "Soprano",
-        kind: Kind::Voice,
-        streams: false,
-        voices: &[],
-        source: Source { repository: "mlx-community/Soprano-80M-bf16", revision: "b7da048eff3dfd556409a44b78b9c61a9dd4ccfa" },
-        files: &[
-            ModelFile { name: "config.json", bytes: 680, sha256: "dcef1db183ebe876461286b3e0b1859c1068a187b32d6274306794c2ee428a93", source: None },
-            ModelFile { name: "model.safetensors", bytes: 217_333_883, sha256: "95e42d42bc879213d49d940e0884024eb153fb6daccf2229864cca0fbbbb268a", source: None },
-            ModelFile { name: "model.safetensors.index.json", bytes: 20_898, sha256: "c89dd3632bb97cdc002cbcdeec00e93c569bcc56e88c52a35612039654595f43", source: None },
-            ModelFile { name: "special_tokens_map.json", bytes: 158, sha256: "d6987802b7ab3904b190fa17c8dc47757892cc67d02ac571074e67441bc6f70f", source: None },
-            ModelFile { name: "tokenizer.json", bytes: 1_792_331, sha256: "5952e532af20bc935a29293725394bdb32a6a286e811a22f930a594ece59102c", source: None },
-            ModelFile { name: "tokenizer_config.json", bytes: 1_494_887, sha256: "1bd29465c2834d676be5ceaf32272a604522ef85659a2cb09a8ae1ea7d40ba76", source: None },
-        ],
-    },
-    LocalModel {
-        id: "pocket-tts",
-        maker: "kyutai",
-        name: "Pocket TTS",
-        kind: Kind::Voice,
-        streams: false,
-        voices: &[
-            Voice { id: "alba", name: "Alba" },
-            Voice { id: "marius", name: "Marius" },
-            Voice { id: "javert", name: "Javert" },
-            Voice { id: "jean", name: "Jean" },
-            Voice { id: "fantine", name: "Fantine" },
-            Voice { id: "cosette", name: "Cosette" },
-            Voice { id: "eponine", name: "Eponine" },
-            Voice { id: "azelma", name: "Azelma" },
-        ],
-        source: Source { repository: "mlx-community/pocket-tts", revision: "cbf71d5f6657bbc3f4bc02f85ee408261225bec7" },
-        files: &[
-            ModelFile { name: "config.json", bytes: 1_664, sha256: "403ff12260596fbfa348c7b07237c378b9ad8db9d8acd04d671470421954a68e", source: None },
-            ModelFile { name: "embeddings/alba.safetensors", bytes: 512_088, sha256: "ad234695323e4030336b6afc8a050c97e3110603e11ecd8226d9562488300a50", source: None },
-            ModelFile { name: "embeddings/azelma.safetensors", bytes: 659_544, sha256: "ef33fad34437cb187d2702f0a946d8ba7a01efdb8efbc8088c770d49c181ba73", source: None },
-            ModelFile { name: "embeddings/cosette.safetensors", bytes: 512_088, sha256: "ca8926c4f234afa9d722173967e7bebdc6269538ca5910d65f41c3c1317717d3", source: None },
-            ModelFile { name: "embeddings/eponine.safetensors", bytes: 573_528, sha256: "bb31940f62da665391de139da2e57d740757df26b73d7ec24152c78a3b8ac0c5", source: None },
-            ModelFile { name: "embeddings/fantine.safetensors", bytes: 540_760, sha256: "b6918a2ece002d2d9037ff53c4ea38730175e8798786658b0958443edf49d355", source: None },
-            ModelFile { name: "embeddings/javert.safetensors", bytes: 512_088, sha256: "2e857904ee76657e083b0e92664d21bd133e37df320af6eb04f752e679422d91", source: None },
-            ModelFile { name: "embeddings/jean.safetensors", bytes: 512_088, sha256: "329530f87ce503061acefca8669300963420ff97e43647a326aa46bd987b983c", source: None },
-            ModelFile { name: "embeddings/marius.safetensors", bytes: 512_088, sha256: "33f75e45fac0005630671f4b1bb632d51b6a083b18417de94855bbd7596a0630", source: None },
-            ModelFile { name: "model.safetensors", bytes: 235_739_497, sha256: "60ddd85019dddbe6c1d220e311ca5fc753972978a89f563c0bbe1ae943120072", source: None },
-            ModelFile { name: "special_tokens_map.json", bytes: 95, sha256: "0655d856e7dd462048486aac66d4247753e5cab12480baeb9f4e8f7fe03f7d4c", source: None },
-            ModelFile { name: "tokenizer.json", bytes: 244_993, sha256: "ef29c4871fd62c7beb928150edc095be1327f0924c0eab9e06b95918b39eff5f", source: None },
-            ModelFile { name: "tokenizer_config.json", bytes: 220, sha256: "ad6dc6a5790d0f94170998ab79921c97d28ea54602abcdb33cba3132d13ac233", source: None },
-        ],
-    },
-    LocalModel {
-        id: "qwen3-tts",
-        maker: "Qwen",
-        name: "Qwen3 TTS",
-        kind: Kind::Voice,
-        streams: false,
-        voices: &[Voice { id: "ryan", name: "Ryan" }, Voice { id: "aiden", name: "Aiden" }],
-        source: Source { repository: "mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit", revision: "049ef77fe8816b536193c0c25f9a214d17921282" },
-        files: &[
-            ModelFile { name: "config.json", bytes: 6_058, sha256: "2eea3665564268139c3beb8d497fd3c2e4524e9eed5452836cdf1de96ed3cdbd", source: None },
-            ModelFile { name: "generation_config.json", bytes: 245, sha256: "f1b90b4513f3b34c62851049e2492d7b4c5940daf1276f89c82b8ef04127f3aa", source: None },
-            ModelFile { name: "merges.txt", bytes: 1_671_839, sha256: "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3", source: None },
-            ModelFile { name: "model.safetensors", bytes: 1_286_743_170, sha256: "3bcb2c4a127e6243e81a30b7126c7865f686d3559de4f938e5d3b150c6a9560d", source: None },
-            ModelFile { name: "model.safetensors.index.json", bytes: 71_447, sha256: "0c92041960fa189cf35ae538c8d9ca07c468edddd0c9bb52274c5d4d287a860b", source: None },
-            ModelFile { name: "preprocessor_config.json", bytes: 127, sha256: "efdde1022ea9d76928bf7a9cd53139138f5ba2e466e837f08f6105ab1af1c119", source: None },
-            ModelFile { name: "speech_tokenizer/config.json", bytes: 2_336, sha256: "ee65bb901c876664ab8707c487157aa1a6ee57c65969b28fb5ec9dc211e68167", source: None },
-            ModelFile { name: "speech_tokenizer/configuration.json", bytes: 76, sha256: "6bc26d64eb5024b4d1dab5a52371958b429256d6c9d59787f1f5294a54e0cebd", source: None },
-            ModelFile { name: "speech_tokenizer/model.safetensors", bytes: 682_293_092, sha256: "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258", source: None },
-            ModelFile { name: "speech_tokenizer/preprocessor_config.json", bytes: 234, sha256: "fcb3805e597e786d4067706e602f6688524640f8d3396790e2e09b5942fcbdfb", source: None },
-            ModelFile { name: "tokenizer_config.json", bytes: 7_344, sha256: "dc3c31c3bdaedd5016382bb3cbe07323026775ad51f5a4fb564505992ae4a670", source: None },
-            ModelFile { name: "vocab.json", bytes: 2_776_833, sha256: "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910", source: None },
         ],
     },
 ];
@@ -348,9 +366,9 @@ mod tests {
 
     #[test]
     fn voice_models_list_their_speakers() {
-        assert_eq!(find("pocket-tts").unwrap().voices.first().map(|v| v.id), Some("alba"));
-        assert!(find("soprano").unwrap().voices.is_empty());
-        assert!(find_kind("qwen3-tts", Kind::Speech).is_err());
+        assert_eq!(find("phonon").unwrap().voices.first().map(|v| v.id), Some("nbpkqmvs3cjeq2j8"));
+        assert_eq!(find("ming-tts").unwrap().voices.first().map(|v| v.id), Some("US_James"));
+        assert!(find_kind("ming-tts", Kind::Speech).is_err());
     }
 
     #[test]

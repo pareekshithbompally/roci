@@ -55,7 +55,7 @@ pub async fn tts_speak(app: AppHandle, id: u64, text: String, engine: String, vo
         }
         let model = catalog::find_kind(&engine, Kind::Voice)?;
         let dir = store::installed_dir(&app, model)?;
-        voice_model::speak(&dir, chunks, voice.as_deref(), stop, on_chunk)
+        voice_model::speak(&dir, model.loads_as, chunks, voice.as_deref(), stop, on_chunk)
     })
     .await;
     #[cfg(target_os = "ios")]

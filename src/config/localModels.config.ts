@@ -26,7 +26,7 @@ export const LOCAL_MODELS_CONFIG = {
   kindLabels: { chat: 'Chat', speech: 'Speech recognition', voice: 'Read aloud voice', embedding: 'Meeting search' },
   /** Chat models' recommended sampling with thinking off (their model cards), used unless a call sets its own. */
   chatSampling: {
-    'smollm3-3b': { temperature: 0.6, topP: 0.95 },
+    'qwen3.5-9b': { temperature: 0.7, topP: 0.8, topK: 20 },
     'ternary-bonsai-2-4b': { temperature: 0.7, topP: 0.8, topK: 20 },
   } as Partial<Record<string, { temperature: number; topP: number; topK?: number }>>,
   /** Rust → webview: one download's progress or outcome (`DownloadProgress`). */

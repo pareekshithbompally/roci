@@ -164,9 +164,9 @@ pub fn embed(app: &AppHandle, texts: &[String], priority: Priority) -> Result<Ve
 }
 
 /// One sentence spoken by the voice model in `dir`: mono samples and their rate (runs on the caller's thread).
-pub fn speak(dir: &std::path::Path, text: &str, voice: Option<&str>) -> Result<(Vec<f32>, u32), LocalError> {
+pub fn speak(dir: &std::path::Path, loads_as: Option<&str>, text: &str, voice: Option<&str>) -> Result<(Vec<f32>, u32), LocalError> {
     use base64::Engine as _;
-    let request = to_c(&json!({ "modelDir": dir, "text": text, "voice": voice }))?;
+    let request = to_c(&json!({ "modelDir": dir, "modelType": loads_as, "text": text, "voice": voice }))?;
     // SAFETY: `request` outlives the call; the returned string is ours to free.
     let reply = take(gpu::run(Priority::Interactive, || unsafe { roci_mlx_speak(request.as_ptr()) }))?;
     let bytes = base64::engine::general_purpose::STANDARD

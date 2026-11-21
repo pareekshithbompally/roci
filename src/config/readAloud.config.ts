@@ -23,5 +23,5 @@ export const READ_ALOUD_CONFIG = {
   cloudChunkChars: 2000,
 } as const;
 
-/** `macos`, or a downloaded voice model's id (`pocket-tts`). */
+/** `macos`, or a downloaded voice model's id (`phonon`). */
 export type ReadAloudEngine = string;

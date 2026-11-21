@@ -109,8 +109,9 @@ export const ACKNOWLEDGEMENTS: readonly AcknowledgementGroup[] = [
     title: 'Models (downloaded on request)',
     description: 'Roci downloads these from Hugging Face only when you choose to use them.',
     items: [
-      { name: 'SmolLM3 3B', url: 'https://huggingface.co/HuggingFaceTB/SmolLM3-3B', license: 'Apache-2.0', text: 'Apache-2.0' },
-      { name: 'Granite 4.0 H Micro', url: 'https://huggingface.co/ibm-granite/granite-4.0-h-micro', license: 'Apache-2.0', text: 'Apache-2.0' },
+      { name: 'Qwen3.5 9B', url: 'https://huggingface.co/Qwen/Qwen3.5-9B', license: 'Apache-2.0', text: 'Apache-2.0' },
+      { name: 'MiniCPM5 2B', url: 'https://huggingface.co/openbmb/MiniCPM5-2B', license: 'Apache-2.0', text: 'Apache-2.0' },
+      { name: 'Granite 4.2 3B', url: 'https://huggingface.co/ibm-granite/granite-4.2-3b', license: 'Apache-2.0', text: 'Apache-2.0' },
       {
         name: 'Ternary Bonsai 2 4B',
         url: 'https://huggingface.co/prism-ml/Ternary-Bonsai-2-4B-mlx-2bit',
@@ -128,9 +129,8 @@ export const ACKNOWLEDGEMENTS: readonly AcknowledgementGroup[] = [
       { name: 'Whisper Large V3 Turbo', url: 'https://huggingface.co/openai/whisper-large-v3-turbo', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2022 OpenAI' },
       { name: 'Kokoro 82M', url: 'https://huggingface.co/hexgrad/Kokoro-82M', license: 'Apache-2.0', text: 'Apache-2.0' },
       { name: 'Kokoro English pronunciation data', url: 'https://huggingface.co/beshkenadze/kitten-tts-g2p', license: 'MIT', text: 'MIT' },
-      { name: 'Soprano', url: 'https://huggingface.co/ekwek/Soprano-80M', license: 'Apache-2.0', text: 'Apache-2.0' },
-      { name: 'Pocket TTS and voices', url: 'https://huggingface.co/kyutai/pocket-tts', license: 'CC-BY-4.0', notice: 'Pocket TTS by Kyutai, licensed under CC BY 4.0 (creativecommons.org/licenses/by/4.0); converted to MLX.' },
-      { name: 'Qwen3 TTS', url: 'https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice', license: 'Apache-2.0', text: 'Apache-2.0' },
+      { name: 'Phonon and voices', url: 'https://huggingface.co/gradium/phonon-31m-en', license: 'Apache-2.0', text: 'Apache-2.0' },
+      { name: 'Ming 3.0 TTS', url: 'https://huggingface.co/inclusionAI/Ming-3.0-tts-0.5B', license: 'MIT', text: 'MIT' },
       { name: 'Silero VAD', url: 'https://github.com/snakers4/silero-vad', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2020-present Silero Team' },
     ],
   },
