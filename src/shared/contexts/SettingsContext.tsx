@@ -18,8 +18,6 @@ interface SettingsState {
   settings: AppSettings;
   /** Model providers */
   providers: ModelProvider[];
-  /** Currently selected provider name */
-  selectedProviderName: string | null;
   /** Loading state */
   isLoading: boolean;
 }
@@ -28,8 +26,6 @@ interface SettingsState {
 type ProviderUpdate = Partial<ModelProvider> | ((current: ModelProvider) => Partial<ModelProvider>);
 
 interface SettingsContextValue extends SettingsState {
-  /** Get selected provider */
-  selectedProvider: ModelProvider | undefined;
   /** Set app settings: the changes, or computed from the settings as they are now (so quick successive edits all land). */
   setSettings: (updates: Partial<AppSettings> | ((current: AppSettings) => Partial<AppSettings>)) => void;
   /** Add a provider */
@@ -38,8 +34,6 @@ interface SettingsContextValue extends SettingsState {
   updateProvider: (providerName: string, updates: ProviderUpdate) => void;
   /** Update provider setting */
   updateProviderSetting: (providerName: string, settingIndex: number, value: string | boolean | number) => void;
-  /** Set selected provider */
-  setSelectedProviderName: (name: string | null) => void;
   /** Save settings to storage */
   saveSettings: (overrides?: Partial<AppSettings>) => Promise<void>;
 }
@@ -144,7 +138,7 @@ function hasApiKey(provider: ModelProvider): boolean {
   return typeof value === 'string' && value.trim() !== '';
 }
 
-async function loadSettingsFromStore(): Promise<{ settings: AppSettings; selectedProviderName: string | null }> {
+async function loadSettingsFromStore(): Promise<AppSettings> {
   const raw = await store.settings.getAll();
   onDisk.settings = new Map(Object.entries(raw));
   const loaded: Partial<AppSettings> = {};
@@ -161,10 +155,7 @@ async function loadSettingsFromStore(): Promise<{ settings: AppSettings; selecte
     }
   }
 
-  let spn: string | null = null;
-  try { spn = raw.selectedProviderName ? JSON.parse(raw.selectedProviderName) : null; } catch { spn = raw.selectedProviderName ?? null; }
-
-  return { settings: { ...defaultSettings, ...loaded }, selectedProviderName: spn };
+  return { ...defaultSettings, ...loaded };
 }
 
 
@@ -172,13 +163,11 @@ async function loadSettingsFromStore(): Promise<{ settings: AppSettings; selecte
 export interface LoadedSettings {
   settings: AppSettings;
   providers: ModelProvider[];
-  selectedProviderName: string | null;
 }
 
 const FALLBACK_SETTINGS: LoadedSettings = {
   settings: defaultSettings,
   providers: [],
-  selectedProviderName: null,
 };
 
 /** Provider ids removed from the app; saved configs with them are deleted on load. */
@@ -224,10 +213,9 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
 
     try {
       await store.initialize();
-      const { settings: loadedSettings, selectedProviderName: savedProviderName } = await loadSettingsFromStore();
+      const loadedSettings = await loadSettingsFromStore();
 
       let loadedProviders: ModelProvider[];
-      let selectedProviderName: string | null = savedProviderName;
 
       const savedProviders = await store.providers.list();
       onDisk.providers = new Map(savedProviders.map((p) => [p.provider, JSON.stringify(p)]));
@@ -248,11 +236,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         loadedProviders = predefinedProviders.map(p => ({ ...p }));
       }
 
-      // Drop selections of providers that no longer exist so the auto-select below picks a working one.
-      if (selectedProviderName && !loadedProviders.some((p) => p.provider === selectedProviderName)) {
-        console.log('[SettingsContext] Clearing dangling selected provider:', selectedProviderName);
-        selectedProviderName = null;
-      }
       // A model may also be built in (Apple Intelligence) or downloaded to this device: check only when every source is known.
       const localModels = await queryClient
         .fetchQuery({ queryKey: queryKeys.localModels(), queryFn: getLocalModels })
@@ -263,14 +246,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       if (localModels) {
         dropUnservedModels(loadedSettings, modelSources(loadedProviders, loadedSettings, localModels));
         dropRemovedVoiceEngine(loadedSettings, localModels);
-      }
-
-      if (!selectedProviderName && loadedProviders.length > 0) {
-        const providerWithKey = loadedProviders.find(hasApiKey);
-        if (providerWithKey) {
-          selectedProviderName = providerWithKey.provider;
-          console.log('[SettingsContext] Auto-selected provider with API key:', selectedProviderName);
-        }
       }
 
       if (!loadedSettings.chatModel) {
@@ -299,13 +274,12 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       console.log('[SettingsContext] Settings loaded successfully');
       console.log('[SettingsContext] Chat model:', loadedSettings.chatModel);
       console.log('[SettingsContext] Transcription model:', loadedSettings.transcriptionModel);
-      return { settings: loadedSettings, providers: loadedProviders, selectedProviderName };
+      return { settings: loadedSettings, providers: loadedProviders };
     } catch (error) {
       console.error('[SettingsContext] Error loading settings:', error);
       return {
         settings: defaultSettings,
         providers: predefinedProviders.map(p => ({ ...p })),
-        selectedProviderName: null,
       };
     }
   }
@@ -321,7 +295,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     try {
       // An unset setting is saved as `null`, so clearing it sticks.
       const values: Array<[string, string]> = SETTINGS_KEYS.map((key) => [key, JSON.stringify(effectiveSettings[key] ?? null)]);
-      if (snapshot.selectedProviderName !== null) values.push(['selectedProviderName', JSON.stringify(snapshot.selectedProviderName)]);
       for (const [key, value] of values) {
         if (onDisk.settings.get(key) === value) continue;
         await store.settings.set(key, value);
@@ -457,24 +430,17 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }));
   }, [updateCache]);
 
-  const setSelectedProviderName = useCallback((name: string | null) => {
-    updateCache(prev => ({ ...prev, selectedProviderName: name }));
-  }, [updateCache]);
-
   // One value per settings change, so its users re-render only when settings do.
   const value = useMemo<SettingsContextValue>(() => ({
     settings: loaded.settings,
     providers: loaded.providers,
-    selectedProviderName: loaded.selectedProviderName,
     isLoading,
-    selectedProvider: loaded.providers.find((p) => p.provider === loaded.selectedProviderName),
     setSettings,
     addProvider,
     updateProvider,
     updateProviderSetting,
-    setSelectedProviderName,
     saveSettings,
-  }), [loaded, isLoading, setSettings, addProvider, updateProvider, updateProviderSetting, setSelectedProviderName, saveSettings]);
+  }), [loaded, isLoading, setSettings, addProvider, updateProvider, updateProviderSetting, saveSettings]);
 
   return (
     <SettingsContext.Provider value={value}>

@@ -134,12 +134,11 @@ describe('settings save-on-edit', () => {
 
 describe('settings retired providers', () => {
   function ProbeProviders() {
-    const { providers, selectedProviderName, isLoading } = useSettings();
+    const { providers, isLoading } = useSettings();
     return (
       <div>
         <span data-testid="loading">{isLoading ? 'loading' : 'ready'}</span>
         <span data-testid="ids">{providers.map((p) => p.provider).join(',')}</span>
-        <span data-testid="selected">{selectedProviderName ?? 'none'}</span>
       </div>
     );
   }
@@ -157,7 +156,7 @@ describe('settings retired providers', () => {
     );
   }
 
-  it('deletes retired providers from disk and drops dangling selections', async () => {
+  it('deletes retired providers from disk', async () => {
     providersList.mockResolvedValueOnce([
       { provider: 'xai', active: true, models: [], settings: [] },
       { provider: 'openai', active: true, models: [{ id: 'gpt-4o' }], settings: [] },
@@ -170,7 +169,5 @@ describe('settings retired providers', () => {
     expect(providersDelete).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('ids').textContent).not.toContain('xai');
     expect(screen.getByTestId('ids').textContent).toContain('openai');
-    // Dangling selection never points at a retired provider.
-    expect(screen.getByTestId('selected').textContent).not.toBe('xai');
   });
 });

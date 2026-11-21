@@ -24,9 +24,10 @@ export interface PaneDrill {
   forward?: () => void;
 }
 
-export function usePaneDrill(): PaneDrill {
+/** `initial`: a page to open on arrival (Mac, iPad), e.g. a provider a deep link names. */
+export function usePaneDrill(initial: DrillPage | null = null): PaneDrill {
   const stack = useOptionalNavStack();
-  const [{ open, left }, setState] = useState<DrillState>({ open: null, left: null });
+  const [{ open, left }, setState] = useState<DrillState>({ open: stack ? null : initial, left: null });
 
   const openPage = useCallback((page: DrillPage) => {
     if (!stack) {

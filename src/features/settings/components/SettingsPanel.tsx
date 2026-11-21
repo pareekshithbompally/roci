@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { preloadSystemInfo } from '@features/settings/hooks/useSystemInfo';
-import { useAppStore } from '@shared/stores/appStore';
+import { useAppStore, useSettingsVisit } from '@shared/stores/appStore';
 import { SETTINGS_GROUPS, SETTINGS_NAV_ITEMS, usePaneArt } from './SettingsNav';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ProvidersPanel } from './ProvidersPanel';
@@ -71,6 +71,7 @@ export const SettingsHome: React.FC = () => {
 
 export const SettingsPanel: React.FC = () => {
   const activePanel = useAppStore((s) => s.activeSettingsPanel);
+  const visit = useSettingsVisit();
   const { isLoading } = useSettings();
 
   // System and Usage data load while the user is still on another panel, so those panels land with it.
@@ -84,7 +85,8 @@ export const SettingsPanel: React.FC = () => {
   return (
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 min-w-0 min-h-0 overflow-hidden relative h-full">
-        <PanelView id={activePanel} />
+        {/* Keyed by the visit: each way into a panel starts it again at its top (and at a requested page). */}
+        <PanelView key={visit} id={activePanel} />
       </div>
     </div>
   );

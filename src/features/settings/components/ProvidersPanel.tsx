@@ -11,6 +11,7 @@ import { ProviderDetail } from './ProviderDetail';
 import { OnDeviceDetail } from './OnDeviceDetail';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import { SettingsPage, usePaneDrill, type DrillPage } from './shared';
+import { useSettingsPage } from '@shared/stores/appStore';
 
 const ON_DEVICE_ID = LOCAL_MODELS_CONFIG.provider.id;
 
@@ -34,15 +35,17 @@ const providerRow = (id: string, open: (id: string) => void, status?: React.Reac
   />
 );
 
+const providerPage = (id: string): DrillPage => ({
+  title: getProviderTitle(id),
+  render: (close) => <ProviderPage id={id} onBack={close} />,
+});
+
 export const ProvidersPanel: React.FC = () => {
   const { providers } = useSettings();
-  const drill = usePaneDrill();
+  const requested = useSettingsPage();
+  const drill = usePaneDrill(requested ? providerPage(requested) : null);
   if (drill.view) return drill.view;
 
-  const providerPage = (id: string): DrillPage => ({
-    title: getProviderTitle(id),
-    render: (close) => <ProviderPage id={id} onBack={close} />,
-  });
   const openProvider = (id: string) => drill.open(providerPage(id));
   const addServerPage: DrillPage = {
     title: ADD_SERVER_TITLE,

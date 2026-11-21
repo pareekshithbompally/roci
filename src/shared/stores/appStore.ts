@@ -18,6 +18,11 @@ interface AppStoreState {
   activeSettingsPanel: SettingsPanel;
   /** The panel Settings was opened at (Set up AI → Providers); null when opened plainly. A phone opens it on arrival. */
   settingsRequest: SettingsPanel | null;
+  /** A page inside that panel to open on arrival (Manage models → Providers › On this device); null for the panel's top. */
+  settingsPage: string | null;
+  /** Counts every way into a panel (sidebar, ⌘K, openSettings), so the panel starts again at its top each time, even when it
+   *  is the one already open (System Settings). */
+  settingsVisit: number;
   meetingChatOpen: boolean;
   permissionChecklistOpen: boolean;
   /** Quit or window close asked while recording: which one, or none. */
@@ -27,8 +32,8 @@ interface AppStoreState {
 
   /** Switch between app views; Settings opens only through `openSettings`. */
   setCurrentView: (v: Exclude<ViewType, 'settings'>) => void;
-  /** The one way into Settings, optionally at a panel. */
-  openSettings: (panel?: SettingsPanel) => void;
+  /** The one way into Settings, optionally at a panel and a page inside it. */
+  openSettings: (panel?: SettingsPanel, page?: string) => void;
   /** Return from settings to the view it was opened from; no-op elsewhere. */
   leaveSettings: () => void;
   setStatus: (s: AppStatus) => void;
@@ -51,6 +56,8 @@ export const useAppStore = create<AppStoreState>((set) => ({
   selectedHistoryId: null,
   activeResultTab: 'summary',
   activeSettingsPanel: 'general',
+  settingsPage: null,
+  settingsVisit: 0,
   settingsRequest: null,
   meetingChatOpen: false,
   permissionChecklistOpen: false,
@@ -60,12 +67,14 @@ export const useAppStore = create<AppStoreState>((set) => ({
 
   setCurrentView: (v) => set({ currentView: v }),
 
-  openSettings: (panel) =>
+  openSettings: (panel, page) =>
     set((s) => ({
       currentView: 'settings',
       ...(s.currentView !== 'settings' && { viewBeforeSettings: s.currentView }),
       ...(panel && { activeSettingsPanel: panel }),
       settingsRequest: panel ?? null,
+      settingsPage: page ?? null,
+      settingsVisit: s.settingsVisit + 1,
     })),
 
   leaveSettings: () =>
@@ -86,7 +95,7 @@ export const useAppStore = create<AppStoreState>((set) => ({
 
   setActiveResultTab: (t) => set({ activeResultTab: t }),
 
-  setActiveSettingsPanel: (p) => set({ activeSettingsPanel: p }),
+  setActiveSettingsPanel: (p) => set((s) => ({ activeSettingsPanel: p, settingsPage: null, settingsVisit: s.settingsVisit + 1 })),
 
   setMeetingChatOpen: (open) => set({ meetingChatOpen: open }),
 
@@ -114,6 +123,8 @@ export const useAppStatus = () => useAppStore((s) => s.status);
 export const useSelectedHistoryId = () => useAppStore((s) => s.selectedHistoryId);
 export const useActiveResultTab = () => useAppStore((s) => s.activeResultTab);
 export const useActiveSettingsPanel = () => useAppStore((s) => s.activeSettingsPanel);
+export const useSettingsPage = () => useAppStore((s) => s.settingsPage);
+export const useSettingsVisit = () => useAppStore((s) => s.settingsVisit);
 export const useMeetingChatOpen = () => useAppStore((s) => s.meetingChatOpen);
 export const usePermissionChecklistOpen = () => useAppStore((s) => s.permissionChecklistOpen);
 export const useRecordingExitPrompt = () => useAppStore((s) => s.recordingExitPrompt);

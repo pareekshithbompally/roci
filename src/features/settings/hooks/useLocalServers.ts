@@ -20,7 +20,7 @@ import type { LocalRow, LocalServer } from '@services/providers/localServers';
 export type AddLocalUrlResult = { ok: true; id: string } | { ok: false; error: string };
 
 export function useLocalServers() {
-  const { providers, addProvider, updateProvider, setSelectedProviderName } = useSettings();
+  const { providers, addProvider, updateProvider } = useSettings();
   const saved = useMemo(() => savedLocalProviders(providers), [providers]);
 
   const query = useLocalServerProbe();
@@ -28,11 +28,10 @@ export function useLocalServers() {
   const { refetch } = query;
   const rows: LocalRow[] = useMemo(() => localRows(query.data ?? [], providers), [query.data, providers]);
 
-  /** Save a detected server as an active provider and select it. */
+  /** Save a detected server as an active provider. */
   const enable = useCallback((server: LocalServer, serverApp?: string) => {
     addProvider(toLocalProvider(server, serverApp));
-    setSelectedProviderName(server.id);
-  }, [addProvider, setSelectedProviderName]);
+  }, [addProvider]);
 
   /** Re-probe, then bring each saved running server's model list up to date. */
   const rescan = useCallback(async () => {
@@ -50,10 +49,7 @@ export function useLocalServers() {
     if (needsHttps(baseUrl)) return { ok: false, error: LOCAL_NEEDS_HTTPS };
 
     const id = customServerId(baseUrl);
-    if (saved.some((p) => p.provider === id)) {
-      setSelectedProviderName(id);
-      return { ok: true, id };
-    }
+    if (saved.some((p) => p.provider === id)) return { ok: true, id };
 
     const models = await listServerModels(id, baseUrl);
     if (!models) return { ok: false, error: `No OpenAI-compatible server answered at ${baseUrl}.` };
@@ -62,7 +58,7 @@ export function useLocalServers() {
     const serverApp = SERVER_APP_BY_LIST_STYLE[await listStyleOf(id, { baseUrl })];
     enable({ id, baseUrl, running: true, models }, serverApp);
     return { ok: true, id };
-  }, [saved, enable, setSelectedProviderName]);
+  }, [saved, enable]);
 
   return { rows, isScanning: query.isFetching, enable, rescan, addUrl };
 }

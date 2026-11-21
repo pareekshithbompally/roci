@@ -50,7 +50,7 @@ const App: React.FC = () => {
   const selectedHistoryId = useSelectedHistoryId();
   const { openSettings, leaveSettings, setInitialized } = useAppActions();
   
-  const { settings, setSettings, providers, setSelectedProviderName, isLoading: settingsLoading } = useSettings();
+  const { settings, setSettings, providers, isLoading: settingsLoading } = useSettings();
   const startRecording = useStartRecording();
   const startRecordingRef = useRef(startRecording);
   startRecordingRef.current = startRecording;
@@ -181,8 +181,8 @@ const App: React.FC = () => {
   /** What each menu bar action does here (Rust handles the window, update, next-meeting and recent-meeting rows itself). */
   const menubarActions = (): Record<TrayAction, () => Promise<void>> => {
     const isRecording = () => useRecordingStore.getState().meetingId !== null;
-    const openSettingsWindow = async (panel?: SettingsPanelId) => {
-      openSettings(panel);
+    const openSettingsWindow = async (panel?: SettingsPanelId, page?: string) => {
+      openSettings(panel, page);
       await windowService.show();
     };
     return {
@@ -191,10 +191,7 @@ const App: React.FC = () => {
       [TrayAction.STOP_RECORDING]: async () => { if (isRecording()) await recording.stop(); },
       [TrayAction.PAUSE_RECORDING]: async () => { if (isRecording()) await recording.pause(); },
       [TrayAction.RESUME_RECORDING]: async () => { if (isRecording()) await recording.resume(); },
-      [TrayAction.MANAGE_MODELS]: () => {
-        setSelectedProviderName(LOCAL_MODELS_CONFIG.provider.id);
-        return openSettingsWindow('providers');
-      },
+      [TrayAction.MANAGE_MODELS]: () => openSettingsWindow('providers', LOCAL_MODELS_CONFIG.provider.id),
       [TrayAction.MANAGE_AGENTS]: () => openSettingsWindow('integrations'),
       [TrayAction.SETTINGS]: () => openSettingsWindow(),
       [TrayAction.NEW_CHAT]: async () => {

@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { Button, Callout, CardRow, ICON_SIZE_PX, Input, Section, WelcomeStep } from '@shared/ui';
 import { ProvidersAvatar } from '@shared/components';
-import { useSettings } from '@shared/contexts/SettingsContext';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { errorMessage } from '@shared/utils/errors';
 import { useLocalServers } from '@features/settings';
@@ -19,7 +18,6 @@ const ACTIONS = ONBOARDING_CONFIG.actions;
 
 export const LocalSetup: React.FC = () => {
   const { rows, isScanning, enable, addUrl } = useLocalServers();
-  const { setSelectedProviderName } = useSettings();
   const finish = useFinishOnboarding();
   const setStep = useSetOnboardingStep();
   const [address, setAddress] = useState('');
@@ -31,8 +29,7 @@ export const LocalSetup: React.FC = () => {
   const invalid = address.trim() !== '' && !valid;
 
   const use = (row: LocalRow) => {
-    if (row.saved) setSelectedProviderName(row.id);
-    else enable(row);
+    if (!row.saved) enable(row);
     finish();
   };
 
