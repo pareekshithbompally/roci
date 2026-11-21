@@ -1,8 +1,8 @@
-/** Which models work on a meeting, each named with its logo ("Transcribed by [logo] model · Summarized by [logo] model"):
+/** Which models work on a meeting, each a badge with its logo ("Transcribed by [logo model] · Summarized by [logo model]"):
  *  the finished meeting's credit and the recording's models use this one line. */
 
 import React from 'react';
-import { ICON_SIZE_PX, Text } from '@shared/ui';
+import { Badge, ICON_SIZE_PX, Text } from '@shared/ui';
 import { ModelIcon } from '@shared/components/ModelIcon';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 
@@ -12,12 +12,12 @@ export interface ModelCredit {
   model: string;
 }
 
-/** One model: its logo and id, the provider on hover. */
+/** One model as a quiet badge (the kit's, like the Recording one): its logo, the only colour, and its id; the provider on hover. */
 export const ModelName: React.FC<{ credit: ModelCredit }> = ({ credit }) => (
-  <span className="inline-flex items-center gap-1.5 min-w-0" title={credit.provider ? getProviderTitle(credit.provider) : undefined}>
+  <Badge tinted dot={false} className="min-w-0" title={credit.provider ? getProviderTitle(credit.provider) : undefined}>
     {credit.provider && <ModelIcon provider={credit.provider} modelId={credit.model} size={ICON_SIZE_PX.xs} />}
-    <Text variant="helper" tone="primary">{credit.model}</Text>
-  </span>
+    <span className="truncate">{credit.model}</span>
+  </Badge>
 );
 
 /** A role and the model filling it; none = not set, left out. */
