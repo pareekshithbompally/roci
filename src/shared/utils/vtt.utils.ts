@@ -1,5 +1,7 @@
 /** WebVTT parser: timestamps, speaker names (cue settings or voice tags), and transcript text. */
 
+import { formatClock } from '@shared/utils/formatters';
+
 export interface VTTParsedSegment {
   timestamp: string;
   speaker?: string;
@@ -88,24 +90,9 @@ export function parseVTT(vttContent: string): VTTParseResult {
   };
 }
 
-/** VTT timestamp (HH:MM:SS.mmm or MM:SS.mmm) as MM:SS. */
+/** VTT timestamp (HH:MM:SS.mmm or MM:SS.mmm) as the clock (MM:SS); anything else as it is. */
 function formatTimestamp(timestamp: string): string {
-  const parts = timestamp.split(':');
-
-  if (parts.length === 3) {
-    // HH:MM:SS.mmm format
-    const hours = parseInt(parts[0], 10);
-    const minutes = parseInt(parts[1], 10);
-    const seconds = Math.floor(parseFloat(parts[2]));
-
-    const totalMinutes = hours * 60 + minutes;
-    return `${totalMinutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  } else if (parts.length === 2) {
-    // MM:SS.mmm format
-    const minutes = parseInt(parts[0], 10);
-    const seconds = Math.floor(parseFloat(parts[1]));
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  }
-
-  return timestamp; // Return as-is if format is unexpected
+  const parts = timestamp.split(':').map(parseFloat);
+  if (parts.length < 2 || parts.length > 3 || parts.some(Number.isNaN)) return timestamp;
+  return formatClock(parts.reduce((total, part) => total * 60 + part, 0));
 }

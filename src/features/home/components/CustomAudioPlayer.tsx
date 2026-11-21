@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useWavesurfer } from '@wavesurfer/react';
 import Hover from 'wavesurfer.js/dist/plugins/hover.esm.js';
-import { formatTime } from '@shared/utils/audio.utils';
+import { formatClock } from '@shared/utils/formatters';
 import { useThemeContext } from '@shared/contexts/ThemeContext';
 import { useAudioPlayerStore, SPEED_OPTIONS } from '@shared/stores/audioPlayerStore';
 import { cssToken } from '@shared/utils/cssToken';
@@ -212,8 +212,8 @@ const CustomAudioPlayer: React.FC<CustomAudioPlayerProps> = ({ src, duration, me
   const VolumeIcon = isMuted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
 
   const displayTime = showRemaining
-    ? `-${formatTime(Math.max(effectiveDuration - currentTime, 0))}`
-    : formatTime(currentTime);
+    ? `-${formatClock(Math.max(effectiveDuration - currentTime, 0))}`
+    : formatClock(currentTime);
 
   return (
     <Surface
@@ -284,7 +284,7 @@ const CustomAudioPlayer: React.FC<CustomAudioPlayerProps> = ({ src, duration, me
         />
 
         <Text variant="figureSmall" tone="muted" className="min-w-16 text-right">
-          {formatTime(effectiveDuration)}
+          {formatClock(effectiveDuration)}
         </Text>
       </div>
 

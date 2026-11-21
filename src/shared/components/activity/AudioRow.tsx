@@ -3,7 +3,7 @@
 import React from 'react';
 import { Pause, Play, SkipForward, Square } from 'lucide-react';
 import { Dot, IconButton, Slider, Text } from '@shared/ui';
-import { formatTime } from '@shared/utils/audio.utils';
+import { formatClock } from '@shared/utils/formatters';
 import { SKIP_SECONDS, type MinimizedAudio } from './useMinimizedAudio';
 
 export const AudioRow: React.FC<{ audio: MinimizedAudio }> = ({ audio }) => (
@@ -26,7 +26,7 @@ export const AudioRow: React.FC<{ audio: MinimizedAudio }> = ({ audio }) => (
         className="flex-1"
       />
       <Text variant="caption" tone="muted" className="shrink-0">
-        {formatTime(audio.currentTime)} / {formatTime(audio.duration)}
+        {formatClock(audio.currentTime)} / {formatClock(audio.duration)}
       </Text>
     </div>
   </div>

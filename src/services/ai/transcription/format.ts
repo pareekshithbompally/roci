@@ -1,11 +1,6 @@
+import { formatClock } from '@shared/utils/formatters';
 import type { TranscriptResult } from './types';
 import type { StoredTranscriptSegment } from '@shared/types';
-
-function formatTimestamp(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-}
 
 export function formatTranscript(r: TranscriptResult): {
   formatted: string;
@@ -22,8 +17,8 @@ export function formatTranscript(r: TranscriptResult): {
     const formatted = stored
       .map((seg) => {
         const prefix = seg.speaker
-          ? `[${formatTimestamp(seg.startSecond)}] ${seg.speaker}: ${seg.text}`
-          : `[${formatTimestamp(seg.startSecond)}] ${seg.text}`;
+          ? `[${formatClock(seg.startSecond)}] ${seg.speaker}: ${seg.text}`
+          : `[${formatClock(seg.startSecond)}] ${seg.text}`;
         return prefix;
       })
       .join('\n');

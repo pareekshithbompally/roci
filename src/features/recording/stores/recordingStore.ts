@@ -63,12 +63,6 @@ export function recordedSeconds(state: Mirror, now = Date.now()): number {
   return Math.max(0, Math.floor((state.recordedMs + sinceRead) / 1000));
 }
 
-/** "02:13", minutes past the hour included ("75:03"). */
-export function formatClock(seconds: number): string {
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  return `${pad(Math.floor(seconds / 60))}:${pad(seconds % 60)}`;
-}
-
 /** Reads the recorder into the store and the menu bar; a failed read is logged and leaves both as they were. */
 async function sync(): Promise<void> {
   if (!isTauriEnvironment()) return;

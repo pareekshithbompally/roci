@@ -7,7 +7,7 @@ import { refreshLiveNotes } from '@services/ai/liveNotes';
 import { errorMessage } from '@shared/utils/errors';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { LiveEntry } from '@features/recording/live/liveTranscript';
-import { formatClock } from '@features/recording/stores/recordingStore';
+import { formatClock } from '@shared/utils/formatters';
 import { indexStretch, searchMeetingWithin } from '@extensions/rag';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
 import {

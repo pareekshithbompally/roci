@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   formatDate,
   formatMonth,
+  formatClock,
   formatClockTime,
   formatHour,
   formatShortDate,
@@ -264,5 +265,13 @@ describe('formatting follows the Mac (system format), not the web view default',
     setSystemFormat({ locale: 'en-US', hour24: true, firstWeekday: 1, minDaysInFirstWeek: 1 });
     expect(formatClockTime(at)).toBe('21:28');
     expect(formatDateTime(at)).toContain('21:28');
+  });
+});
+
+describe('formatClock', () => {
+  it('is a fixed-width running clock: minutes padded and kept past the hour, fractions dropped', () => {
+    expect(formatClock(0)).toBe('00:00');
+    expect(formatClock(65.9)).toBe('01:05');
+    expect(formatClock(4_503)).toBe('75:03');
   });
 });

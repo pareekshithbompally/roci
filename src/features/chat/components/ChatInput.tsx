@@ -26,6 +26,7 @@ import { canSendDraft } from '@features/chat/utils';
 import { COMPOSER_MAX_HEIGHT_PX, DICTATION_COPY } from '@config/chat.config';
 import { useRecordingMeetingId } from '@features/recording';
 import { platform } from '@platform/index';
+import { formatClock } from '@shared/utils/formatters';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import type { ChatPart } from '@shared/types';
 import type { SpeechState } from '@features/chat/hooks/useSpeechInput';
@@ -305,7 +306,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, [voiceActive]);
 
   // Composer returns as one unit, titles and buttons as a second beat; tweens only, never springs.
-  const formattedElapsed = `${String(Math.floor(speechElapsed / 60)).padStart(2, '0')}:${String(speechElapsed % 60).padStart(2, '0')}`;
+  const formattedElapsed = formatClock(speechElapsed);
 
   // The field and the send controls, arranged by the layout below (Mac: box + toolbar; phone: one row).
   const canDictate = showSpeechInput && !!onSpeechStart && !isLoading;

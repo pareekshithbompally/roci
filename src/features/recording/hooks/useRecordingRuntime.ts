@@ -16,7 +16,6 @@ import { followMeetingChanges } from '@features/recording/pipeline/meetingChange
 import {
   recording,
   recordedSeconds,
-  formatClock,
   useJustStopped,
   useRecordingBusy,
   useRecordingMeetingId,
@@ -25,6 +24,7 @@ import {
 } from '@features/recording/stores/recordingStore';
 import { checkStillRecording, listenForStillRecordingAnswers, nextStillRecordingCheckAt } from '@features/recording/stillRecording';
 import { useDocumentVisible } from '@shared/hooks';
+import { formatClock } from '@shared/utils/formatters';
 import { useAIReadiness } from '@features/settings';
 import { platform } from '@platform/index';
 import { useMeetingLive } from '@features/recording/live/useMeetingLive';

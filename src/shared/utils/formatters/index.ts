@@ -85,6 +85,13 @@ export function formatCount(count: number, noun: string): string {
   return `${new Intl.NumberFormat().format(count)} ${noun}${count === 1 ? '' : 's'}`;
 }
 
+/** A running clock, fixed width: "02:13", minutes past the hour kept ("75:03"). */
+export function formatClock(seconds: number): string {
+  const pad = (n: number) => Math.floor(n).toString().padStart(2, '0');
+  return `${pad(seconds / 60)}:${pad(seconds % 60)}`;
+}
+
+/** A length: "2:13", or "1:02:13" past an hour. */
 export function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
