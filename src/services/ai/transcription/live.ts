@@ -5,6 +5,7 @@
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { toAiError } from '@services/ai/errors';
+import { recordUsage } from '@extensions/usage';
 import { adapterFor } from './catalog';
 import { speechModelFor } from './pipeline';
 import { STREAMING, type LiveStream } from './streaming';
@@ -16,11 +17,14 @@ export function runsLive(selection: SpeechSelection, providers: ModelProvider[],
   return !!engine && engine.concurrent >= count;
 }
 
+/** Which meeting a stream's usage belongs to, read when the stream ends (none for dictation). */
+type SessionOf = () => string | undefined;
+
 /** Opens `count` streams, or none: null when the engine can't run that many or the model refuses (the reason is logged), so
  *  the caller goes live in chunks. */
-export async function tryLiveStreams(selection: SpeechSelection, providers: ModelProvider[], count: number): Promise<LiveStream[] | null> {
+export async function tryLiveStreams(selection: SpeechSelection, providers: ModelProvider[], count: number, sessionOf?: SessionOf): Promise<LiveStream[] | null> {
   if (!runsLive(selection, providers, count)) return null;
-  const opened = await Promise.allSettled(Array.from({ length: count }, () => openLiveStream(selection, providers)));
+  const opened = await Promise.allSettled(Array.from({ length: count }, () => openLiveStream(selection, providers, sessionOf)));
   const streams = opened.flatMap((o) => (o.status === 'fulfilled' ? [o.value] : []));
   if (streams.length === count) return streams;
   console.info('[live] real-time refused, going live in chunks:', opened.find((o) => o.status === 'rejected')?.reason);
@@ -28,25 +32,37 @@ export async function tryLiveStreams(selection: SpeechSelection, providers: Mode
   return null;
 }
 
-/** A stream whose failures read as one plain sentence (the one AI error translator), whatever the engine. */
-function translated(stream: LiveStream, provider: string): LiveStream {
+/** A stream as every engine's is used: failures read as one plain sentence (the one AI error translator), and the audio it
+ *  heard is recorded once, when it ends, for its meeting. */
+function tracked(stream: LiveStream, selection: SpeechSelection, sessionOf?: SessionOf): LiveStream {
   const plain = (error: unknown): never => {
-    throw toAiError(error, 'speech', provider);
+    throw toAiError(error, 'speech', selection.provider);
+  };
+  let heardSeconds = 0;
+  let recorded = false;
+  const record = () => {
+    if (recorded || heardSeconds === 0) return;
+    recorded = true;
+    recordUsage('transcription', { provider: selection.provider, modelId: selection.model }, undefined, sessionOf?.(), heardSeconds);
   };
   return {
-    feed: (pcm) => stream.feed(pcm).catch(plain),
-    finish: () => stream.finish().catch(plain),
-    cancel: () => stream.cancel(),
+    feed: (pcm) => {
+      heardSeconds += pcm.length / TRANSCRIPTION_CONFIG.sampleRate;
+      return stream.feed(pcm).catch(plain);
+    },
+    finish: () => stream.finish().catch(plain).finally(record),
+    cancel: () => stream.cancel().finally(record),
   };
 }
 
-/** Opens one stream; rejects when the model can't stream. Its failures, opening or later, read as plain sentences. */
-export async function openLiveStream(selection: SpeechSelection, providers: ModelProvider[]): Promise<LiveStream> {
+/** Opens one stream; rejects when the model can't stream. Its failures, opening or later, read as plain sentences, and the
+ *  audio it hears is recorded as usage when it ends. */
+export async function openLiveStream(selection: SpeechSelection, providers: ModelProvider[], sessionOf?: SessionOf): Promise<LiveStream> {
   try {
     const engine = STREAMING[adapterFor(selection, providers) ?? 'multimodal'];
     if (!engine) throw new Error(`${selection.model} doesn't stream.`);
     const { model, resolved } = await speechModelFor(selection, providers);
-    return translated(await engine.open({ model, resolved, language: TRANSCRIPTION_CONFIG.language }), selection.provider);
+    return tracked(await engine.open({ model, resolved, language: TRANSCRIPTION_CONFIG.language }), selection, sessionOf);
   } catch (error: unknown) {
     throw toAiError(error, 'speech', selection.provider);
   }

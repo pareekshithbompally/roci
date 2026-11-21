@@ -40,11 +40,31 @@ describe('the price rule', () => {
 });
 
 describe('parsePrice', () => {
-  it('saves only two non-negative numbers, and clears when both are empty', () => {
-    expect(parsePrice('2', '8.5')).toEqual({ inputPer1M: 2, outputPer1M: 8.5 });
-    expect(parsePrice('', ' ')).toBeNull();
-    expect(parsePrice('2', '')).toBeUndefined();
-    expect(parsePrice('-1', '3')).toBeUndefined();
-    expect(parsePrice('abc', '3')).toBeUndefined();
+  const typed = (inputPer1M: string, outputPer1M: string, perMinute = '') => ({ inputPer1M, outputPer1M, perMinute });
+
+  it('saves the token rates as a pair of non-negative numbers, and clears when every rate is empty', () => {
+    expect(parsePrice(typed('2', '8.5'))).toEqual({ inputPer1M: 2, outputPer1M: 8.5 });
+    expect(parsePrice(typed('', ' '))).toBeNull();
+    expect(parsePrice(typed('2', ''))).toBeUndefined();
+    expect(parsePrice(typed('-1', '3'))).toBeUndefined();
+    expect(parsePrice(typed('abc', '3'))).toBeUndefined();
+  });
+
+  it('takes a per-minute rate alone, for speech billed by the minute', () => {
+    expect(parsePrice(typed('', '', '0.006'))).toEqual({ inputPer1M: 0, outputPer1M: 0, perMinute: 0.006 });
+    expect(parsePrice(typed('2', '8', '0.006'))).toEqual({ inputPer1M: 2, outputPer1M: 8, perMinute: 0.006 });
+    expect(parsePrice(typed('', '', 'x'))).toBeUndefined();
+  });
+});
+
+describe('speech by the minute', () => {
+  it('prices a call by its audio minutes, tokens and minutes added together', () => {
+    expect(costOf({ inputPer1M: 0, outputPer1M: 0, perMinute: 0.006 }, undefined, 90)).toBeCloseTo(0.009, 12);
+    expect(costOf({ inputPer1M: 1_000_000, outputPer1M: 0, perMinute: 0.006 }, { inputTokens: 1 }, 60)).toBeCloseTo(1.006, 12);
+  });
+
+  it('a speech call with no per-minute price is unknown, not free; on this Mac it is free', () => {
+    expect(costOf({ inputPer1M: 2, outputPer1M: 8 }, undefined, 90)).toBeUndefined();
+    expect(costOf(priceOf([], 'on-device', 'parakeet-unified-en'), undefined, 90)).toBe(0);
   });
 });

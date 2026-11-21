@@ -39,10 +39,11 @@ export type ModelOverrides = {
   reasoning?: boolean
 }
 
-/** A model's price in USD per million tokens. */
+/** A model's price in USD: per million tokens, and per minute of audio for speech billed by the minute. */
 export type ModelPrice = {
   inputPer1M: number
   outputPer1M: number
+  perMinute?: number
 }
 
 export type Model = {

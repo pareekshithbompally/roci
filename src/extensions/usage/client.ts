@@ -23,13 +23,15 @@ function ensureInitialized(): Promise<void> {
   return initPromise;
 }
 
-/** Logs a usage record, mapping TokenUsage to the flat UsageRecord Rust expects; priced by the one price rule. */
+/** Logs a usage record, mapping TokenUsage and audio length to the flat UsageRecord Rust expects; priced by the one price rule. */
 export async function logUsage(params: {
   category: UsageCategory;
   sessionId?: string;
   provider?: string;
   model?: string;
   usage?: TokenUsage;
+  /** Audio a speech call heard or spoke, in seconds. */
+  audioSeconds?: number;
 }): Promise<void> {
   if (!isTauriEnvironment()) return;
   if (!params.provider || !params.model) return;
@@ -48,7 +50,8 @@ export async function logUsage(params: {
     cache_read_tokens: params.usage?.cacheReadTokens ?? 0,
     cache_write_tokens: params.usage?.cacheWriteTokens ?? 0,
     reasoning_tokens: params.usage?.reasoningTokens ?? 0,
-    estimated_cost: costOf(price, params.usage),
+    estimated_cost: costOf(price, params.usage, params.audioSeconds),
+    audio_seconds: params.audioSeconds,
   };
 
   try {
@@ -66,7 +69,7 @@ export async function priceUnpricedUsage(provider: string, model: string, price:
   if (!isTauriEnvironment()) return;
   await ensureInitialized();
   await invoke('plugin:store|price_unpriced_usage', {
-    provider, model, inputPerMillion: price.inputPer1M, outputPerMillion: price.outputPer1M,
+    provider, model, inputPerMillion: price.inputPer1M, outputPerMillion: price.outputPer1M, perMinute: price.perMinute,
   });
   await queryClient.invalidateQueries({ queryKey: queryKeys.usageAll() });
 }
@@ -77,9 +80,9 @@ export interface UsageSource {
   modelId: string;
 }
 
-/** Records one AI call's tokens; a logging failure never reaches the caller. */
-export function recordUsage(category: UsageCategory, source: UsageSource, usage: TokenUsage, sessionId?: string): void {
-  logUsage({ category, sessionId, provider: source.provider, model: source.modelId, usage })
+/** Records one AI call's tokens and audio length; a logging failure never reaches the caller. */
+export function recordUsage(category: UsageCategory, source: UsageSource, usage: TokenUsage | undefined, sessionId?: string, audioSeconds?: number): void {
+  logUsage({ category, sessionId, provider: source.provider, model: source.modelId, usage, audioSeconds })
     .catch((error: unknown) => console.error(`[Usage] ${category}:`, error));
 }
 

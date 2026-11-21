@@ -156,7 +156,8 @@ async function transcribeChunks(
 
   // Timestamps when the engine gave them or the audio was split; one untimed part stays plain text.
   const timed = adapterTimed || texts.length > 1;
-  return { text: texts.join('\n\n'), segments: timed ? segments : [], words, usage };
+  const audioSeconds = chunks.reduce((seconds, chunk) => seconds + chunk.samples.length / sampleRate, 0);
+  return { text: texts.join('\n\n'), segments: timed ? segments : [], words, usage, audioSeconds };
 }
 
 export async function runTranscription(

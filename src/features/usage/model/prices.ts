@@ -44,12 +44,21 @@ export function priceRows(providers: ModelProvider[], used: ProviderModelBreakdo
   return [...rows.values()];
 }
 
-/** A price from what was typed: both rates as non-negative numbers, `null` when both are empty (clears it), else `undefined`
- *  (not finished yet: nothing is saved). */
-export function parsePrice(input: string, output: string): ModelPrice | null | undefined {
-  if (!input.trim() && !output.trim()) return null;
-  const inputPer1M = Number(input);
-  const outputPer1M = Number(output);
-  const valid = (n: number, raw: string) => raw.trim() !== '' && Number.isFinite(n) && n >= 0;
-  return valid(inputPer1M, input) && valid(outputPer1M, output) ? { inputPer1M, outputPer1M } : undefined;
+/** A price's fields as typed. */
+export type PriceText = Record<keyof Required<ModelPrice>, string>;
+
+const filled = (raw: string) => raw.trim() !== '';
+const amount = (raw: string) => (Number.isFinite(Number(raw)) && Number(raw) >= 0 ? Number(raw) : undefined);
+
+/** A price from what was typed: `null` when every field is empty (clears it); the token rates as a pair (both, or neither when
+ *  only the per-minute rate is set, as speech billed by the minute is); `undefined` when not finished (nothing is saved). */
+export function parsePrice(text: PriceText): ModelPrice | null | undefined {
+  const tokens = [text.inputPer1M, text.outputPer1M].filter(filled).length;
+  const perMinute = filled(text.perMinute) ? amount(text.perMinute) : undefined;
+  if (tokens === 0 && !filled(text.perMinute)) return null;
+  if (tokens === 1 || (filled(text.perMinute) && perMinute === undefined)) return undefined;
+  const inputPer1M = tokens ? amount(text.inputPer1M) : 0;
+  const outputPer1M = tokens ? amount(text.outputPer1M) : 0;
+  if (inputPer1M === undefined || outputPer1M === undefined) return undefined;
+  return perMinute === undefined ? { inputPer1M, outputPer1M } : { inputPer1M, outputPer1M, perMinute };
 }

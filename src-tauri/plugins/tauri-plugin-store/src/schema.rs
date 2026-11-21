@@ -2,7 +2,7 @@ use crate::assets;
 use rusqlite::Connection;
 
 /// Current schema version for the new roci.db.
-pub const SCHEMA_VERSION: u32 = 13;
+pub const SCHEMA_VERSION: u32 = 14;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "mlx-community/Qwen3-Embedding-0.6B-8bit";
@@ -32,12 +32,12 @@ pub(crate) fn open_migrated_test_db() -> Connection {
     conn
 }
 
-/// Creates the schema in a new database, or brings a v10–v12 database to the current version with its data. Any other
+/// Creates the schema in a new database, or brings a v10–v13 database to the current version with its data. Any other
 /// version is refused, not upgraded: pre-release, there is nothing else to carry forward.
 pub fn migrate(conn: &Connection) -> Result<(), String> {
     match get_schema_version(conn) {
         0 => create_new(conn)?,
-        version @ 10..=12 => upgrade_from(conn, version)?,
+        version @ 10..=13 => upgrade_from(conn, version)?,
         SCHEMA_VERSION => {}
         other => {
             let e = format!("roci.db is schema v{other}, this build is v{SCHEMA_VERSION}: remove it to start fresh");
@@ -95,7 +95,20 @@ fn upgrade_from(conn: &Connection, version: u32) -> Result<(), String> {
     if version <= 11 {
         upgrade_v12(conn)?;
     }
-    upgrade_v13(conn)
+    if version <= 12 {
+        upgrade_v13(conn)?;
+    }
+    upgrade_v14(conn)
+}
+
+/// v13 → v14: a speech call's audio length is kept with its usage, so speech billed by the minute is priced and counted.
+fn upgrade_v14(conn: &Connection) -> Result<(), String> {
+    let tx = conn.unchecked_transaction().map_err(|e| format!("begin v14: {}", e))?;
+    tx.execute_batch("ALTER TABLE usage_log ADD COLUMN audio_seconds REAL NOT NULL DEFAULT 0;").map_err(|e| format!("v14: {}", e))?;
+    set_schema_version(&tx, 14)?;
+    tx.commit().map_err(|e| format!("commit v14: {}", e))?;
+    log::info!("[store] Schema v13→v14 (usage keeps audio seconds)");
+    Ok(())
 }
 
 /// v12 → v13: tool calls get their own table, filled from the chats saved so far; the audit log nothing read goes.
@@ -441,7 +454,8 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
             cache_read_tokens  INTEGER DEFAULT 0,
             cache_write_tokens INTEGER DEFAULT 0,
             reasoning_tokens   INTEGER DEFAULT 0,
-            estimated_cost     REAL DEFAULT 0
+            estimated_cost     REAL DEFAULT 0,
+            audio_seconds      REAL NOT NULL DEFAULT 0
         );
         CREATE INDEX IF NOT EXISTS idx_usage_timestamp ON usage_log(timestamp);
         CREATE INDEX IF NOT EXISTS idx_usage_provider_model ON usage_log(provider, model);
@@ -570,6 +584,22 @@ mod tests {
             )
             .expect("embedding_model");
         assert_eq!(model, DEFAULT_MODEL);
+    }
+
+    #[test]
+    fn a_v13_database_keeps_its_usage_and_gains_audio_seconds() {
+        let conn = open_test_db();
+        init_db(&conn);
+        conn.execute_batch(
+            "INSERT INTO usage_log (id, timestamp, category, provider, model) VALUES ('old', 1, 'summary', 'openai', 'gpt');
+             ALTER TABLE usage_log DROP COLUMN audio_seconds;",
+        )
+        .unwrap();
+        set_schema_version(&conn, 13).unwrap();
+        migrate(&conn).expect("v13 upgrades");
+        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
+        let seconds: f64 = conn.query_row("SELECT audio_seconds FROM usage_log WHERE id = 'old'", [], |r| r.get(0)).unwrap();
+        assert_eq!(seconds, 0.0, "the old row stays, with no audio");
     }
 
     #[test]

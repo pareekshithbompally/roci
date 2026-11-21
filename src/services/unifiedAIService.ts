@@ -79,8 +79,8 @@ export async function transcribeAudio(
   const result = await runTranscription(audioBlob, selection, providers, options).catch((error: unknown) => {
     throw toAiError(error, 'speech', selection.provider);
   });
-  if (result.usage) {
-    recordUsage('transcription', { provider: selection.provider, modelId: selection.model }, result.usage, meetingId);
+  if (result.usage || result.audioSeconds) {
+    recordUsage('transcription', { provider: selection.provider, modelId: selection.model }, result.usage, meetingId, result.audioSeconds);
   }
   // No speech in a whole recording is an error, so the analyzer can't invent a meeting from silence.
   if (silence === 'error' && !result.text.trim()) {

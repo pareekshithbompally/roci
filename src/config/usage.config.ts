@@ -34,6 +34,7 @@ export const USAGE_CONFIG = {
     summary: 'Summaries',
     liveNotes: 'Live notes',
     transcription: 'Transcription',
+    readAloud: 'Read aloud',
   } as const satisfies Record<UsageCategory, string>,
   /** Use cases recorded under names from before titles and follow-ups became one call: counted as that call. */
   useCaseAliases: { suggestions: 'chat-extras', 'title-gen': 'chat-extras' } as const satisfies Record<string, UsageCategory>,
@@ -66,7 +67,8 @@ export const USAGE_CONFIG = {
       source: 'Price from',
       input: 'Input $ / 1M',
       output: 'Output $ / 1M',
-      footer: 'Prices per million tokens. Type a price to use yours instead of models.dev’s; it also prices that model’s earlier calls. Clear both to go back.',
+      perMinute: 'Audio $ / min',
+      footer: 'Prices per million tokens, and per minute of audio for speech billed by the minute. Type a price to use yours instead of models.dev’s; it also prices that model’s earlier calls. Clear every rate to go back.',
       none: 'No paid models yet. Models you use and add show here.',
       sources: { own: 'You', catalog: 'models.dev', free: 'Free', unknown: 'No price' },
       scopeLabel: 'Show',

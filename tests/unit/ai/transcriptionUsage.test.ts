@@ -34,10 +34,16 @@ describe('transcribeAudio usage', () => {
     const usage = { inputTokens: 900, outputTokens: 50 };
     runTranscription.mockResolvedValue({ text: 'hello', segments: [], usage });
     await transcribeAudio(audioBlob(), settings, [], { meetingId: 'mtg-1' });
-    expect(recordUsage).toHaveBeenCalledWith('transcription', { provider: 'hex', modelId: 'parakeet_unified_en' }, usage, 'mtg-1');
+    expect(recordUsage).toHaveBeenCalledWith('transcription', { provider: 'hex', modelId: 'parakeet_unified_en' }, usage, 'mtg-1', undefined);
   });
 
-  it('logs nothing for engines that are not billed by tokens', async () => {
+  it('logs the audio it sent for engines billed by the minute', async () => {
+    runTranscription.mockResolvedValue({ text: 'hello', segments: [], audioSeconds: 2 });
+    await transcribeAudio(audioBlob(), settings, [], { meetingId: 'mtg-1' });
+    expect(recordUsage).toHaveBeenCalledWith('transcription', { provider: 'hex', modelId: 'parakeet_unified_en' }, undefined, 'mtg-1', 2);
+  });
+
+  it('logs nothing when nothing was sent (silence skipped) and no tokens were spent', async () => {
     runTranscription.mockResolvedValue({ text: 'hello', segments: [] });
     await transcribeAudio(audioBlob(), settings, []);
     expect(recordUsage).not.toHaveBeenCalled();

@@ -1,6 +1,6 @@
 /** Mirrors the Rust UsageRecord / UsageSummary structs in commands.rs. */
 
-export type UsageCategory = 'chat' | 'chat-extras' | 'transcription' | 'summary' | 'liveNotes';
+export type UsageCategory = 'chat' | 'chat-extras' | 'transcription' | 'summary' | 'liveNotes' | 'readAloud';
 
 export interface UsageRecord {
   id: string;
@@ -16,6 +16,8 @@ export interface UsageRecord {
   reasoning_tokens?: number;
   /** USD; absent when a cloud model's price is unknown (stored as NULL, never as free). */
   estimated_cost?: number;
+  /** Length of the audio a speech call heard or spoke, in seconds. */
+  audio_seconds?: number;
 }
 
 export interface ProviderModelBreakdown {

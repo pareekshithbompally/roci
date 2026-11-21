@@ -459,6 +459,8 @@ pub struct UsageRecord {
     pub cache_write_tokens: Option<i64>,
     pub reasoning_tokens: Option<i64>,
     pub estimated_cost: Option<f64>,
+    /// Length of the audio a speech call heard or spoke, in seconds (0 for text calls).
+    pub audio_seconds: Option<f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2430,8 +2432,8 @@ pub async fn insert_usage(
         db.execute(
             "INSERT INTO usage_log (id, timestamp, category, session_id, provider, model,
              input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
-             reasoning_tokens, estimated_cost)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+             reasoning_tokens, estimated_cost, audio_seconds)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             rusqlite::params![
                 record.id,
                 record.timestamp,
@@ -2445,6 +2447,7 @@ pub async fn insert_usage(
                 record.cache_write_tokens.unwrap_or(0),
                 record.reasoning_tokens.unwrap_or(0),
                 record.estimated_cost,
+                record.audio_seconds.unwrap_or(0.0),
             ],
         )?;
         Ok(())
@@ -2463,12 +2466,13 @@ pub struct MeetingUsageRow {
     pub output_tokens: i64,
     /// None when the call's price is unknown (never shown as free).
     pub estimated_cost: Option<f64>,
+    pub audio_seconds: f64,
     pub timestamp: i64,
 }
 
 fn meeting_usage_impl(db: &Connection, meeting_id: &str) -> Result<Vec<MeetingUsageRow>, StoreError> {
     let mut stmt = db.prepare(
-        "SELECT category, provider, model, input_tokens, output_tokens, estimated_cost, timestamp
+        "SELECT category, provider, model, input_tokens, output_tokens, estimated_cost, timestamp, audio_seconds
          FROM usage_log WHERE session_id = ?1 ORDER BY timestamp DESC",
     )?;
     let rows = stmt
@@ -2481,6 +2485,7 @@ fn meeting_usage_impl(db: &Connection, meeting_id: &str) -> Result<Vec<MeetingUs
                 output_tokens: row.get(4)?,
                 estimated_cost: row.get(5)?,
                 timestamp: row.get(6)?,
+                audio_seconds: row.get(7)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -2502,19 +2507,21 @@ pub async fn get_meeting_usage(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-/// Prices a model's calls saved without a price (NULL) from their tokens, at the price the user just set; returns how many.
-/// Same as `costOf` in extensions/usage/pricing.ts for a user's price, which has no cache rates (cached input costs the input rate).
+/// Prices a model's calls saved without a price (NULL) from their tokens and audio minutes, at the price the user just set;
+/// returns how many. Same as `costOf` in extensions/usage/pricing.ts for a user's price, which has no cache rates (cached input
+/// costs the input rate).
 fn price_unpriced_usage_impl(
     db: &Connection,
     provider: &str,
     model: &str,
     input_per_million: f64,
     output_per_million: f64,
+    per_minute: f64,
 ) -> Result<usize, StoreError> {
     Ok(db.execute(
-        "UPDATE usage_log SET estimated_cost = (input_tokens * ?3 + output_tokens * ?4) / 1000000.0
+        "UPDATE usage_log SET estimated_cost = (input_tokens * ?3 + output_tokens * ?4) / 1000000.0 + audio_seconds / 60.0 * ?5
          WHERE provider = ?1 AND model = ?2 AND estimated_cost IS NULL",
-        rusqlite::params![provider, model, input_per_million, output_per_million],
+        rusqlite::params![provider, model, input_per_million, output_per_million, per_minute],
     )?)
 }
 
@@ -2525,12 +2532,13 @@ pub async fn price_unpriced_usage(
     model: String,
     input_per_million: f64,
     output_per_million: f64,
+    per_minute: Option<f64>,
 ) -> Result<usize, StoreError> {
     let conn_arc = Arc::clone(&state.conn);
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        price_unpriced_usage_impl(db, &provider, &model, input_per_million, output_per_million)
+        price_unpriced_usage_impl(db, &provider, &model, input_per_million, output_per_million, per_minute.unwrap_or(0.0))
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
@@ -3285,13 +3293,27 @@ pub(crate) mod tests {
         unpriced("b", "other-model");
         seed_usage(&conn, "c", 2, "openrouter", "new-model", "chat", 100, 0.5);
 
-        assert_eq!(price_unpriced_usage_impl(&conn, "openrouter", "new-model", 2.0, 8.0).unwrap(), 1);
+        assert_eq!(price_unpriced_usage_impl(&conn, "openrouter", "new-model", 2.0, 8.0, 0.0).unwrap(), 1);
         let cost = |id: &str| -> Option<f64> {
             conn.query_row("SELECT estimated_cost FROM usage_log WHERE id = ?1", [id], |r| r.get(0)).unwrap()
         };
         assert_eq!(cost("a"), Some(6.0), "1M in at $2 + 0.5M out at $8");
         assert_eq!(cost("b"), None, "another model stays unknown");
         assert_eq!(cost("c"), Some(0.5), "an already priced call keeps its price");
+    }
+
+    #[test]
+    fn a_speech_call_is_priced_by_its_minutes() {
+        let conn = crate::schema::open_migrated_test_db();
+        conn.execute(
+            "INSERT INTO usage_log (id, timestamp, category, provider, model, estimated_cost, audio_seconds)
+             VALUES ('s', 1, 'transcription', 'openai', 'whisper-1', NULL, 90)",
+            [],
+        )
+        .unwrap();
+        assert_eq!(price_unpriced_usage_impl(&conn, "openai", "whisper-1", 0.0, 0.0, 0.006).unwrap(), 1);
+        let cost: f64 = conn.query_row("SELECT estimated_cost FROM usage_log WHERE id = 's'", [], |r| r.get(0)).unwrap();
+        assert!((cost - 0.009).abs() < 1e-12, "1.5 minutes at $0.006 a minute");
     }
 
     #[test]

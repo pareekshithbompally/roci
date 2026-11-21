@@ -274,7 +274,7 @@ async function openStream(current: Session, read: Reader, side: MeetingSourceId)
   delete current.opened[side];
   if (ready) return ready;
   const { settings, providers } = read();
-  return openLiveStream(readySpeechSelection(settings), providers);
+  return openLiveStream(readySpeechSelection(settings), providers, () => current.meetingId);
 }
 
 /** A stream's lines join the session's draft (echo removed) the same way chunk results do. */
@@ -299,7 +299,7 @@ export const liveTranscript = {
     prepared = {};
     const { settings, providers } = read();
     const streams = await Promise.resolve()
-      .then(() => tryLiveStreams(readySpeechSelection(settings), providers, sides.length))
+      .then(() => tryLiveStreams(readySpeechSelection(settings), providers, sides.length, () => session?.meetingId))
       .catch((error: unknown) => {
         console.info('[liveTranscript] real-time unavailable, going live in chunks:', error);
         return null;

@@ -11,29 +11,26 @@ import { USAGE_CONFIG, type PriceScope } from '@config/usage.config';
 import { getModelDisplayName } from '@shared/utils/provider.utils';
 import type { ModelPrice } from '@shared/types/modelProviders';
 import { usePriceRows } from '@features/usage/hooks/useModelPrices';
-import { parsePrice, type PriceRow } from '@features/usage/model/prices';
+import { parsePrice, type PriceRow, type PriceText } from '@features/usage/model/prices';
 import { modelName, providerName } from '@features/usage/model/series';
 
 const COPY = USAGE_CONFIG.copy.prices;
-type Rate = keyof Pick<ModelPrice, 'inputPer1M' | 'outputPer1M'>;
+type Rate = keyof Required<ModelPrice>;
+const RATES: readonly Rate[] = ['inputPer1M', 'outputPer1M', 'perMinute'];
+const RATE_LABEL: Record<Rate, string> = { inputPer1M: COPY.input, outputPer1M: COPY.output, perMinute: COPY.perMinute };
 type SavePrice = (row: PriceRow, price: ModelPrice | null) => void;
 
 const rateText = (rate: number | undefined) => (rate === undefined ? '' : String(rate));
 
-/** One rate: your price, models.dev's as the placeholder. Leaving the field saves it with the other rate as it stands
- *  (yours, else models.dev's); emptying it clears your price. Free and unsaved models show their rate as text. */
+/** One rate: your price, models.dev's as the placeholder. Leaving the field saves it with the other rates as they stand
+ *  (yours, else models.dev's); emptying every rate clears your price. Free models show a dash. */
 const RateField: React.FC<{ row: PriceRow; rate: Rate; onSave: SavePrice }> = ({ row, rate, onSave }) => {
   const [text, setText] = useState(rateText(row.own?.[rate]));
   if (row.source === 'free') return <Text variant="figure" tone="muted">—</Text>;
-  const other: Rate = rate === 'inputPer1M' ? 'outputPer1M' : 'inputPer1M';
   const save = () => {
-    if (!text.trim()) {
-      if (row.own) onSave(row, null);
-      return;
-    }
-    const otherText = rateText(row.own?.[other] ?? row.catalog?.[other]);
-    const price = rate === 'inputPer1M' ? parsePrice(text, otherText) : parsePrice(otherText, text);
-    if (price) onSave(row, price);
+    const typed = Object.fromEntries(RATES.map((r) => [r, r === rate ? text : rateText(row.own?.[r] ?? row.catalog?.[r])])) as PriceText;
+    const price = parsePrice(typed);
+    if (price !== undefined && (price || row.own)) onSave(row, price);
   };
   return (
     // A field a fixed width at the cell's end, as a column of figures lines up.
@@ -42,7 +39,7 @@ const RateField: React.FC<{ row: PriceRow; rate: Rate; onSave: SavePrice }> = ({
         size="sm"
         className="text-right"
         inputMode="decimal"
-        aria-label={`${COPY[rate === 'inputPer1M' ? 'input' : 'output']} — ${modelName(row.modelId)}`}
+        aria-label={`${RATE_LABEL[rate]} — ${modelName(row.modelId)}`}
         placeholder={rateText(row.catalog?.[rate])}
         disabled={!row.model}
         value={text}
@@ -79,6 +76,7 @@ const columns = (onSave: SavePrice): ReadonlyArray<DataColumn<PriceRow>> => [
   // Keyed by the saved price, so a field shows it again after a save elsewhere (a row re-read).
   { key: 'input', header: COPY.input, align: 'end', cell: (row) => <RateField key={rateText(row.own?.inputPer1M)} row={row} rate="inputPer1M" onSave={onSave} /> },
   { key: 'output', header: COPY.output, align: 'end', cell: (row) => <RateField key={rateText(row.own?.outputPer1M)} row={row} rate="outputPer1M" onSave={onSave} /> },
+  { key: 'perMinute', header: COPY.perMinute, align: 'end', cell: (row) => <RateField key={rateText(row.own?.perMinute)} row={row} rate="perMinute" onSave={onSave} /> },
 ];
 
 export const PricesTab: React.FC = () => {

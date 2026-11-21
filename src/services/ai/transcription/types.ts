@@ -15,6 +15,8 @@ export interface TranscriptResult {
   words?: TranscriptSegment[];
   /** Tokens spent, for engines billed by tokens (multimodal prompt); summed across parts. */
   usage?: TokenUsage;
+  /** Audio sent to the engine, in seconds (what an engine billed by the minute counts); silence that was skipped isn't sent. */
+  audioSeconds?: number;
 }
 
 export interface TranscriptionProgress {
