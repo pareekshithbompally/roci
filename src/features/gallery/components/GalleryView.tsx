@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { formatDateTime } from '@shared/utils/formatters';
 import { Images, MessageSquare } from 'lucide-react';
 import { Button, Icon, Lightbox, Surface, Text, Thumbnail, TitlebarSpacer } from '@shared/ui';
-import { EmptyState, LoadingPane } from '@shared/components';
+import { ScreenState } from '@shared/components';
 import { openChat } from '@features/chat';
 import type { GalleryImage } from '@services/storage/images.service';
 import { LAYOUT } from '@config/layout.config';
@@ -54,32 +54,30 @@ export const GalleryView: React.FC = () => {
       </Surface>
 
       {/* Loading and empty fill the page's column (centred there), not the scroll area. */}
-      {isLoading ? (
-        <LoadingPane />
-      ) : count === 0 ? (
-        <EmptyState icon={Images} message={GALLERY_CONFIG.empty} />
-      ) : (
-        <div className={`flex-1 overflow-y-auto custom-scrollbar ${LAYOUT.listGutter} py-4`}>
-          <div className="space-y-6">
-            {days.map((day) => (
-              <section key={day.label} className="space-y-2">
-                <Text as="h2" variant="label" tone="muted">{day.label}</Text>
-                <div className={GALLERY_CONFIG.grid}>
-                  {day.images.map((image) => (
-                    <Thumbnail
-                      key={image.appPath}
-                      src={image.thumbUrl}
-                      alt={image.meta?.prompt ?? GALLERY_CONFIG.title}
-                      onOpen={() => setOpen(image)}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-          {canLoadMore && <div ref={sentinelRef} className="h-1" aria-hidden="true" />}
+      <ScreenState
+        loading={isLoading}
+        empty={days.length === 0 && { icon: Images, message: GALLERY_CONFIG.empty }}
+        className={`flex-1 overflow-y-auto custom-scrollbar ${LAYOUT.listGutter} py-4`}
+      >
+        <div className="space-y-6">
+          {days.map((day) => (
+            <section key={day.label} className="space-y-2">
+              <Text as="h2" variant="label" tone="muted">{day.label}</Text>
+              <div className={GALLERY_CONFIG.grid}>
+                {day.images.map((image) => (
+                  <Thumbnail
+                    key={image.appPath}
+                    src={image.thumbUrl}
+                    alt={image.meta?.prompt ?? GALLERY_CONFIG.title}
+                    onOpen={() => setOpen(image)}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
-      )}
+        {canLoadMore && <div ref={sentinelRef} className="h-1" aria-hidden="true" />}
+      </ScreenState>
 
       {open && (
         <Lightbox

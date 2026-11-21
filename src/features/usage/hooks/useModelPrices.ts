@@ -12,7 +12,7 @@ import type { ModelPrice } from '@shared/types/modelProviders';
 export function usePriceRows() {
   const catalog = useModelCatalog();
   const { providers, updateProvider } = useSettings();
-  const used = useUsedModels();
+  const { used, isLoading } = useUsedModels();
   const rows = useMemo(() => priceRows(providers, used), [providers, used, catalog]);
 
   const setPrice = useCallback((provider: string, modelId: string, price: ModelPrice | null) => {
@@ -24,5 +24,5 @@ export function usePriceRows() {
       console.error('[ModelPrices] Pricing earlier calls failed:', error));
   }, [updateProvider]);
 
-  return { rows, setPrice };
+  return { rows, setPrice, isLoading };
 }

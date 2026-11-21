@@ -57,6 +57,8 @@ export const UI_CONFIG = {
     sliceGap: 2,
     /** Plot inset inside its card (px). */
     inset: 8,
+    /** A value change (another measure, another range) morphs the marks this long: the app's enter timing (tailwind ENTER). */
+    morphMs: 150,
     /** Opacity of the other marks while one is highlighted. */
     dimOpacity: 0.35,
   },

@@ -4,7 +4,7 @@
 import React, { useMemo, useState } from 'react';
 import { ChevronLeft, Copy, Mic, Trash2 } from 'lucide-react';
 import { Button, Icon, ICON_SIZE_PX, IconButton, Row, SearchField, Surface, Text, TitlebarSpacer } from '@shared/ui';
-import { EmptyState, ModelIcon } from '@shared/components';
+import { ModelIcon, ScreenState } from '@shared/components';
 import { useFormFactor } from '@platform/formFactor';
 import { useToast } from '@shared/contexts/ToastContext';
 import { confirmDelete } from '@shared/stores/confirmStore';
@@ -135,11 +135,11 @@ export const DictationsView: React.FC = () => {
     </div>
   );
 
-  if (!isLoading && !hasAny) {
+  if (isLoading || !hasAny) {
     return (
       <div className="flex h-full flex-col">
         <TitlebarSpacer />
-        <EmptyState icon={Mic} message={DICTATIONS_CONFIG.empty} />
+        <ScreenState loading={isLoading} empty={{ icon: Mic, message: DICTATIONS_CONFIG.empty }} />
       </div>
     );
   }
@@ -148,17 +148,19 @@ export const DictationsView: React.FC = () => {
     return (
       <div className="flex h-full flex-col">
         <TitlebarSpacer />
-        {selected ? (
-          <>
-            <header className={`shrink-0 ${LAYOUT.listGutter} pt-2 pb-2`}>
-              <Button variant="ghost" size="sm" onClick={() => setSelectedId(null)}>
-                <Icon icon={ChevronLeft} size="xs" />
-                {DICTATIONS_CONFIG.title}
-              </Button>
-            </header>
-            <div className="flex-1 overflow-y-auto custom-scrollbar">{detail}</div>
-          </>
-        ) : listPane}
+        <ScreenState className="flex min-h-0 flex-1 flex-col">
+          {selected ? (
+            <>
+              <header className={`shrink-0 ${LAYOUT.listGutter} pt-2 pb-2`}>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedId(null)}>
+                  <Icon icon={ChevronLeft} size="xs" />
+                  {DICTATIONS_CONFIG.title}
+                </Button>
+              </header>
+              <div className="flex-1 overflow-y-auto custom-scrollbar">{detail}</div>
+            </>
+          ) : listPane}
+        </ScreenState>
       </div>
     );
   }
@@ -166,10 +168,10 @@ export const DictationsView: React.FC = () => {
   return (
     <div className="flex h-full flex-col">
       <TitlebarSpacer />
-      <div className="flex min-h-0 flex-1">
+      <ScreenState className="flex min-h-0 flex-1">
         <Surface edge="right" className={`${DICTATIONS_CONFIG.listColumn} flex flex-col`}>{listPane}</Surface>
         <div className="min-w-0 flex-1 overflow-y-auto custom-scrollbar">{detail}</div>
-      </div>
+      </ScreenState>
     </div>
   );
 };

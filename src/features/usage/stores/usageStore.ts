@@ -20,4 +20,6 @@ const useUsageStore = create<UsageState>((set) => ({
 export const useUsageTab = () => useUsageStore((s) => s.tab);
 export const useSetUsageTab = () => useUsageStore((s) => s.setTab);
 export const useUsageRange = () => useUsageStore((s) => s.range);
+/** The range now, outside React (preloading). */
+export const usageRangeNow = () => useUsageStore.getState().range;
 export const useSetUsageRange = () => useUsageStore((s) => s.setRange);

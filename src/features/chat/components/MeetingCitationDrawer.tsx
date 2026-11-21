@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { formatDate } from '@shared/utils/formatters';
-import { X, ExternalLink, FileText, Mic, ArrowLeft, AudioWaveform, Loader2 } from 'lucide-react';
+import { X, ExternalLink, FileText, Mic, ArrowLeft, AudioWaveform } from 'lucide-react';
+import { EmptyState, LoadingPane } from '@shared/components';
 import { ParsedTranscript } from '@features/transcription';
 import { Button, Drawer, Row, Tabs, IconButton, Icon, Surface, Text } from '@shared/ui';
 import type { MeetingCitation, HistoryItem } from '@shared/types';
@@ -105,17 +106,9 @@ export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
             ))}
           </div>
         ) : isLoading ? (
-          /* Loading State */
-          <div className="flex flex-col items-center justify-center h-full gap-3 p-4">
-            <Icon icon={Loader2} size="lg" tone="faint" className="animate-spin" />
-            <Text as="p" variant="helper" tone="muted">Loading meeting data...</Text>
-          </div>
+          <LoadingPane />
         ) : !meeting ? (
-          /* Detail Mode: Meeting not found */
-          <div className="flex flex-col items-center justify-center h-full gap-3 p-4">
-            <Icon icon={FileText} size="xl" tone="faint" />
-            <Text as="p" tone="muted" className="text-center">Meeting not found</Text>
-          </div>
+          <EmptyState icon={FileText} message="Meeting not found" />
         ) : activeTab === 'summary' ? (
           /* Detail Mode: Summary tab */
           <Text as="div" variant="reading" tone="muted" className="p-4 whitespace-pre-wrap">

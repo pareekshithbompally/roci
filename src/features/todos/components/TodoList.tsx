@@ -1,13 +1,13 @@
 /** Todos view listing user-created todos and AI-generated action items; the tab bar's Add opens its create form. */
 
 import React, { useCallback } from 'react';
-import { ListTodo, Loader2 } from 'lucide-react';
+import { ListTodo } from 'lucide-react';
 import { useSelectedHistoryId } from '@shared/stores/appStore';
 import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { useMeetingTodos } from '@features/todos/hooks/useMeetingTodos';
-import { EmptyState } from '@shared/components';
+import { EmptyState, ScreenState } from '@shared/components';
 import { confirmDelete } from '@shared/stores/confirmStore';
-import { Icon, Progress, Separator, Text, cn } from '@shared/ui';
+import { Progress, Separator, Text, cn } from '@shared/ui';
 import TodoItem from './TodoItem';
 import { NewTodoForm } from './NewTodoForm';
 
@@ -46,17 +46,8 @@ const TodoList: React.FC<TodoListProps> = ({ creating, onCreatingChange, classNa
     updateTodo(todoId, {});
   }, [updateTodo]);
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className={`flex items-center justify-center p-8 ${className}`}>
-        <Icon icon={Loader2} size="lg" tone="faint" className="animate-spin" />
-      </div>
-    );
-  }
-
   return (
-    <div className={cn('flex flex-1 flex-col gap-y-5', className)}>
+    <ScreenState loading={isLoading} className={cn('flex flex-1 flex-col gap-y-5', className)}>
       {/* Progress, once there's something to track */}
       {totalCount > 0 && (
         <div className="flex items-center gap-3 shrink-0">
@@ -96,7 +87,7 @@ const TodoList: React.FC<TodoListProps> = ({ creating, onCreatingChange, classNa
           ))}
         </div>
       ) : null}
-    </div>
+    </ScreenState>
   );
 };
 

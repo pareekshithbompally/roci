@@ -4,7 +4,9 @@ import { useMemo } from 'react';
 import { keepPreviousData, queryOptions, useQuery } from '@tanstack/react-query';
 import { localDayKey } from '@shared/utils/localDate';
 import { queryKeys } from '@shared/query/queryKeys';
-import { getUsageSummary, type UsageQuery, type UsageSummary } from '@extensions/usage';
+import { getUsageSummary, type ProviderModelBreakdown, type UsageQuery, type UsageSummary } from '@extensions/usage';
+import { queryClient } from '@shared/query/queryClient';
+import { usageRangeNow } from '@features/usage/stores/usageStore';
 import type { UsageRange } from '@config/usage.config';
 import { previousWindow, windowFor, type UsageWindow } from '@features/usage/model/period';
 
@@ -40,5 +42,18 @@ export function useUsageWindow(range: UsageRange): UsageView {
   };
 }
 
-/** Every model and provider ever used (the Prices tab lists them). */
-export const useUsedModels = () => useQuery(summaryOptions({})).data?.by_provider_model ?? [];
+/** Every model and provider ever used (the Prices tab lists them), and whether that's still loading. */
+export function useUsedModels() {
+  const { data, isLoading } = useQuery(summaryOptions({}));
+  return { used: data?.by_provider_model ?? NONE, isLoading };
+}
+
+const NONE: ProviderModelBreakdown[] = [];
+
+/** Loads Usage ahead (Settings opened), so it lands with its data: the range shown, and every model for Prices. */
+export function preloadUsage(): void {
+  const window = windowFor(usageRangeNow(), new Date());
+  const failed = (error: unknown) => console.error('[Usage] Preload failed:', error);
+  queryClient.prefetchQuery(summaryOptions({ since: window.since, until: window.until, bucket: window.bucket })).catch(failed);
+  queryClient.prefetchQuery(summaryOptions({})).catch(failed);
+}

@@ -12,7 +12,8 @@ import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
 import { useAIReadiness, useOpenAISetup } from '@features/settings';
 import { LAYOUT } from '@config/layout.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
-import { Button, cn, Icon, Surface, Text, TitlebarSpacer } from '@shared/ui';
+import { Button, cn, Icon, Text, TitlebarSpacer } from '@shared/ui';
+import { LoadingPane } from '@shared/components';
 import { motion } from 'framer-motion';
 import { platform } from '@platform/index';
 import { useFormFactor } from '@platform/formFactor';
@@ -75,18 +76,9 @@ export const IdleView: React.FC<IdleViewProps> = () => {
       <LandingGlow paused={voice.isVoiceActive} />
       <TitlebarSpacer />
 
-      {/* Settings load async; until then show a skeleton so an empty provider list is not read as zero-state. */}
+      {/* Settings load async; until then the app's loader (above the glow), so an empty provider list is not read as zero-state. */}
       {settingsLoading ? (
-        <div className="flex-1 flex flex-col items-center justify-center w-full px-2 relative z-20">
-          <div className={`${LAYOUT.chatColumn} space-y-6`}>
-            <Surface variant="inset" radius="full" className="mx-auto h-7 w-56 animate-pulse" />
-            <Surface variant="inset" radius="xl" className="h-14 w-full animate-pulse" />
-            <div className="flex justify-center gap-2">
-              <Surface variant="inset" radius="full" className="h-8 w-20 animate-pulse" />
-              <Surface variant="inset" radius="full" className="h-8 w-20 animate-pulse" />
-            </div>
-          </div>
-        </div>
+        <div className="relative z-20 flex flex-1"><LoadingPane /></div>
       ) : (
       <>
       {/* Chat composer: centred in the remaining space (desktop); pinned to the bottom (phone). */}

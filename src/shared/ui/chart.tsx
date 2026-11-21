@@ -36,6 +36,9 @@ function tokenTheme(): object {
   const axis = { axisLine: { show: false }, axisTick: { show: false }, axisLabel: caption, splitLine: { lineStyle: { color: hairline } } };
   return {
     color: Array.from({ length: C.seriesSlots }, (_, i) => token(`--viz-${i + 1}`)),
+    // A chart arrives with its screen's fade, not by growing from zero; a value change morphs on the app's enter timing.
+    animationDuration: 0,
+    animationDurationUpdate: C.morphMs,
     backgroundColor: 'transparent',
     textStyle: caption,
     categoryAxis: { ...axis, splitLine: { show: false } },

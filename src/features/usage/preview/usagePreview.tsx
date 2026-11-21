@@ -1,7 +1,7 @@
 /** Dev-only: Settings › Usage rendered in the app's own providers, over a simulated store (`fixture.ts`). Not in the bundle. */
 
 import ReactDOM from 'react-dom/client';
-import { mockIPC } from '@tauri-apps/api/mocks';
+import { mockIPC, mockWindows } from '@tauri-apps/api/mocks';
 import { AppProviders } from '@/src/app/AppProviders';
 import { Surface } from '@shared/ui';
 import { UsagePanel } from '@features/usage';
@@ -18,6 +18,7 @@ const HANDLERS: Record<string, (args: Record<string, unknown>) => unknown> = {
 };
 
 mockIPC((cmd, args) => HANDLERS[cmd]?.((args ?? {}) as Record<string, unknown>) ?? null);
+mockWindows('main');
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <AppProviders>

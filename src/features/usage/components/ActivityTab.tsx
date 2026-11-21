@@ -3,16 +3,15 @@
  *  · 4 what exactly (models, tools the AI used, each day). */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { AlertTriangle, ChartPie, Lightbulb, NotebookPen, Sparkles, type LucideIcon } from 'lucide-react';
+import { ChartPie, Lightbulb, NotebookPen, Sparkles, type LucideIcon } from 'lucide-react';
 import {
-  Callout, Chart, DataTable, DonutChart, Icon, Section, StatCard, Tabs, Text,
+  Chart, DataTable, DonutChart, Icon, Section, StatCard, Tabs, Text,
   type ChartOption, type DataColumn, type DonutSlice,
 } from '@shared/ui';
-import { EmptyState, JOB_GLYPH, LoadingPane, ModelIcon } from '@shared/components';
+import { JOB_GLYPH, ModelIcon, ScreenState } from '@shared/components';
 import { UI_CONFIG } from '@config/ui.config';
 import { USAGE_CONFIG, type UsageMeasure } from '@config/usage.config';
 import type { ProviderModelBreakdown, ToolBreakdown, UsageBucket, UsageSummary } from '@extensions/usage';
-import { errorMessage } from '@shared/utils/errors';
 import { formatRelativeTime } from '@shared/utils/formatters';
 import { toolCallIcon } from '@features/chat';
 import { bucketKeys, type UsageWindow } from '@features/usage/model/period';
@@ -266,24 +265,17 @@ export const ActivityTab: React.FC = () => {
   const { period, summary, previous, isLoading, error } = useUsageWindow(range);
   const current = USAGE_CONFIG.ranges.find((r) => r.value === range) ?? USAGE_CONFIG.ranges[0];
 
-  const body = () => {
-    if (isLoading) return <LoadingPane />;
-    if (error) {
-      return (
-        <Callout variant="warning" icon={<Icon icon={AlertTriangle} size="sm" />}>
-          <Text as="p" tone="inherit">{COPY.loadFailed}</Text>
-          <Text as="p" variant="helper" tone="muted" className="mt-0.5">{errorMessage(error)}</Text>
-        </Callout>
-      );
-    }
-    if (!summary || summary.total_calls === 0) return <EmptyState icon={ChartPie} message={range === 'all' ? COPY.empty : COPY.emptyPeriod} />;
-    return <Story summary={summary} previous={previous ?? undefined} period={period} rangeLabel={current.label.toLowerCase()} periodLabel={current.period} />;
-  };
-
   return (
     <>
       <Tabs items={USAGE_CONFIG.ranges} value={range} onValueChange={setRange} label="Range" />
-      {body()}
+      <ScreenState
+        loading={isLoading}
+        error={error ? { cause: error, title: COPY.loadFailed } : null}
+        empty={(!summary || summary.total_calls === 0) && { icon: ChartPie, message: range === 'all' ? COPY.empty : COPY.emptyPeriod }}
+        className="flex flex-col gap-section"
+      >
+        {summary && <Story summary={summary} previous={previous ?? undefined} period={period} rangeLabel={current.label.toLowerCase()} periodLabel={current.period} />}
+      </ScreenState>
     </>
   );
 };

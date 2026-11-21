@@ -4,7 +4,7 @@
 import React, { useMemo, useState } from 'react';
 import { ChartPie } from 'lucide-react';
 import { DataTable, Input, Section, Tabs, Text, type DataColumn } from '@shared/ui';
-import { EmptyState } from '@shared/components';
+import { ScreenState } from '@shared/components';
 import { UI_CONFIG } from '@config/ui.config';
 import { ModelIcon } from '@shared/components';
 import { USAGE_CONFIG, type PriceScope } from '@config/usage.config';
@@ -82,22 +82,23 @@ const columns = (onSave: SavePrice): ReadonlyArray<DataColumn<PriceRow>> => [
 ];
 
 export const PricesTab: React.FC = () => {
-  const { rows, setPrice } = usePriceRows();
+  const { rows, setPrice, isLoading } = usePriceRows();
   const [scope, setScope] = useState<PriceScope>('all');
   const table = useMemo(() => columns((row, price) => setPrice(row.provider, row.modelId, price)), [setPrice]);
   const shown = useMemo(() => rows.filter(inScope(scope)), [rows, scope]);
-  if (rows.length === 0) return <EmptyState icon={ChartPie} message={COPY.none} />;
   return (
-    <Section layout="stack" footer={COPY.footer}>
-      <DataTable
-        columns={table}
-        rows={shown}
-        rowKey={(row) => `${row.provider}/${row.modelId}`}
-        label={COPY.label}
-        search={{ placeholder: USAGE_CONFIG.copy.search.prices, text: (row) => `${row.modelId} ${providerName(row.provider)}` }}
-        accessory={<Tabs items={COPY.scopes} value={scope} onValueChange={setScope} label={COPY.scopeLabel} />}
-        empty={USAGE_CONFIG.copy.noMatches}
-      />
-    </Section>
+    <ScreenState loading={isLoading} empty={rows.length === 0 && { icon: ChartPie, message: COPY.none }}>
+      <Section layout="stack" footer={COPY.footer}>
+        <DataTable
+          columns={table}
+          rows={shown}
+          rowKey={(row) => `${row.provider}/${row.modelId}`}
+          label={COPY.label}
+          search={{ placeholder: USAGE_CONFIG.copy.search.prices, text: (row) => `${row.modelId} ${providerName(row.provider)}` }}
+          accessory={<Tabs items={COPY.scopes} value={scope} onValueChange={setScope} label={COPY.scopeLabel} />}
+          empty={USAGE_CONFIG.copy.noMatches}
+        />
+      </Section>
+    </ScreenState>
   );
 };

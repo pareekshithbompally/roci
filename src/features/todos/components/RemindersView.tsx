@@ -5,7 +5,7 @@ import { AlertTriangle, Bell, CalendarDays, Inbox, Search, Plus, X } from 'lucid
 import { useGlobalTodos } from '@features/todos/hooks/useGlobalTodos';
 import type { TodoFilter, GlobalTodo } from '@features/todos/hooks/useGlobalTodos';
 import { Button, Checkbox, Icon, IconButton, Input, Surface, Tabs, Text, TitlebarSpacer, cn } from '@shared/ui';
-import { EmptyState } from '@shared/components';
+import { ScreenState } from '@shared/components';
 import { isOverdue, formatDueDate, formatReminderDate, isReminderOverdue, formatMeetingDate } from '@shared/utils/todo.utils';
 import { NewTodoForm } from './NewTodoForm';
 import ReminderPicker from './ReminderPicker';
@@ -189,64 +189,52 @@ export const RemindersView: React.FC = () => {
             </div>
           )}
 
-        {isLoading ? (
-          /* Loading skeleton */
-          <div className={`${LAYOUT.listGutter} py-6 space-y-4`}>
-            {[1, 2, 3].map(i => (
-              <div key={i} className="space-y-2">
-                <Surface variant="inset" radius="md" className="h-4 w-40 animate-pulse" />
-                <Surface variant="inset" radius="lg" className="h-10 w-full animate-pulse" />
-                <Surface variant="inset" radius="lg" className="h-10 w-full animate-pulse" />
-              </div>
-            ))}
-          </div>
-        ) : !hasContent ? (
-          <EmptyState
-            icon={searchQuery ? Search : Inbox}
-            message={searchQuery
+        <ScreenState
+          loading={isLoading}
+          empty={!hasContent && {
+            icon: searchQuery ? Search : Inbox,
+            message: searchQuery
               ? 'No matching to-dos'
-              : filter === 'all' ? 'No to-dos yet' : `No ${filter} to-dos`}
-            description={searchQuery
+              : filter === 'all' ? 'No to-dos yet' : `No ${filter} to-dos`,
+            description: searchQuery
               ? 'Try different keywords or clear your search'
               : filter === 'all'
                 ? 'To-dos from your meetings will appear here'
-                : 'Try a different filter to see more items'}
-          />
-        ) : groups.length > 0 ? (
-          /* Grouped list */
-          <div className="py-2">
-            {groups.map((group) => (
-              <div key={group.meetingId ?? TODOS_CONFIG.general} className="mb-1">
-                {/* Meeting header */}
-                <Surface variant="page" edge="bottom" className={`sticky top-0 z-10 ${LAYOUT.listGutter} py-1.5 flex items-center gap-2`}>
-                  <Text as="h2" variant="label" tone="muted" truncate>
-                    {group.meetingTitle ?? TODOS_CONFIG.general}
+                : 'Try a different filter to see more items',
+          }}
+          className="py-2"
+        >
+          {groups.map((group) => (
+            <div key={group.meetingId ?? TODOS_CONFIG.general} className="mb-1">
+              {/* Meeting header */}
+              <Surface variant="page" edge="bottom" className={`sticky top-0 z-10 ${LAYOUT.listGutter} py-1.5 flex items-center gap-2`}>
+                <Text as="h2" variant="label" tone="muted" truncate>
+                  {group.meetingTitle ?? TODOS_CONFIG.general}
+                </Text>
+                {group.meetingId && (
+                  <Text variant="caption" tone="faint" className="shrink-0">
+                    {formatMeetingDate(group.timestamp)}
                   </Text>
-                  {group.meetingId && (
-                    <Text variant="caption" tone="faint" className="shrink-0">
-                      {formatMeetingDate(group.timestamp)}
-                    </Text>
-                  )}
-                  <Text variant="caption" tone="faint" className="shrink-0 ml-auto">
-                    {group.todos.filter(t => !t.completed).length}/{group.todos.length}
-                  </Text>
-                </Surface>
+                )}
+                <Text variant="caption" tone="faint" className="shrink-0 ml-auto">
+                  {group.todos.filter(t => !t.completed).length}/{group.todos.length}
+                </Text>
+              </Surface>
 
-                {/* Todo items */}
-                <div>
-                  {group.todos.map((todo) => (
-                    <TodoRow
-                      key={`${todo.meetingId}-${todo.id}`}
-                      todo={todo}
-                      onToggle={handleToggle}
-                      onReminderSet={setReminder}
-                    />
-                  ))}
-                </div>
+              {/* Todo items */}
+              <div>
+                {group.todos.map((todo) => (
+                  <TodoRow
+                    key={`${todo.meetingId}-${todo.id}`}
+                    todo={todo}
+                    onToggle={handleToggle}
+                    onReminderSet={setReminder}
+                  />
+                ))}
               </div>
-            ))}
-          </div>
-        ) : null}
+            </div>
+          ))}
+        </ScreenState>
       </div>
     </div>
   );

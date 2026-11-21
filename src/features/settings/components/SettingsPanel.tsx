@@ -10,11 +10,12 @@ import { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
 import { GeneralPanel } from './GeneralPanel';
 import { StoragePanel } from './StoragePanel';
 import { DefaultModelsPanel } from './DefaultModelsPanel';
-import { UsagePanel } from '@features/usage';
+import { preloadUsage, UsagePanel } from '@features/usage';
 import { IntegrationsPanel } from './IntegrationsPanel';
 import { NotificationsPanel } from './NotificationsPanel';
 import { McpServersPanel } from './mcp';
-import { CardRow, IconTile, Section, Surface, useNavStack } from '@shared/ui';
+import { CardRow, IconTile, Section, useNavStack } from '@shared/ui';
+import { LoadingPane } from '@shared/components';
 import type { NavScreen } from '@shared/ui';
 import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore';
 
@@ -47,8 +48,11 @@ export function settingsScreen(id: SettingsPanelType): NavScreen {
 /** Phone: the root of the Settings sheet — sections grouped under headings; a row pushes its panel. */
 export const SettingsHome: React.FC = () => {
   const { push } = useNavStack();
-  // System panel data (paths, disk, index) loads while the user is still on this list, as on the desktop.
-  useEffect(preloadSystemInfo, []);
+  // System and Usage data load while the user is still on this list, as on the desktop, so those panels land with it.
+  useEffect(() => {
+    preloadSystemInfo();
+    preloadUsage();
+  }, []);
   return (
     <div className="flex flex-col gap-section p-4">
       {SETTINGS_GROUPS.map(({ group, items }) => (
@@ -66,16 +70,13 @@ export const SettingsPanel: React.FC = () => {
   const activePanel = useAppStore((s) => s.activeSettingsPanel);
   const { isLoading } = useSettings();
 
-  // System panel data (paths, disk, index) loads while the user is still on another panel.
-  useEffect(preloadSystemInfo, []);
+  // System and Usage data load while the user is still on another panel, so those panels land with it.
+  useEffect(() => {
+    preloadSystemInfo();
+    preloadUsage();
+  }, []);
 
-  if (isLoading) {
-    return (
-      <div className="w-full h-full flex flex-col">
-        <SettingsSkeleton />
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingPane />;
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -85,23 +86,5 @@ export const SettingsPanel: React.FC = () => {
     </div>
   );
 };
-
-/** Simple skeleton while settings load from disk */
-const SettingsSkeleton: React.FC = () => (
-  <div className="h-full overflow-hidden">
-    <div className="px-8 py-8 space-y-8 animate-pulse">
-      <div className="space-y-2">
-        <Surface variant="inset" radius="md" className="h-5 w-40" />
-        <Surface variant="subtle" radius="md" className="h-3.5 w-64" />
-      </div>
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="space-y-3">
-          <Surface variant="inset" radius="md" className="h-3 w-24" />
-          <Surface variant="subtle" radius="lg" className="h-10 w-full" />
-        </div>
-      ))}
-    </div>
-  </div>
-);
 
 export default SettingsPanel;
