@@ -37,9 +37,6 @@ export const toolName = (tool: string): string => {
   return words.charAt(0).toUpperCase() + words.slice(1);
 };
 
-/** A recorded use case as the app names it now (older names count as the call they became). */
-const useCaseOf = (category: string): string => USAGE_CONFIG.useCaseAliases[category as keyof typeof USAGE_CONFIG.useCaseAliases] ?? category;
-
 /** A use case's name; one the app doesn't name shows as it was recorded. */
 const useCaseName = (category: string): string => USAGE_CONFIG.useCases[category as UsageCategory] ?? category;
 
@@ -74,8 +71,7 @@ function entriesOf(summary: UsageSummary, split: UsageSplit): SplitEntry[] {
   };
   if (split === 'useCase') {
     for (const c of summary.by_category) {
-      const category = useCaseOf(c.category);
-      add(category, useCaseName(category), { kind: 'useCase', category }, c);
+      add(c.category, useCaseName(c.category), { kind: 'useCase', category: c.category }, c);
     }
   } else {
     for (const m of summary.by_provider_model) {

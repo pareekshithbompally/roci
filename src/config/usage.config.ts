@@ -37,8 +37,6 @@ export const USAGE_CONFIG = {
     transcription: 'Transcription',
     readAloud: 'Read aloud',
   } as const satisfies Record<UsageCategory, string>,
-  /** Use cases recorded under names from before titles and follow-ups became one call: counted as that call. */
-  useCaseAliases: { suggestions: 'chat-extras', 'title-gen': 'chat-extras' } as const satisfies Record<string, UsageCategory>,
   copy: {
     empty: 'No usage yet. Start a chat or transcribe a recording to see it here.',
     emptyPeriod: 'No usage in this period.',
