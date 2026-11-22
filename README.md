@@ -86,7 +86,7 @@ Tauri 2 (Rust core, native macOS audio capture through Core Audio taps), React 1
 every model call, Zustand and TanStack Query for state, Tailwind and Radix for the interface, SQLite with sqlite-vec and
 GraphQLite for search and the graph, and Swift plugins for Apple Intelligence, calendar, notifications and Spotlight.
 
-Portions of the code are ported from [Jan](https://github.com/janhq/jan) and [Hex](https://github.com/anomalyco/hex),
+Roci is built with the help of AI coding agents. Portions of the code are ported from [Jan](https://github.com/janhq/jan) and [Hex](https://github.com/anomalyco/hex),
 under their licences (see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
 
 ## Download
