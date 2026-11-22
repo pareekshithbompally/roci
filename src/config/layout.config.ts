@@ -55,8 +55,9 @@ export const LAYOUT = {
   listGutter: 'px-5',
   /** A top-level view's header (ViewHeader: To-dos, Upcoming, Gallery, Dictations): room above and below its title row. */
   viewHeader: 'pt-2 pb-3',
-  /** A reading view's gutter around its page column (To-dos, Gallery, Dictations); none on iPhone, whose lists run edge to edge. */
-  viewGutter: 'md:px-8',
+  /** A reading view's column (To-dos, Gallery, Dictations): from the sidebar edge, as Upcoming's grid, up to the page column's
+   *  width; with the sidebar collapsed it keeps that width instead of stretching. */
+  viewColumn: 'max-w-4xl w-full',
 } as const;
 
 /** The ⌘K command palette: where it sits and how wide, and its list's one fixed height (it never resizes as you type). */

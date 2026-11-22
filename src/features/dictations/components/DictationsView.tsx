@@ -1,26 +1,21 @@
 /** Dictations: every dictation made in the app, newest first, searchable. Mac: the list beside the selected dictation;
- *  phone: the list, then one dictation with Back. Each opens to its time, day · length · model (with its logo), and the words; Copy and Delete. */
+ *  phone: the list, then one dictation with Back. Each opens to its time, day · length, its model and (cloud) cost badges,
+ *  and the words; Copy and Delete. */
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { ChevronLeft, Copy, Mic, Trash2 } from 'lucide-react';
-import { Button, Icon, ICON_SIZE_PX, IconButton, PageScroll, Row, SearchField, Surface, Text, TitlebarSpacer, VIEW_FADE_PX, ViewHeader, cn } from '@shared/ui';
-import { ModelIcon, ScreenState } from '@shared/components';
+import { Button, Icon, IconButton, PageScroll, Row, SearchField, Surface, Text, TitlebarSpacer, ViewBody, ViewHeader } from '@shared/ui';
+import { CostBadge, ModelBadge, ScreenState, modelCreditOf } from '@shared/components';
+import { useSessionCost } from '@shared/hooks/useSessionUsage';
 import { useFormFactor } from '@platform/formFactor';
 import { useToast } from '@shared/contexts/ToastContext';
 import { confirmDelete } from '@shared/stores/confirmStore';
 import { copyRichText } from '@shared/utils/clipboard';
 import { formatDayLabel, formatDuration, formatClockTime, formatRelativeTime } from '@shared/utils/formatters';
-import { useSpeechModelOptions } from '@features/settings/hooks';
 import { LAYOUT } from '@config/layout.config';
 import { DICTATIONS_CONFIG } from '@config/dictations.config';
 import type { Dictation } from '@shared/types';
 import { useDictations } from '@features/dictations/hooks/useDictations';
-
-/** The speech model a dictation names, as the pickers show it. */
-interface SpeechModel {
-  provider: string;
-  label: string;
-}
 
 interface DictationListProps {
   dictations: Dictation[];
@@ -42,13 +37,14 @@ const DictationList: React.FC<DictationListProps> = ({ dictations, selectedId, o
 
 interface DictationDetailProps {
   dictation: Dictation;
-  speechModel: SpeechModel | undefined;
   onCopy: () => void;
   onDelete: () => void;
 }
 
-/** Voice Memos' shape: the time as the title, day · length · model under it, then the words at reading size. */
-const DictationDetail: React.FC<DictationDetailProps> = ({ dictation, speechModel, onCopy, onDelete }) => {
+/** Voice Memos' shape: the time as the title, day · length and the model's badges under it, then the words at reading size. */
+const DictationDetail: React.FC<DictationDetailProps> = ({ dictation, onCopy, onDelete }) => {
+  const credit = modelCreditOf(dictation.model);
+  const cost = useSessionCost(dictation.id);
   const facts = [
     formatDayLabel(dictation.createdAt),
     dictation.durationMs !== undefined && formatDuration(dictation.durationMs / 1000),
@@ -59,14 +55,9 @@ const DictationDetail: React.FC<DictationDetailProps> = ({ dictation, speechMode
         <div className="min-w-0 flex-1">
           <Text as="h2" variant="title">{formatClockTime(dictation.createdAt)}</Text>
           <div className="flex min-w-0 items-center gap-1.5">
-            <Text variant="helper" tone="muted">{facts}</Text>
-            {speechModel && (
-              <>
-                <Text variant="helper" tone="muted">·</Text>
-                <ModelIcon provider={speechModel.provider} modelId={dictation.model} size={ICON_SIZE_PX.xs} />
-                <Text variant="helper" tone="muted" truncate>{speechModel.label}</Text>
-              </>
-            )}
+            <Text variant="helper" tone="muted" className="shrink-0">{facts}</Text>
+            {credit && <ModelBadge {...credit} />}
+            <CostBadge cost={cost} />
           </div>
         </div>
         <IconButton icon={Copy} label="Copy" size="sm" onClick={onCopy} />
@@ -82,8 +73,6 @@ export const DictationsView: React.FC = () => {
   const { dictations, hasAny, isLoading, remove } = useDictations(query);
   const phone = useFormFactor() === 'phone';
   const { showToast } = useToast();
-  const speechModels = useSpeechModelOptions();
-  const modelsById = useMemo(() => new Map(speechModels.map((o) => [o.model, { provider: o.provider, label: o.label }])), [speechModels]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // A Mac always shows one dictation (the newest match until another is picked); a phone shows the list until one is tapped.
@@ -104,7 +93,6 @@ export const DictationsView: React.FC = () => {
   const detail = selected && (
     <DictationDetail
       dictation={selected}
-      speechModel={selected.model ? modelsById.get(selected.model) : undefined}
       onCopy={() => copy(selected)}
       onDelete={() => void deleteDictation(selected)}
     />
@@ -152,14 +140,12 @@ export const DictationsView: React.FC = () => {
   return (
     <div className="flex h-full flex-col">
       <ViewHeader title={DICTATIONS_CONFIG.title} />
-      <div className={cn('flex min-h-0 flex-1', LAYOUT.viewGutter, LAYOUT.pageColumnFrame)} style={{ paddingTop: VIEW_FADE_PX }}>
-        <div className={cn('flex min-h-0 flex-1 gap-6', LAYOUT.pageColumn, LAYOUT.listGutter)}>
-          <div className={cn('flex min-h-0 flex-col gap-3', phone ? 'flex-1' : DICTATIONS_CONFIG.listColumn)}>{searchAndList}</div>
-          {!phone && detail && (
-            <Surface edge={['top', 'left', 'right']} radius="lg" className="min-w-0 flex-1 overflow-y-auto custom-scrollbar">{detail}</Surface>
-          )}
-        </div>
-      </div>
+      <ViewBody className="gap-6">
+        <div className={`flex min-h-0 flex-col gap-3 ${phone ? 'flex-1' : DICTATIONS_CONFIG.listColumn}`}>{searchAndList}</div>
+        {!phone && detail && (
+          <Surface edge={['top', 'left', 'right']} radius="lg" className="min-w-0 flex-1 overflow-y-auto custom-scrollbar">{detail}</Surface>
+        )}
+      </ViewBody>
     </div>
   );
 };

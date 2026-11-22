@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { formatDateTime } from '@shared/utils/formatters';
 import { Images, MessageSquare } from 'lucide-react';
 import { Button, Icon, Lightbox, Surface, Text, Thumbnail, ViewHeader, ViewScroll } from '@shared/ui';
-import { ScreenState } from '@shared/components';
+import { ModelBadge, ScreenState } from '@shared/components';
 import { openChat } from '@features/chat';
 import type { GalleryImage } from '@services/storage/images.service';
 import { LAYOUT } from '@config/layout.config';
@@ -17,11 +17,12 @@ import { useSentinel } from '@shared/hooks/useSentinel';
 /** Under the full-size image: what was asked for, how it was made, and the way back to its chat. */
 const ImageCaption: React.FC<{ image: GalleryImage; onOpenChat: (chatId: string) => void }> = ({ image, onOpenChat }) => {
   const { meta, chatId } = image;
-  const facts = [meta?.model, meta?.aspectRatio, formatDateTime(image.createdAt)].filter(Boolean).join(' · ');
+  const facts = [meta?.aspectRatio, formatDateTime(image.createdAt)].filter(Boolean).join(' · ');
   return (
     <Surface variant="card" radius="xl" edge="all" className="space-y-2 p-4">
       {meta && <Text as="p" variant="body" className="line-clamp-3">{meta.prompt}</Text>}
       <div className="flex items-center gap-3">
+        {meta && <ModelBadge provider={meta.provider} model={meta.model} />}
         <Text variant="helper" tone="muted" truncate className="flex-1">{facts}</Text>
         {chatId && (
           <Button variant="outline" size="sm" onClick={() => onOpenChat(chatId)}>

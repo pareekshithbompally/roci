@@ -202,7 +202,7 @@ const HANDLERS: Record<string, (args: never) => unknown> = {
   'plugin:store|todos_list_global': () => ({ items: [], total: 0 }),
   'plugin:store|chats_list': () => ({ items: [], total: 0 }),
   'plugin:store|categories_list': () => [],
-  'plugin:store|get_meeting_usage': () => [],
+  'plugin:store|get_session_usage': () => [],
   'start_audio_capture': (args: { title?: string }) => startRecording(args),
   'stop_audio_capture': () => stopRecording(),
   'recorder_state': () => (recorder ? { state: 'recording', meetingId: recorder.meetingId, recordedMs: now() - recorder.startedAt, paused: false, liveStreaming: false } : { state: 'idle' }),

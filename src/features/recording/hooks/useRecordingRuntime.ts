@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { isTauriEnvironment } from '@services/tauri';
 import { RECORDING_EVENTS } from '@config/audio.config';
+import { MEETING_LIVE_CONFIG as LIVE } from '@config/meetingLive.config';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useMeetingBrief, useMeetingBriefs, useMeetingsFound } from '@shared/hooks/useMeetings';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
@@ -41,12 +42,16 @@ function put(item: ActivityItem): void {
   else activityStore.add(item);
 }
 
+/** The record screen's controls, in its order: Pause or Resume, Save for Later once paused, Stop. */
 function recordingActions(paused: boolean, busy: boolean): ActivityAction[] {
   if (busy) return [];
-  const toggle: ActivityAction = paused
-    ? { icon: 'play', label: 'Resume', onClick: () => void recording.resume() }
-    : { icon: 'pause', label: 'Pause', onClick: () => void recording.pause() };
-  return [toggle, { icon: 'square', label: 'Stop', onClick: () => void recording.stop() }];
+  const stop: ActivityAction = { icon: 'square', label: LIVE.copy.stop, onClick: () => void recording.stop() };
+  if (!paused) return [{ icon: 'pause', label: LIVE.copy.pause, onClick: () => void recording.pause() }, stop];
+  return [
+    { icon: 'play', label: LIVE.copy.resume, onClick: () => void recording.resume() },
+    { icon: 'clock', label: LIVE.copy.saveForLater, onClick: () => void recording.stop(true) },
+    stop,
+  ];
 }
 
 /** Reads the current settings, providers and categories into the pipeline; resumes once the store is open. */

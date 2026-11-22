@@ -422,7 +422,7 @@ export interface Dictation {
   createdAt: number;
   /** Time spoken, pauses left out. */
   durationMs?: number;
-  /** The speech model that transcribed it (`AppSettings.transcriptionModel`). */
+  /** The speech model that transcribed it, as its model key (`provider::model`). */
   model?: string;
 }
 

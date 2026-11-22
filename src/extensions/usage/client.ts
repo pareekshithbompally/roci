@@ -57,20 +57,44 @@ export async function logUsage(params: {
   try {
     await ensureInitialized();
     await invoke('plugin:store|insert_usage', { record });
-    // Open usage pages update to include this request; until one is logged their data stays current.
-    await queryClient.invalidateQueries({ queryKey: queryKeys.usageAll() });
+    // Only what this call changes reads again: the usage totals and its own session's calls.
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.usageSummaries() }),
+      record.session_id && queryClient.invalidateQueries({ queryKey: queryKeys.sessionUsage(record.session_id) }),
+    ]);
   } catch (error) {
     console.error('[UsageClient] insert_usage failed:', error, '| record:', JSON.stringify({ category: record.category, provider: record.provider, model: record.model }));
   }
 }
 
-/** Prices a model's earlier calls saved without a price, at the price the user just set; open usage pages update. */
+/** A call saved without a price (Rust `UnpricedUsageRow`). */
+interface UnpricedUsage {
+  id: string;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  audio_seconds: number;
+}
+
+/** What a saved call used, as `costOf` takes it: no tokens means it was billed by its audio alone, as when it was logged. */
+function tokenUsageOf(row: UnpricedUsage): TokenUsage | undefined {
+  if (row.input_tokens + row.output_tokens === 0) return undefined;
+  return { inputTokens: row.input_tokens, outputTokens: row.output_tokens, cacheReadTokens: row.cache_read_tokens, cacheWriteTokens: row.cache_write_tokens };
+}
+
+/** Prices a model's earlier calls saved without a price, at the price the user just set, by the same `costOf` every call is
+ *  logged with; a call the price can't bill (audio without a per-minute rate) stays unknown. Open usage pages update. */
 export async function priceUnpricedUsage(provider: string, model: string, price: ModelPrice): Promise<void> {
   if (!isTauriEnvironment()) return;
   await ensureInitialized();
-  await invoke('plugin:store|price_unpriced_usage', {
-    provider, model, inputPerMillion: price.inputPer1M, outputPerMillion: price.outputPer1M, perMinute: price.perMinute,
+  const rows = await invoke<UnpricedUsage[]>('plugin:store|unpriced_usage', { provider, model });
+  const costs = rows.flatMap((row) => {
+    const cost = costOf(price, tokenUsageOf(row), row.audio_seconds);
+    return cost === undefined ? [] : [{ id: row.id, cost }];
   });
+  if (costs.length === 0) return;
+  await invoke('plugin:store|set_usage_costs', { costs });
   await queryClient.invalidateQueries({ queryKey: queryKeys.usageAll() });
 }
 
@@ -108,8 +132,8 @@ export async function getUsageSummary(query: UsageQuery): Promise<UsageSummary> 
   return invoke<UsageSummary>('plugin:store|get_usage_summary', { query });
 }
 
-/** One AI call made for a meeting (Rust `MeetingUsageRow`), newest first. */
-export interface MeetingUsage {
+/** One AI call made for a session, a meeting or a dictation (Rust `SessionUsageRow`), newest first. */
+export interface SessionUsage {
   category: UsageCategory;
   provider: string;
   model: string;
@@ -122,9 +146,25 @@ export interface MeetingUsage {
   timestamp: number;
 }
 
-/** The AI calls made for one meeting (its usage rows carry the meeting id). */
-export async function getMeetingUsage(meetingId: string): Promise<MeetingUsage[]> {
+/** The AI calls made for one session (its usage rows carry the meeting or dictation id). */
+export async function getSessionUsage(sessionId: string): Promise<SessionUsage[]> {
   if (!isTauriEnvironment()) return [];
   await ensureInitialized();
-  return invoke<MeetingUsage[]>('plugin:store|get_meeting_usage', { meetingId });
+  return invoke<SessionUsage[]>('plugin:store|get_session_usage', { sessionId });
+}
+
+/** What some calls cost, as each was priced when logged (a price set later fills the unpriced ones): the USD total of the
+ *  priced ones and how many have no price. */
+export interface SessionCost {
+  total: number;
+  unpriced: number;
+}
+
+/** The one cost rule meetings and dictations read; null when there are no calls. */
+export function sessionCostOf(usage: readonly SessionUsage[]): SessionCost | null {
+  if (usage.length === 0) return null;
+  return {
+    total: usage.reduce((sum, row) => sum + (row.estimated_cost ?? 0), 0),
+    unpriced: usage.filter((row) => row.estimated_cost === null).length,
+  };
 }

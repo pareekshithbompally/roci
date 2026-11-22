@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-unpriced-usage"
+description = "Enables the unpriced_usage command without any pre-configured scope."
+commands.allow = ["unpriced_usage"]
+
+[[permission]]
+identifier = "deny-unpriced-usage"
+description = "Denies the unpriced_usage command without any pre-configured scope."
+commands.deny = ["unpriced_usage"]

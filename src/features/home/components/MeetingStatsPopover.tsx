@@ -3,10 +3,10 @@
 import React from 'react';
 import { Info } from 'lucide-react';
 import { IconButton, Popover, PopoverContent, PopoverTrigger, RowGroupLabel, Separator, Text } from '@shared/ui';
-import { ModelName, ShowInFinderButton } from '@shared/components';
+import { CostBadge, ModelBadge, ShowInFinderButton } from '@shared/components';
 import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { formatDuration, formatFileSize, formatDateTime } from '@shared/utils/formatters';
-import { formatCostOrUnknown, formatTokenCount } from '@extensions/usage/format';
+import { formatTokenCount } from '@extensions/usage/format';
 import { useMeetingStats, type MeetingStats } from '@features/home/hooks/useMeetingStats';
 
 const StatRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
@@ -60,7 +60,12 @@ const TranscriptSection: React.FC<{ stats: MeetingStats }> = ({ stats }) => {
   return (
     <Section title="Transcript">
       {stats.words > 0 && <StatRow label="Length"><Value>{counts}</Value></StatRow>}
-      {stats.transcribedBy && <StatRow label="Model"><ModelName credit={stats.transcribedBy} /></StatRow>}
+      {stats.transcribedBy && (
+        <StatRow label="Model">
+          <ModelBadge {...stats.transcribedBy} />
+          <CostBadge cost={stats.transcriptCost} />
+        </StatRow>
+      )}
     </Section>
   );
 };
@@ -71,10 +76,13 @@ const SummarySection: React.FC<{ stats: MeetingStats }> = ({ stats }) => {
   const billed = summary.inputTokens + summary.outputTokens > 0;
   return (
     <Section title="Summary">
-      <StatRow label="Model"><ModelName credit={summary} /></StatRow>
+      <StatRow label="Model">
+        <ModelBadge provider={summary.provider} model={summary.model} />
+        <CostBadge cost={stats.summaryCost} />
+      </StatRow>
       {billed && (
         <StatRow label="Usage">
-          <Value>{formatTokenCount(summary.inputTokens)} in · {formatTokenCount(summary.outputTokens)} out · {formatCostOrUnknown(summary.cost)}</Value>
+          <Value>{formatTokenCount(summary.inputTokens)} in · {formatTokenCount(summary.outputTokens)} out</Value>
         </StatRow>
       )}
     </Section>

@@ -10,7 +10,7 @@ const image = (id: string, createdAt: number): GalleryImage => ({
   thumbUrl: `asset://${id}.thumb`,
   createdAt,
   chatId: null,
-  meta: { prompt: id, model: 'm', aspectRatio: '1:1' },
+  meta: { prompt: id, provider: 'p', model: 'm', aspectRatio: '1:1' },
 });
 
 describe('gallery days', () => {

@@ -1,5 +1,5 @@
 /** A top-level view's header (To-dos, Upcoming, Gallery, Dictations): clear of the titlebar, the title with a quiet line under
- *  it and controls at the row's end, an optional row beneath. A reading view's header sits in the page column with no rule
+ *  it and controls at the row's end, an optional row beneath. A reading view's header sits in the view column with no rule
  *  (its ViewScroll fades under it); a full-width tool's (Upcoming's grid) spans the view over a hairline. One place, so every
  *  view's title sits at the same spot. */
 
@@ -49,8 +49,8 @@ export function ViewHeader({ title, detail, accessory, replaceTitle, children, f
       {fullWidth ? (
         <Surface as="header" edge="bottom" className={cn('shrink-0 space-y-3', LAYOUT.listGutter, LAYOUT.viewHeader)}>{rows}</Surface>
       ) : (
-        <header className={cn('shrink-0', LAYOUT.viewGutter, LAYOUT.pageColumnFrame, LAYOUT.viewHeader)}>
-          <div className={cn('space-y-3', LAYOUT.pageColumn, LAYOUT.listGutter)}>{rows}</div>
+        <header className={cn('shrink-0', LAYOUT.pageColumnFrame, LAYOUT.viewHeader)}>
+          <div className={cn('space-y-3', LAYOUT.viewColumn, LAYOUT.listGutter)}>{rows}</div>
         </header>
       )}
     </>

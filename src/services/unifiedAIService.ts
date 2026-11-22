@@ -57,10 +57,10 @@ export function readySpeechSelection(settings: AppSettings): SpeechSelection {
   return selection;
 }
 
-/** How a transcription is run: its cancel signal and progress, the meeting its usage row belongs to, and what silence means —
+/** How a transcription is run: its cancel signal and progress, the meeting or dictation its usage row belongs to, and what silence means —
  *  an error for a whole recording (nothing to summarize), nothing at all for a live chunk (a pause in the meeting). */
 export interface TranscribeAudioOptions extends TranscribeOptions {
-  meetingId?: string;
+  sessionId?: string;
   silence?: 'error' | 'empty';
 }
 
@@ -70,7 +70,7 @@ export async function transcribeAudio(
   audioBlob: Blob,
   settings: AppSettings,
   providers: ModelProvider[],
-  { meetingId, silence = 'error', ...options }: TranscribeAudioOptions = {},
+  { sessionId, silence = 'error', ...options }: TranscribeAudioOptions = {},
 ): Promise<TranscriptResult> {
   const selection = readySpeechSelection(settings);
   assertAudioSize(audioBlob, silence === 'error');
@@ -80,7 +80,7 @@ export async function transcribeAudio(
     throw toAiError(error, 'speech', selection.provider);
   });
   if (result.usage || result.audioSeconds) {
-    recordUsage('transcription', { provider: selection.provider, modelId: selection.model }, result.usage, meetingId, result.audioSeconds);
+    recordUsage('transcription', { provider: selection.provider, modelId: selection.model }, result.usage, sessionId, result.audioSeconds);
   }
   // No speech in a whole recording is an error, so the analyzer can't invent a meeting from silence.
   if (silence === 'error' && !result.text.trim()) {
@@ -97,12 +97,14 @@ async function meetingNotesOldestFirst(meetingId: string): Promise<UserNote[]> {
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 }
 
+/** A dictation's clip as text; its usage row carries the dictation's id. */
 export async function audioToRawText(
   audioBlob: Blob,
   settings: AppSettings,
   providers: ModelProvider[],
+  sessionId: string,
 ): Promise<string> {
-  return (await transcribeAudio(audioBlob, settings, providers)).text;
+  return (await transcribeAudio(audioBlob, settings, providers, { sessionId })).text;
 }
 
 class UnifiedAIService {

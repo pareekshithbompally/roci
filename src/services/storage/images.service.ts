@@ -15,6 +15,7 @@ function extensionOf(mediaType: string): string {
 /** What an image records about itself. */
 export interface ImageMeta {
   prompt: string;
+  provider: string;
   model: string;
   aspectRatio: string;
 }

@@ -43,9 +43,9 @@ export function useSpeechModelOptions(): SpeechModelOption[] {
   );
 }
 
-/** A dictation that streams: how to open its stream. */
+/** A dictation that streams: how to open its stream, its usage row carrying the dictation's id. */
 export interface LiveDictation {
-  open: () => Promise<LiveStream>;
+  open: (dictationId: string) => Promise<LiveStream>;
 }
 
 /** The chosen speech model's option (what it is, whether it can run, whether it streams); undefined when none is chosen. */
@@ -67,7 +67,7 @@ export function useLiveDictation(): LiveDictation | null {
   const live = !!settings.liveTranscription;
   return useMemo(() => {
     if (!live || !option?.ready || !runsLive(option, providers, 1)) return null;
-    return { open: () => openLiveStream(option, providers) };
+    return { open: (dictationId) => openLiveStream(option, providers, () => dictationId) };
   }, [live, option, providers]);
 }
 

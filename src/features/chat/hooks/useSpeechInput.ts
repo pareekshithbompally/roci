@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { audioToRawText } from '@services/unifiedAIService';
-import { keepDictation } from '@services/dictations.service';
+import { keepDictation, startDictation, type DictationStart } from '@services/dictations.service';
 import { liveCapture, recordedCapture } from '@services/ai/transcription';
 import type { DictationCapture, LiveText } from '@services/ai/transcription';
 import type { LiveDictation } from '@features/settings';
@@ -66,6 +66,8 @@ export function useSpeechInput(
   const [elapsed, setElapsed] = useState(0);
 
   const captureRef = useRef<DictationCapture | null>(null);
+  /** This dictation's id and model from its start: its usage rows carry the id (its cost), and it is kept under both. */
+  const dictationRef = useRef<DictationStart | null>(null);
   /** Set when cancel hits an in-flight transcription so its late result is discarded. */
   const transcriptionCancelledRef = useRef(false);
   /** Set when stop/cancel beats a pending start so the late mic and capture are released. */
@@ -115,10 +117,10 @@ export function useSpeechInput(
     };
   }, [stopTimer]);
 
-  const beginCapture = useCallback((micStream: MediaStream): Promise<DictationCapture> => {
-    const transcribe = (audio: Blob) => audioToRawText(audio, settings, providers);
+  const beginCapture = useCallback((micStream: MediaStream, dictationId: string): Promise<DictationCapture> => {
+    const transcribe = (audio: Blob) => audioToRawText(audio, settings, providers, dictationId);
     if (!live) return Promise.resolve(recordedCapture(micStream, transcribe));
-    return liveCapture(micStream, live.open, (text) => {
+    return liveCapture(micStream, () => live.open(dictationId), (text) => {
       if (mountedRef.current) setLiveText(text);
     }, transcribe);
   }, [live, settings, providers]);
@@ -129,6 +131,8 @@ export function useSpeechInput(
     transcriptionCancelledRef.current = false;
     // Mount the pill now; the mic warms up underneath it.
     const startedAt = Date.now();
+    const dictation = startDictation(settings);
+    dictationRef.current = dictation;
     setState('starting');
 
     let micStream: MediaStream;
@@ -144,7 +148,7 @@ export function useSpeechInput(
     }
     try {
       // Capture starts now — no audio is lost.
-      capture = await beginCapture(micStream);
+      capture = await beginCapture(micStream, dictation.id);
     } catch (error: unknown) {
       fail('start capture', DICTATION_COPY.startFailed, error);
       stopTracks(micStream);
@@ -167,7 +171,7 @@ export function useSpeechInput(
     setStream(micStream);
     setState('recording');
     startTimer();
-  }, [state, live, beginCapture, cleanup, startTimer]);
+  }, [state, settings, beginCapture, cleanup, startTimer]);
 
   const pause = useCallback(() => {
     if (!captureRef.current || state !== 'recording') return;
@@ -192,7 +196,8 @@ export function useSpeechInput(
     // A stop during warm-up wins the race against the pending start.
     startCancelledRef.current = true;
     const capture = captureRef.current;
-    if (!capture || (state !== 'recording' && state !== 'paused')) {
+    const dictation = dictationRef.current;
+    if (!capture || !dictation || (state !== 'recording' && state !== 'paused')) {
       cleanup();
       setState('idle');
       return '';
@@ -209,7 +214,7 @@ export function useSpeechInput(
       const text = await finishing;
       // A master-cancel during transcription wins over the late result.
       if (transcriptionCancelledRef.current) return '';
-      void keepDictation(text, elapsed * 1000, settings.transcriptionModel);
+      void keepDictation(dictation, text, elapsed * 1000);
       return text;
     } catch (error: unknown) {
       fail('transcribe', DICTATION_COPY.transcribeFailed, error);
@@ -219,7 +224,7 @@ export function useSpeechInput(
       cleanup();
       if (mountedRef.current) setState('idle');
     }
-  }, [state, cleanup, stopTimer, elapsed, settings.transcriptionModel]);
+  }, [state, cleanup, stopTimer, elapsed]);
 
   const cancel = useCallback(() => {
     // Cancelling mid-transcription makes the awaiting stop() resolve to ''.

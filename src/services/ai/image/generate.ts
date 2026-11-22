@@ -65,6 +65,7 @@ export async function generateImageFile(request: ImageRequest): Promise<Generate
   recordUsage('image', { provider: target.provider, modelId: target.modelId }, extractTokenUsage(usage), request.sessionId);
   const { appPath, path } = await imagesService.saveImage(image.uint8Array, image.mediaType, {
     prompt: request.prompt,
+    provider: target.provider,
     model: target.modelId,
     aspectRatio: request.aspectRatio,
   });

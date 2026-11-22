@@ -1,48 +1,54 @@
-/** One meeting's facts for the stats card and the summary credit: when, how long, words, speakers, models, file. */
+/** One meeting's facts for the stats card and the summary credit: when, how long, words, speakers, models, costs, file. The
+ *  meeting's own facts load once per meeting; its AI calls come from the shared session usage, so a new call updates them. */
 
-import { parseModelKey } from '@services/ai/models';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { store } from '@services/db';
 import { recordingsService } from '@services/storage';
-import { getMeetingUsage, type MeetingUsage } from '@extensions/usage';
+import { sessionCostOf, type SessionCost, type SessionUsage } from '@extensions/usage';
 import { queryKeys } from '@shared/query/queryKeys';
+import { useSessionUsage } from '@shared/hooks/useSessionUsage';
 import type { MeetingDetail } from '@shared/types';
-import type { ModelCredit } from '@shared/components';
-
+import { modelCreditOf, type ModelCredit } from '@shared/components';
 
 export interface SummaryCredit extends ModelCredit {
   inputTokens: number;
   outputTokens: number;
-  /** Null when the summary model's price is unknown. */
-  cost: number | null;
 }
 
-export interface MeetingStats {
+/** What the meeting's AI calls did and cost. */
+interface UsageStats {
+  summarizedBy: SummaryCredit | null;
+  transcriptCost: SessionCost | null;
+  summaryCost: SessionCost | null;
+}
+
+interface MeetingFacts {
   recordedAt: string;
   durationSeconds: number | null;
   inputSource: string | null;
   words: number;
   speakers: number;
   transcribedBy: ModelCredit | null;
-  summarizedBy: SummaryCredit | null;
   recording: { filename: string; path: string; sizeBytes: number } | null;
 }
 
-/** Transcripts store their speech model as its model key; an older bare id has no provider. */
-function speechModelOf(stored: string | undefined): ModelCredit | null {
-  if (!stored) return null;
-  return parseModelKey(stored) ?? { provider: '', model: stored };
-}
+export type MeetingStats = MeetingFacts & UsageStats;
 
-function summaryModelOf(usage: MeetingUsage[]): SummaryCredit | null {
+const NO_USAGE: UsageStats = { summarizedBy: null, transcriptCost: null, summaryCost: null };
+
+function summaryModelOf(usage: SessionUsage[]): SummaryCredit | null {
   const latest = usage.find((row) => row.category === 'summary');
   if (!latest) return null;
+  return { provider: latest.provider, model: latest.model, inputTokens: latest.input_tokens, outputTokens: latest.output_tokens };
+}
+
+/** Module-level, so the shared usage query runs it only when the rows change. */
+function usageStatsOf(usage: SessionUsage[]): UsageStats {
   return {
-    provider: latest.provider,
-    model: latest.model,
-    inputTokens: latest.input_tokens,
-    outputTokens: latest.output_tokens,
-    cost: latest.estimated_cost,
+    summarizedBy: summaryModelOf(usage),
+    transcriptCost: sessionCostOf(usage.filter((row) => row.category === 'transcription')),
+    summaryCost: sessionCostOf(usage.filter((row) => row.category === 'summary')),
   };
 }
 
@@ -51,20 +57,20 @@ function countWords(text: string): number {
   return trimmed ? trimmed.split(/\s+/).length : 0;
 }
 
-async function loadStats(meetingId: string): Promise<MeetingStats | null> {
-  const [detail, usage] = await Promise.all([store.meetings.get(meetingId), getMeetingUsage(meetingId)]);
+async function loadFacts(meetingId: string): Promise<MeetingFacts | null> {
+  const detail = await store.meetings.get(meetingId);
   if (!detail) return null;
-  return statsOf(detail, usage, await recordingOf(detail));
+  return factsOf(detail, await recordingOf(detail));
 }
 
-async function recordingOf(detail: MeetingDetail): Promise<MeetingStats['recording']> {
+async function recordingOf(detail: MeetingDetail): Promise<MeetingFacts['recording']> {
   const filename = detail.recording?.filename;
   if (!filename) return null;
   const file = await recordingsService.recordingFile(filename);
   return file ? { filename, ...file } : null;
 }
 
-function statsOf(detail: MeetingDetail, usage: MeetingUsage[], recording: MeetingStats['recording']): MeetingStats {
+function factsOf(detail: MeetingDetail, recording: MeetingFacts['recording']): MeetingFacts {
   const segments = detail.transcript?.segments ?? [];
   return {
     recordedAt: detail.index.createdAt,
@@ -72,16 +78,21 @@ function statsOf(detail: MeetingDetail, usage: MeetingUsage[], recording: Meetin
     inputSource: detail.recording?.inputSource ?? detail.index.inputSource ?? null,
     words: countWords(detail.transcript?.text ?? ''),
     speakers: new Set(segments.map((s) => s.speaker).filter(Boolean)).size,
-    transcribedBy: speechModelOf(detail.transcript?.model),
-    summarizedBy: summaryModelOf(usage),
+    transcribedBy: modelCreditOf(detail.transcript?.model),
     recording,
   };
 }
 
 export function useMeetingStats(meetingId: string | null | undefined) {
-  return useQuery({
+  const facts = useQuery({
     queryKey: queryKeys.meetingStats(meetingId ?? ''),
-    queryFn: () => loadStats(meetingId!),
+    queryFn: () => loadFacts(meetingId!),
     enabled: !!meetingId,
   });
+  const usage = useSessionUsage(meetingId, usageStatsOf);
+  const data = useMemo<MeetingStats | null | undefined>(
+    () => facts.data && { ...facts.data, ...(usage ?? NO_USAGE) },
+    [facts.data, usage],
+  );
+  return { data, isPending: facts.isPending };
 }

@@ -75,8 +75,9 @@ const COMMANDS: &[&str] = &[
     // Usage
     "insert_usage",
     "get_usage_summary",
-    "get_meeting_usage",
-    "price_unpriced_usage",
+    "get_session_usage",
+    "unpriced_usage",
+    "set_usage_costs",
 ];
 
 /// GraphQLite (vendor/graphqlite, see its VERSION): compiled from source with `SQLITE_CORE` against the bundled SQLite's own

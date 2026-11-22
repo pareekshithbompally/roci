@@ -89,12 +89,16 @@ export const queryKeys = {
   /** A remote image (model avatar, MCP server icon) as a cached `data:` source, by URL */
   cachedImage: (url: string) => ['cached-image', url] as const,
   /** Usage summed for one query: window, filters and buckets (Settings → Usage and its detail pages) */
-  usage: (query: UsageQuery) => ['usage', query] as const,
+  usage: (query: UsageQuery) => ['usage', 'summary', query] as const,
+  /** Every usage total (a logged call changes them all) */
+  usageSummaries: () => ['usage', 'summary'] as const,
+  /** One session's AI calls (a meeting's or a dictation's); a call logged for it updates it */
+  sessionUsage: (sessionId: string) => ['usage', 'session', sessionId] as const,
   /** The URL the webview loads for a file in app data (chat images) */
   appFileUrl: (appPath: string) => ['app-file-url', appPath] as const,
   /** Every kept file's URL, read again after Keep or Delete All removes files. */
   appFileUrls: () => ['app-file-url'] as const,
-  /** Every usage query (a logged request changes them all) */
+  /** Every usage query: totals and sessions (a price set later reprices them all) */
   usageAll: () => ['usage'] as const,
 
   // ── Unified store (single `roci.db`) ──

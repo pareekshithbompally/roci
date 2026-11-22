@@ -64,6 +64,7 @@ permissions = [
   "allow-search-sessions",
   "allow-insert-usage",
   "allow-get-usage-summary",
-  "allow-get-meeting-usage",
-  "allow-price-unpriced-usage",
+  "allow-get-session-usage",
+  "allow-unpriced-usage",
+  "allow-set-usage-costs",
 ]

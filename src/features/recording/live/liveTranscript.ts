@@ -131,7 +131,7 @@ async function transcribeChunk(current: Session, chunk: LiveChunk, read: Reader)
   try {
     const result = await transcribeAudio(wavOf(chunk.pcm), settings, providers, {
       signal: current.controller.signal,
-      meetingId: current.meetingId,
+      sessionId: current.meetingId,
       silence: 'empty',
       whole: true,
     });

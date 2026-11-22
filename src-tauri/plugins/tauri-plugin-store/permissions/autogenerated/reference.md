@@ -67,8 +67,9 @@ Allows all store plugin commands
 - `allow-search-sessions`
 - `allow-insert-usage`
 - `allow-get-usage-summary`
-- `allow-get-meeting-usage`
-- `allow-price-unpriced-usage`
+- `allow-get-session-usage`
+- `allow-unpriced-usage`
+- `allow-set-usage-costs`
 
 ## Permission Table
 
@@ -472,12 +473,12 @@ Denies the dictations_list command without any pre-configured scope.
 <tr>
 <td>
 
-`store:allow-get-meeting-usage`
+`store:allow-get-session-usage`
 
 </td>
 <td>
 
-Enables the get_meeting_usage command without any pre-configured scope.
+Enables the get_session_usage command without any pre-configured scope.
 
 </td>
 </tr>
@@ -485,12 +486,12 @@ Enables the get_meeting_usage command without any pre-configured scope.
 <tr>
 <td>
 
-`store:deny-get-meeting-usage`
+`store:deny-get-session-usage`
 
 </td>
 <td>
 
-Denies the get_meeting_usage command without any pre-configured scope.
+Denies the get_session_usage command without any pre-configured scope.
 
 </td>
 </tr>
@@ -1200,32 +1201,6 @@ Denies the notices_owed command without any pre-configured scope.
 <tr>
 <td>
 
-`store:allow-price-unpriced-usage`
-
-</td>
-<td>
-
-Enables the price_unpriced_usage command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-price-unpriced-usage`
-
-</td>
-<td>
-
-Denies the price_unpriced_usage command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
 `store:allow-providers-delete`
 
 </td>
@@ -1453,6 +1428,32 @@ Enables the search_sessions command without any pre-configured scope.
 <td>
 
 Denies the search_sessions command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-set-usage-costs`
+
+</td>
+<td>
+
+Enables the set_usage_costs command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-set-usage-costs`
+
+</td>
+<td>
+
+Denies the set_usage_costs command without any pre-configured scope.
 
 </td>
 </tr>
@@ -1765,6 +1766,32 @@ Enables the transcripts_save command without any pre-configured scope.
 <td>
 
 Denies the transcripts_save command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-unpriced-usage`
+
+</td>
+<td>
+
+Enables the unpriced_usage command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-unpriced-usage`
+
+</td>
+<td>
+
+Denies the unpriced_usage command without any pre-configured scope.
 
 </td>
 </tr>

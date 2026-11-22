@@ -71,13 +71,23 @@ export interface ViewScrollProps {
   children?: ReactNode;
 }
 
-/** A reading view's page under its ViewHeader: it scrolls in the view gutter, its content in the page column lined up with
- *  the header's (the scrollbar's room kept, as the header keeps it). */
+/** A reading view's page under its ViewHeader: it scrolls, its content in the view column lined up with the header's (the
+ *  scrollbar's room kept, as the header keeps it). */
 export function ViewScroll({ fade = true, className, children }: ViewScrollProps) {
   return (
-    <PageScroll steady underTitlebar={false} fadeTop={fade && VIEW_FADE_PX} className={cn('min-h-0 flex-1', LAYOUT.viewGutter)}>
+    <PageScroll steady underTitlebar={false} fadeTop={fade && VIEW_FADE_PX} className="min-h-0 flex-1">
       {/* A full-height column, so an empty state fills what's left and centres there. */}
-      <div className={cn(LAYOUT.pageColumn, 'flex min-h-full flex-col', className)} style={fade ? undefined : { paddingTop: VIEW_FADE_PX }}>{children}</div>
+      <div className={cn(LAYOUT.viewColumn, 'flex min-h-full flex-col', className)} style={fade ? undefined : { paddingTop: VIEW_FADE_PX }}>{children}</div>
     </PageScroll>
+  );
+}
+
+/** ViewScroll's still twin, for a view whose panes scroll on their own (Dictations' list and open dictation): the same
+ *  column, gutter and room under the header, filling the view's height. */
+export function ViewBody({ className, children }: { className?: string; children?: ReactNode }) {
+  return (
+    <div className={cn('flex min-h-0 flex-1', LAYOUT.pageColumnFrame)} style={{ paddingTop: VIEW_FADE_PX }}>
+      <div className={cn('flex min-h-0 flex-1', LAYOUT.viewColumn, LAYOUT.listGutter, className)}>{children}</div>
+    </div>
   );
 }

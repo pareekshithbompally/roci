@@ -23,6 +23,7 @@ const ACTION_GLYPH: Record<string, { icon: LucideIcon; filled?: boolean }> = {
   pause: { icon: Pause, filled: true },
   play: { icon: Play, filled: true },
   square: { icon: Square, filled: true },
+  clock: { icon: Clock },
   sparkles: { icon: Sparkles },
   'refresh-cw': { icon: RefreshCw },
   download: { icon: Download },

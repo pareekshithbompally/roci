@@ -135,8 +135,9 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             // Usage
             commands::insert_usage,
             commands::get_usage_summary,
-            commands::get_meeting_usage,
-            commands::price_unpriced_usage,
+            commands::get_session_usage,
+            commands::unpriced_usage,
+            commands::set_usage_costs,
         ])
         .setup(|app, _api| {
             app.manage(StoreState::default());
