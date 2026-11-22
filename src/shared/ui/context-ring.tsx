@@ -5,6 +5,7 @@ import React from 'react';
 import type { ContextUsage, ContextLevel } from '@shared/hooks/useContextUsage';
 import { Popover, PopoverTrigger, PopoverContent } from './popover';
 import { Progress } from './progress';
+import { ProgressRing } from './progress-ring';
 import { Text, TONE_CLASSES } from './text';
 import type { TextTone } from './text';
 import { cn } from './utils';
@@ -24,35 +25,6 @@ const LEVEL_PROGRESS_TONE = {
 function formatTokens(n: number): string {
   return `${n.toLocaleString()} tok`;
 }
-
-const Dial: React.FC<{ percent: number }> = ({ percent }) => {
-  const radius = 8;
-  const center = 10;
-  const circumference = 2 * Math.PI * radius;
-  return (
-    <svg width={20} height={20} viewBox="0 0 20 20" fill="none" aria-hidden>
-      <circle
-        cx={center}
-        cy={center}
-        r={radius}
-        stroke="currentColor"
-        strokeOpacity={0.2}
-        strokeWidth={2.5}
-      />
-      <circle
-        cx={center}
-        cy={center}
-        r={radius}
-        stroke="currentColor"
-        strokeDasharray={circumference}
-        strokeDashoffset={circumference * (1 - percent / 100)}
-        strokeLinecap="round"
-        strokeWidth={2.5}
-        transform={`rotate(-90 ${center} ${center})`}
-      />
-    </svg>
-  );
-};
 
 const BreakdownRow: React.FC<{ label: string; value: string; sub?: string }> = ({
   label,
@@ -139,7 +111,7 @@ export function ContextRing({ usage, tools, cost, className }: ContextRingProps)
             className
           )}
         >
-          <Dial percent={usage.percent} />
+          <ProgressRing percent={usage.percent} />
         </button>
       </PopoverTrigger>
       <PopoverContent width="md" side="top" align="end" sideOffset={8}>

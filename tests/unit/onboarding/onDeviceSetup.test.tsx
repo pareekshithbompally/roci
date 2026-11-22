@@ -43,17 +43,27 @@ describe('OnDeviceSetup', () => {
     expect(screen.getByText('same-as-chat')).toBeInTheDocument();
   });
 
-  it('Start makes the picks the defaults, downloads what is missing, and waits until they are done', () => {
+  it('Start makes the picks the defaults and downloads what is missing; the app can open while they run', () => {
     const { rerender } = render(<OnDeviceSetup />);
     fireEvent.click(screen.getByRole('button', { name: 'Download and Start' }));
     expect(setSettings).toHaveBeenCalledWith(expect.objectContaining({
       chatModel: 'chat-a', analyzeModel: undefined, transcriptionProvider: 'on-device', transcriptionModel: 'stt', readAloudEngine: 'tts',
     }));
     expect(download.mock.calls.map(([id]) => id)).toEqual(['chat-a', 'stt']);
-    expect(finish).not.toHaveBeenCalled();
-
-    models.list = models.list.map((m) => ({ ...m, installed: true }));
     rerender(<OnDeviceSetup />);
+    expect(screen.getByRole('button', { name: /Downloading/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Open Roci Now' }));
+    expect(finish).toHaveBeenCalledOnce();
+    // the picks were applied once, at Start
+    expect(setSettings).toHaveBeenCalledOnce();
+  });
+
+  it('once every model is downloaded it waits for Start Using Roci', () => {
+    models.list = models.list.map((m) => ({ ...m, installed: true }));
+    render(<OnDeviceSetup />);
+    expect(finish).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Start Using Roci' }));
+    expect(setSettings).toHaveBeenCalledOnce();
     expect(finish).toHaveBeenCalledOnce();
   });
 

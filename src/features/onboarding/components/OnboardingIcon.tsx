@@ -1,14 +1,28 @@
-/** One onboarding row or choice icon, whatever its source: drawn by macOS, a glyph on a tile, a bundled light/dark image, or a provider fan. */
+/** One onboarding row or choice icon, whatever its source: drawn by macOS, a glyph on a tile, a bundled light/dark image, or
+ *  a fan of provider or engine logos. */
 
 import React from 'react';
-import { AppIcon, AppImage, GlyphTile, ProviderFan } from '@shared/components';
+import { AppIcon, AppImage, GlyphTile, IconFan, ProvidersAvatar } from '@shared/components';
 import { useThemeContext } from '@shared/contexts/ThemeContext';
+import { ICON_SIZE_PX } from '@shared/ui';
 import type { OnboardingIconSource } from '@config/onboarding.config';
 
 const Glyph: React.FC<{ source: OnboardingIconSource }> = ({ source }) => {
   const { isDark } = useThemeContext();
   if ('app' in source) return <AppIcon app={source.app} size="xl" symbol={source.symbol} />;
-  if ('providers' in source) return <ProviderFan providers={source.providers} />;
+  if ('providers' in source) {
+    return <IconFan tiles={source.providers.map((provider) => ({ key: provider, logo: (size) => <ProvidersAvatar provider={provider} size={ICON_SIZE_PX[size]} /> }))} />;
+  }
+  if ('engines' in source) {
+    return (
+      <IconFan
+        tiles={source.engines.map((engine) => ({
+          key: engine.name,
+          logo: (size) => <AppImage src={isDark ? engine.dark : engine.light} size={size} />,
+        }))}
+      />
+    );
+  }
   if ('glyph' in source) return <GlyphTile src={source.glyph} />;
   return <AppImage src={isDark ? source.image.dark : source.image.light} size="xl" />;
 };

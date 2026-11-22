@@ -101,7 +101,8 @@ export const UI_CONFIG = {
   /** A macOS app icon's visible body inside its canvas (824 of 1024): app icons scale up by its inverse to match a tile. */
   appIconBody: 824 / 1024,
   /** Provider logos fanned like cards: each tile slides out and tilts about its base, middle on top, every logo in view. */
-  providerFan: { width: 64, height: 44, tile: 26, logo: 16, shiftPx: 19, spreadDeg: 14 },
+  /** Logos fanned in one icon slot: tiles turned about a point `pivotPercent` of a tile below their tops (a hand of cards). */
+  iconFan: { width: 64, height: 44, tile: 26, logo: 'sm', shiftPx: 6, spreadDeg: 16, pivotPercent: 200 },
 
   /** How long a copy button shows its "Copied" tick */
   copiedFeedbackMs: 2_000,

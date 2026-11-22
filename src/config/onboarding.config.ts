@@ -1,18 +1,28 @@
 /** First-run flow copy and the icons it shows: welcome (no recording) or permissions (recording), then AI setup. */
 
-import { Bell, CalendarDays, Cpu, Lock, Mic, Sparkles, SquareTerminal, Volume2, type LucideIcon } from 'lucide-react';
+import { Bell, CalendarDays, Lock, Mic, Sparkles, SquareTerminal, Volume2, type LucideIcon } from 'lucide-react';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { platform } from '@platform/index';
 
 /** System Settings panes ship as ExtensionKit bundles; Launch Services resolves apps by id but not these, so they go by path. */
 const SETTINGS_PANES = '/System/Library/ExtensionKit/Extensions';
 
-/** A row's icon: one macOS draws (an app's bundle id, or a settings pane's path), a bundled light/dark image, or a fan of provider logos. */
+/** A bundled image in its light and dark forms (one file when it reads on both). */
+export interface ThemedImage {
+  light: string;
+  dark: string;
+}
+
+/** A row's icon: one macOS draws (an app's bundle id, or a settings pane's path), a bundled light/dark image, or a fan of
+ *  provider logos or of the on-device engines' logos. */
 export type OnboardingIconSource =
   | { app: string; symbol: LucideIcon }
   | { glyph: string }
-  | { image: { light: string; dark: string } }
-  | { providers: readonly string[] };
+  | { image: ThemedImage }
+  | { providers: readonly string[] }
+  | { engines: readonly (ThemedImage & { name: string })[] };
+
+const GGML_LOGO = '/images/model-provider/llama-cpp.png';
 
 /** macOS has no current microphone icon to draw, so that one is bundled in the same style (SF Symbol mic.fill on the icon tile). */
 export const ONBOARDING_ICONS = {
@@ -23,8 +33,13 @@ export const ONBOARDING_ICONS = {
   // Apple Intelligence's own mark is a bare glyph: on a tile it weighs the same as the app icons beside it.
   appleIntelligence: { glyph: INTEGRATIONS_CONFIG.appleIntelligence.icon },
   local: { app: 'com.apple.Terminal', symbol: SquareTerminal },
-  // This Mac's own hardware: System Information's icon.
-  onDevice: { app: 'com.apple.SystemProfiler', symbol: Cpu },
+  // The engines models run on here: MLX (chat, voices, search) and transcribe.cpp on ggml (speech recognition).
+  onDevice: {
+    engines: [
+      { name: 'transcribe.cpp', light: GGML_LOGO, dark: GGML_LOGO },
+      { name: 'MLX', light: '/images/engines/mlx-light.png', dark: '/images/engines/mlx-dark.png' },
+    ],
+  },
   remote: { providers: ['gemini', 'openai', 'anthropic'] },
 } satisfies Record<string, OnboardingIconSource>;
 
@@ -95,17 +110,22 @@ export const ONBOARDING_CONFIG = {
         : 'Enter an address like https://my-mac.tailnet.ts.net.',
       placeholder: platform.runsLocalServers ? 'http://localhost:11434' : 'https://my-mac.tailnet.ts.net',
     },
-    /** Models downloaded to this device: a model for each job, downloaded on this screen. */
+    /** Models downloaded to this device: a model for each job, downloaded on this screen, in three states (choosing,
+     *  downloading, ready). */
     onDevice: {
       title: `On this ${platform.deviceName}`,
       description: 'Private, free and offline',
       heading: `On this ${platform.deviceName}`,
-      subtitle: `Runs privately on this ${platform.deviceName}. Nothing leaves it, nothing is charged.`,
-      footer: (size: string) => `Downloads keep going if you leave. ${size} to download.`,
-      ready: 'Every model is downloaded.',
+      subtitle: `Private and offline. Nothing leaves this ${platform.deviceName}, nothing is charged.`,
+      footer: {
+        choosing: (size: string) => `${size} to download. Chat runs on MLX, speech recognition on transcribe.cpp.`,
+        downloading: (left: string) => `${left} left. You can open Roci now; the downloads carry on and each job turns on when its model is ready.`,
+        ready: `Everything is on this ${platform.deviceName}. Change models any time in Settings › Default Models.`,
+      },
       start: 'Download and Start',
-      startReady: 'Start',
       downloading: (percent: number) => `Downloading… ${percent}%`,
+      openNow: 'Open Roci Now',
+      ready: 'Start Using Roci',
     },
     remote: {
       title: 'Online provider',

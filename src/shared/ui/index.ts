@@ -53,6 +53,8 @@ export type { CheckboxProps, CheckboxState } from './checkbox';
 export { Kbd, Keycaps } from './kbd';
 export { Progress } from './progress';
 export type { ProgressProps } from './progress';
+export { ProgressRing } from './progress-ring';
+export type { ProgressRingProps } from './progress-ring';
 export { Surface, Separator, Dot, Status } from './surface';
 export { ScrollArea } from './scroll-area';
 export { edgeFade } from './fade';

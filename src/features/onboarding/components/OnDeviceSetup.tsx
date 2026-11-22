@@ -1,8 +1,9 @@
 /** First-run on-device option: a model for each job (chat, speech recognition, read aloud, summaries), each downloaded on
- *  this screen. The picks become the defaults when the downloads start: Start waits for them and opens the app; Set up
- *  later opens it at once while they carry on (the activity tray shows them). Back leaves the settings as they were. */
+ *  this screen, in three states. Choosing: each row's picker with its download beside it; Download and Start makes the picks
+ *  the defaults and downloads what is missing (Back leaves the settings as they were). Downloading: each row's progress; the
+ *  app can open now while they carry on. Ready: every row ticked; Start Using Roci opens the app. */
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Section, WelcomeStep } from '@shared/ui';
 import { JOB_GLYPH, ModelDownloadButton } from '@shared/components';
 import { useSettings } from '@shared/contexts/SettingsContext';
@@ -50,15 +51,20 @@ const settingsOf = (picks: Picks): Partial<AppSettings> => ({
   readAloudVoice: undefined,
 });
 
-/** The picked models (each once), those still to download, their size, and how far they have come together. */
-function useChosen(models: LocalModel[], picks: Picks) {
+type Phase = 'choosing' | 'downloading' | 'ready';
+
+/** The picked models (each once), those still to download, what is left of them, how far they have come together, and the
+ *  screen's state: ready once all are downloaded, downloading once any is under way (or Start was pressed). */
+function useChosen(models: LocalModel[], picks: Picks, started: boolean) {
   const controls = useLocalModelControls();
   const ids = new Set([picks.chat, picks.speech, picks.voice, picks.summaries].filter((id): id is string => !!id));
   const chosen = models.filter((m) => ids.has(m.id));
   const pending = chosen.filter((m) => !m.installed);
   const bytes = pending.reduce((sum, m) => sum + m.bytes, 0);
   const done = pending.reduce((sum, m) => sum + m.bytes * ((controls[m.id]?.percent ?? 0) / 100), 0);
-  return { controls, chosen, pending, bytes, percent: bytes > 0 ? Math.floor((done / bytes) * 100) : 100 };
+  const busy = started || pending.some((m) => controls[m.id]?.status === 'busy');
+  const phase: Phase = chosen.length > 0 && pending.length === 0 ? 'ready' : busy ? 'downloading' : 'choosing';
+  return { controls, pending, bytes, left: bytes - done, percent: bytes > 0 ? Math.floor((done / bytes) * 100) : 100, phase };
 }
 
 export const OnDeviceSetup: React.FC = () => {
@@ -66,7 +72,7 @@ export const OnDeviceSetup: React.FC = () => {
   const finish = useFinishOnboarding();
   const setStep = useSetOnboardingStep();
   const [picked, setPicked] = useState<Partial<Picks>>({});
-  const [starting, setStarting] = useState(false);
+  const [started, setStarted] = useState(false);
   const { data: models = [] } = useLocalModels();
   const picks: Picks = {
     chat: picked.chat ?? firstOf(models, 'chat'),
@@ -74,57 +80,50 @@ export const OnDeviceSetup: React.FC = () => {
     voice: picked.voice ?? firstOf(models, 'voice'),
     summaries: picked.summaries ?? null,
   };
-  const { controls, chosen, pending, bytes, percent } = useChosen(models, picks);
+  const { controls, pending, bytes, left, percent, phase } = useChosen(models, picks, started);
   const pick = (job: keyof Picks) => (id: string) => setPicked((now) => ({ ...now, [job]: id === SAME_AS_CHAT.value ? null : id }));
 
   // the picks become the defaults, and what isn't downloaded yet starts downloading
-  const apply = () => {
+  const start = () => {
     setSettings(settingsOf(picks));
     pending.forEach((m) => controls[m.id]?.status === 'idle' && controls[m.id].download());
+    setStarted(true);
+  };
+  const open = () => {
+    if (!started) setSettings(settingsOf(picks));
+    finish();
   };
 
-  // Start waits here until every picked model is downloaded
-  useEffect(() => {
-    if (starting && chosen.length > 0 && pending.length === 0) finish();
-  }, [starting, chosen.length, pending.length, finish]);
-
+  /** A job's row: its download (a ring while it runs, a tick once ready) beside the picker at the row's end. */
   const row = (job: keyof Picks, title: { title: string }, icon: keyof typeof JOB_GLYPH, kind: LocalModelKind) => {
     const value = picks[job] ?? undefined;
     const control = value ? controls[value] : undefined;
     return (
       <CapabilityRow icon={JOB_GLYPH[icon]} job={title}>
         <div className="flex items-center gap-2">
+          {control && <ModelDownloadButton model={control} compact />}
           <ModelSelect
             value={value ?? (job === 'summaries' ? SAME_AS_CHAT.value : undefined)}
             choices={choicesOf(models, kind)}
             onChange={pick(job)}
             off={job === 'summaries' ? SAME_AS_CHAT : undefined}
           />
-          {control && <ModelDownloadButton model={control} />}
         </div>
       </CapabilityRow>
     );
   };
 
-  const start = () => {
-    apply();
-    setStarting(true);
-  };
-  const later = () => {
-    apply();
-    finish();
-  };
-  const primaryLabel = pending.length === 0 ? COPY.startReady : starting ? COPY.downloading(percent) : COPY.start;
+  const footer = { choosing: COPY.footer.choosing(formatFileSize(bytes)), downloading: COPY.footer.downloading(formatFileSize(left)), ready: COPY.footer.ready }[phase];
+  const primary = {
+    choosing: { label: COPY.start, onClick: start, disabled: models.length === 0 },
+    downloading: { label: COPY.downloading(percent), onClick: start, disabled: true },
+    ready: { label: COPY.ready, onClick: open },
+  }[phase];
+  const secondary = { choosing: { label: ACTIONS.back, onClick: () => setStep('setup') }, downloading: { label: COPY.openNow, onClick: open }, ready: undefined }[phase];
 
   return (
-    <WelcomeStep
-      title={COPY.heading}
-      subtitle={COPY.subtitle}
-      primary={{ label: primaryLabel, onClick: start, disabled: starting || chosen.length === 0 }}
-      // once the downloads run, the way out is to let them carry on; before, it is back to the choices
-      secondary={starting ? { label: ACTIONS.later, onClick: later } : { label: ACTIONS.back, onClick: () => setStep('setup') }}
-    >
-      <Section footer={bytes > 0 ? COPY.footer(formatFileSize(bytes)) : COPY.ready}>
+    <WelcomeStep title={COPY.heading} subtitle={COPY.subtitle} primary={primary} secondary={secondary}>
+      <Section footer={footer}>
         {row('chat', JOBS.chat, 'chat', 'chat')}
         {row('speech', JOBS.transcription, 'transcription', 'speech')}
         {row('voice', JOBS.readAloud, 'readAloud', 'voice')}
