@@ -12,6 +12,7 @@ import type { ModelOverrides } from '@shared/types/modelProviders';
 const CORRECTIONS: ReadonlyArray<{ label: string; key: keyof ModelOverrides; on: (p: ModelProfile) => boolean }> = [
   { label: 'Vision', key: 'vision', on: (p) => p.input.includes('image') },
   { label: 'Audio input', key: 'audio', on: (p) => p.input.includes('audio') },
+  { label: 'PDF input', key: 'pdf', on: (p) => p.input.includes('pdf') },
   { label: 'Tool calling', key: 'tools', on: (p) => p.tools },
   { label: 'Thinking', key: 'reasoning', on: (p) => p.reasoning },
 ];

@@ -15,3 +15,16 @@ export function fileToDataUrl(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+
+/** The text a `data:` URL carries, decoded as UTF-8; null when it isn't one or doesn't decode. */
+export function dataUrlText(url: string): string | null {
+  const match = /^data:[^,]*?(;base64)?,(.*)$/s.exec(url);
+  if (!match) return null;
+  try {
+    if (!match[1]) return decodeURIComponent(match[2]);
+    const bytes = Uint8Array.from(atob(match[2]), (char) => char.charCodeAt(0));
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return null;
+  }
+}

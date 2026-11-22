@@ -22,6 +22,13 @@ export const TOOL_RESULT_PREVIEW_CHARS = 500;
 /** Attachments one message can carry. */
 export const CHAT_MAX_ATTACHMENTS = 10;
 
+/** Attached files by what reads them: a PDF (models that take PDFs), and text, which every model reads (sent as its
+ *  contents), known by its media type or, when the system gives it none, its extension. */
+export const ATTACHMENT_TYPES = {
+  pdf: { mediaType: 'application/pdf', extension: '.pdf' },
+  text: { mediaTypePrefix: 'text/', mediaTypes: ['application/json'], extensions: ['.txt', '.md', '.csv', '.json'] },
+} as const;
+
 /** A new chat's title is the question's first this-many characters until the model names it. */
 export const CHAT_TITLE_MAX_CHARS = 30;
 

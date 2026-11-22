@@ -4,6 +4,8 @@ import { getToolName, isTextUIPart, isToolUIPart } from 'ai';
 import type { ChatMessage, ChatPart, GeneratedImage, MeetingCitation, WebCitation } from '@shared/types';
 import type { ToolResult, ToolView } from '@extensions/tools/types';
 import { isRecord } from '@shared/utils/validators';
+import { ATTACHMENT_TYPES } from '@config/chat.config';
+import type { Modality } from '@config/modelSpine.config';
 
 /** The kinds of media a message shows, from a file's media type. */
 export type MediaKind = 'image' | 'audio' | 'video' | 'document';
@@ -11,6 +13,20 @@ export type MediaKind = 'image' | 'audio' | 'video' | 'document';
 export function mediaKind(mediaType: string): MediaKind {
   const [kind] = mediaType.split('/');
   return kind === 'image' || kind === 'audio' || kind === 'video' ? kind : 'document';
+}
+
+const hasExtension = (filename: string, extensions: readonly string[]) =>
+  extensions.some((extension) => filename.toLowerCase().endsWith(extension));
+
+/** What a model must take to read an attached file: images, audio, video or PDFs; `text` for a text file (sent as its
+ *  contents, which every model reads); null for a file no model reads (a Word document, an archive). */
+export function attachmentInput(mediaType: string, filename = ''): Modality | null {
+  const kind = mediaKind(mediaType);
+  if (kind !== 'document') return kind;
+  const { pdf, text } = ATTACHMENT_TYPES;
+  if (mediaType === pdf.mediaType || hasExtension(filename, [pdf.extension])) return 'pdf';
+  const textType = mediaType.startsWith(text.mediaTypePrefix) || (text.mediaTypes as readonly string[]).includes(mediaType);
+  return textType || hasExtension(filename, text.extensions) ? 'text' : null;
 }
 
 /** A part the reply shows: words, thinking or a tool call; the empty blocks some providers open (Gemini's signed text,

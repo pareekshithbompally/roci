@@ -1,7 +1,7 @@
 /** A model's facts as chips (what it can take and do), and its name with them: one look for every model list. */
 
 import React from 'react';
-import { AudioLines, Brain, Eye, Video, Wrench, type LucideIcon } from 'lucide-react';
+import { AudioLines, Brain, Eye, FileText, Video, Wrench, type LucideIcon } from 'lucide-react';
 import { Chip } from '@shared/ui';
 import { useFormFactor } from '@platform/formFactor';
 import { featuresOf } from '@services/ai/models';
@@ -12,6 +12,7 @@ const FEATURE_CHIPS: Readonly<Record<ModelFeature, { icon: LucideIcon; title: st
   vision: { icon: Eye, title: 'Vision' },
   audio: { icon: AudioLines, title: 'Audio input' },
   video: { icon: Video, title: 'Video input' },
+  pdf: { icon: FileText, title: 'PDF input' },
   tools: { icon: Wrench, title: 'Tool calling' },
   thinking: { icon: Brain, title: 'Thinking' },
 };

@@ -38,6 +38,11 @@ describe('openAIListing', () => {
     }]);
   });
 
+  it("reads OpenRouter's `file` input as PDFs, once", () => {
+    const [listed] = openAIListing({ data: [{ id: 'anthropic/claude-sonnet-4.5', architecture: { input_modalities: ['text', 'image', 'file', 'pdf'], output_modalities: ['text'] } }] });
+    expect(listed.report.input).toEqual(['text', 'image', 'pdf']);
+  });
+
   it('a bare id list (OpenAI) carries ids only; Groq context_window is kept', () => {
     expect(openAIListing({ data: [{ id: 'gpt-5' }, { id: 'llama-4', context_window: 131_072 }] })).toEqual([
       { id: 'gpt-5', report: {} },

@@ -1,7 +1,7 @@
 /** Model spine: the jobs a model can do (as input→output modalities), and the name rules used when nothing else describes a model. */
 
 /** What goes in or comes out of a model; `vector` is an embedding. */
-export type Modality = 'text' | 'audio' | 'image' | 'video' | 'vector';
+export type Modality = 'text' | 'audio' | 'image' | 'video' | 'pdf' | 'vector';
 
 export type ModelJob = 'chat' | 'transcribe' | 'speak' | 'image' | 'embed';
 
@@ -28,8 +28,10 @@ export const MODEL_SPINE_CONFIG = {
     embed: { input: 'text', output: 'vector' },
   } satisfies Record<ModelJob, JobShape>,
 
-  /** Modalities Roci reads from any fact source; others (pdf, file) are dropped. */
-  modalities: ['text', 'audio', 'image', 'video', 'vector'] as readonly Modality[],
+  /** Modalities Roci reads from any fact source; others are dropped. */
+  modalities: ['text', 'audio', 'image', 'video', 'pdf', 'vector'] as readonly Modality[],
+  /** A source's own word for a modality: OpenRouter-style lists call PDF input `file`. */
+  modalityAliases: { file: 'pdf' } as Readonly<Record<string, Modality>>,
 
   /** Last-resort description by model id, first match wins; a model matching none is unknown. */
   nameRules: [

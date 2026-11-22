@@ -42,7 +42,7 @@ export interface ChatPromptOptions {
 }
 
 /** Each modality as the prompt names it; embeddings aren't something a chat reads or writes. */
-const MODALITY_WORDS: Record<Modality, string | null> = { text: 'text', image: 'images', audio: 'audio', video: 'video', vector: null };
+const MODALITY_WORDS: Record<Modality, string | null> = { text: 'text', image: 'images', audio: 'audio', video: 'video', pdf: 'PDFs', vector: null };
 
 /** "a", "a and b", "a, b and c". */
 function listOf(items: readonly string[]): string {
@@ -167,6 +167,16 @@ function rules(tools: ChatToolset): string {
     tools.memory && '- Memory: suggest remembering only what the user asks you to, or a lasting fact they share about themselves or the people, organizations and projects in their work. Facts about the user go to `suggest_memory`, not to any other tool. Never one-off details, secrets, or health or financial details; at most one per reply, and never one you already know. The user approves each on a card.',
   ];
   return `## Rules\n\n${lines.filter(Boolean).join('\n')}`;
+}
+
+/** A text file the user attached, as the model reads it: its name, then its contents. */
+export function attachedFileText(name: string, contents: string): string {
+  return `## File the user attached: ${name}\n\n${contents}`;
+}
+
+/** A file the user attached that this model can't read, named so it can say so instead of guessing. */
+export function unreadableFileText(name: string): string {
+  return `(The user attached "${name}", which you can't read. If it matters to the answer, say so.)`;
 }
 
 /** Meetings attached to a question, as the question carries them on every turn after. */

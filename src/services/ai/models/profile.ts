@@ -60,9 +60,10 @@ function defaultLayer(): Layer {
 }
 
 /** The inputs a correction turns on or off. */
-const INPUT_OVERRIDES: ReadonlyArray<{ key: 'vision' | 'audio'; modality: Modality }> = [
+const INPUT_OVERRIDES: ReadonlyArray<{ key: 'vision' | 'audio' | 'pdf'; modality: Modality }> = [
   { key: 'vision', modality: 'image' },
   { key: 'audio', modality: 'audio' },
+  { key: 'pdf', modality: 'pdf' },
 ];
 
 /** The sources' inputs with the user's input corrections applied; unchanged when there are none. */
@@ -122,12 +123,13 @@ export function profileOf(provider: string, model: ProfiledModel): ModelProfile 
 }
 
 /** What a model can do beyond text in and out, as every model list shows it (chips, menu lines). */
-export type ModelFeature = 'vision' | 'audio' | 'video' | 'tools' | 'thinking';
+export type ModelFeature = 'vision' | 'audio' | 'video' | 'pdf' | 'tools' | 'thinking';
 
 const FEATURES: ReadonlyArray<{ feature: ModelFeature; fact: Fact; has: (p: ModelProfile) => boolean }> = [
   { feature: 'vision', fact: 'input', has: (p) => p.input.includes('image') },
   { feature: 'audio', fact: 'input', has: (p) => p.input.includes('audio') },
   { feature: 'video', fact: 'input', has: (p) => p.input.includes('video') },
+  { feature: 'pdf', fact: 'input', has: (p) => p.input.includes('pdf') },
   { feature: 'tools', fact: 'tools', has: (p) => p.tools },
   { feature: 'thinking', fact: 'reasoning', has: (p) => p.reasoning },
 ];

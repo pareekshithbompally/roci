@@ -13,10 +13,8 @@ import { openAttachment } from '@features/chat/utils';
 import { AudioPlayer, RemovedNotice, VideoPlayer } from '@shared/components';
 import { StorageConfig } from '@config/storage.config';
 import type { FileUIPart, GeneratedImage } from '@shared/types';
-import { mediaKind, type MediaKind } from '@shared/utils/chatParts';
+import { attachmentInput, mediaKind, type MediaKind } from '@shared/utils/chatParts';
 import { useObjectUrl } from '@shared/hooks';
-
-const PDF_TYPE = 'application/pdf';
 
 /** What a message shows as media: an attached file (the SDK's file part), or an image a tool made. */
 export type ChatMedia = FileUIPart | GeneratedImage;
@@ -60,7 +58,7 @@ function DocumentChip({ media, name }: { media: ChatMedia; name?: string }) {
       <Text variant="helper" truncate className="max-w-48">{name}</Text>
     </>
   );
-  const pdf = 'url' in media && media.mediaType === PDF_TYPE;
+  const pdf = 'url' in media && attachmentInput(media.mediaType, media.filename) === 'pdf';
   const opens = pdf || (platform.hasFileManager && 'url' in media);
   const onOpen = () => {
     if (pdf) setOpen(true);

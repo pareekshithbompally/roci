@@ -182,7 +182,7 @@ export async function orchestrate(
       model: createModel(resolved, { webSearch: !!webSearchTools, ...(reportsProgress && { llamaServer: { reasoningEffort } }) }),
       ...chatCallSettings(resolved, reasoningEffort),
       instructions: systemPrompt,
-      messages: await toModelMessages(messages, tools ?? {}),
+      messages: await toModelMessages(messages, tools ?? {}, input),
       abortSignal: signal,
       ...(webSearchTools && { experimental_transform: withoutCitationMarkers }),
       ...(reportsProgress && {

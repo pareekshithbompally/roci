@@ -6,8 +6,11 @@ import type { Model, ModelReport } from '@shared/types/modelProviders';
 
 const isModality = (m: string): m is Modality => (MODEL_SPINE_CONFIG.modalities as readonly string[]).includes(m);
 
-/** The modalities Roci knows out of a source's list (`pdf`, `file` and the like are dropped). */
-export const toModalities = (raw: readonly string[]): Modality[] => raw.filter(isModality);
+/** The modalities Roci knows out of a source's list, each source's own words read as Roci's (`file` → `pdf`); the rest
+ *  are dropped, and each is kept once. */
+export const toModalities = (raw: readonly string[]): Modality[] => [
+  ...new Set(raw.map((m) => MODEL_SPINE_CONFIG.modalityAliases[m] ?? m).filter(isModality)),
+];
 
 /** The report without the facts it leaves unset. */
 const statedFacts = (report: ModelReport): ModelReport =>

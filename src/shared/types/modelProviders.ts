@@ -35,6 +35,7 @@ export type ModelReport = {
 export type ModelOverrides = {
   vision?: boolean
   audio?: boolean
+  pdf?: boolean
   tools?: boolean
   reasoning?: boolean
 }
