@@ -31,7 +31,9 @@ export function isLlamaServer(baseUrl: string): Promise<boolean> {
 /** Whether a chat template thinks, by llama-server's own web UI rule (`LLAMA_THINKING_TEMPLATE`). */
 export function templateThinks(template: string): boolean {
   const { variables, conditionals, markers } = LLAMA_THINKING_TEMPLATE;
+  // the names are LLAMA_THINKING_TEMPLATE's fixed words, never input
   const inExpression = (name: string) =>
+    // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
     new RegExp(`(\\{\\{[^{}]*\\b${name}\\b[^{}]*\\}\\}|\\{%[^{}]*\\b${name}\\b[^{}]*%\\})`, 'i').test(template);
   return variables.some(inExpression)
     || conditionals.some((pattern) => pattern.test(template))

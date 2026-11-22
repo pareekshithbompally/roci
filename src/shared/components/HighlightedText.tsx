@@ -22,6 +22,8 @@ export const HighlightedText: React.FC<HighlightedTextProps> = ({ text, highligh
   const words = queryWords(highlight);
   if (words.length === 0) return <>{text}</>;
   // Longest first, so "review" wins over "re" where both would match.
+  // every word is escaped, so the pattern is only literal alternatives
+  // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
   const pattern = new RegExp(`(${[...words].sort((a, b) => b.length - a.length).map(escapeRegExp).join('|')})`, 'gi');
   return (
     <span>

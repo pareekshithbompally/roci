@@ -44,6 +44,18 @@ npm run audit:design             # design-system rules
 (cd src-tauri && cargo build)    # Rust, with no warnings
 ```
 
+## Security checks before each commit
+
+```bash
+brew install gitleaks semgrep
+npm run hooks:install    # once: use the repo's hooks (.githooks)
+npm run security         # whole history and source tree, any time
+```
+
+The pre-commit hook runs `scripts/security-scan.sh --staged`: gitleaks looks for keys and high-entropy secrets in what you
+are committing (`.gitleaks.toml`), and Semgrep runs its security rules for TypeScript, Rust, shell and GitHub Actions on the
+staged files. Any finding stops the commit. A false positive is marked in place with `// nosemgrep: <rule>` and a reason.
+
 ## Good to know
 
 - macOS asks for Microphone, Screen Recording, Calendar and Notifications the first time each is used.

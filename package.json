@@ -18,7 +18,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "audit:design": "scripts/design-audit.sh",
-    "notices": "node scripts/generate-notices.ts"
+    "notices": "node scripts/generate-notices.ts",
+    "security": "scripts/security-scan.sh",
+    "hooks:install": "git config core.hooksPath .githooks"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.105",

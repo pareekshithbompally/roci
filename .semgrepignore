@@ -1,0 +1,6 @@
+# Semgrep also skips what .gitignore does. Third-party and generated code is not ours to fix.
+src-tauri/plugins/tauri-plugin-store/vendor/
+src-tauri/gen/
+src-tauri/resources/
+public/
+tests/

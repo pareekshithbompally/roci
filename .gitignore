@@ -11,6 +11,17 @@ src-tauri/RociMLX/.swiftpm
 logs
 *.log
 
+# Secrets and signing material: never committed
+.env
+.env.*
+*.p8
+*.p12
+*.pem
+*.key
+*.cer
+*.mobileprovision
+*.keychain-db
+
 # macOS and editors
 .DS_Store
 .vscode/*
