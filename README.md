@@ -37,7 +37,7 @@
   own price. Usage shows cost by model, by use and over time.
 - **Calendar.** Upcoming meetings, a reminder before each one, and a Record button in it.
 - **Tools.** Web search and image generation with cloud models. Add any MCP server to give Roci more tools, or connect
-  your coding agents to Roci's own MCP server so they can read your meetings and notes.
+  your coding agents to Roci's own MCP server so they can use Roci's tools.
 
 <p align="center">
   <img src=".github/assets/meeting.png" alt="A meeting in Roci: transcript beside the AI summary" width="860">
