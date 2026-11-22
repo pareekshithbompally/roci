@@ -42,4 +42,20 @@ describe('show', () => {
     const table = await showTool.execute({ ...base, kind: 'table', columns: ['Ticker', 'YTD'], rows: [['NVDA', '-32.5%']] }, ctx);
     expect(table.meta?.view).toMatchObject({ kind: 'table', columns: ['Ticker', 'YTD'], rows: [['NVDA', '-32.5%']] });
   });
+
+  it('takes numbers where it shows text, and draws them as text', async () => {
+    const out = await showTool.execute({ ...base, kind: 'table', columns: ['Ticker', 'Price'], rows: [['NVDA', 125.53]] }, ctx);
+    expect(out.meta?.view).toMatchObject({ rows: [['NVDA', '125.53']] });
+    const stats = await showTool.execute({ ...base, kind: 'stats', stats: [{ label: 'NVDA', value: -32.5 }] }, ctx);
+    expect(stats.meta?.view).toMatchObject({ stats: [{ label: 'NVDA', value: '-32.5' }] });
+  });
+
+  it('links only to web pages, and asks for two points before a line', async () => {
+    const local = await showTool.execute({ ...base, source_url: 'file:///etc/passwd', kind: 'stats', stats: [{ label: 'a', value: '1' }] }, ctx);
+    expect(local.isError).toBe(true);
+    const point = await showTool.execute({ ...base, kind: 'chart', labels: ['Q3'], series: [{ name: 'Rev', values: [12] }] }, ctx);
+    expect(point.content).toContain('at least 2 labels');
+    const bar = await showTool.execute({ ...base, kind: 'chart', chart_type: 'bar', labels: ['Q3'], series: [{ name: 'Rev', values: [12] }] }, ctx);
+    expect(bar.isError).toBe(false);
+  });
 });

@@ -4,10 +4,14 @@
 import { z } from 'zod';
 import { RESULT_VIEWS_CONFIG as LIMITS } from '@config/resultViews.config';
 
-export const RESULT_VIEW_KINDS = ['chart', 'stats', 'table'] as const;
-export const CHART_TYPES = ['line', 'area', 'bar'] as const;
+const RESULT_VIEW_KINDS = ['chart', 'stats', 'table'] as const;
+const CHART_TYPES = ['line', 'area', 'bar'] as const;
 
 const words = (description: string) => z.string().trim().min(1).describe(description);
+
+/** A figure the model may send as a number or as text; the view shows it as text (a cell may be empty, a stat's value may not). */
+const cell = z.union([z.string(), z.number()]);
+const figure = z.union([z.string().trim().min(1), z.number()]);
 
 const series = z.object({
   name: words('What this line or set of bars stands for, e.g. "NVDA".'),
@@ -16,7 +20,7 @@ const series = z.object({
 
 const stat = z.object({
   label: words('What the figure is, e.g. "NVDA YTD".'),
-  value: words('The figure as it should read, with its unit, e.g. "-32.5%" or "$125.53".'),
+  value: figure.describe('The figure as it should read, with its unit, e.g. "-32.5%" or "$125.53".'),
   change: z.string().trim().optional().describe('Its change, signed, e.g. "+1.2% today".'),
 });
 
@@ -25,7 +29,7 @@ export const showInput = z
     kind: z.enum(RESULT_VIEW_KINDS).describe('chart: values over time or across categories. stats: one to a few headline figures. table: rows and columns.'),
     title: words('A short title naming what is shown.'),
     source: words('Where the figures came from: the website, app or meeting they were found in.'),
-    source_url: z.url().optional().describe('The page the figures came from, when there is one.'),
+    source_url: z.url({ protocol: /^https?$/ }).optional().describe('The web page (http or https) the figures came from, when there is one.'),
     chart_type: z.enum(CHART_TYPES).default('line').describe('chart: line for a trend, area for a trend of one total, bar to compare categories.'),
     labels: z.array(z.string().trim()).max(LIMITS.maxPoints).optional().describe('chart: the x-axis labels (dates or categories), in order.'),
     series: z.array(series).max(LIMITS.maxSeries).optional().describe('chart: one or more series, each with a value per label.'),
@@ -33,7 +37,7 @@ export const showInput = z
     stats: z.array(stat).max(LIMITS.maxStats).optional().describe('stats: the figures, side by side.'),
     as_of: z.string().trim().optional().describe('stats: when the figures were true, e.g. "Nov 20, 2026".'),
     columns: z.array(z.string().trim()).max(LIMITS.maxColumns).optional().describe('table: the column headers.'),
-    rows: z.array(z.array(z.string())).max(LIMITS.maxRows).optional().describe('table: the rows, each a cell per column.'),
+    rows: z.array(z.array(cell)).max(LIMITS.maxRows).optional().describe('table: the rows, each a cell per column.'),
   })
   .superRefine((input, ctx) => {
     for (const problem of problemsOf(input)) ctx.addIssue({ code: 'custom', message: problem });
@@ -42,10 +46,11 @@ export const showInput = z
 export type ShowInput = z.output<typeof showInput>;
 
 /** What a kind needs that the call left out or got wrong, in words the model can act on. */
-function problemsOf(input: Pick<ShowInput, 'kind' | 'labels' | 'series' | 'stats' | 'columns' | 'rows'>): string[] {
+function problemsOf(input: Pick<ShowInput, 'kind' | 'chart_type' | 'labels' | 'series' | 'stats' | 'columns' | 'rows'>): string[] {
   if (input.kind === 'chart') {
     const count = input.labels?.length ?? 0;
     if (count === 0 || !input.series?.length) return ['A chart needs `labels` and at least one entry in `series`.'];
+    if (count < 2 && input.chart_type !== 'bar') return ['A line or area chart needs at least 2 labels; use `chart_type: "bar"` for one.'];
     return input.series.filter((s) => s.values.length !== count).map((s) => `Series "${s.name}" has ${s.values.length} values for ${count} labels.`);
   }
   if (input.kind === 'stats') return input.stats?.length ? [] : ['Stats need at least one entry in `stats`.'];
@@ -71,6 +76,9 @@ export function toResultView(input: ShowInput): ResultView {
   if (input.kind === 'chart') {
     return { ...base, kind: 'chart', chartType: input.chart_type, labels: input.labels ?? [], series: input.series ?? [], ...(input.unit && { unit: input.unit }) };
   }
-  if (input.kind === 'stats') return { ...base, kind: 'stats', stats: input.stats ?? [], ...(input.as_of && { asOf: input.as_of }) };
-  return { ...base, kind: 'table', columns: input.columns ?? [], rows: input.rows ?? [] };
+  if (input.kind === 'stats') {
+    const stats = (input.stats ?? []).map((stat) => ({ ...stat, value: String(stat.value) }));
+    return { ...base, kind: 'stats', stats, ...(input.as_of && { asOf: input.as_of }) };
+  }
+  return { ...base, kind: 'table', columns: input.columns ?? [], rows: (input.rows ?? []).map((row) => row.map(String)) };
 }

@@ -48,6 +48,25 @@ function tokenTheme(): object {
   };
 }
 
+/** A chart of values across categories (days, names) as every Roci trend and comparison draws one: inset plot, the axis
+ *  pointer only (the line above the chart reads the point), a few value ticks. `fromZero: false` lets a trend's axis start
+ *  near its own range; bars and areas always measure from zero. */
+export function axisChart({ categories, series, formatValue, fromZero = true }: {
+  categories: string[];
+  series: Array<BarSeriesOption | LineSeriesOption>;
+  formatValue: (value: number) => string;
+  fromZero?: boolean;
+}): ChartOption {
+  const bars = series.some((s) => s.type === 'bar');
+  return {
+    grid: { left: C.inset, right: C.inset, top: C.inset, bottom: C.inset, containLabel: true },
+    tooltip: { trigger: 'axis', showContent: false },
+    xAxis: { type: 'category', data: categories, boundaryGap: bars },
+    yAxis: { type: 'value', splitNumber: C.valueTicks, scale: !fromZero, axisLabel: { formatter: formatValue } },
+    series,
+  };
+}
+
 export interface ChartProps {
   option: ChartOption;
   /** Plot height in px (from config). */

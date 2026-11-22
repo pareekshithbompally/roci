@@ -9,23 +9,28 @@ import { SourceLine } from './SourceLine';
 type TableViewModel = Extract<ResultView, { kind: 'table' }>;
 type Row = { key: string; cells: string[] };
 
-/** A cell's number, read past its currency, percent and grouping marks; null when it isn't one. */
+/** A cell with no figure in it ("", "—", "N/A"): it says nothing is there, so it doesn't decide what the column holds. */
+const isBlank = (cell: string) => !/\d/.test(cell);
+
+/** A cell's number, read past its currency, percent and grouping marks (a Unicode minus as a minus); null when it isn't one. */
 function figureOf(cell: string): number | null {
-  const bare = cell.replace(/[,%$€£¥\s]/g, '');
+  const bare = cell.replace(/\u2212/g, '-').replace(/[,%$€£¥\s]/g, '');
   if (bare === '') return null;
   const value = Number(bare);
   return Number.isFinite(value) ? value : null;
 }
 
-/** A column of figures aligns to the end and sorts by value; any other sorts by its words. */
+/** A column whose filled cells are all figures aligns to the end and sorts by value, its blank cells counting as the lowest;
+ *  any other sorts by its words. */
 function columnOf(header: string, index: number, rows: Row[]): DataColumn<Row> {
-  const figures = rows.every((row) => figureOf(row.cells[index]) !== null);
+  const filled = rows.map((row) => row.cells[index]).filter((cell) => !isBlank(cell));
+  const figures = filled.length > 0 && filled.every((cell) => figureOf(cell) !== null);
   return {
     key: `c${index}`,
     header,
     align: figures ? 'end' : 'start',
     cell: (row) => row.cells[index],
-    sortValue: (row) => (figures ? (figureOf(row.cells[index]) ?? 0) : row.cells[index]),
+    sortValue: (row) => (figures ? (figureOf(row.cells[index]) ?? -Infinity) : row.cells[index]),
   };
 }
 

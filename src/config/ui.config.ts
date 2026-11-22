@@ -88,6 +88,8 @@ export const UI_CONFIG = {
     barMaxWidth: 24,
     barRadius: 4,
     sliceGap: 2,
+    /** Value ticks up a chart's side (ECharts rounds to near this many). */
+    valueTicks: 3,
     /** A line's stroke, and an area's fill under it as a share of the line's colour. */
     lineWidth: 2,
     areaOpacity: 0.15,

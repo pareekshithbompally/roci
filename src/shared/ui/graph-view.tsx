@@ -7,8 +7,7 @@ import { Maximize2, X } from 'lucide-react';
 import { UI_CONFIG } from '@config/ui.config';
 import { IconButton } from './button';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogOverlay, DialogPortal, DialogTitle } from './dialog';
-import { Text } from './text';
-import { Swatch } from './swatch';
+import { ChartLegend } from './chart-legend';
 
 export interface GraphViewNode {
   id: string;
@@ -53,16 +52,7 @@ export interface GraphLegendItem {
 }
 
 function GraphLegend({ items, kindTokens }: { items: readonly GraphLegendItem[]; kindTokens: Record<string, string> }) {
-  return (
-    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2">
-      {items.map(({ kind, label }) => (
-        <li key={kind} className="flex items-center gap-1.5">
-          <Swatch token={kindTokens[kind]} />
-          <Text variant="caption" tone="muted">{label}</Text>
-        </li>
-      ))}
-    </ul>
-  );
+  return <ChartLegend items={items.map(({ kind, label }) => ({ token: kindTokens[kind], label }))} className="px-4 py-2" />;
 }
 
 const GraphCanvas = lazy(() => import('./graph-canvas'));

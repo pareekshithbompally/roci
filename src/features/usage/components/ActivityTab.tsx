@@ -5,7 +5,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ChartPie, Lightbulb, NotebookPen, Sparkles, type LucideIcon } from 'lucide-react';
 import {
-  Chart, DataTable, DonutChart, Icon, Section, StatCard, Tabs, Text,
+  Chart, DataTable, DonutChart, Icon, Section, StatCard, Tabs, Text, axisChart,
   type ChartOption, type DataColumn, type DonutSlice,
 } from '@shared/ui';
 import { JOB_GLYPH, ModelIcon, ScreenState } from '@shared/components';
@@ -81,12 +81,10 @@ const peekLine = (when: string, totals: UsageTotals) =>
 const Trend: React.FC<{ series: UsageBucket[]; period: UsageWindow; summary: UsageSummary; periodLabel: string }> = ({ series, period, summary, periodLabel }) => {
   const [measure, setMeasure] = useState<UsageMeasure>('cost');
   const [hovered, setHovered] = useState<number | null>(null);
-  const option = useMemo<ChartOption>(() => ({
-    grid: { left: C.inset, right: C.inset, top: C.inset, bottom: C.inset, containLabel: true },
-    tooltip: { trigger: 'axis', showContent: false },
-    xAxis: { type: 'category', data: series.map((b) => bucketLabel(b.key, period.bucket, 'short')) },
-    yAxis: { type: 'value', splitNumber: 3, axisLabel: { formatter: (v: number) => formatTick(measure, v) } },
+  const option = useMemo<ChartOption>(() => axisChart({
+    categories: series.map((b) => bucketLabel(b.key, period.bucket, 'short')),
     series: [{ type: 'bar', name: MEASURE_LABEL[measure], data: series.map((b) => measureOf(measure, b)) }],
+    formatValue: (v) => formatTick(measure, v),
   }), [series, period.bucket, measure]);
   const day = hovered === null ? null : series[hovered];
   const peek = day

@@ -85,12 +85,16 @@ export function formatCount(count: number, noun: string): string {
   return `${new Intl.NumberFormat().format(count)} ${noun}${count === 1 ? '' : 's'}`;
 }
 
-/** Decimals a figure keeps when shown (a price, a share). */
+/** A figure's precision: two decimals for most (a price, a share), three significant digits below one, so 0.0031 doesn't
+ *  read as 0. */
 const FIGURE_DECIMALS = 2;
+const SMALL_FIGURE_DIGITS = 3;
 
-/** A figure in the device's locale with its unit: "1,234.5 USD", "-32.53%" (a percent sign hugs the number). */
+/** A figure in the device's locale with its unit: "1,234.5 USD", "-32.53%", "0.00312 USD" (a percent sign hugs the number). */
 export function formatFigure(value: number, unit?: string): string {
-  const number = new Intl.NumberFormat(systemFormat().locale, { maximumFractionDigits: FIGURE_DECIMALS }).format(value);
+  const small = value !== 0 && Math.abs(value) < 1;
+  const precision = small ? { maximumSignificantDigits: SMALL_FIGURE_DIGITS } : { maximumFractionDigits: FIGURE_DECIMALS };
+  const number = new Intl.NumberFormat(systemFormat().locale, precision).format(value);
   if (!unit) return number;
   return unit === '%' ? `${number}%` : `${number} ${unit}`;
 }

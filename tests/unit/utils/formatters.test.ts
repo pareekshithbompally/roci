@@ -285,5 +285,6 @@ describe('formatFigure', () => {
     expect(formatFigure(-32.534, '%')).toBe('-32.53%');
     expect(formatFigure(1234.5, 'USD')).toBe('1,234.5 USD');
     expect(formatFigure(7)).toBe('7');
+    expect(formatFigure(0.003124, 'USD')).toBe('0.00312 USD');
   });
 });
