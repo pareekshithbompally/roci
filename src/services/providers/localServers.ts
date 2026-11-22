@@ -6,7 +6,7 @@ import {
   LOCAL_SERVER_HOST,
   LOCAL_SERVER_API_PATH,
   LOCAL_LOOPBACK_HOSTS,
-  LOCAL_PROBE_TIMEOUT_MS,
+  probeTimeoutMs,
   LOCAL_SERVERS,
 } from '@config/localServers.config';
 import type { LocalServerEntry } from '@config/localServers.config';
@@ -94,7 +94,7 @@ export function normalizeLocalUrl(input: string): string | null {
 /** The models a server at `baseUrl` lists in its own format, or null when nothing answers there. */
 export async function listServerModels(id: string, baseUrl: string): Promise<ListedModel[] | null> {
   try {
-    return await listModels(id, { baseUrl, signal: AbortSignal.timeout(LOCAL_PROBE_TIMEOUT_MS) });
+    return await listModels(id, { baseUrl, signal: AbortSignal.timeout(probeTimeoutMs(baseUrl)) });
   } catch {
     // Refused, timed out or not a model server: nothing to list. Expected, not an error.
     return null;
@@ -104,7 +104,7 @@ export async function listServerModels(id: string, baseUrl: string): Promise<Lis
 /** True when the engine's own endpoint answers, so the shared port really is this engine. */
 async function fingerprintMatches(entry: LocalServerEntry, baseUrl: string): Promise<boolean> {
   if (!entry.fingerprint) return true;
-  return answers(`${originOf(baseUrl)}${entry.fingerprint}`, { signal: AbortSignal.timeout(LOCAL_PROBE_TIMEOUT_MS) });
+  return answers(`${originOf(baseUrl)}${entry.fingerprint}`, { signal: AbortSignal.timeout(probeTimeoutMs(baseUrl)) });
 }
 
 async function probeTarget(target: ProbeTarget): Promise<LocalServer> {

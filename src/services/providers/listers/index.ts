@@ -1,7 +1,7 @@
 /** Model listing for every provider, cloud or local: pick the lister for the provider's list format, then read the list. */
 
 import { MODEL_LISTS_CONFIG } from '@config/modelLists.config';
-import { LOCAL_PROBE_TIMEOUT_MS } from '@config/localServers.config';
+import { probeTimeoutMs } from '@config/localServers.config';
 import type { ModelListStyle } from '@config/modelLists.config';
 import type { ListedModel } from '@services/ai/models/report';
 import { isLocalProviderId } from '@shared/utils/provider.utils';
@@ -35,7 +35,7 @@ export async function listStyleOf(provider: string, connection: ListConnection):
   const named = MODEL_LISTS_CONFIG.styleByProvider[provider];
   if (named) return named;
   if (!isLocalProviderId(provider)) return 'openai';
-  return detectedByUrl.get(connection.baseUrl) ?? detect({ ...connection, signal: AbortSignal.timeout(LOCAL_PROBE_TIMEOUT_MS) });
+  return detectedByUrl.get(connection.baseUrl) ?? detect({ ...connection, signal: AbortSignal.timeout(probeTimeoutMs(connection.baseUrl)) });
 }
 
 /** A local server Roci doesn't know by name: its OpenAI-style list must answer first (a stopped server costs one request),
@@ -45,9 +45,9 @@ async function listUnnamedServer(connection: ListConnection): Promise<ListedMode
   if (!known) {
     const openAIList = await openAIStyleLister.list(connection);
     // The server answered, so its format checks get their own window and the result is kept.
-    const style = await detect({ ...connection, signal: AbortSignal.timeout(LOCAL_PROBE_TIMEOUT_MS) });
+    const style = await detect({ ...connection, signal: AbortSignal.timeout(probeTimeoutMs(connection.baseUrl)) });
     detectedByUrl.set(connection.baseUrl, style);
-    return style === 'openai' ? openAIList : LISTERS[style].list({ ...connection, signal: AbortSignal.timeout(LOCAL_PROBE_TIMEOUT_MS) });
+    return style === 'openai' ? openAIList : LISTERS[style].list({ ...connection, signal: AbortSignal.timeout(probeTimeoutMs(connection.baseUrl)) });
   }
   try {
     return await LISTERS[known].list(connection);

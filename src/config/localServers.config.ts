@@ -45,8 +45,10 @@ export const LLAMA_THINKING_TEMPLATE = {
   ] as ReadonlyArray<readonly [string, string | null]>,
 } as const;
 
-/** A port that doesn't answer within this window counts as "not running". */
+/** A port on this device that doesn't answer within this window counts as "not running". */
 export const LOCAL_PROBE_TIMEOUT_MS = 600;
+/** A server on another computer (Tailscale, the network) gets this long: a first https connection there takes seconds. */
+export const REMOTE_PROBE_TIMEOUT_MS = 10_000;
 
 /** An app that serves models (Ollama, LM Studio, llama.cpp …): what a server is called and shows everywhere. */
 export interface ServerApp {
@@ -141,3 +143,8 @@ export const LOCAL_LOOPBACK_HOSTS: readonly string[] = ['localhost', '127.0.0.1'
 
 /** A plain-http address for a server on another computer, which Roci only reaches over https. */
 export const LOCAL_NEEDS_HTTPS = 'A server on another computer needs an https:// address, such as the one tailscale serve gives it.';
+
+/** How long a probe of `baseUrl` waits: briefly on this device, longer for another computer. */
+export function probeTimeoutMs(baseUrl: string): number {
+  return LOCAL_LOOPBACK_HOSTS.includes(new URL(baseUrl).hostname) ? LOCAL_PROBE_TIMEOUT_MS : REMOTE_PROBE_TIMEOUT_MS;
+}
