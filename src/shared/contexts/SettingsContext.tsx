@@ -425,6 +425,8 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         if (settingKey === 'base-url' && typeof value === 'string') {
           update.base_url = value;
         }
+        // a new key or URL hasn't been tested
+        if (settingKey === 'api-key' || settingKey === 'base-url') update.connection_check = undefined;
 
         return { ...provider, ...update };
       }),

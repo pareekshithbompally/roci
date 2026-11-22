@@ -160,6 +160,7 @@ export function rustProviderToModelProvider(row: RustProviderRow): ModelProvider
     persist: data.persist,
     custom_header: data.custom_header ?? null,
     server_app: data.server_app,
+    connection_check: data.connection_check,
   };
 }
 
@@ -178,6 +179,7 @@ export function modelProviderToRust(provider: ModelProvider): {
   if (provider.persist !== undefined) data.persist = provider.persist;
   if (provider.custom_header) data.custom_header = provider.custom_header;
   if (provider.server_app) data.server_app = provider.server_app;
+  if (provider.connection_check) data.connection_check = provider.connection_check;
 
   return {
     provider: provider.provider,

@@ -9,6 +9,7 @@ import type { DotTone } from '@shared/ui';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ConnectionStatus, ProviderConnection as Connection } from '@features/settings/hooks/useProviderConnection';
 import { renderWithLinks } from '@shared/components';
+import { formatRelativeTime } from '@shared/utils/formatters';
 import { FieldRow, SecretInput } from './shared';
 
 interface ProviderConnectionProps {
@@ -23,6 +24,8 @@ interface StatusView {
   pulse?: boolean;
 }
 
+const modelCount = (n: number) => `${n} ${n === 1 ? 'model' : 'models'}`;
+
 function statusView(status: ConnectionStatus): StatusView {
   switch (status.state) {
     case 'incomplete':
@@ -32,14 +35,23 @@ function statusView(status: ConnectionStatus): StatusView {
     case 'checking':
       return { label: 'Checking…', tone: 'info', pulse: true };
     case 'connected':
-      return { label: `Connected · ${status.models.length} ${status.models.length === 1 ? 'model' : 'models'}`, tone: 'success' };
+      return { label: `Connected · ${modelCount(status.models.length)}`, tone: 'success' };
     case 'failed':
       return { label: 'Failed', tone: 'danger' };
+    case 'checked': {
+      // a test from an earlier session, said with when it ran
+      const { ok, at, models } = status.check;
+      const when = `tested ${formatRelativeTime(at)}`;
+      return ok
+        ? { label: ['Connected', models === undefined ? null : modelCount(models), when].filter(Boolean).join(' · '), tone: 'success' }
+        : { label: `Failed · ${when}`, tone: 'danger' };
+    }
   }
 }
 
 function testDescription(status: ConnectionStatus, title: string, needsUrl: boolean): string {
   if (status.state === 'failed') return status.message;
+  if (status.state === 'checked' && !status.check.ok && status.check.message) return status.check.message;
   if (status.state === 'incomplete') return needsUrl ? 'Add the base URL and API key, then Test.' : 'Add your API key, then Test.';
   return `Checks your key by listing ${title}'s models.`;
 }

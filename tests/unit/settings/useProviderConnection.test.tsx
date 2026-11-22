@@ -90,6 +90,7 @@ describe('useProviderConnection', () => {
     expect(id).toBe('openrouter');
     expect(update({ models: [{ id: 'tts' }, { id: 'typed-meanwhile' }] })).toEqual({
       models: [{ id: 'tts', reported: { input: ['text'], output: ['audio'] } }, { id: 'typed-meanwhile' }],
+      connection_check: { ok: true, at: expect.any(Number), models: 1 },
     });
 
     // A list that adds nothing leaves the saved models as they are.
@@ -103,12 +104,22 @@ describe('useProviderConnection', () => {
     expect(keep({ models: saved }).models).toBe(saved);
   });
 
-  it('a failed Test saves nothing', async () => {
+  it('a failed Test saves its outcome, never the models', async () => {
     service.fetchModelsFromProvider.mockRejectedValue(new Error('Authentication failed: invalid key'));
     const { result } = renderConnection(provider('openai', { 'api-key': 'bad' }, [{ id: 'gpt' }]));
     act(() => result.current.test());
     await waitFor(() => expect(result.current.status.state).toBe('failed'));
-    expect(updateProvider).not.toHaveBeenCalled();
+    await waitFor(() => expect(updateProvider).toHaveBeenCalledOnce());
+    const [, update] = updateProvider.mock.calls[0];
+    expect(update({ models: [{ id: 'gpt' }] })).toEqual({
+      connection_check: { ok: false, at: expect.any(Number), message: 'Authentication failed: invalid key' },
+    });
+  });
+
+  it('a test saved in an earlier session reads as checked until this session tests', () => {
+    const saved = { ...provider('openai', { 'api-key': 'k' }), connection_check: { ok: true, at: 1, models: 3 } };
+    const { result } = renderConnection(saved);
+    expect(result.current.status).toEqual({ state: 'checked', check: { ok: true, at: 1, models: 3 } });
   });
 });
 

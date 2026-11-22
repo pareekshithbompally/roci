@@ -79,4 +79,16 @@ export type ModelProvider = {
   custom_header?: ProviderCustomHeader[] | null
   /** A server's app (`SERVER_APPS` id) the user named it as; its name and logo everywhere. */
   server_app?: string
+  /** The last Test Connection with the saved key and URL (cleared when either changes), so it outlives a relaunch. */
+  connection_check?: ConnectionCheck
+}
+
+export type ConnectionCheck = {
+  ok: boolean
+  /** When it ran (epoch ms). */
+  at: number
+  /** How many models the key listed, when it connected. */
+  models?: number
+  /** Why it failed. */
+  message?: string
 }

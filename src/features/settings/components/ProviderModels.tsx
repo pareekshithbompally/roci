@@ -57,7 +57,8 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
   const changeOpen = (next: boolean) => {
     setPickerOpen(next);
     if (!next) setSearch('');
-    if (next && (status?.state === 'untested' || status?.state === 'failed')) connection?.test();
+    // the list is only in hand after a test this session; an earlier session's result is just its outcome
+    if (next && (status?.state === 'untested' || status?.state === 'failed' || status?.state === 'checked')) connection?.test();
   };
 
   const add = (model: ListedModel) => {
