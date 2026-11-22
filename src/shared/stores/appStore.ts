@@ -55,7 +55,7 @@ export const useAppStore = create<AppStoreState>((set) => ({
   status: AppStatus.IDLE,
   selectedHistoryId: null,
   activeResultTab: 'summary',
-  activeSettingsPanel: 'general',
+  activeSettingsPanel: 'providers',
   settingsPage: null,
   settingsVisit: 0,
   settingsRequest: null,
