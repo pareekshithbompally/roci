@@ -144,7 +144,7 @@ src-tauri/
 - Meetings run transcribe → summarize in `features/recording/pipeline/meetingPipeline.ts` under the store's step guard.
 - Errors go through `toAiError`; every call's cost through `costOf` and the one usage writer.
 
-**Native ↔ web alignment:** never compute native element positions from config — measure empirically (see AGENTS.md). macOS traffic-light center: y=30px.
+**Native ↔ web alignment:** never compute native element positions from config — measure empirically. macOS traffic-light center: y=30px.
 
 ---
 

@@ -34,8 +34,11 @@ src-tauri/WixTools
 # Internal docs and plans
 docs/
 
-# Claude Code
+# Claude Code and local working notes (kept on disk, not in the repo)
 .claude/
+CLAUDE.md
+AUDIT.md
+SETUP-NEW-MAC.md
 
 # Copilot CLI
 .copilot/
