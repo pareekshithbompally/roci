@@ -52,6 +52,7 @@ describe('parsePrice', () => {
 
   it('takes a per-minute rate alone, for speech billed by the minute', () => {
     expect(parsePrice(typed('', '', '0.006'))).toEqual({ inputPer1M: 0, outputPer1M: 0, perMinute: 0.006 });
+    expect(parsePrice(typed('', '', '$0.0077'))).toEqual({ inputPer1M: 0, outputPer1M: 0, perMinute: 0.0077 });
     expect(parsePrice(typed('2', '8', '0.006'))).toEqual({ inputPer1M: 2, outputPer1M: 8, perMinute: 0.006 });
     expect(parsePrice(typed('', '', 'x'))).toBeUndefined();
   });

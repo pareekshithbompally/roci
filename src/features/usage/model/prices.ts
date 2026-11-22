@@ -48,7 +48,11 @@ export function priceRows(providers: ModelProvider[], used: ProviderModelBreakdo
 export type PriceText = Record<keyof Required<ModelPrice>, string>;
 
 const filled = (raw: string) => raw.trim() !== '';
-const amount = (raw: string) => (Number.isFinite(Number(raw)) && Number(raw) >= 0 ? Number(raw) : undefined);
+/** A typed rate in USD, a leading `$` allowed (as prices are written). */
+const amount = (raw: string) => {
+  const value = Number(raw.trim().replace(/^\$/, ''));
+  return Number.isFinite(value) && value >= 0 ? value : undefined;
+};
 
 /** A price from what was typed: `null` when every field is empty (clears it); the token rates as a pair (both, or neither when
  *  only the per-minute rate is set, as speech billed by the minute is); `undefined` when not finished (nothing is saved). */
