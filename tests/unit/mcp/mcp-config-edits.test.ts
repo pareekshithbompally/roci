@@ -7,6 +7,7 @@ import {
   toggleServer,
   updateSettings,
   upsertServers,
+  withScreenCode,
 } from '@features/settings/components/mcp/mcpConfigEdits';
 import {
   configFromForm,
@@ -117,5 +118,15 @@ describe('mcpServerForm', () => {
 
   it('masks secrets for display', () => {
     expect(maskUrl('https://x.dev/mcp?api_key=abc&q=1')).toBe('https://x.dev/mcp?api_key=******&q=1');
+  });
+});
+
+describe('withScreenCode', () => {
+  it('turns advanced screens on or off for one server only, and reconnects nothing', () => {
+    const { next, affected } = withScreenCode(config(), 'a', true);
+    expect(next.mcpServers.a.allowScreenCode).toBe(true);
+    expect(next.mcpServers.b.allowScreenCode).toBeUndefined();
+    expect(affected).toEqual([]);
+    expect(withScreenCode(next, 'a', false).next.mcpServers.a.allowScreenCode).toBe(false);
   });
 });

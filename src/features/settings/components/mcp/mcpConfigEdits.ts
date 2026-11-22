@@ -45,6 +45,12 @@ export function toggleServer(config: McpConfig, name: string, active: boolean): 
   };
 }
 
+/** Advanced screens on or off for one server: read when its next screen opens, so nothing reconnects. */
+export function withScreenCode(config: McpConfig, name: string, allowed: boolean): McpReconfigureVars {
+  const server = config.mcpServers[name];
+  return { next: { ...config, mcpServers: { ...config.mcpServers, [name]: { ...server, allowScreenCode: allowed } } }, affected: [] };
+}
+
 /** Also drops the server's saved permission, so a later server with the same name doesn't inherit trust. */
 export function deleteServer(config: McpConfig, name: string): McpReconfigureVars {
   const { [name]: _removed, ...mcpServers } = config.mcpServers;

@@ -16,11 +16,11 @@ use std::{
 };
 use tauri::{
     http::{header, Request, Response, StatusCode},
-    Manager, Runtime, State, UriSchemeContext,
+    AppHandle, Manager, Runtime, State, UriSchemeContext,
 };
 use tokio::time::timeout;
 
-use super::runtime::McpState;
+use super::{config, runtime::McpState};
 
 /// The URI scheme screens are served on.
 pub const SCHEME: &str = "mcp-app";
@@ -100,17 +100,41 @@ fn directive(name: &str, fixed: &[&str], sources: &[String], fallback: &str) -> 
     }
 }
 
-/// The spec's restrictive default, widened only by the domains the screen declared; never loosened further.
-fn content_security_policy(ui: &Value) -> String {
+/// What a screen's scripts may do beyond the spec's default.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum ScreenCode {
+    /// The spec's default: no code built from strings, no workers.
+    Strict,
+    /// The user allowed it for this server: code built from strings, `blob:` workers and media (WebGL apps such as 3D maps
+    /// need them), as the spec's reference host allows. The network, frame and plugin locks stay as they are.
+    Advanced,
+}
+
+/// The `allowScreenCode` switch on this server's saved entry.
+fn screen_code_for(app: &AppHandle, server: &str) -> ScreenCode {
+    let allowed = config::read(app)
+        .map(|value| config::servers(&value).get(server).and_then(|entry| entry.get("allowScreenCode")).and_then(Value::as_bool) == Some(true))
+        .unwrap_or(false);
+    if allowed { ScreenCode::Advanced } else { ScreenCode::Strict }
+}
+
+/// The spec's restrictive default, widened only by the domains the screen declared and, if the user allowed it for this
+/// server, by advanced code; never loosened further.
+fn content_security_policy(ui: &Value, code: ScreenCode) -> String {
     let csp = ui.get("csp").and_then(Value::as_object);
     let resources = declared(csp, "resourceDomains");
+    let advanced = code == ScreenCode::Advanced;
+    let scripts: &[&str] = if advanced { &["'self'", "'unsafe-inline'", "'unsafe-eval'", "blob:"] } else { &["'self'", "'unsafe-inline'"] };
+    let files: &[&str] = if advanced { &["'self'", "data:", "blob:"] } else { &["'self'", "data:"] };
+    let workers = if advanced { directive("worker-src", &["'self'", "blob:"], &resources, "") } else { "worker-src 'none'".to_string() };
     [
         "default-src 'none'".to_string(),
-        directive("script-src", &["'self'", "'unsafe-inline'"], &resources, ""),
+        directive("script-src", scripts, &resources, ""),
         directive("style-src", &["'self'", "'unsafe-inline'"], &resources, ""),
-        directive("img-src", &["'self'", "data:"], &resources, ""),
-        directive("font-src", &["'self'", "data:"], &resources, ""),
-        directive("media-src", &["'self'", "data:"], &resources, ""),
+        directive("img-src", files, &resources, ""),
+        directive("font-src", files, &resources, ""),
+        directive("media-src", files, &resources, ""),
+        workers,
         directive("connect-src", &[], &declared(csp, "connectDomains"), "'none'"),
         directive("frame-src", &[], &declared(csp, "frameDomains"), "'none'"),
         directive("base-uri", &[], &declared(csp, "baseUriDomains"), "'self'"),
@@ -122,6 +146,7 @@ fn content_security_policy(ui: &Value) -> String {
 /// Read a tool's `ui://` screen from its server and give it an origin of its own.
 #[tauri::command]
 pub async fn mcp_open_app(
+    app: AppHandle,
     state: State<'_, McpState>,
     screens: State<'_, AppScreens>,
     server: String,
@@ -143,7 +168,7 @@ pub async fn mcp_open_app(
         .map_err(|_| format!("Reading {uri} timed out"))?
         .map_err(|e| e.to_string())?;
     let (html, meta) = html_of(read.contents)?;
-    let csp = content_security_policy(&meta);
+    let csp = content_security_policy(&meta, screen_code_for(&app, &server));
     log::info!("[mcp] {server} screen {uri}: {csp}");
 
     let token = new_token();
@@ -182,7 +207,7 @@ mod tests {
 
     #[test]
     fn no_declaration_is_the_spec_default() {
-        let csp = content_security_policy(&Value::Null);
+        let csp = content_security_policy(&Value::Null, ScreenCode::Strict);
         assert!(csp.contains("connect-src 'none'"));
         assert!(csp.contains("frame-src 'none'"));
         assert!(csp.contains("script-src 'self' 'unsafe-inline'"));
@@ -192,11 +217,24 @@ mod tests {
     #[test]
     fn declared_domains_widen_only_their_directive_and_injection_is_dropped() {
         let ui = json!({ "csp": { "connectDomains": ["https://api.example.com", "https://x; script-src *"], "resourceDomains": ["https://cdn.example.com"] } });
-        let csp = content_security_policy(&ui);
+        let csp = content_security_policy(&ui, ScreenCode::Strict);
         assert!(csp.contains("connect-src https://api.example.com;"));
         assert!(csp.contains("img-src 'self' data: https://cdn.example.com"));
         assert!(!csp.contains("script-src *"));
         assert!(csp.contains("frame-src 'none'"));
+    }
+
+    #[test]
+    fn advanced_code_adds_eval_and_blob_workers_but_keeps_the_network_and_frame_locks() {
+        let strict = content_security_policy(&Value::Null, ScreenCode::Strict);
+        assert!(!strict.contains("unsafe-eval"));
+        assert!(strict.contains("worker-src 'none'"));
+        let advanced = content_security_policy(&Value::Null, ScreenCode::Advanced);
+        assert!(advanced.contains("script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:"));
+        assert!(advanced.contains("worker-src 'self' blob:"));
+        assert!(advanced.contains("connect-src 'none'"));
+        assert!(advanced.contains("frame-src 'none'"));
+        assert!(advanced.contains("object-src 'none'"));
     }
 
     #[test]

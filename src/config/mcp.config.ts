@@ -15,6 +15,9 @@ export interface McpServerConfig {
   headers?: Record<string, string>;
   /** HTTP connect timeout, seconds. */
   timeout?: number;
+  /** Let this server's screens run advanced code (code built as they run, background workers); off unless the user allows
+   *  it, after a warning. */
+  allowScreenCode?: boolean;
 }
 
 export type McpServers = Record<string, McpServerConfig>;
@@ -129,6 +132,13 @@ export const MCP_APP_CONFIG = {
   copy: {
     openLinkTitle: (server: string) => `${server} wants to open a link`,
     openLink: 'Open',
+    advancedScreens: 'Allow Advanced Screens',
+    advancedScreensOn: 'Advanced screens',
+    advancedScreensTitle: (server: string) => `Allow advanced screens for ${server}?`,
+    advancedScreensWarning:
+      "Some screens, like 3D maps, run code they write as they go. This lets this server's screens do that. They still " +
+      "can't reach Roci, your files, or any website the server didn't list. Only turn this on for servers you trust.",
+    advancedScreensAllow: 'Allow',
   },
   /** Body text sizes by the spec's steps (sent as `--font-text-<step>-size`). */
   textSizes: { xs: '--fs-subheadline', sm: '--fs-callout', md: '--fs-body', lg: '--fs-reading' },

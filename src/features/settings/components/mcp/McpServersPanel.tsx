@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Braces, Plus } from 'lucide-react';
-import type { McpConfig, McpSettings } from '@config/mcp.config';
+import { MCP_APP_CONFIG, type McpConfig, type McpSettings } from '@config/mcp.config';
 import { useToast } from '@shared/contexts/ToastContext';
 import { confirm } from '@shared/stores/confirmStore';
 import { Button, Callout, Icon, IconButton, Section, Text } from '@shared/ui';
@@ -19,7 +19,7 @@ import { MCP_LIMITS_FOOTER, MCP_PERMISSIONS_FOOTER, McpLimitsCard, McpPermission
 import { McpServerCard } from './McpServerCard';
 import { AddEditMcpServerDialog } from './AddEditMcpServerDialog';
 import { EditMcpJsonDialog } from './EditMcpJsonDialog';
-import { applyJson, deleteServer, toggleServer, updateSettings, upsertServers, withTrust } from './mcpConfigEdits';
+import { applyJson, deleteServer, toggleServer, updateSettings, upsertServers, withScreenCode, withTrust } from './mcpConfigEdits';
 import type { McpServerEntry } from './mcpServerForm';
 import { errorMessage } from '@shared/utils/errors';
 
@@ -63,6 +63,21 @@ export const McpServersPanel: React.FC = () => {
     });
     if (!confirmed) return;
     apply((c) => deleteServer(c, name)).catch((error: unknown) => showToast(errorMessage(error), 'error'));
+  };
+
+  /** Turning advanced screens on warns first; turning them off needs no asking. */
+  const handleScreenCode = async (name: string, allowed: boolean) => {
+    if (allowed) {
+      const { copy } = MCP_APP_CONFIG;
+      const agreed = await confirm({
+        title: copy.advancedScreensTitle(name),
+        description: copy.advancedScreensWarning,
+        confirmLabel: copy.advancedScreensAllow,
+        tone: 'danger',
+      });
+      if (!agreed) return;
+    }
+    applyAndToast((c) => withScreenCode(c, name, allowed));
   };
 
   if (loadError) {
@@ -111,6 +126,7 @@ export const McpServersPanel: React.FC = () => {
               alwaysAllowed={config.mcpSettings.trustedServers.includes(name)}
               allowAll={config.mcpSettings.allowAllTools}
               onAlwaysAllowChange={(allowed) => changeSettings({ trustedServers: withTrust(config.mcpSettings.trustedServers, name, allowed) })}
+              onScreenCodeChange={(allowed) => void handleScreenCode(name, allowed)}
             />
           ))
         )}
