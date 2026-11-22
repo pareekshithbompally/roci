@@ -47,5 +47,6 @@ npm run audit:design             # design-system rules
 ## Good to know
 
 - macOS asks for Microphone, Screen Recording, Calendar and Notifications the first time each is used.
-- Development and ad-hoc-signed builds don't appear in Spotlight; that needs a build signed with a Developer ID.
+- `npm run tauri:build` signs with a Developer ID only when `APPLE_SIGNING_IDENTITY` names a certificate in your Keychain
+  (the release workflow sets it from its secrets). Only Developer ID builds appear in Spotlight.
 - The app keeps its data in `~/Library/Application Support/ai.roci.roci/`, and downloaded models in its `models/` folder.
