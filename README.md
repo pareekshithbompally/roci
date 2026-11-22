@@ -96,7 +96,7 @@ npm test               # run the tests
 
 ## Contributing
 
-Roci is a personal project shared as-is. I can't take on issues or pull requests, but you're welcome to fork it.
+Roci is a personal project that I share as-is. I'm not able to take on issues or pull requests, but you're welcome to fork it and make it your own.
 
 ## License
 
