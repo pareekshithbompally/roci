@@ -36,7 +36,8 @@
 - **Tracks what AI costs.** Every call is logged with its tokens or audio minutes and priced from models.dev, or from your
   own price. Usage shows cost by model, by use and over time.
 - **Calendar.** Upcoming meetings, a reminder before each one, and a Record button in it.
-- **Tools.** Web search, image generation with cloud models, and MCP servers.
+- **Tools.** Web search and image generation with cloud models. Add any MCP server to give Roci more tools, or connect
+  your coding agents to Roci's own MCP server so they can read your meetings and notes.
 
 <p align="center">
   <img src=".github/assets/meeting.png" alt="A meeting in Roci: transcript beside the AI summary" width="860">
