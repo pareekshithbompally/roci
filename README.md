@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src=".github/assets/meeting.png" alt="A meeting in Roci: transcript beside the AI summary" width="860">
+  <img src=".github/assets/home.png" alt="Roci's home: chat, recent meetings and Record" width="860">
 </p>
 
 ## What it does
@@ -39,7 +39,7 @@
 - **Tools.** Web search, image generation with cloud models, and MCP servers.
 
 <p align="center">
-  <img src=".github/assets/home.png" alt="Roci's home: chat, recent meetings and Record" width="860">
+  <img src=".github/assets/meeting.png" alt="A meeting in Roci: transcript beside the AI summary" width="860">
 </p>
 
 ## Models: on the device, on your server, or in the cloud
