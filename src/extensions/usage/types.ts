@@ -32,6 +32,8 @@ export interface ProviderModelBreakdown {
   estimated_cost: number;
   /** Calls with no known price, left out of `estimated_cost`. */
   unpriced_calls: number;
+  /** Audio the model heard or spoke, in seconds (0 for text models). */
+  audio_seconds: number;
 }
 
 export interface CategoryBreakdown {

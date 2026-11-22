@@ -7,7 +7,7 @@ import { addDays, localDayKey, startOfDay } from '@shared/utils/localDate';
 
 const model = (provider: string, name: string, calls: number, input: number, cached: number, output: number, cost: number, unpriced = 0): ProviderModelBreakdown => ({
   provider, model: name, calls, input_tokens: input, output_tokens: output, cache_read_tokens: cached, cache_write_tokens: 0,
-  reasoning_tokens: 0, estimated_cost: cost, unpriced_calls: unpriced,
+  reasoning_tokens: 0, estimated_cost: cost, unpriced_calls: unpriced, audio_seconds: 0,
 });
 
 const MODELS: ProviderModelBreakdown[] = [

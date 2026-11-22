@@ -54,7 +54,8 @@ export const USAGE_CONFIG = {
     trend: 'Over time',
     columns: {
       date: 'Date', model: 'Model', tool: 'Tool', requests: 'Requests', calls: 'Calls', failed: 'Failed', time: 'Avg time',
-      lastUsed: 'Last used', input: 'Input', cached: 'Cached', output: 'Output', cost: 'Cost', perRequest: 'Per request',
+      lastUsed: 'Last used', input: 'Input', cached: 'Cached', output: 'Output', audio: 'Audio', cost: 'Cost',
+      perRequest: 'Per request',
     },
     tables: { models: 'Models', tools: 'Tools the AI used', days: 'By day' },
     noTools: 'No tool calls in this period.',

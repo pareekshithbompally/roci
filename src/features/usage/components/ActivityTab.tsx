@@ -12,7 +12,7 @@ import { JOB_GLYPH, ModelIcon, ScreenState } from '@shared/components';
 import { UI_CONFIG } from '@config/ui.config';
 import { USAGE_CONFIG, type UsageMeasure } from '@config/usage.config';
 import type { ProviderModelBreakdown, ToolBreakdown, UsageBucket, UsageSummary } from '@extensions/usage';
-import { formatRelativeTime } from '@shared/utils/formatters';
+import { formatDuration, formatRelativeTime } from '@shared/utils/formatters';
 import { toolCallIcon } from '@features/chat';
 import { bucketKeys, type UsageWindow } from '@features/usage/model/period';
 import { fillSeries, measureOf, modelName, providerName, splitEntries, toolName, type SplitEntry, type SplitMark, type UsageSplit, type UsageTotals } from '@features/usage/model/series';
@@ -153,6 +153,8 @@ const MODEL_COLUMNS: ReadonlyArray<DataColumn<ProviderModelBreakdown>> = [
   { key: 'input', header: COL.input, align: 'end', sortValue: (m) => m.input_tokens, cell: (m) => figure(formatTokens(m.input_tokens)) },
   { key: 'cached', header: COL.cached, align: 'end', sortValue: (m) => m.cache_read_tokens, cell: (m) => figure(formatTokens(m.cache_read_tokens)) },
   { key: 'output', header: COL.output, align: 'end', sortValue: (m) => m.output_tokens, cell: (m) => figure(formatTokens(m.output_tokens)) },
+  // speech is billed by its audio, so its length is its measure; text models heard none
+  { key: 'audio', header: COL.audio, align: 'end', sortValue: (m) => m.audio_seconds, cell: (m) => figure(m.audio_seconds > 0 ? formatDuration(m.audio_seconds) : '—') },
   { key: 'cost', header: COL.cost, align: 'end', sortValue: (m) => m.estimated_cost, cell: (m) => figure(costText(m.estimated_cost, m.unpriced_calls)) },
   {
     key: 'per',

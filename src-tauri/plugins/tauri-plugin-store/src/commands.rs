@@ -478,6 +478,8 @@ pub struct ProviderModelBreakdown {
     pub estimated_cost: f64,
     /// Calls with no known price (cloud models models.dev doesn't price): left out of `estimated_cost`, never counted as free.
     pub unpriced_calls: i64,
+    /// Audio the model heard or spoke, in seconds (0 for text models).
+    pub audio_seconds: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2639,7 +2641,7 @@ fn usage_summary_impl(db: &Connection, q: &UsageQuery) -> Result<UsageSummary, S
     let mut stmt = db.prepare(&format!(
         "SELECT provider, model, COUNT(*), SUM(input_tokens), SUM(output_tokens),
          SUM(COALESCE(cache_read_tokens, 0)), SUM(COALESCE(cache_write_tokens, 0)), SUM(COALESCE(reasoning_tokens, 0)),
-         SUM(COALESCE(estimated_cost, 0)), SUM(estimated_cost IS NULL)
+         SUM(COALESCE(estimated_cost, 0)), SUM(estimated_cost IS NULL), SUM(audio_seconds)
          FROM usage_log WHERE {USAGE_WHERE}
          GROUP BY provider, model ORDER BY SUM(COALESCE(estimated_cost, 0)) DESC, COUNT(*) DESC"
     ))?;
@@ -2656,6 +2658,7 @@ fn usage_summary_impl(db: &Connection, q: &UsageQuery) -> Result<UsageSummary, S
                 reasoning_tokens: row.get(7)?,
                 estimated_cost: row.get(8)?,
                 unpriced_calls: row.get(9)?,
+                audio_seconds: row.get(10)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
