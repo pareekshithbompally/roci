@@ -26,7 +26,8 @@ const FOOTER = {
   toolActivity: 'Tool Activity shows the tools used in each answer.',
   modelIcons: 'Model icons load from huggingface.co.',
   imports: 'How many imported audio files Roci processes at the same time.',
-  afterRecording: 'Transcribe After Recording also writes the summary.',
+  /** With Live Transcript on, Stop always finishes the transcript and summary, so the switch has nothing to decide. */
+  afterRecording: { live: 'With Live Transcript on, Stop always finishes the transcript and writes the summary.', off: 'Transcribe After Recording also writes the summary.' },
 } as const;
 
 const CAPTURE_HINT: Record<(typeof CAPTURE_SOURCES)[number], string> = {
@@ -39,6 +40,7 @@ export const GeneralPanel: React.FC = () => {
   const { theme, setTheme } = useThemeContext();
   const { settings, setSettings } = useSettings();
   const liveLine = useLiveModeLine();
+  const live = !!settings.liveTranscription;
 
   const captureSource = (settings.defaultAudioSource || 'systemAndMicrophone') as (typeof CAPTURE_SOURCES)[number];
 
@@ -131,13 +133,13 @@ export const GeneralPanel: React.FC = () => {
       {platform.canRecord && (
         <Section
           title="Transcription"
-          footer={[TRANSCRIPTION_CONFIG.liveCopy.description, liveLine, FOOTER.afterRecording].filter(Boolean).join(' ')}
+          footer={[TRANSCRIPTION_CONFIG.liveCopy.description, liveLine, FOOTER.afterRecording[live ? 'live' : 'off']].filter(Boolean).join(' ')}
         >
           <CardRow
             title={TRANSCRIPTION_CONFIG.liveCopy.title}
             actions={
               <Switch
-                checked={!!settings.liveTranscription}
+                checked={live}
                 onCheckedChange={(checked) => setSettings({ liveTranscription: checked })}
                 aria-label={TRANSCRIPTION_CONFIG.liveCopy.title}
               />
@@ -147,7 +149,8 @@ export const GeneralPanel: React.FC = () => {
             title="Transcribe After Recording"
             actions={
               <Switch
-                checked={!!settings.autoTranscribe}
+                checked={live || !!settings.autoTranscribe}
+                disabled={live}
                 onCheckedChange={(checked) => setSettings({ autoTranscribe: checked })}
                 aria-label="Transcribe after recording"
               />
