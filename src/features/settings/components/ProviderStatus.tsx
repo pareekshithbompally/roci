@@ -6,17 +6,19 @@ import type { DotTone } from '@shared/ui';
 import { providerSetting } from '@shared/utils/provider.utils';
 import type { ModelProvider } from '@shared/types/modelProviders';
 
-/** On and usable (key set, server running), on but not usable yet, or off. */
-export type ProviderRowState = 'ready' | 'attention' | 'off';
+/** On and usable (key set, server running), on but not usable yet, its last connection test failed, or off. */
+export type ProviderRowState = 'ready' | 'attention' | 'failed' | 'off';
 
-const ROW_TONE: Record<ProviderRowState, DotTone> = { ready: 'success', attention: 'warning', off: 'muted' };
+const ROW_TONE: Record<ProviderRowState, DotTone> = { ready: 'success', attention: 'warning', failed: 'danger', off: 'muted' };
 
-const ROW_LABEL: Record<ProviderRowState, string> = { ready: 'On', attention: 'Needs key', off: 'Off' };
+const ROW_LABEL: Record<ProviderRowState, string> = { ready: 'On', attention: 'Needs key', failed: "Can't connect", off: 'Off' };
 
-/** A cloud provider's state: off, on without a key, or on with one. */
+/** A cloud provider's state: off, on without a key, on with a key its last test refused, or on with one. The detail
+ *  page's status and this row read the same saved test (`connection_check`), so they never disagree. */
 export function cloudRowState(provider: ModelProvider): ProviderRowState {
   if (!provider.active) return 'off';
-  return providerSetting(provider, 'api-key') ? 'ready' : 'attention';
+  if (!providerSetting(provider, 'api-key')) return 'attention';
+  return provider.connection_check?.ok === false ? 'failed' : 'ready';
 }
 
 /** A provider's state as a dot and a word, or a server's own line ("localhost:11434 · 5 models") in the state's colour. */

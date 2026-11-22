@@ -75,7 +75,7 @@ export class DefaultProvidersService implements ProvidersService {
     try {
       return await listModels(provider.provider, { baseUrl, apiKey: provider.api_key, headers: this.buildHeaders(provider) })
     } catch (error: unknown) {
-      console.error('[DefaultProvidersService] Fetching models failed:', error)
+      console.error(`[DefaultProvidersService] Fetching models failed for ${provider.provider}:`, error)
       throw listingError(provider.provider, baseUrl, error)
     }
   }
