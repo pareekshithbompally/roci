@@ -51,7 +51,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ message, isCopied, actions })
     <div className="flex flex-col items-end max-w-[75%]">
       {/* Meeting context chips (read-only) */}
       {meetingRefs && meetingRefs.length > 0 && <MeetingChips refs={meetingRefs} />}
-      <Surface variant="inset" radius="lg" className="group relative inline-block px-3.5 py-2">
+      <Surface variant="inset" radius="bubble" className="group relative inline-block px-3.5 py-2">
         <Text as="div" variant="reading" className="max-h-[40vh] overflow-y-auto custom-scrollbar">
           {text}
         </Text>
