@@ -47,6 +47,17 @@ export const USAGE_CONFIG = {
     noPrice: 'no price',
     /** Under the cost when some calls ran on cloud models with no known price (left out of the total). */
     unpriced: (calls: number) => `${calls} ${calls === 1 ? 'call has' : 'calls have'} no price`,
+    /** Against the same span before ("+18% vs previous 30 days"; "New" when nothing came before). */
+    change: (share: string, range: string) => `${share} vs previous ${range}`,
+    changeNew: (range: string) => `New vs previous ${range}`,
+    /** The tokens card's detail ("12K in · 3K out · 40% cached"). */
+    tokensIn: (n: string) => `${n} in`,
+    tokensOut: (n: string) => `${n} out`,
+    cached: (share: string) => `${share} cached`,
+    requests: (n: string, count: number) => `${n} ${count === 1 ? 'request' : 'requests'}`,
+    /** The segmented controls' accessible names. */
+    measureLabel: 'Measure',
+    rangeLabel: 'Range',
     /** After a server you run, so it isn't mistaken for the same maker's cloud ("Ollama (local)"). */
     yourServer: (title: string) => `${title} (local)`,
     splits: { model: 'By model', provider: 'By provider', useCase: 'By use case' },

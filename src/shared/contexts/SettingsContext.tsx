@@ -1,6 +1,7 @@
 /** App settings and model providers, merged with predefined providers and auto-persisted after each edit. */
 
 import { DEFAULT_NOTIFICATION_SETTINGS } from '@config/notifications.config';
+import { IMPORT_CONFIG } from '@config/audio.config';
 import React, { createContext, useContext, useCallback, ReactNode, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AppSettings } from '@shared/types';
@@ -45,7 +46,7 @@ export const defaultSettings: AppSettings = {
   apiKey: '',
   defaultAudioSource: 'systemAndMicrophone',
   autoTranscribe: false,
-  jobProcessing: { mode: 'sequential', maxConcurrent: 2 },
+  jobProcessing: { mode: 'sequential', maxConcurrent: IMPORT_CONFIG.jobProcessing.defaultMaxConcurrent },
   notifications: DEFAULT_NOTIFICATION_SETTINGS,
 };
 

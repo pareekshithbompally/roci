@@ -52,17 +52,18 @@ export const AUDIO_CONFIG = {
 
   // Capture source options
   captureSources: {
+    /** `requires`: the macOS access each source needs, said under the picker. */
     systemAndMicrophone: {
       label: 'System + Microphone',
-      description: 'Capture system audio and mic together',
+      requires: 'Screen Recording and Microphone access required.',
     },
     system: {
       label: 'System Audio',
-      description: 'Capture system audio only',
+      requires: 'Screen Recording permission required.',
     },
     microphone: {
       label: 'Microphone',
-      description: 'Capture microphone only',
+      requires: 'Microphone access required.',
     },
   },
 
@@ -148,8 +149,8 @@ export const IMPORT_CONFIG = {
     } as Record<string, string>,
     dialogTitle: 'Select transcript files',
   },
+  /** Imported audio: one at a time, or up to `maxConcurrentLimit` at once (`defaultMaxConcurrent` when parallel is first chosen). */
   jobProcessing: {
-    defaultMode: 'sequential' as const,
     defaultMaxConcurrent: 2,
     maxConcurrentLimit: 5,
   },

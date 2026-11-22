@@ -9,16 +9,17 @@ import { CardRow, ChoiceControl, Icon, Picker, Section, Switch } from '@shared/u
 
 import { useLiveModeLine } from '@features/settings/hooks/useSpeechModels';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
-import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
+import { AUDIO_CONFIG, IMPORT_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { LAYOUT } from '@config/layout.config';
 import { platform } from '@platform/index';
 
 /** Recording sources offered in General › Capture, and what each needs from macOS. */
 const CAPTURE_SOURCES = ['systemAndMicrophone', 'system', 'microphone'] as const;
-/** Imported audio processed one at a time, or up to eight at once (one menu, as Apple would write it). */
+const { defaultMaxConcurrent, maxConcurrentLimit } = IMPORT_CONFIG.jobProcessing;
+/** Imported audio processed one at a time, or several at once up to the limit (one menu, as Apple would write it). */
 const IMPORT_CONCURRENCY = [
   { value: '1', label: 'One at a time' },
-  ...Array.from({ length: 7 }, (_, i) => ({ value: String(i + 2), label: `${i + 2} at once` })),
+  ...Array.from({ length: maxConcurrentLimit - 1 }, (_, i) => ({ value: String(i + 2), label: `${i + 2} at once` })),
 ];
 
 /** Section footers: what each group's rows do. */
@@ -29,12 +30,6 @@ const FOOTER = {
   /** With Live Transcript on, Stop always finishes the transcript and summary, so the switch has nothing to decide. */
   afterRecording: { live: 'With Live Transcript on, Stop always finishes the transcript and writes the summary.', off: 'Transcribe After Recording also writes the summary.' },
 } as const;
-
-const CAPTURE_HINT: Record<(typeof CAPTURE_SOURCES)[number], string> = {
-  systemAndMicrophone: 'Screen Recording and Microphone access required.',
-  system: 'Screen Recording permission required.',
-  microphone: 'Microphone access required.',
-};
 
 export const GeneralPanel: React.FC = () => {
   const { theme, setTheme } = useThemeContext();
@@ -100,9 +95,9 @@ export const GeneralPanel: React.FC = () => {
           actions={
             <Picker
               label="Audio processing"
-              value={settings.jobProcessing?.mode === 'parallel' ? String(settings.jobProcessing.maxConcurrent ?? 2) : '1'}
+              value={settings.jobProcessing?.mode === 'parallel' ? String(settings.jobProcessing.maxConcurrent ?? defaultMaxConcurrent) : '1'}
               onChange={(n) => setSettings({
-                jobProcessing: n === '1' ? { mode: 'sequential', maxConcurrent: 2 } : { mode: 'parallel', maxConcurrent: Number(n) },
+                jobProcessing: n === '1' ? { mode: 'sequential', maxConcurrent: defaultMaxConcurrent } : { mode: 'parallel', maxConcurrent: Number(n) },
               })}
               placeholder=""
               groups={[{ options: IMPORT_CONCURRENCY }]}
@@ -112,7 +107,7 @@ export const GeneralPanel: React.FC = () => {
       </Section>
 
       {platform.canCaptureSystemAudio && (
-        <Section title="Capture" footer={CAPTURE_HINT[captureSource]}>
+        <Section title="Capture" footer={AUDIO_CONFIG.captureSources[captureSource].requires}>
           <CardRow
             title="Input Source"
             actions={

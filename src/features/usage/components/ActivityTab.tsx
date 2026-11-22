@@ -46,15 +46,15 @@ const costText = (cost: number, unpriced: number): string => (cost === 0 && unpr
 /** "+18% vs previous 30 days"; "New" when there was nothing before; none for all time or while the window before loads. */
 function changeLine(current: number, previous: number | undefined, rangeLabel: string): string | undefined {
   if (previous === undefined) return undefined;
-  if (previous === 0) return current === 0 ? undefined : `New vs previous ${rangeLabel}`;
-  return `${PERCENT.format((current - previous) / previous)} vs previous ${rangeLabel}`;
+  if (previous === 0) return current === 0 ? undefined : COPY.changeNew(rangeLabel);
+  return COPY.change(PERCENT.format((current - previous) / previous), rangeLabel);
 }
 
 const Kpis: React.FC<{ summary: UsageSummary; previous: UsageSummary | undefined; rangeLabel: string }> = ({ summary, previous, rangeLabel }) => {
   const K = COPY.kpis;
   const input = summary.total_input_tokens;
-  const cached = input > 0 ? `${SHARE.format(summary.total_cache_read_tokens / input)} cached` : null;
-  const tokensDetail = [`${formatTokens(input)} in`, `${formatTokens(summary.total_output_tokens)} out`, cached].filter(Boolean).join(' · ');
+  const cached = input > 0 ? COPY.cached(SHARE.format(summary.total_cache_read_tokens / input)) : null;
+  const tokensDetail = [COPY.tokensIn(formatTokens(input)), COPY.tokensOut(formatTokens(summary.total_output_tokens)), cached].filter(Boolean).join(' · ');
   const perRequest = summary.total_calls > 0 ? summary.total_cost / summary.total_calls : 0;
   return (
     <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -74,7 +74,7 @@ const Kpis: React.FC<{ summary: UsageSummary; previous: UsageSummary | undefined
 
 /** "Wed 19 Nov · $0.04 · 52 requests": a span (or a day) and its figures. */
 const peekLine = (when: string, totals: UsageTotals) =>
-  [when, formatMeasure('cost', totals.estimated_cost), `${formatMeasure('requests', totals.calls)} ${totals.calls === 1 ? 'request' : 'requests'}`].join(' · ');
+  [when, formatMeasure('cost', totals.estimated_cost), COPY.requests(formatMeasure('requests', totals.calls), totals.calls)].join(' · ');
 
 /** One measure over time, cost or requests. The line above reads the period's total, or the day under the pointer, with both
  *  figures — the chart's only words besides its axes. */
@@ -93,7 +93,7 @@ const Trend: React.FC<{ series: UsageBucket[]; period: UsageWindow; summary: Usa
     ? peekLine(bucketLabel(day.key, period.bucket, 'long'), day)
     : peekLine(periodLabel, { calls: summary.total_calls, estimated_cost: summary.total_cost });
   return (
-    <Section title={COPY.trend} accessory={<Tabs items={USAGE_CONFIG.measures} value={measure} onValueChange={setMeasure} label="Measure" />}>
+    <Section title={COPY.trend} accessory={<Tabs items={USAGE_CONFIG.measures} value={measure} onValueChange={setMeasure} label={COPY.measureLabel} />}>
       <div className="flex flex-col gap-1 py-3">
         <Text variant="figure" tone={day ? 'primary' : 'muted'}>{peek}</Text>
         <Chart option={option} height={C.trendHeight} label={`${MEASURE_LABEL[measure]} ${COPY.trend.toLowerCase()}`} onHover={setHovered} />
@@ -125,7 +125,7 @@ const SplitDonut: React.FC<{ summary: UsageSummary; split: UsageSplit }> = ({ su
   const total = measure === 'cost' ? summary.total_cost : summary.total_calls;
   const format = useCallback((v: number) => formatMeasure(measure, v), [measure]);
   return (
-    <Section title={COPY.splits[split]} accessory={<Tabs items={USAGE_CONFIG.measures} value={measure} onValueChange={setMeasure} label="Measure" />}>
+    <Section title={COPY.splits[split]} accessory={<Tabs items={USAGE_CONFIG.measures} value={measure} onValueChange={setMeasure} label={COPY.measureLabel} />}>
       <div className="py-3">
         <DonutChart
           slices={slices}
@@ -261,7 +261,7 @@ export const ActivityTab: React.FC = () => {
 
   return (
     <>
-      <Tabs items={USAGE_CONFIG.ranges} value={range} onValueChange={setRange} label="Range" />
+      <Tabs items={USAGE_CONFIG.ranges} value={range} onValueChange={setRange} label={COPY.rangeLabel} />
       <ScreenState
         loading={isLoading}
         error={error ? { cause: error, title: COPY.loadFailed } : null}
