@@ -1,5 +1,5 @@
-/** Renders a chat's media: attached files and tool-made images (an image opens in the kit Lightbox, a document in its default
- *  app on the Mac); a removed file shows as removed. */
+/** Renders a chat's media: attached files and tool-made images (an image opens in the kit Lightbox, audio and video play in the
+ *  shared players, a document opens in its default app on the Mac); a removed file shows as removed. */
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -10,7 +10,7 @@ import { FileText, FileX, ImageOff, VideoOff, VolumeX, type LucideIcon } from 'l
 import { Icon, Lightbox, Row, Surface, Text, Thumbnail } from '@shared/ui';
 import { platform } from '@platform/index';
 import { openAttachment } from '@features/chat/utils';
-import { RemovedNotice } from '@shared/components';
+import { AudioPlayer, RemovedNotice, VideoPlayer } from '@shared/components';
 import { StorageConfig } from '@config/storage.config';
 import type { FileUIPart, GeneratedImage } from '@shared/types';
 import { mediaKind, type MediaKind } from '@shared/utils/chatParts';
@@ -36,6 +36,9 @@ function useMediaSrc(media: ChatMedia): string | null | undefined {
   });
   return 'url' in media ? media.url : fileUrl;
 }
+
+/** Which media this is, for the playback session: a kept file by its path, an attachment by its URL. */
+const mediaId = (media: ChatMedia): string => ('path' in media ? media.path : media.url);
 
 /** A document by its name; on the Mac a press opens it in its default app. */
 function DocumentChip({ media, name }: { media: ChatMedia; name?: string }) {
@@ -80,21 +83,19 @@ export const MediaPartRenderer: React.FC<MediaPartRendererProps> = ({ media }) =
         </>
       );
     case 'audio':
+      // A kept file's URL arrives a moment later; the player mounts once it has one.
+      if (!src) return null;
       return (
-        <audio
-          src={src}
-          controls
-          className="w-full my-2"
-          preload="metadata"
-        />
+        <div className="my-2">
+          <AudioPlayer session={{ id: mediaId(media), src, title: name || 'Audio', duration: 0 }} />
+        </div>
       );
     case 'video':
+      if (!src) return null;
       return (
-        <Surface radius="lg" className="max-w-xs my-2 overflow-hidden">
-          <video src={src} controls className="block w-full h-auto" preload="metadata">
-            {name || 'AI generated video'}
-          </video>
-        </Surface>
+        <div className="my-2 max-w-xs">
+          <VideoPlayer src={src} label={name || 'Video'} />
+        </div>
       );
     case 'document':
       return <DocumentChip media={media} name={name} />;

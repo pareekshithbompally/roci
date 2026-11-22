@@ -2,6 +2,8 @@
 export { ActivityTray } from './ActivityTray';
 export { ActivityButton } from './ActivityButton';
 export { ConfirmHost } from './ConfirmHost';
+export { AudioPlayer } from './AudioPlayer';
+export { VideoPlayer } from './VideoPlayer';
 export { EmptyState } from './EmptyState';
 export { ProposalCard } from './ProposalCard';
 export { FormDialog } from './FormDialog';

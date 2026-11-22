@@ -1,10 +1,11 @@
-/** Meeting audio playing away from its meeting: title, stop, play/pause, skip, a seek slider and the time. */
+/** Audio playing away from its player: title, stop, play/pause, skip, a seek slider and the time. */
 
 import React from 'react';
 import { Pause, Play, SkipForward, Square } from 'lucide-react';
 import { Dot, IconButton, Slider, Text } from '@shared/ui';
 import { formatClock } from '@shared/utils/formatters';
-import { SKIP_SECONDS, type MinimizedAudio } from './useMinimizedAudio';
+import { PLAYER_CONFIG } from '@config/player.config';
+import type { MinimizedAudio } from './useMinimizedAudio';
 
 export const AudioRow: React.FC<{ audio: MinimizedAudio }> = ({ audio }) => (
   <div className="space-y-1 px-3 py-2">
@@ -15,7 +16,7 @@ export const AudioRow: React.FC<{ audio: MinimizedAudio }> = ({ audio }) => (
     </div>
     <div className="flex items-center gap-1">
       <IconButton icon={audio.isPlaying ? Pause : Play} filled label={audio.isPlaying ? 'Pause' : 'Play'} size="sm" onClick={audio.toggle} />
-      <IconButton icon={SkipForward} label={`Skip forward ${SKIP_SECONDS} seconds`} size="sm" onClick={audio.skip} />
+      <IconButton icon={SkipForward} label={`Skip forward ${PLAYER_CONFIG.skipSeconds} seconds`} size="sm" onClick={audio.skip} />
       <Slider
         aria-label="Seek"
         min={0}

@@ -35,12 +35,12 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = React.memo(
   const hasRecording = !!item.historyItem?.recordingFileName;
   const transcribeAction = phase ? meetingPhaseAction(phase) : null;
 
-  const audioSession = useAudioPlayerStore((s) => s.session);
+  const audioSessionId = useAudioPlayerStore((s) => s.session?.id);
   const audioIsPlaying = useAudioPlayerStore((s) => s.isPlaying);
   const isThisMeetingPlaying =
     item.type === 'meeting' &&
-    !!audioSession &&
-    audioSession.meetingId === item.historyItem?.id &&
+    !!audioSessionId &&
+    audioSessionId === item.historyItem?.id &&
     audioIsPlaying;
 
   return (
