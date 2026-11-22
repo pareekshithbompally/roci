@@ -19,7 +19,7 @@ const allDefault = { input: 'default', output: 'default', tools: 'default', reas
 
 const record = (over: Partial<ModelRecord>): ModelRecord => ({
   provider: 'openai', id: 'm', label: 'm', source: 'cloud', input: [], output: [],
-  tools: false, reasoning: false, contextTokens: null, known: false, sourceOf: allDefault, ready: true, hint: null, ...over,
+  tools: false, reasoning: false, contextTokens: null, known: false, sourceOf: allDefault, correctedInputs: [], ready: true, hint: null, ...over,
 });
 
 const catalog = (report: object, exact = true) => catalogReport.mockReturnValue({ report, exact });
@@ -31,7 +31,7 @@ beforeEach(() => {
 describe('profileOf — first source to state a fact wins', () => {
   it('an unknown model on a language-model provider is assumed to chat, never with tools', () => {
     expect(profileOf('gemini', { id: 'mystery-1' })).toEqual({
-      input: ['text'], output: ['text'], tools: false, reasoning: false, contextTokens: null, known: false, sourceOf: allDefault,
+      input: ['text'], output: ['text'], tools: false, reasoning: false, contextTokens: null, known: false, sourceOf: allDefault, correctedInputs: [],
     });
   });
 
@@ -44,6 +44,7 @@ describe('profileOf — first source to state a fact wins', () => {
     expect(profileOf('anthropic', { id: 'claude' })).toEqual({
       input: ['text', 'image'], output: ['text'], tools: true, reasoning: true, contextTokens: 200_000, known: true,
       sourceOf: { input: 'catalog', output: 'catalog', tools: 'catalog', reasoning: 'catalog', contextTokens: 'catalog' },
+      correctedInputs: [],
     });
   });
 
@@ -70,7 +71,7 @@ describe('profileOf — first source to state a fact wins', () => {
   it('the user\'s corrections beat every source', () => {
     catalog({ input: ['text', 'audio'], output: ['text'], tools: true });
     const profile = profileOf('openai', { id: 'gpt', reported: { reasoning: true }, overrides: { tools: false, audio: false } });
-    expect(profile).toMatchObject({ input: ['text'], tools: false, reasoning: true, sourceOf: { input: 'user', tools: 'user', reasoning: 'provider' } });
+    expect(profile).toMatchObject({ input: ['text'], tools: false, reasoning: true, correctedInputs: ['audio'], sourceOf: { input: 'catalog', tools: 'user', reasoning: 'provider' } });
     expect(featuresOf(profile)).toEqual([{ feature: 'thinking', guessed: false }]);
   });
 

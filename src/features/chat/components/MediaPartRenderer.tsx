@@ -7,11 +7,12 @@ import { assetsService } from '@services/storage';
 import { store } from '@services/db';
 import { queryKeys } from '@shared/query/queryKeys';
 import { FileText, FileX, ImageOff, VideoOff, VolumeX, type LucideIcon } from 'lucide-react';
-import { Icon, Row, Surface, Text, Thumbnail, Viewer } from '@shared/ui';
+import { Icon, Row, Surface, Text, Thumbnail, Viewer, showToast } from '@shared/ui';
 import { platform } from '@platform/index';
 import { openAttachment } from '@features/chat/utils';
 import { AudioPlayer, RemovedNotice, VideoPlayer } from '@shared/components';
 import { StorageConfig } from '@config/storage.config';
+import { ATTACHMENT_COPY } from '@config/chat.config';
 import type { FileUIPart, GeneratedImage } from '@shared/types';
 import { attachmentInput, mediaKind, type MediaKind } from '@shared/utils/chatParts';
 import { useObjectUrl } from '@shared/hooks';
@@ -41,9 +42,13 @@ function useMediaSrc(media: ChatMedia): string | null | undefined {
 /** Which media this is, for the playback session: a kept file by its path, an attachment by its URL. */
 const mediaId = (media: ChatMedia): string => ('path' in media ? media.path : media.url);
 
-/** A PDF in the kit viewer, read into a `blob:` URL while it is open. */
+/** A PDF in the kit viewer, read into a `blob:` URL while it is open; one that can't be read closes and says so. */
 function PdfViewer({ src, title, open, onOpenChange }: { src: string; title: string; open: boolean; onOpenChange: (open: boolean) => void }) {
-  const objectUrl = useObjectUrl(open ? src : null);
+  const objectUrl = useObjectUrl(open ? src : null, (error) => {
+    console.error('[MediaPartRenderer] Reading the PDF failed:', title, error);
+    onOpenChange(false);
+    showToast(ATTACHMENT_COPY.openFailed(title), 'error');
+  });
   if (!objectUrl) return null;
   return <Viewer media={{ kind: 'pdf', src: objectUrl, title }} open={open} onOpenChange={onOpenChange} />;
 }

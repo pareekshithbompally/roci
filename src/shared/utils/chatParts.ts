@@ -18,6 +18,13 @@ export function mediaKind(mediaType: string): MediaKind {
 const hasExtension = (filename: string, extensions: readonly string[]) =>
   extensions.some((extension) => filename.toLowerCase().endsWith(extension));
 
+/** The media type an attachment is kept with: a PDF as a PDF even when the system named no type, so the viewer and the
+ *  model read it as one; any other as given (an unknown type as raw bytes). */
+export function attachmentMediaType(mediaType: string, filename: string): string {
+  if (attachmentInput(mediaType, filename) === 'pdf') return ATTACHMENT_TYPES.pdf.mediaType;
+  return mediaType || 'application/octet-stream';
+}
+
 /** What a model must take to read an attached file: images, audio, video or PDFs; `text` for a text file (sent as its
  *  contents, which every model reads); null for a file no model reads (a Word document, an archive). */
 export function attachmentInput(mediaType: string, filename = ''): Modality | null {

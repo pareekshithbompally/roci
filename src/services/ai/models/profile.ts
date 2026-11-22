@@ -29,7 +29,10 @@ export interface ModelProfile {
   contextTokens: number | null;
   /** Something other than its provider's default states its modalities. */
   known: boolean;
+  /** Where each fact came from; for `input`, the sources' own answer (the inputs the user set are `correctedInputs`). */
   sourceOf: Record<Fact, FactSource>;
+  /** Inputs the user turned on or off in the model's ⋯ menu; each is theirs, whatever the sources said. */
+  correctedInputs: Modality[];
 }
 
 type ProfiledModel = Pick<Model, 'id' | 'reported' | 'overrides'>;
@@ -76,7 +79,9 @@ function correctedInput(input: Modality[], overrides: ModelOverrides): Modality[
   }, input);
 }
 
-const hasInputOverride = (overrides: ModelOverrides) => INPUT_OVERRIDES.some(({ key }) => overrides[key] !== undefined);
+/** The inputs the user set, on or off. */
+const correctedInputsOf = (overrides: ModelOverrides): Modality[] =>
+  INPUT_OVERRIDES.filter(({ key }) => overrides[key] !== undefined).map(({ modality }) => modality);
 
 /** Its own catalog entry outranks a name rule; a name rule (about this very model) outranks another host's entry for a model
  *  with a similar name — `gpt-4o-mini-transcribe` is audio in, whatever a gateway's lookalike says. */
@@ -103,38 +108,43 @@ function settle<K extends Fact>(layers: Layer[], fact: K): { value: ModelReport[
 export function profileOf(provider: string, model: ProfiledModel): ModelProfile {
   const layers = layersOf(provider, model);
   const overrides = model.overrides ?? {};
-  const sourced = settle(layers, 'input');
-  const input = hasInputOverride(overrides)
-    ? { value: correctedInput(sourced.value ?? [], overrides), source: 'user' as const }
-    : sourced;
+  const input = settle(layers, 'input');
+  const correctedInputs = correctedInputsOf(overrides);
   const output = settle(layers, 'output');
   const tools = settle(layers, 'tools');
   const reasoning = settle(layers, 'reasoning');
   const contextTokens = settle(layers, 'contextTokens');
   return {
-    input: input.value ?? [],
+    input: correctedInput(input.value ?? [], overrides),
     output: output.value ?? [],
     tools: tools.value ?? false,
     reasoning: reasoning.value ?? false,
     contextTokens: contextTokens.value ?? null,
-    known: input.source !== 'default' || output.source !== 'default',
+    known: input.source !== 'default' || output.source !== 'default' || correctedInputs.length > 0,
     sourceOf: { input: input.source, output: output.source, tools: tools.source, reasoning: reasoning.source, contextTokens: contextTokens.source },
+    correctedInputs,
   };
 }
 
 /** What a model can do beyond text in and out, as every model list shows it (chips, menu lines). */
 export type ModelFeature = 'vision' | 'audio' | 'video' | 'pdf' | 'tools' | 'thinking';
 
-const FEATURES: ReadonlyArray<{ feature: ModelFeature; fact: Fact; has: (p: ModelProfile) => boolean }> = [
-  { feature: 'vision', fact: 'input', has: (p) => p.input.includes('image') },
-  { feature: 'audio', fact: 'input', has: (p) => p.input.includes('audio') },
-  { feature: 'video', fact: 'input', has: (p) => p.input.includes('video') },
-  { feature: 'pdf', fact: 'input', has: (p) => p.input.includes('pdf') },
-  { feature: 'tools', fact: 'tools', has: (p) => p.tools },
-  { feature: 'thinking', fact: 'reasoning', has: (p) => p.reasoning },
+/** Every feature in display order: the fact it rests on, the input it needs (for an input feature) and the ⋯ menu correction
+ *  that sets it, if any. Chips, menu lines and corrections all read this one list. */
+export const FEATURES: ReadonlyArray<{ feature: ModelFeature; fact: Fact; modality?: Modality; override?: keyof ModelOverrides; has: (p: ModelProfile) => boolean }> = [
+  { feature: 'vision', fact: 'input', modality: 'image', override: 'vision', has: (p) => p.input.includes('image') },
+  { feature: 'audio', fact: 'input', modality: 'audio', override: 'audio', has: (p) => p.input.includes('audio') },
+  { feature: 'video', fact: 'input', modality: 'video', has: (p) => p.input.includes('video') },
+  { feature: 'pdf', fact: 'input', modality: 'pdf', override: 'pdf', has: (p) => p.input.includes('pdf') },
+  { feature: 'tools', fact: 'tools', override: 'tools', has: (p) => p.tools },
+  { feature: 'thinking', fact: 'reasoning', override: 'reasoning', has: (p) => p.reasoning },
 ];
+
+/** A feature rests on a guess unless the user set it, or a source (not a guess) states it. */
+const guessed = (profile: ModelProfile, f: (typeof FEATURES)[number]): boolean =>
+  !(f.modality && profile.correctedInputs.includes(f.modality)) && isGuess(profile.sourceOf[f.fact]);
 
 /** The profile's features in display order, each marked when it rests on a guess. */
 export function featuresOf(profile: ModelProfile): Array<{ feature: ModelFeature; guessed: boolean }> {
-  return FEATURES.filter((f) => f.has(profile)).map((f) => ({ feature: f.feature, guessed: isGuess(profile.sourceOf[f.fact]) }));
+  return FEATURES.filter((f) => f.has(profile)).map((f) => ({ feature: f.feature, guessed: guessed(profile, f) }));
 }

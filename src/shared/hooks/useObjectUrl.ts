@@ -1,9 +1,11 @@
 /** A `blob:` URL for `url` while it is given (WebKit shows a PDF from one in a frame, never from a `data:` URL), revoked
- *  once it isn't. A lifecycle (the URL holds the bytes until revoked), not cached data, so it is an effect, not a query. */
+ *  once it isn't; a file that can't be read goes to `onError`. A lifecycle (the URL holds the bytes until revoked), not cached data, so it is an effect, not a query. */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-export function useObjectUrl(url: string | null): string | null {
+export function useObjectUrl(url: string | null, onError: (error: unknown) => void): string | null {
+  const reportRef = useRef(onError);
+  reportRef.current = onError;
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!url) return;
@@ -16,7 +18,9 @@ export function useObjectUrl(url: string | null): string | null {
         made = URL.createObjectURL(blob);
         setObjectUrl(made);
       })
-      .catch((error: unknown) => console.error('[useObjectUrl] Reading the file failed:', error));
+      .catch((error: unknown) => {
+        if (!gone) reportRef.current(error);
+      });
     return () => {
       gone = true;
       if (made) URL.revokeObjectURL(made);

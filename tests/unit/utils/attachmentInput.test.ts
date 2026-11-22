@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { attachmentInput } from '@shared/utils/chatParts';
+import { attachmentInput, attachmentMediaType } from '@shared/utils/chatParts';
 import { dataUrlText } from '@shared/utils/file.utils';
 
 describe('attachmentInput', () => {
@@ -30,5 +30,14 @@ describe('dataUrlText', () => {
     expect(dataUrlText('data:text/plain,a%20b')).toBe('a b');
     expect(dataUrlText('https://example.com/a.txt')).toBeNull();
     expect(dataUrlText(`data:application/octet-stream;base64,${btoa('\xff\xfe\xfd')}`)).toBeNull();
+  });
+});
+
+describe('attachmentMediaType', () => {
+  it('keeps a PDF as a PDF even when the system named no type, and any other file as given', () => {
+    expect(attachmentMediaType('', 'q3.pdf')).toBe('application/pdf');
+    expect(attachmentMediaType('application/octet-stream', 'Q3.PDF')).toBe('application/pdf');
+    expect(attachmentMediaType('text/csv', 'a.csv')).toBe('text/csv');
+    expect(attachmentMediaType('', 'a.bin')).toBe('application/octet-stream');
   });
 });

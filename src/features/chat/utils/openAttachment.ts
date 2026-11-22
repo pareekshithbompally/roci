@@ -4,6 +4,7 @@ import type { FileUIPart } from '@shared/types';
 import { cacheService } from '@services/storage';
 import { openFile } from '@services/tauri';
 import { showToast } from '@shared/ui';
+import { ATTACHMENT_COPY } from '@config/chat.config';
 
 export async function openAttachment(part: FileUIPart): Promise<void> {
   const name = part.filename || 'attachment';
@@ -12,6 +13,6 @@ export async function openAttachment(part: FileUIPart): Promise<void> {
     await openFile(await cacheService.openCopy(name, bytes));
   } catch (error: unknown) {
     console.error('[openAttachment] Open failed:', name, error);
-    showToast(`Couldn't open ${name}`, 'error');
+    showToast(ATTACHMENT_COPY.openFailed(name), 'error');
   }
 }

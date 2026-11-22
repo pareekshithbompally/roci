@@ -14,6 +14,7 @@ import { UI_CONFIG } from '@config/ui.config';
 import { chatModelOf } from '@features/chat/utils';
 import type { ModelRef } from '@services/ai/models';
 import { attachmentPart } from './chatMessages';
+import { attachmentMediaType } from '@shared/utils/chatParts';
 import { createSessions } from './chatSessions';
 import { createReplies } from './chatReply';
 
@@ -180,7 +181,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   addAttachment: async (file) => {
     if (get().pendingAttachments.length >= CHAT_MAX_ATTACHMENTS) return;
     try {
-      const part = attachmentPart(file.type || 'application/octet-stream', await fileToDataUrl(file), file.name);
+      const part = attachmentPart(attachmentMediaType(file.type, file.name), await fileToDataUrl(file), file.name);
       set((state) => ({ pendingAttachments: [...state.pendingAttachments, part] }));
     } catch (error: unknown) {
       console.error('[ChatStore] Failed to add attachment:', error);

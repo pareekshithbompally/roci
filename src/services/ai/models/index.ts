@@ -1,6 +1,6 @@
 /** Model spine: the one answer to what a model is, which jobs it fits, and how it runs. */
 
-export { featuresOf, isGuess, profileOf, shownProfile } from './profile';
+export { FEATURES, featuresOf, isGuess, profileOf, shownProfile } from './profile';
 export type { Fact, FactSource, ModelFeature, ModelProfile } from './profile';
 export { isEmptyReport, mergeReports, toModalities, withReports } from './report';
 export type { ListedModel } from './report';

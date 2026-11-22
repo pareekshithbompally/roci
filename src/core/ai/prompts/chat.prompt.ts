@@ -169,9 +169,11 @@ function rules(tools: ChatToolset): string {
   return `## Rules\n\n${lines.filter(Boolean).join('\n')}`;
 }
 
-/** A text file the user attached, as the model reads it: its name, then its contents. */
-export function attachedFileText(name: string, contents: string): string {
-  return `## File the user attached: ${name}\n\n${contents}`;
+/** A text file the user attached, as the model reads it: its name, then its contents, and where they were cut when it is
+ *  longer than the model is sent (`totalChars`). */
+export function attachedFileText(name: string, contents: string, totalChars = contents.length): string {
+  const cut = contents.length < totalChars ? `\n\n(Cut here: the first ${contents.length} of ${totalChars} characters.)` : '';
+  return `## File the user attached: ${name}\n\n${contents}${cut}`;
 }
 
 /** A file the user attached that this model can't read, named so it can say so instead of guessing. */

@@ -6,7 +6,7 @@ import type { DataUIPart, FileUIPart, ModelMessage, TextPart, TextUIPart, ToolSe
 import { attachedFileText, attachedMeetingsText, formatSentAt, unreadableFileText } from '@core/ai';
 import { attachmentInput } from '@shared/utils/chatParts';
 import { dataUrlText } from '@shared/utils/file.utils';
-import { CHAT_DRAFT_COPY } from '@config/chat.config';
+import { ATTACHMENT_TYPES, CHAT_DRAFT_COPY } from '@config/chat.config';
 import type { Modality } from '@config/modelSpine.config';
 import type { ChatData, ChatMessage, ChatPart } from '@shared/types';
 
@@ -28,7 +28,9 @@ function readableFile(part: FileUIPart, input: readonly Modality[]): FileUIPart 
   const name = part.filename || CHAT_DRAFT_COPY.untitledAttachment;
   const needs = attachmentInput(part.mediaType, part.filename);
   const contents = needs === 'text' ? dataUrlText(part.url) : null;
-  if (contents !== null) return { type: 'text', text: attachedFileText(name, contents) };
+  if (contents !== null) {
+    return { type: 'text', text: attachedFileText(name, contents.slice(0, ATTACHMENT_TYPES.text.maxChars), contents.length) };
+  }
   if (needs && needs !== 'text' && input.includes(needs)) return part;
   return { type: 'text', text: unreadableFileText(name) };
 }

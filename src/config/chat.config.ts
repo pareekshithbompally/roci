@@ -26,7 +26,17 @@ export const CHAT_MAX_ATTACHMENTS = 10;
  *  contents), known by its media type or, when the system gives it none, its extension. */
 export const ATTACHMENT_TYPES = {
   pdf: { mediaType: 'application/pdf', extension: '.pdf' },
-  text: { mediaTypePrefix: 'text/', mediaTypes: ['application/json'], extensions: ['.txt', '.md', '.csv', '.json'] },
+  text: {
+    mediaTypePrefix: 'text/',
+    mediaTypes: ['application/json'],
+    extensions: ['.txt', '.md', '.csv', '.json'],
+    /** The most of one text file a model is sent (about 25k tokens); the rest is said to be cut. */
+    maxChars: 100_000,
+  },
+} as const;
+
+export const ATTACHMENT_COPY = {
+  openFailed: (name: string) => `Couldn't open ${name}`,
 } as const;
 
 /** A new chat's title is the question's first this-many characters until the model names it. */

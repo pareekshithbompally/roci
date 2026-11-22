@@ -5,17 +5,13 @@ import { MoreHorizontal } from 'lucide-react';
 import { IconButton } from '@shared/ui';
 import { Menu } from '@shared/components';
 import { MENU_SYMBOLS } from '@config/ui.config';
-import type { ModelProfile } from '@services/ai/models';
+import { FEATURES, type ModelProfile } from '@services/ai/models';
+import { MODEL_MENU_COPY } from '@config/modelMenu.config';
 import type { ModelOverrides } from '@shared/types/modelProviders';
 
-/** Each correction: its label, the override it sets, and whether the profile has it now (the tick). */
-const CORRECTIONS: ReadonlyArray<{ label: string; key: keyof ModelOverrides; on: (p: ModelProfile) => boolean }> = [
-  { label: 'Vision', key: 'vision', on: (p) => p.input.includes('image') },
-  { label: 'Audio input', key: 'audio', on: (p) => p.input.includes('audio') },
-  { label: 'PDF input', key: 'pdf', on: (p) => p.input.includes('pdf') },
-  { label: 'Tool calling', key: 'tools', on: (p) => p.tools },
-  { label: 'Thinking', key: 'reasoning', on: (p) => p.reasoning },
-];
+/** Each correction: a feature the user can set, by its name, the override it sets, and whether the profile has it (the tick). */
+const CORRECTIONS = FEATURES.flatMap(({ feature, override, has }) =>
+  override ? [{ label: MODEL_MENU_COPY.features[feature], key: override, on: has }] : []);
 
 interface ModelRowMenuProps {
   /** What the model can do now, from every source. */

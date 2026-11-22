@@ -4,6 +4,7 @@ import type { ToolSet } from 'ai';
 import { toModelMessages } from '@services/ai/message-converter';
 import { attachedFileText, formatSentAt, unreadableFileText } from '@core/ai';
 import type { Modality } from '@config/modelSpine.config';
+import { ATTACHMENT_TYPES } from '@config/chat.config';
 import { extractTokenUsage } from '@services/ai/types';
 import { chatModelOf } from '@features/chat/utils';
 import type { ChatMessage, ChatMetadata, ChatPart } from '@shared/types';
@@ -98,6 +99,13 @@ describe('conversation history (convertToModelMessages)', () => {
       expect(await sentWith(file('application/octet-stream', 'notes.md', '# Plan\nShip it'), TEXT_ONLY))
         .toEqual({ type: 'text', text: attachedFileText('notes.md', '# Plan\nShip it') });
       expect(await sentWith(file('text/csv', 'q3.csv', 'a,b\n1,2'), TEXT_ONLY)).toMatchObject({ text: attachedFileText('q3.csv', 'a,b\n1,2') });
+    });
+
+    it('sends a long text file cut to the limit, saying where it was cut', async () => {
+      const long = 'x'.repeat(ATTACHMENT_TYPES.text.maxChars + 10);
+      const sent = await sentWith(file('text/plain', 'log.txt', long), TEXT_ONLY);
+      expect(sent?.text).toBe(attachedFileText('log.txt', long.slice(0, ATTACHMENT_TYPES.text.maxChars), long.length));
+      expect(sent?.text).toContain('Cut here');
     });
 
     it('names a file the model can\'t read instead of sending it, so a chat holding one keeps working', async () => {

@@ -36,6 +36,11 @@ export function Viewer({ media, open, onOpenChange, caption }: ViewerProps) {
         <DialogPrimitive.Overlay className={SCRIM} />
         <DialogPrimitive.Content
           aria-describedby={undefined}
+          // Focus stays on the viewer, not inside a PDF's frame, whose own document would take Escape.
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            (event.currentTarget as HTMLElement).focus();
+          }}
           className={cn('fixed inset-0 z-modal flex items-center justify-center outline-none data-[state=open]:animate-fade-in', FRAME)}
           onClick={() => onOpenChange(false)}
         >

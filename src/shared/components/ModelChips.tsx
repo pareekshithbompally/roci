@@ -5,16 +5,12 @@ import { AudioLines, Brain, Eye, FileText, Video, Wrench, type LucideIcon } from
 import { Chip } from '@shared/ui';
 import { useFormFactor } from '@platform/formFactor';
 import { featuresOf } from '@services/ai/models';
+import { MODEL_MENU_COPY } from '@config/modelMenu.config';
 import type { ModelFeature, ModelProfile } from '@services/ai/models';
 
-/** Each feature's chip (text in and out is a given, so not shown). */
-const FEATURE_CHIPS: Readonly<Record<ModelFeature, { icon: LucideIcon; title: string }>> = {
-  vision: { icon: Eye, title: 'Vision' },
-  audio: { icon: AudioLines, title: 'Audio input' },
-  video: { icon: Video, title: 'Video input' },
-  pdf: { icon: FileText, title: 'PDF input' },
-  tools: { icon: Wrench, title: 'Tool calling' },
-  thinking: { icon: Brain, title: 'Thinking' },
+/** Each feature's chip glyph (text in and out is a given, so not shown); its title is the feature's name. */
+const FEATURE_ICONS: Readonly<Record<ModelFeature, LucideIcon>> = {
+  vision: Eye, audio: AudioLines, video: Video, pdf: FileText, tools: Wrench, thinking: Brain,
 };
 
 /** A guessed feature says so on hover. */
@@ -31,7 +27,8 @@ export const ModelChips: React.FC<ModelChipsProps> = ({ profile }) => {
   return (
     <span className="inline-flex shrink-0 items-center gap-1">
       {features.map(({ feature, guessed }) => {
-        const { icon, title } = FEATURE_CHIPS[feature];
+        const icon = FEATURE_ICONS[feature];
+        const title = MODEL_MENU_COPY.features[feature];
         return <Chip key={feature} icon={icon} title={guessed ? `${title}${GUESSED_SUFFIX}` : title} estimated={guessed} />;
       })}
     </span>
