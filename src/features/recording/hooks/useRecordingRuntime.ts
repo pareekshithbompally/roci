@@ -9,7 +9,8 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { useMeetingBrief, useMeetingBriefs, useMeetingsFound } from '@shared/hooks/useMeetings';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { BUSY_MEETINGS_SHOWN, MEETING_FAILED_LABEL, meetingPhaseLabel } from '@config/meetingPhase.config';
-import { activityStore, useActivityStore, type ActivityAction, type ActivityItem } from '@shared/stores/activityStore';
+import { activityStore, type ActivityAction, type ActivityItem } from '@shared/stores/activityStore';
+import { RECORDING_ROW } from './useRecordingClock';
 import { useMeetingParts } from '@shared/stores/meetingProgressStore';
 import type { HistoryItem } from '@shared/types';
 import { meetingPipeline } from '@features/recording/pipeline/meetingPipeline';
@@ -30,7 +31,6 @@ import { useAIReadiness } from '@features/settings';
 import { platform } from '@platform/index';
 import { useMeetingLive } from '@features/recording/live/useMeetingLive';
 
-const RECORDING_ROW = 'recording';
 const SAVED_ROW = 'recording:saved';
 const MEETING_ROW_PREFIX = 'meeting:';
 const TICK_MS = 1000;
@@ -198,11 +198,6 @@ function useMeetingRows(): void {
       if (item.id.startsWith(MEETING_ROW_PREFIX) && !shown.has(item.id)) activityStore.remove(item.id);
     }
   }, [busy, ranMeetings, parts]);
-}
-
-/** The recording's clock as its activity row shows it (the one visible clock, ticking only while recording and on screen). */
-export function useRecordingClock(): string | undefined {
-  return useActivityStore((s) => s.items.find((item) => item.id === RECORDING_ROW)?.detail ?? undefined);
 }
 
 export function useRecordingRuntime(): void {

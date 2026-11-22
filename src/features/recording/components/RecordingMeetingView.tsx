@@ -15,7 +15,7 @@ import { MEETING_LIVE_CONFIG as LIVE } from '@config/meetingLive.config';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
 import { speechSelectionOf } from '@services/ai/transcription';
 import { recording, useRecordingBusy, useRecordingMeetingId, useRecordingPaused } from '@features/recording/stores/recordingStore';
-import { useRecordingClock } from '@features/recording/hooks';
+import { useRecordingClock } from '@features/recording/hooks/useRecordingClock';
 import { useDraftSegments, useMeetingLiveStore } from '@features/recording/live';
 import { useLiveNotes, useLiveNotesStore } from '@features/recording/notes';
 import { MeetingWorkspace, type WorkspaceTranscript } from './MeetingWorkspace';

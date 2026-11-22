@@ -50,6 +50,10 @@ import { useAppStore } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 // eslint-disable-next-line import/first
 import { useLiveNotesStore } from '@features/recording/notes/liveNotesStore';
+// eslint-disable-next-line import/first
+import { useActivityStore } from '@shared/stores/activityStore';
+// eslint-disable-next-line import/first
+import { RECORDING_ROW } from '@features/recording/hooks/useRecordingClock';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -67,6 +71,8 @@ function startRecording() {
     justStopped: null,
   });
   meetingLiveActions.start('m1');
+  // the recording runtime keeps the clock in the recording's activity row
+  useActivityStore.setState({ items: [{ id: RECORDING_ROW, type: 'recording', status: 'active', label: 'Recording', detail: '01:05', percent: null, step: null, error: null, actions: [] }] });
 }
 
 describe('RecordingMeetingView', () => {

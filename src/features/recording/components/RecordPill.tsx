@@ -5,7 +5,8 @@ import { Square } from 'lucide-react';
 import { Button, Dot, Icon } from '@shared/ui';
 import { isTauriEnvironment } from '@services/tauri';
 import { recording, useRecordingBusy, useRecordingMeetingId } from '@features/recording/stores/recordingStore';
-import { useRecordingClock, useStartRecording } from '@features/recording/hooks';
+import { useStartRecording } from '@features/recording/hooks';
+import { useRecordingClock } from '@features/recording/hooks/useRecordingClock';
 import { MEETING_LIVE_CONFIG as LIVE } from '@config/meetingLive.config';
 import { meetingPhaseLabel } from '@config/meetingPhase.config';
 
