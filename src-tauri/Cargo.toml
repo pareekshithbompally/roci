@@ -107,6 +107,12 @@ transcribe-cpp = { git = "https://github.com/anomalyco/transcribe.cpp", rev = "2
 transcribe-cpp-sys = { git = "https://github.com/anomalyco/transcribe.cpp", rev = "2778ae4bf5ca5f394d129a39467f4ad9552dc34f" }
 
 
+# macOS keeps every dev build's object files for their debug info and, since Rust 1.88, never reuses them
+# (rust-lang/rust#161824): packed debug info lets them go; line tables keep file:line in backtraces.
+[profile.dev]
+debug = "line-tables-only"
+split-debuginfo = "packed"
+
 [profile.release]
 panic = "abort"
 codegen-units = 1

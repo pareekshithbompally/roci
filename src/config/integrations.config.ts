@@ -106,7 +106,7 @@ export const INTEGRATIONS_CONFIG = {
     section: 'URL actions',
     /** What the links are and where to use them. */
     footer:
-      'Links that control Roci from other apps. Open one from Shortcuts, Raycast, Alfred, a note or a browser, and Roci does it without you switching to it. Copy a link, then paste it wherever that app asks for a URL.',
+      'Links that control Roci from other apps. Open one from Shortcuts, Raycast, Alfred, a note or a browser, and Roci does it without you switching to it. Click the copy button beside a link, then paste it wherever that app asks for a URL.',
     copy: 'Copy link',
     copied: 'Link copied',
     meetingNotFound: 'That meeting isn’t in Roci.',
