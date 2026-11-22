@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 // Phase 6: Import App from new location with provider architecture
 import App from './src/app/App';
 import { platform } from './src/platform/index';
+import { followTextSize } from './src/platform/dynamicType';
 import { raiseSplash } from './src/app/splash';
 import { forwardConsoleToLog, loadSystemFormat } from './src/services/tauri';
 import { useSystemLocale } from './src/shared/stores/systemFormatStore';
@@ -13,6 +14,8 @@ import 'sonner/dist/styles.css';
 
 // `platform-<kind>` on <html> selects platform CSS (glass.css on macOS).
 document.documentElement.classList.add(`platform-${platform.kind}`);
+// iPhone and iPad: type sizes from the phone's Text Size setting (Dynamic Type).
+followTextSize();
 
 forwardConsoleToLog();
 raiseSplash();

@@ -222,8 +222,9 @@
   --logo-filter: none;
 }
 
-/* ─── iOS text styles at Apple's default size (HIG, Large): footnote 13, subhead 15, body 17 — reading text is Body too,
-       so a reply, its suggestions and lists share one size and tool calls sit one step below. 44 pt touch targets. ─── */
+/* ─── iOS text styles at Apple's default Text Size (HIG, Large): footnote 13, subhead 15, body 17 — reading text is Body
+       too, so a reply, its suggestions and lists share one size and tool calls sit one step below. At launch the phone's own
+       Text Size replaces these (platform/dynamicType.ts, Apple's Dynamic Type table). 44 pt touch targets. ─── */
 html.platform-ios {
   --fs-subheadline: 13px;  --lh-subheadline: 18px;
   --fs-callout: 15px;      --lh-callout: 20px;

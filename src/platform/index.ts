@@ -14,6 +14,8 @@ export const platform = {
   kind: (mac ? 'macos' : ios ? 'ios' : 'browser') as PlatformKind,
   /** Touch screen: iOS text sizes, 44 pt targets and larger glyphs (tokens.css `html.platform-ios`, kit icon scale). */
   hasTouchScreen: ios,
+  /** Text follows the phone's Text Size setting (Dynamic Type), as native apps do (platform/dynamicType.ts). */
+  followsTextSize: ios,
   /** How copy names this device, its system and its settings app ("this Mac", "macOS asks once", "System Settings › …"). */
   deviceName: mac ? 'Mac' : 'device',
   systemName: mac ? 'macOS' : ios ? 'iOS' : 'the system',
