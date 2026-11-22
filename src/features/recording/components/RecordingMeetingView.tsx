@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { Clock, Pause, Play, Square } from 'lucide-react';
 import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { CommandBar, IconButton, Text, TitlebarSpacer, cn, useCommandBarSize } from '@shared/ui';
+import { CommandBar, Dot, IconButton, Text, TitlebarSpacer, cn, useCommandBarSize } from '@shared/ui';
 import { MeetingStatus, ModelCreditLine } from '@shared/components';
 import type { MeetingPhase } from '@shared/types/meetingPhase';
 import { LAYOUT } from '@config/layout.config';
@@ -72,6 +72,25 @@ const Controls: React.FC<{ paused: boolean; busy: boolean; beforeStop: () => Pro
   );
 };
 
+/** The running clock in the bar it sits in: beside the status badge in a Mac header; large under a red dot above the
+ *  controls in a phone's toolbar (Voice Memos). */
+const RecordingClock: React.FC<{ paused: boolean; clock: string }> = ({ paused, clock }) => {
+  if (useCommandBarSize() === 'sm') {
+    return (
+      <div className="flex shrink-0 items-center gap-2">
+        <MeetingStatus phase={paused ? PAUSED : RECORDING} display="badge" />
+        <Text variant="timer" tone="muted">{clock}</Text>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <Dot tone={paused ? 'muted' : 'danger'} pulse={!paused} />
+      <Text variant="timer" tone="muted">{clock}</Text>
+    </div>
+  );
+};
+
 /** One recording's screen; keyed by the meeting so its notes start fresh for each recording. */
 const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
   const paused = useRecordingPaused();
@@ -105,22 +124,24 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
       <TitlebarSpacer />
       <div className={`${LAYOUT.pageGutter} pt-3 pb-3`}>
         <div className={`${LAYOUT.pageColumn} space-y-2`}>
-          <div className="flex min-w-0 items-center gap-2">
-            <Text as="h1" variant="pageTitle" clamp={2}>{title}</Text>
-            <MeetingStatus phase={paused ? PAUSED : RECORDING} display="badge" />
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
-              <Text variant="timer" tone="muted">{clock}</Text>
-              <ModelCreditLine
-                credits={[
-                  { label: LIVE.copy.transcribing, credit: speech?.model ? { provider: speech.provider, model: speech.model } : null },
-                  { label: LIVE.copy.summarizing, credit: model ? { provider: model.provider, model: model.modelId } : null },
-                ]}
-              />
+          {/* One line, cut short (the full name is in the sidebar and Details). */}
+          <Text as="h1" variant="pageTitle" truncate>{title}</Text>
+          {/* A Mac's header bar: status, clock and the models at work, then the controls. A phone has none: its toolbar
+              below holds the clock and controls, and the models are in Details. */}
+          <CommandBar placement="header">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+                <RecordingClock paused={paused} clock={clock} />
+                <ModelCreditLine
+                  credits={[
+                    { label: LIVE.copy.transcribing, credit: speech?.model ? { provider: speech.provider, model: speech.model } : null },
+                    { label: LIVE.copy.summarizing, credit: model ? { provider: model.provider, model: model.modelId } : null },
+                  ]}
+                />
+              </div>
+              <Controls paused={paused} busy={busy} beforeStop={flush} />
             </div>
-            <CommandBar placement="header"><Controls paused={paused} busy={busy} beforeStop={flush} /></CommandBar>
-          </div>
+          </CommandBar>
         </div>
       </div>
       <div className={`${LAYOUT.pageGutter} flex-1 overflow-hidden`}>
@@ -131,7 +152,12 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
           />
         </div>
       </div>
-      <CommandBar placement="bottom"><Controls paused={paused} busy={busy} beforeStop={flush} /></CommandBar>
+      <CommandBar placement="bottom">
+        <div className="flex flex-col items-center gap-3">
+          <RecordingClock paused={paused} clock={clock} />
+          <Controls paused={paused} busy={busy} beforeStop={flush} />
+        </div>
+      </CommandBar>
     </motion.div>
   );
 };
