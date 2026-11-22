@@ -1,7 +1,7 @@
 /** Record screen: the title, then the clock, one status and the controls; below, the meeting's workspace (live transcript
  *  beside the notes) — the same view the meeting keeps as its Transcript tab after Stop. */
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Clock, Pause, Play, Square } from 'lucide-react';
 import { useMeetingBrief } from '@shared/hooks/useMeetings';
@@ -14,8 +14,8 @@ import { ANIMATION_CONFIG } from '@config/animations.config';
 import { MEETING_LIVE_CONFIG as LIVE } from '@config/meetingLive.config';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
 import { speechSelectionOf } from '@services/ai/transcription';
-import { formatClock } from '@shared/utils/formatters';
-import { recording, recordedSeconds, useRecordingBusy, useRecordingMeetingId, useRecordingPaused, useRecordingStore } from '@features/recording/stores/recordingStore';
+import { recording, useRecordingBusy, useRecordingMeetingId, useRecordingPaused } from '@features/recording/stores/recordingStore';
+import { useRecordingClock } from '@features/recording/hooks';
 import { useDraftSegments, useMeetingLiveStore } from '@features/recording/live';
 import { useLiveNotes, useLiveNotesStore } from '@features/recording/notes';
 import { MeetingWorkspace, type WorkspaceTranscript } from './MeetingWorkspace';
@@ -25,19 +25,6 @@ const RECORDING: MeetingPhase = { kind: 'recording' };
 const PAUSED: MeetingPhase = { kind: 'paused' };
 
 const report = (step: string) => (error: unknown) => console.error(`[RecordingMeetingView] ${step} failed:`, error);
-
-/** The recording's clock, ticking only while it records (a visible clock). */
-function useClock(): string {
-  const meetingId = useRecordingMeetingId();
-  const paused = useRecordingPaused();
-  const [, force] = React.useState(0);
-  useEffect(() => {
-    if (!meetingId || paused) return;
-    const timer = setInterval(() => force((n) => n + 1), 1000);
-    return () => clearInterval(timer);
-  }, [meetingId, paused]);
-  return formatClock(recordedSeconds(useRecordingStore.getState()));
-}
 
 /** One form for every control (Voice Memos): same-size filled round buttons named on hover, transport glyphs solid, colour
  *  the only difference: Stop in the Recording badge's red, Resume in the accent as the next step while paused, the rest neutral. */
@@ -88,7 +75,7 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
   const updating = useLiveNotesStore((s) => s.updating);
   const { settings } = useSettings();
   const meeting = useMeetingBrief(meetingId);
-  const clock = useClock();
+  const clock = useRecordingClock();
   const { type, flush, modelProblem, model } = useLiveNotes(meetingId, true);
   const speech = speechSelectionOf(settings);
 

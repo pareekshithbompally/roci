@@ -3,10 +3,13 @@
 import React from 'react';
 import { Square } from 'lucide-react';
 import { Button, Dot, Icon } from '@shared/ui';
-import { useActivityStore } from '@shared/stores/activityStore';
 import { isTauriEnvironment } from '@services/tauri';
 import { recording, useRecordingBusy, useRecordingMeetingId } from '@features/recording/stores/recordingStore';
-import { useStartRecording } from '@features/recording/hooks';
+import { useRecordingClock, useStartRecording } from '@features/recording/hooks';
+import { MEETING_LIVE_CONFIG as LIVE } from '@config/meetingLive.config';
+import { meetingPhaseLabel } from '@config/meetingPhase.config';
+
+const RECORDING = { kind: 'recording' } as const;
 
 const report = (step: string) => (error: unknown) => console.error(`[RecordPill] ${step} failed:`, error);
 
@@ -14,8 +17,7 @@ export const RecordPill: React.FC = () => {
   const start = useStartRecording();
   const meetingId = useRecordingMeetingId();
   const busy = useRecordingBusy();
-  // The recording's activity row carries the clock (a visible clock, ticking only while shown); no second timer.
-  const clock = useActivityStore((s) => s.items.find((item) => item.type === 'recording')?.detail);
+  const clock = useRecordingClock();
 
   if (!meetingId) {
     return (
@@ -28,7 +30,7 @@ export const RecordPill: React.FC = () => {
   return (
     <Button variant="outline" size="sm" className="tabular-nums" onClick={() => void recording.stop().catch(report('stop'))} disabled={busy} aria-label="Stop recording">
       <Dot tone="danger" pulse={!busy} />
-      {busy ? 'Stopping…' : `Recording${clock ? ` · ${clock}` : ''}`}
+      {busy ? LIVE.copy.stopping : [meetingPhaseLabel(RECORDING), clock].filter(Boolean).join(' · ')}
       {!busy && <Icon icon={Square} size="xs" className="fill-current" />}
     </Button>
   );

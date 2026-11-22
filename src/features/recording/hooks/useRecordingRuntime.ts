@@ -8,8 +8,8 @@ import { MEETING_LIVE_CONFIG as LIVE } from '@config/meetingLive.config';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useMeetingBrief, useMeetingBriefs, useMeetingsFound } from '@shared/hooks/useMeetings';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
-import { BUSY_MEETINGS_SHOWN } from '@config/meetingPhase.config';
-import { activityStore, type ActivityAction, type ActivityItem } from '@shared/stores/activityStore';
+import { BUSY_MEETINGS_SHOWN, MEETING_FAILED_LABEL, meetingPhaseLabel } from '@config/meetingPhase.config';
+import { activityStore, useActivityStore, type ActivityAction, type ActivityItem } from '@shared/stores/activityStore';
 import { useMeetingParts } from '@shared/stores/meetingProgressStore';
 import type { HistoryItem } from '@shared/types';
 import { meetingPipeline } from '@features/recording/pipeline/meetingPipeline';
@@ -102,7 +102,7 @@ function useRecordingRow(): void {
     }
     const render = () => {
       const seconds = recordedSeconds(useRecordingStore.getState());
-      const label = busy ? 'Stopping…' : paused ? 'Paused' : 'Recording';
+      const label = busy ? LIVE.copy.stopping : meetingPhaseLabel({ kind: paused ? 'paused' : 'recording' });
       put({ ...ROW_DEFAULTS, id: RECORDING_ROW, type: 'recording', status: 'active', label, detail: formatClock(seconds), actions: recordingActions(paused, busy) });
     };
     render();
@@ -144,7 +144,7 @@ function useSavedRow(): void {
     }
     const dismiss: ActivityAction = { icon: 'x', label: 'Dismiss', onClick: recording.dismissStopped };
     if (status.status === 'failed') {
-      put({ ...ROW_DEFAULTS, id: SAVED_ROW, type: 'processing', status: 'error', label: "Couldn't save the recording", error: status.error ?? null, actions: [dismiss] });
+      put({ ...ROW_DEFAULTS, id: SAVED_ROW, type: 'processing', status: 'error', label: MEETING_FAILED_LABEL.record, error: status.error ?? null, actions: [dismiss] });
       return;
     }
     const transcribe: ActivityAction = {
@@ -164,7 +164,7 @@ function meetingRow(meeting: HistoryItem, part: ActivityItem['step']): ActivityI
   const status = meeting.status;
   if (status?.status === 'failed') {
     const retry: ActivityAction = { icon: 'refresh-cw', label: 'Retry', onClick: () => void meetingPipeline.run(meeting.id) };
-    const label = status.failedStep === 'summarize' ? "Couldn't summarize" : "Couldn't transcribe";
+    const label = MEETING_FAILED_LABEL[status.failedStep === 'summarize' ? 'summarize' : 'transcribe'];
     return { ...ROW_DEFAULTS, id, type: 'processing', status: 'error', label, detail: meeting.title, error: status.error ?? null, actions: [retry] };
   }
   const label = status?.status === 'summarizing' ? 'Summarizing…' : 'Transcribing…';
@@ -198,6 +198,11 @@ function useMeetingRows(): void {
       if (item.id.startsWith(MEETING_ROW_PREFIX) && !shown.has(item.id)) activityStore.remove(item.id);
     }
   }, [busy, ranMeetings, parts]);
+}
+
+/** The recording's clock as its activity row shows it (the one visible clock, ticking only while recording and on screen). */
+export function useRecordingClock(): string | undefined {
+  return useActivityStore((s) => s.items.find((item) => item.id === RECORDING_ROW)?.detail ?? undefined);
 }
 
 export function useRecordingRuntime(): void {

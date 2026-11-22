@@ -12,6 +12,7 @@ import { modelKey } from '@services/ai/models';
 import { transcriptionService } from '@services/transcription.service';
 import { IMPORT_CONFIG } from '@config/audio.config';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { MEETING_FAILED_LABEL } from '@config/meetingPhase.config';
 import { useAppStore } from '@shared/stores/appStore';
 import { meetingProgress } from '@shared/stores/meetingProgressStore';
 import { notifyAppEvent } from '@shared/utils/appEvents';
@@ -152,8 +153,6 @@ const summarizeTranscript = (id: string, context: PipelineContext): StepWork => 
   await transcriptionService.saveSummary({ meetingId: id, ...analysis });
 };
 
-const FAILED_TITLE: Record<MeetingStep, string> = { transcribe: "Couldn't transcribe", summarize: "Couldn't summarize" };
-
 function announceFailure(id: string, step: MeetingStep, message: string): void {
   notifyAppEvent({
     id: `recording-ready:${id}`,
@@ -161,7 +160,7 @@ function announceFailure(id: string, step: MeetingStep, message: string): void {
     tone: 'error',
     // the open meeting already says it under its title
     inFront: useAppStore.getState().selectedHistoryId === id ? 'quiet' : 'toast',
-    title: FAILED_TITLE[step],
+    title: MEETING_FAILED_LABEL[step],
     body: message,
   });
 }

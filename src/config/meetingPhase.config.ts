@@ -29,7 +29,8 @@ export const MEETING_PHASE_STYLE: Record<Kind, MeetingPhaseStyle> = {
   ready: { icon: AudioWaveform, iconTone: 'muted', spin: false, badge: 'default' },
 };
 
-const FAILED_LABEL: Record<MeetingPipelineStage, string> = {
+/** What a failed step reads as, wherever a meeting's failure is named (status, tray, notification). */
+export const MEETING_FAILED_LABEL: Record<MeetingPipelineStage, string> = {
   record: "Couldn't record",
   transcribe: "Couldn't transcribe",
   summarize: "Couldn't summarize",
@@ -51,7 +52,7 @@ export function meetingPhaseLabel(phase: MeetingPhase): string {
     case 'summarizing':
       return 'Summarizing';
     case 'failed':
-      return FAILED_LABEL[phase.failedAt];
+      return MEETING_FAILED_LABEL[phase.failedAt];
     case 'ready':
       return 'Ready';
   }
