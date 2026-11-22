@@ -94,7 +94,14 @@ export const McpServersPanel: React.FC = () => {
 
   return (
     <PanelShell>
-      {/* The servers first (the pane's content), then the ways to add them as action rows, then how tools behave. */}
+      <Section title={MCP_COPY.permissions} footer={MCP_PERMISSIONS_FOOTER}>
+        <McpPermissionsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
+      </Section>
+
+      <Section title={MCP_COPY.limits} footer={MCP_LIMITS_FOOTER}>
+        <McpLimitsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
+      </Section>
+
       <Section title={MCP_COPY.servers} footer={MCP_COPY.serversFooter}>
         {serverEntries.length === 0 ? (
           <Text as="p" tone="muted" truncate className="py-3">{MCP_COPY.empty}</Text>
@@ -123,13 +130,6 @@ export const McpServersPanel: React.FC = () => {
         <CardRow title={MCP_COPY.editAll} tone="accent" disabled={busy} onPress={() => setJsonOpen(true)} />
       </Section>
 
-      <Section title={MCP_COPY.permissions} footer={MCP_PERMISSIONS_FOOTER}>
-        <McpPermissionsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
-      </Section>
-
-      <Section title={MCP_COPY.limits} footer={MCP_LIMITS_FOOTER}>
-        <McpLimitsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
-      </Section>
 
       <AddEditMcpServerDialog
         open={editing !== null}
