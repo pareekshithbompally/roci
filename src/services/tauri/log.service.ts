@@ -1,7 +1,7 @@
 /** Web-side warnings and errors go to Roci's log file too (~/Library/Logs/ai.roci.roci/), as Tauri's logging guide
  *  forwards the console; so do errors nothing caught. The console keeps working as before. */
 
-import { error, warn } from '@tauri-apps/plugin-log';
+import { error, info, warn } from '@tauri-apps/plugin-log';
 import { isTauriEnvironment } from './environment.service';
 
 type Level = 'warn' | 'error';
@@ -40,4 +40,16 @@ export function forwardConsoleToLog(): void {
   forward('error');
   window.addEventListener('error', (event) => console.error('[Uncaught]', event.error ?? event.message));
   window.addEventListener('unhandledrejection', (event) => console.error('[Unhandled rejection]', event.reason));
+}
+
+/** MCP's log levels (RFC 5424) as Roci's: warnings and worse keep their weight, the rest are information. */
+const SCREEN_LEVEL: Record<string, (message: string) => Promise<void>> = {
+  warning: warn, error, critical: error, alert: error, emergency: error,
+};
+
+/** A log message an MCP App screen sent (`notifications/message`), written to Roci's log under its server. */
+export function logFromScreen(server: string, level: string, data: unknown): void {
+  if (!isTauriEnvironment()) return;
+  const write = SCREEN_LEVEL[level] ?? info;
+  write(`[McpApp:${server}] ${describe(data)}`).catch(() => {}); // the log itself failing has nowhere left to go
 }

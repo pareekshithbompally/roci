@@ -9,7 +9,7 @@ export { menubarService, MENUBAR_ACTION_EVENT } from './menubar.service';
 export type { MenubarState, MenubarSpeechModel, MenubarActivity, MenubarRecentMeeting } from './menubar.service';
 export { nativeMenu } from './nativeMenu.service';
 export type { NativeMenuEntry, NativeMenuResult } from './nativeMenu.service';
-export { forwardConsoleToLog } from './log.service';
+export { forwardConsoleToLog, logFromScreen } from './log.service';
 export { loadSystemFormat } from './systemFormat.service';
 export { updatesService, IDLE_UPDATE } from './updates.service';
 export type { UpdateState } from './updates.service';

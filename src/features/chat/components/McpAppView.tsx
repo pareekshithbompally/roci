@@ -7,7 +7,7 @@ import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/
 import type { McpUiHostContext } from '@modelcontextprotocol/ext-apps/app-bridge';
 import type { CallToolResult } from '@modelcontextprotocol/client';
 import { mcpService, type OpenedMcpApp } from '@services/mcp.service';
-import { getTauriEnvironment, openUrl } from '@services/tauri';
+import { getTauriEnvironment, logFromScreen, openUrl } from '@services/tauri';
 import { callToolFromScreen } from '@extensions/tools';
 import { confirm } from '@shared/stores/confirmStore';
 import { useSettings } from '@shared/contexts/SettingsContext';
@@ -108,7 +108,7 @@ function useBridge(frame: React.RefObject<HTMLIFrameElement | null>, app: McpApp
     bridge.onsizechange = ({ height }) => {
       if (height) onHeight(Math.min(height, MCP_APP_CONFIG.maxHeight));
     };
-    bridge.onloggingmessage = (message) => console.info('[McpAppView] screen log:', message);
+    bridge.onloggingmessage = ({ level, data }) => logFromScreen(host.current.server, level, data);
     bridge.oninitialized = () => {
       bridge.sendToolInput({ arguments: app.input }).catch(failed('Sending the input failed'));
       bridge.sendToolResult(app.result as CallToolResult).catch(failed('Sending the result failed'));
