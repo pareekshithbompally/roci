@@ -12,6 +12,21 @@ export interface McpTool {
   server: string;
   /** The server marked this tool destructive (writes, deletes). */
   destructive: boolean;
+  /** MCP Apps `_meta.ui`: the tool's `ui://` screen and who may call it. */
+  ui?: McpToolUi;
+}
+
+/** A tool's MCP Apps metadata. `visibility` defaults to both; `["app"]` means only its screen may call it. */
+export interface McpToolUi {
+  resourceUri?: string;
+  visibility?: ('model' | 'app')[];
+}
+
+/** Mirrors Rust `OpenedApp`: a screen on its own origin, and its resource's `_meta.ui` as the server declared it. */
+export interface OpenedMcpApp {
+  url: string;
+  token: string;
+  meta: { prefersBorder?: boolean } | null;
 }
 
 /** Mirrors Rust `McpServerInfo` — what a connected server reports about itself. */
@@ -30,6 +45,8 @@ export interface McpServerInfo {
 export interface McpToolOutput {
   text: string;
   isError: boolean;
+  /** The whole `CallToolResult`, when the call asked for it (`withResult`). */
+  result?: Record<string, unknown>;
 }
 
 export interface McpToolCall {
@@ -37,6 +54,8 @@ export interface McpToolCall {
   tool: string;
   arguments: Record<string, unknown>;
   cancellationToken: string;
+  /** Return the whole result too, for the tool's screen. */
+  withResult?: boolean;
 }
 
 class McpService {
@@ -71,6 +90,15 @@ class McpService {
 
   getTools(): Promise<McpTool[]> {
     return invoke<McpTool[]>('get_mcp_tools');
+  }
+
+  /** Read a tool's `ui://` screen from its server; Rust serves it on its own origin. */
+  openApp(server: string, uri: string): Promise<OpenedMcpApp> {
+    return invoke<OpenedMcpApp>('mcp_open_app', { server, uri });
+  }
+
+  closeApp(token: string): Promise<void> {
+    return invoke('mcp_close_app', { token });
   }
 
   callTool(call: McpToolCall): Promise<McpToolOutput> {

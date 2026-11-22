@@ -51,6 +51,25 @@ describe('loadMcpTools', () => {
     expect(defs[0].parameters.type).toBe('object');
   });
 
+  it('keeps tools only their MCP App screen may call away from the model', async () => {
+    setup();
+    service.getTools.mockResolvedValue([TOOL, { ...TOOL, name: 'refresh_chart', ui: { visibility: ['app'] } }]);
+    const defs = await loadMcpTools(new Set(), settings);
+    expect(defs.map((d) => d.name)).toEqual(['read_file']);
+  });
+
+  it("asks for the whole result when the tool has a screen, and hands it to the screen, not the model", async () => {
+    setup({ allowAllTools: true });
+    const result = { content: [{ type: 'text', text: 'contents' }], structuredContent: { rows: 2 } };
+    service.getTools.mockResolvedValue([{ ...TOOL, ui: { resourceUri: 'ui://fs/view' } }]);
+    service.callTool.mockResolvedValue({ text: 'contents', isError: false, result });
+    const [def] = await loadMcpTools(new Set(), settings);
+    const out = await def.execute({ path: 'a' }, ctx);
+    expect(service.callTool).toHaveBeenCalledWith(expect.objectContaining({ withResult: true }));
+    expect(out.content).toBe('contents');
+    expect(out.meta?.app).toEqual({ server: 'fs', resourceUri: 'ui://fs/view', input: { path: 'a' }, result });
+  });
+
   it('drops tools the user switched off and tags the rest with their server', async () => {
     setup();
     const defs = await loadMcpTools(new Set(['search_meetings']), settings, new Set(['fs/read_file']));

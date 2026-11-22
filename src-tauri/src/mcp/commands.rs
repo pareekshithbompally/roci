@@ -24,14 +24,19 @@ pub struct McpTool {
     server: String,
     /// The server marked this tool as destructive (writes, deletes).
     destructive: bool,
+    /// MCP Apps `_meta.ui`: the tool's `ui://` screen (`resourceUri`) and who may call it (`visibility`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ui: Option<Value>,
 }
 
-/// A tool result flattened to what the model reads.
+/// A tool result flattened to what the model reads, plus the whole result for a tool's screen when asked.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct McpToolOutput {
     text: String,
     is_error: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    result: Option<Value>,
 }
 
 // ── Config ──
@@ -142,6 +147,7 @@ pub async fn get_mcp_tools(state: State<'_, McpState>) -> Result<Vec<McpTool>, S
                     .as_ref()
                     .and_then(|a| a.destructive_hint)
                     .unwrap_or(false),
+                ui: tool.meta.as_ref().and_then(|meta| meta.0.get("ui").cloned()),
             })),
             Ok(Err(e)) => log::warn!("[mcp] {server} failed to list tools: {e}"),
             Err(_) => log::warn!("[mcp] {server} timed out listing tools"),
@@ -176,6 +182,8 @@ pub async fn call_mcp_tool(
     tool: String,
     arguments: Option<Map<String, Value>>,
     cancellation_token: String,
+    // A tool with a screen: the screen gets the whole result (content blocks, structuredContent).
+    with_result: Option<bool>,
 ) -> Result<McpToolOutput, String> {
     let settings = state.settings.lock().await.clone();
     let service = state
@@ -211,7 +219,10 @@ pub async fn call_mcp_tool(
     };
     state.cancellations.lock().await.remove(&cancellation_token);
 
-    result.map(|res| flatten_result(&res, settings.max_tool_output_chars))
+    result.map(|res| {
+        let whole = with_result.unwrap_or(false).then(|| serde_json::to_value(&res).unwrap_or(Value::Null));
+        McpToolOutput { result: whole, ..flatten_result(&res, settings.max_tool_output_chars) }
+    })
 }
 
 #[tauri::command]
@@ -248,6 +259,7 @@ fn flatten_result(result: &CallToolResult, max_chars: u64) -> McpToolOutput {
     McpToolOutput {
         text: cap_chars(text, max_chars),
         is_error: result.is_error.unwrap_or(false),
+        result: None,
     }
 }
 
@@ -269,7 +281,7 @@ mod tests {
     use super::*;
 
     fn tool(name: &str, server: &str) -> McpTool {
-        McpTool { name: name.into(), description: None, input_schema: Value::Null, server: server.into(), destructive: false }
+        McpTool { name: name.into(), description: None, input_schema: Value::Null, server: server.into(), destructive: false, ui: None }
     }
 
     #[test]

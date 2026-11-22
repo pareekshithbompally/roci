@@ -94,7 +94,9 @@ pub fn run() {
     .plugin(tauri_plugin_store::init())
     .plugin(tauri_plugin_apple_intelligence::init())
     .plugin(tauri_plugin_calendar::init())
-    .plugin(tauri_plugin_notifications::init());
+    .plugin(tauri_plugin_notifications::init())
+    // MCP App screens, each on its own origin with its own CSP.
+    .register_uri_scheme_protocol(mcp::apps::SCHEME, mcp::apps::serve);
   platform::extend(builder)
     .build(tauri::generate_context!())
     .expect(concat!("error while running ", env!("APP_NAME")))

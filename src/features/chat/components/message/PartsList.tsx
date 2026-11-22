@@ -2,6 +2,7 @@ import React from 'react';
 import { Markdown } from '@shared/components';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { MediaPartRenderer } from '@features/chat/components/MediaPartRenderer';
+import { McpAppView } from '@features/chat/components/McpAppView';
 import type { ChatPart } from '@shared/types';
 import type { GenerationStats } from '@services/ai/types';
 import { ActivityRun } from './ActivityRun';
@@ -28,6 +29,7 @@ const PartsList: React.FC<PartsListProps> = ({ parts, messageId, streaming, gene
       return <ActivityRun key={`run-${items[0].key}`} items={items} liveIndex={liveIndex} generation={generation} />;
     }
     if (segment.kind === 'media') return <MediaPartRenderer key={`media-${segment.item.key}`} media={segment.item.part} />;
+    if (segment.kind === 'app') return <McpAppView key={`app-${segment.item.key}`} app={segment.item.part.app} title={segment.item.part.title} />;
     return <Markdown key={segment.item.key} content={segment.item.part} streaming={streaming} messageId={messageId} />;
   };
 

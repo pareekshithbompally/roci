@@ -85,5 +85,15 @@ export interface ToolResultMeta {
   citations?: MeetingCitation[];
   /** UI-only: an image the tool made, shown in the reply where the tool ran (generate_image). */
   image?: GeneratedImage;
+  /** UI-only: the MCP App screen an MCP tool declared, shown in the reply where the tool ran. */
+  app?: McpAppMeta;
+}
+
+/** What an MCP App screen needs to show a call: where it lives, and the call's input and whole result. */
+export interface McpAppMeta {
+  server: string;
+  resourceUri: string;
+  input: Record<string, unknown>;
+  result: Record<string, unknown>;
 }
 

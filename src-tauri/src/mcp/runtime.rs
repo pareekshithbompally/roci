@@ -53,9 +53,12 @@ pub struct McpState {
     pub(super) processes: super::stdio::Processes,
 }
 
+/// Roci's `initialize`: the MCP Apps extension (it renders `ui://` screens), nothing else beyond the defaults.
 pub(super) fn client_info() -> ClientConfig {
+    let mut capabilities = ClientCapabilities::default();
+    capabilities.extensions = Some([(super::apps::EXTENSION_ID.to_string(), super::apps::extension_settings())].into());
     ClientConfig::new(
-        ClientCapabilities::default(),
+        capabilities,
         Implementation::new(env!("APP_NAME"), env!("CARGO_PKG_VERSION")),
     )
 }

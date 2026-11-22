@@ -89,3 +89,43 @@ export const MCP_CONFIG = {
   ],
   mask: '******',
 } as const;
+
+/** MCP App screens in chat: their frame, and Roci's tokens under the theme variable names the MCP Apps spec defines. */
+export const MCP_APP_CONFIG = {
+  /** Height before a screen reports its own, and the most it may take (it scrolls beyond). */
+  initialHeight: 120,
+  maxHeight: 640,
+  /** Each screen has its own origin, so `allow-same-origin` keeps it there (its own storage), never in Roci's. */
+  sandbox: 'allow-scripts allow-same-origin allow-forms',
+  styleVariables: {
+    '--color-background-primary': '--bg-base',
+    '--color-background-secondary': '--bg-layer-1',
+    '--color-background-tertiary': '--bg-layer-2',
+    '--color-background-inverse': '--bg-inverse',
+    '--color-background-ghost': '--bg-hover',
+    '--color-background-info': '--info-bg',
+    '--color-background-danger': '--danger-bg',
+    '--color-background-success': '--success-bg',
+    '--color-background-warning': '--warning-bg',
+    '--color-text-primary': '--text-primary',
+    '--color-text-secondary': '--text-muted',
+    '--color-text-tertiary': '--text-faint',
+    '--color-text-inverse': '--text-inverse',
+    '--color-text-info': '--info-fg',
+    '--color-text-danger': '--danger-fg',
+    '--color-text-success': '--success-fg',
+    '--color-text-warning': '--warning-fg',
+    '--color-border-primary': '--border-base',
+    '--color-border-secondary': '--border-muted',
+    '--color-border-info': '--info-border',
+    '--color-border-danger': '--danger-border',
+    '--color-border-success': '--success-border',
+    '--color-border-warning': '--warning-border',
+    '--color-ring-primary': '--border-focus',
+    '--border-radius-lg': '--radius-card',
+    '--shadow-md': '--shadow-raised',
+    '--shadow-lg': '--shadow-overlay',
+  },
+  /** Body text sizes by the spec's steps (sent as `--font-text-<step>-size`). */
+  textSizes: { xs: '--fs-subheadline', sm: '--fs-callout', md: '--fs-body', lg: '--fs-reading' },
+} as const;

@@ -17,6 +17,7 @@ pub fn extend_window(window: WebviewWindowBuilder<'_, Wry, AppHandle>) -> Webvie
 pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
   builder
     .manage(mcp::McpState::default())
+    .manage(mcp::AppScreens::default())
     .manage(models::ModelsState::default())
     .manage(mlx::MlxState::default())
     .manage(stt::SttState::default())
@@ -67,6 +68,8 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       mcp::commands::get_mcp_tools,
       mcp::commands::call_mcp_tool,
       mcp::commands::cancel_mcp_tool_call,
+      mcp::apps::mcp_open_app,
+      mcp::apps::mcp_close_app,
     ])
 }
 

@@ -1,7 +1,7 @@
 /** Connected MCP servers' tools as ToolDefinitions; never throws, so a Rust failure leaves built-in tools only. */
 
 import { mcpService } from '@services/mcp.service';
-import type { McpTool } from '@services/mcp.service';
+import type { McpTool, McpToolOutput } from '@services/mcp.service';
 import { isTauriEnvironment } from '@services/tauri';
 import { platform } from '@platform/index';
 import { queryClient } from '@shared/query/queryClient';
@@ -39,6 +39,8 @@ export async function loadMcpTools(
     const gate = createApprovalGate(settings);
     return tools
       .filter((tool) => !disabledKeys.has(mcpToolKey(tool.server, tool.name)))
+      // MCP Apps: a tool only its screen may call is not the model's.
+      .filter((tool) => tool.ui?.visibility?.includes('model') ?? true)
       .filter((tool) => {
         const clashes = reservedNames.has(tool.name);
         if (clashes) console.warn('[McpTools] Skipping tool that shadows a built-in:', `${tool.server}/${tool.name}`);
@@ -81,8 +83,15 @@ function toObjectSchema(schema: Record<string, unknown>): JSONSchema {
   return { ...schema, type: 'object', properties: (schema.properties ?? {}) as JSONSchema['properties'] };
 }
 
-function result(content: string, isError: boolean): ToolResult {
-  return { toolCallId: '', content, isError };
+function result(content: string, isError: boolean, meta?: ToolResult['meta']): ToolResult {
+  return { toolCallId: '', content, isError, ...(meta && { meta }) };
+}
+
+/** A tool with a screen keeps its whole result for it; the bridge fills in the name and timing. */
+function appMeta(tool: McpTool, input: Record<string, unknown>, output: McpToolOutput): ToolResult['meta'] {
+  const resourceUri = tool.ui?.resourceUri;
+  if (!resourceUri || !output.result) return undefined;
+  return { toolName: '', executionMs: 0, app: { server: tool.server, resourceUri, input, result: output.result } };
 }
 
 async function callWithCancellation(
@@ -103,8 +112,9 @@ async function callWithCancellation(
       tool: tool.name,
       arguments: args,
       cancellationToken,
+      withResult: !!tool.ui?.resourceUri,
     });
-    return result(output.text, output.isError);
+    return result(output.text, output.isError, appMeta(tool, args, output));
   } finally {
     signal?.removeEventListener('abort', onAbort);
   }

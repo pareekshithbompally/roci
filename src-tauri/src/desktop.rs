@@ -31,6 +31,7 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       registered: Mutex::new(Vec::new()),
     })
     .manage(mcp::McpState::default())
+    .manage(mcp::AppScreens::default())
     .manage(mcp_server::McpHostState::default())
     .manage(url_actions::UrlActionsState::default())
     .manage(hex::HexState::default())
@@ -126,6 +127,8 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       mcp::commands::get_mcp_tools,
       mcp::commands::call_mcp_tool,
       mcp::commands::cancel_mcp_tool_call,
+      mcp::apps::mcp_open_app,
+      mcp::apps::mcp_close_app,
       // MCP server (Roci's tools for coding agents)
       mcp_server::commands::mcp_host_publish_tools,
       mcp_server::commands::mcp_host_reply,

@@ -2,7 +2,7 @@
 
 import { isTextUIPart, isToolUIPart } from 'ai';
 import type { ChatMessage, ChatPart, GeneratedImage, MeetingCitation, WebCitation } from '@shared/types';
-import type { ToolResult } from '@extensions/tools/types';
+import type { McpAppMeta, ToolResult } from '@extensions/tools/types';
 import { isRecord } from '@shared/utils/validators';
 
 /** The kinds of media a message shows, from a file's media type. */
@@ -38,6 +38,11 @@ export function toolResultOf(part: ChatPart): ToolResult | null {
 /** The image a tool made, shown right after its row; null when the part made none. */
 export function generatedImageOf(part: ChatPart): GeneratedImage | null {
   return toolResultOf(part)?.meta?.image ?? null;
+}
+
+/** The MCP App screen a tool declared, shown right after its row; null when it has none. */
+export function mcpAppOf(part: ChatPart): McpAppMeta | null {
+  return toolResultOf(part)?.meta?.app ?? null;
 }
 
 /** The meetings a message's tools cited, each meeting once with its best-scoring excerpt. */

@@ -58,6 +58,14 @@ describe('groupActivity', () => {
     expect(run.kind === 'activity' && run.items[0]).toMatchObject({ index: 1, key: 0 });
   });
 
+  it("puts a tool's MCP App screen right after its row, and the screen closes the live step", () => {
+    const app = { server: 'charts', resourceUri: 'ui://charts/line', input: { symbol: 'NVDA' }, result: { content: [] } };
+    const segments = groupActivity([call('1', { app }), text('Here it is.')]);
+    expect(segments.map((s) => s.kind)).toEqual(['activity', 'app', 'text']);
+    expect(segments[1].kind === 'app' && segments[1].item.part.app).toEqual(app);
+    expect(liveIndexOf(groupActivity([call('1', { app })]))).toBeNull();
+  });
+
   it('has no live step once a tool\'s image closed it', () => {
     const image = { mediaType: 'image/png', path: 'images/a.png' };
     expect(liveIndexOf(groupActivity([call('1', { image })]))).toBeNull();
