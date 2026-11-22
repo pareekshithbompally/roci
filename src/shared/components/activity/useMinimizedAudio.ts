@@ -11,7 +11,6 @@ export interface MinimizedAudio {
   isPlaying: boolean;
   toggle: () => void;
   skip: () => void;
-  seek: (seconds: number) => void;
   stop: () => void;
 }
 
@@ -23,10 +22,9 @@ export function useMinimizedAudio(): MinimizedAudio | null {
   const viewsOnScreen = useAudioPlayerStore((s) => s.viewsOnScreen);
   const toggle = useAudioPlayerStore((s) => s.toggle);
   const skipBy = useAudioPlayerStore((s) => s.skip);
-  const seek = useAudioPlayerStore((s) => s.seek);
   const stop = useAudioPlayerStore((s) => s.stop);
   const skip = useCallback(() => skipBy(PLAYER_CONFIG.skipSeconds), [skipBy]);
 
   if (!session || viewsOnScreen > 0) return null;
-  return { title: session.title, duration: session.duration, currentTime, isPlaying, toggle, skip, seek, stop };
+  return { title: session.title, duration: session.duration, currentTime, isPlaying, toggle, skip, stop };
 }

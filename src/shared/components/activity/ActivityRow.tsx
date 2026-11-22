@@ -2,7 +2,7 @@
 
 import React from 'react';
 import {
-  AlertCircle, CheckCircle2, Clock, Download, ExternalLink, Loader2, Pause, Play, RefreshCw, Sparkles, Square, X, XCircle,
+  AlertCircle, CheckCircle2, Clock, Download, ExternalLink, Loader2, Pause, Play, RefreshCw, SkipForward, Sparkles, Square, X, XCircle,
   type LucideIcon,
 } from 'lucide-react';
 import { Dot, Icon, IconButton, Progress, Text, type TextTone } from '@shared/ui';
@@ -22,6 +22,7 @@ const GLYPH: Record<Extract<ActivityMark, { kind: 'glyph' }>['glyph'], { icon: L
 const ACTION_GLYPH: Record<string, { icon: LucideIcon; filled?: boolean }> = {
   pause: { icon: Pause, filled: true },
   play: { icon: Play, filled: true },
+  'skip-forward': { icon: SkipForward },
   square: { icon: Square, filled: true },
   clock: { icon: Clock },
   sparkles: { icon: Sparkles },

@@ -9,7 +9,9 @@ export type ActivityType =
   | 'processing'
   | 'download'
   | 'indexing'
-  | 'import';
+  | 'import'
+  /** Audio playing away from its player (the minimized player); built from the playback store, never stored here. */
+  | 'playback';
 
 /** `waiting`: nothing is running yet; the row needs the user (e.g. an update to install). */
 export type ActivityStatus = 'active' | 'waiting' | 'complete' | 'error' | 'cancelled';

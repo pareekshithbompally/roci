@@ -3,7 +3,7 @@
 import React from 'react';
 import { Button, Separator, Text } from '@shared/ui';
 import { ActivityRow } from './ActivityRow';
-import { AudioRow } from './AudioRow';
+import { playbackItem } from './activityModel';
 import type { useActivity } from './useActivity';
 import type { MinimizedAudio } from './useMinimizedAudio';
 
@@ -14,7 +14,7 @@ interface ActivityListProps {
 
 export const ActivityList: React.FC<ActivityListProps> = ({ activity, audio }) => (
   <div>
-    {audio && <AudioRow audio={audio} />}
+    {audio && <ActivityRow item={playbackItem(audio)} />}
     {activity.items.map((item, i) => (
       <React.Fragment key={item.id}>
         {(i > 0 || audio) && <Separator className="mx-3" />}
