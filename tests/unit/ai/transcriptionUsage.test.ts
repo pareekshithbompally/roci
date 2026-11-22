@@ -32,13 +32,19 @@ beforeEach(() => vi.clearAllMocks());
 describe('transcribeAudio usage', () => {
   it('logs a transcription row against the speech model when the engine reports tokens', async () => {
     const usage = { inputTokens: 900, outputTokens: 50 };
-    runTranscription.mockResolvedValue({ text: 'hello', segments: [], usage });
+    runTranscription.mockImplementation(async (_a, _s, _p, { onBilled }) => {
+      onBilled({ usage, audioSeconds: 0 });
+      return { text: 'hello', segments: [] };
+    });
     await transcribeAudio(audioBlob(), settings, [], { sessionId: 'mtg-1' });
-    expect(recordUsage).toHaveBeenCalledWith('transcription', { provider: 'hex', modelId: 'parakeet_unified_en' }, usage, 'mtg-1', undefined);
+    expect(recordUsage).toHaveBeenCalledWith('transcription', { provider: 'hex', modelId: 'parakeet_unified_en' }, usage, 'mtg-1', 0);
   });
 
   it('logs the audio it sent for engines billed by the minute', async () => {
-    runTranscription.mockResolvedValue({ text: 'hello', segments: [], audioSeconds: 2 });
+    runTranscription.mockImplementation(async (_a, _s, _p, { onBilled }) => {
+      onBilled({ audioSeconds: 2 });
+      return { text: 'hello', segments: [] };
+    });
     await transcribeAudio(audioBlob(), settings, [], { sessionId: 'mtg-1' });
     expect(recordUsage).toHaveBeenCalledWith('transcription', { provider: 'hex', modelId: 'parakeet_unified_en' }, undefined, 'mtg-1', 2);
   });

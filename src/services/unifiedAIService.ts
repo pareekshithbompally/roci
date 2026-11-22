@@ -17,6 +17,7 @@ import {
   runTranscription,
   speechSelectionOf,
   analyzeTranscript,
+  type Billed,
   type SpeechSelection,
   type TranscribeOptions,
   type TranscriptResult,
@@ -76,12 +77,12 @@ export async function transcribeAudio(
   assertAudioSize(audioBlob, silence === 'error');
   // An audio model chosen via models.dev resolves its adapter from the catalog.
   await modalitiesService.ensureLoaded();
-  const result = await runTranscription(audioBlob, selection, providers, options).catch((error: unknown) => {
+  // recorded however the run ends: parts sent before a failure or cancel were billed
+  const onBilled = ({ usage, audioSeconds }: Billed) =>
+    recordUsage('transcription', { provider: selection.provider, modelId: selection.model }, usage, sessionId, audioSeconds);
+  const result = await runTranscription(audioBlob, selection, providers, { ...options, onBilled }).catch((error: unknown) => {
     throw toAiError(error, 'speech', selection.provider);
   });
-  if (result.usage || result.audioSeconds) {
-    recordUsage('transcription', { provider: selection.provider, modelId: selection.model }, result.usage, sessionId, result.audioSeconds);
-  }
   // No speech in a whole recording is an error, so the analyzer can't invent a meeting from silence.
   if (silence === 'error' && !result.text.trim()) {
     throw new Error(TRANSCRIPTION_CONFIG.noSpeech);

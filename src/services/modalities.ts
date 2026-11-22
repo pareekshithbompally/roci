@@ -228,7 +228,8 @@ class ModalitiesService {
     const cost = this.findModel(providerName, modelId)?.cost;
     if (!cost) return null;
     const { input, output, per_minute: perMinute } = cost;
-    const tokens = !!input && !!output;
+    // a stated 0 is a price (a free model), not a missing one
+    const tokens = input !== undefined && output !== undefined;
     if (!tokens && perMinute === undefined) return null;
     return {
       inputPer1M: tokens ? input : 0,

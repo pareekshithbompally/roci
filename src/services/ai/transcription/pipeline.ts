@@ -33,6 +33,14 @@ export interface TranscribeOptions {
   vad?: (samples: Float32Array) => Promise<SpeechRange[]>;
   /** One-part transcription; defaults to the provider's adapter. Injected in tests. */
   transcribePart?: TranscribePart;
+  /** What the engine was sent and billed for, once the parts stop: all of them, or those before a failure or cancel. */
+  onBilled?: (billed: Billed) => void;
+}
+
+/** Tokens spent (engines billed by tokens) and audio sent in seconds (engines billed by the minute; skipped silence isn't sent). */
+export interface Billed {
+  usage?: TokenUsage;
+  audioSeconds: number;
 }
 
 const { sampleRate, hexProvider, keylessProviders } = TRANSCRIPTION_CONFIG;
@@ -128,43 +136,49 @@ async function speechChunks(
 }
 
 /** Every chunk through the adapter, in order, joined into one result with usage summed across parts. */
+/** Sends the parts in order; what was billed is reported however the run ends, so a part that failed or a cancel never
+ *  hides the parts already paid for. */
 async function transcribeChunks(
   chunks: Chunk[],
   transcribe: TranscribePart,
   request: Omit<PartRequest, 'wav'>,
-  onProgress: TranscribeOptions['onProgress'],
+  { onProgress, onBilled }: Pick<TranscribeOptions, 'onProgress' | 'onBilled'>,
 ): Promise<TranscriptResult> {
   const texts: string[] = [];
   const segments: TranscriptSegment[] = [];
   const words: TranscriptSegment[] = [];
   let adapterTimed = false;
-  let usage: TokenUsage | undefined;
+  const billed: Billed = { audioSeconds: 0 };
 
-  for (const [index, chunk] of chunks.entries()) {
-    request.signal?.throwIfAborted();
-    onProgress?.({ current: index + 1, total: chunks.length });
-    const result = await transcribe({ ...request, wav: encodeWavInt16(chunk.samples, sampleRate) });
-    if (result.usage) usage = mergeTokenUsage(usage, result.usage);
-    const cleaned = cleanText(result.text);
-    if (!cleaned) continue;
-    texts.push(cleaned);
-    adapterTimed ||= result.segments.length > 0;
-    const endSecond = chunk.startSecond + chunk.samples.length / sampleRate;
-    segments.push(...placeSegments({ ...result, text: cleaned }, chunk.startSecond, endSecond));
-    words.push(...shifted(result.words ?? [], chunk.startSecond));
+  try {
+    for (const [index, chunk] of chunks.entries()) {
+      request.signal?.throwIfAborted();
+      onProgress?.({ current: index + 1, total: chunks.length });
+      const result = await transcribe({ ...request, wav: encodeWavInt16(chunk.samples, sampleRate) });
+      billed.audioSeconds += chunk.samples.length / sampleRate;
+      if (result.usage) billed.usage = mergeTokenUsage(billed.usage, result.usage);
+      const cleaned = cleanText(result.text);
+      if (!cleaned) continue;
+      texts.push(cleaned);
+      adapterTimed ||= result.segments.length > 0;
+      const endSecond = chunk.startSecond + chunk.samples.length / sampleRate;
+      segments.push(...placeSegments({ ...result, text: cleaned }, chunk.startSecond, endSecond));
+      words.push(...shifted(result.words ?? [], chunk.startSecond));
+    }
+  } finally {
+    if (billed.audioSeconds > 0) onBilled?.(billed);
   }
 
   // Timestamps when the engine gave them or the audio was split; one untimed part stays plain text.
   const timed = adapterTimed || texts.length > 1;
-  const audioSeconds = chunks.reduce((seconds, chunk) => seconds + chunk.samples.length / sampleRate, 0);
-  return { text: texts.join('\n\n'), segments: timed ? segments : [], words, usage, audioSeconds };
+  return { text: texts.join('\n\n'), segments: timed ? segments : [], words };
 }
 
 export async function runTranscription(
   audio: Blob,
   selection: SpeechSelection,
   providers: ModelProvider[],
-  { signal, onProgress, vad, whole, transcribePart }: TranscribeOptions = {},
+  { signal, onProgress, onBilled, vad, whole, transcribePart }: TranscribeOptions = {},
 ): Promise<TranscriptResult> {
   const adapterId = adapterFor(selection, providers);
   if (!adapterId) {
@@ -176,5 +190,5 @@ export async function runTranscription(
   const chunks = await speechChunks(samples, TRANSCRIPTION_CONFIG.partSeconds[adapterId] * sampleRate, { vad, whole });
   if (chunks.length === 0) return { text: '', segments: [] };
 
-  return transcribeChunks(chunks, transcribePart ?? ADAPTERS[adapterId], { model, resolved, terms: savedTerms(), signal }, onProgress);
+  return transcribeChunks(chunks, transcribePart ?? ADAPTERS[adapterId], { model, resolved, terms: savedTerms(), signal }, { onProgress, onBilled });
 }

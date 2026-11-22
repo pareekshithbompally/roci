@@ -13,10 +13,8 @@ export interface TranscriptResult {
   segments: TranscriptSegment[];
   /** Each word's own time, when the engine gives them (Roci's own engine does). */
   words?: TranscriptSegment[];
-  /** Tokens spent, for engines billed by tokens (multimodal prompt); summed across parts. */
+  /** Tokens one part spent, for engines billed by tokens (multimodal prompt). */
   usage?: TokenUsage;
-  /** Audio sent to the engine, in seconds (what an engine billed by the minute counts); silence that was skipped isn't sent. */
-  audioSeconds?: number;
 }
 
 export interface TranscriptionProgress {

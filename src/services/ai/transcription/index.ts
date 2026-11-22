@@ -1,5 +1,5 @@
 export { runTranscription } from './pipeline';
-export type { TranscribeOptions } from './pipeline';
+export type { Billed, TranscribeOptions } from './pipeline';
 export {
   speechModelOptions,
   isSpeechSelectionReady,

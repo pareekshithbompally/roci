@@ -94,20 +94,27 @@ describe('runTranscription usage', () => {
     { startSample: SAMPLE_RATE * 6, endSample: SAMPLE_RATE * 8 },
   ];
 
-  it('sums token usage across parts', async () => {
+  it('reports the tokens and audio billed across parts, once', async () => {
     const part = vi.fn(async (): Promise<TranscriptResult> => ({
       text: 'hi',
       segments: [],
       usage: { inputTokens: 10, outputTokens: 2, totalTokens: 12 },
     }));
-    const result = await runTranscription(mixedAudio(8), selection, [], { vad: async () => ranges(), transcribePart: part });
+    const onBilled = vi.fn();
+    await runTranscription(mixedAudio(8), selection, [], { vad: async () => ranges(), transcribePart: part, onBilled });
     expect(part).toHaveBeenCalledTimes(2);
-    expect(result.usage).toMatchObject({ inputTokens: 20, outputTokens: 4, totalTokens: 24 });
+    expect(onBilled).toHaveBeenCalledOnce();
+    expect(onBilled.mock.calls[0][0].usage).toMatchObject({ inputTokens: 20, outputTokens: 4, totalTokens: 24 });
+    expect(onBilled.mock.calls[0][0].audioSeconds).toBeGreaterThan(0);
   });
 
-  it('leaves usage undefined when no part reports it', async () => {
-    const part = stubPart();
-    const result = await runTranscription(mixedAudio(8), selection, [], { vad: async () => ranges(), transcribePart: part.fn });
-    expect(result.usage).toBeUndefined();
+  it('still reports the parts sent before one fails', async () => {
+    const part = vi.fn()
+      .mockResolvedValueOnce({ text: 'hi', segments: [], usage: { inputTokens: 10, outputTokens: 2, totalTokens: 12 } })
+      .mockRejectedValueOnce(new Error('429'));
+    const onBilled = vi.fn();
+    await expect(runTranscription(mixedAudio(8), selection, [], { vad: async () => ranges(), transcribePart: part, onBilled })).rejects.toThrow('429');
+    expect(onBilled).toHaveBeenCalledOnce();
+    expect(onBilled.mock.calls[0][0].usage).toMatchObject({ inputTokens: 10 });
   });
 });
