@@ -21,24 +21,13 @@ import { useSpeechModelOptions } from '@features/settings/hooks/useSpeechModels'
 import { downloadSetup, useLocalModelControls } from '@features/settings/hooks/useLocalModels';
 import { useLocalModels } from '@shared/hooks/useLocalModels';
 import { useAppleSpeechSetup } from '@features/integrations';
-import { CardRow, IconTile, Section, Switch, Text, type TileGlyph } from '@shared/ui';
+import { CardRow, Section, Switch, Text } from '@shared/ui';
 import type { LocalModel } from '@services/localModels.service';
-import { LIVE_TRANSCRIPTION_MARK, ModelSelect, SettingsPage } from './shared';
+import { CapabilityRow, LIVE_TRANSCRIPTION_MARK, ModelSelect, SettingsPage } from './shared';
 import { ReadAloudVoiceRow } from './ReadAloudVoiceRow';
 import { platform } from '@platform/index';
 
 const { jobs: JOBS, footers: FOOTERS, chatExtras: EXTRAS } = DEFAULT_MODELS_CONFIG;
-
-/** A capability row: job tile (hue from its modality), title and its picker; the section footer says what it does. Off
- *  (`disabled`) while every job it serves is switched off. */
-const CapabilityRow: React.FC<{
-  icon: TileGlyph;
-  job: { title: string };
-  disabled?: boolean;
-  children: React.ReactNode;
-}> = ({ icon, job, disabled, children }) => (
-  <CardRow leading={<IconTile icon={icon} />} title={job.title} actions={children} disabled={disabled} />
-);
 
 type Controls = Record<string, OnDeviceModel>;
 

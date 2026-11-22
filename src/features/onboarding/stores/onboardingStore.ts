@@ -3,8 +3,8 @@
 import { create } from 'zustand';
 import { platform } from '@platform/index';
 
-/** `apple`, `providers` → `provider`, `local`: the AI choice's own steps; onboarding ends only when one finishes. */
-export type OnboardingStep = 'welcome' | 'permissions' | 'setup' | 'apple' | 'providers' | 'provider' | 'local';
+/** `apple`, `providers` → `provider`, `local`, `onDevice`: the AI choice's own steps; onboarding ends only when one finishes. */
+export type OnboardingStep = 'welcome' | 'permissions' | 'setup' | 'apple' | 'providers' | 'provider' | 'local' | 'onDevice';
 
 /** The Mac asks for recording access first (system audio needs System Settings); iPhone and iPad open with the welcome and ask at first use. */
 export const FIRST_ONBOARDING_STEP: OnboardingStep = platform.canCaptureSystemAudio ? 'permissions' : 'welcome';

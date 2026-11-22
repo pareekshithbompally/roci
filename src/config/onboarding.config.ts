@@ -1,6 +1,6 @@
 /** First-run flow copy and the icons it shows: welcome (no recording) or permissions (recording), then AI setup. */
 
-import { Bell, CalendarDays, Lock, Mic, Sparkles, SquareTerminal, Volume2, type LucideIcon } from 'lucide-react';
+import { Bell, CalendarDays, Cpu, Lock, Mic, Sparkles, SquareTerminal, Volume2, type LucideIcon } from 'lucide-react';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { platform } from '@platform/index';
 
@@ -23,6 +23,8 @@ export const ONBOARDING_ICONS = {
   // Apple Intelligence's own mark is a bare glyph: on a tile it weighs the same as the app icons beside it.
   appleIntelligence: { glyph: INTEGRATIONS_CONFIG.appleIntelligence.icon },
   local: { app: 'com.apple.Terminal', symbol: SquareTerminal },
+  // This Mac's own hardware: System Information's icon.
+  onDevice: { app: 'com.apple.SystemProfiler', symbol: Cpu },
   remote: { providers: ['gemini', 'openai', 'anthropic'] },
 } satisfies Record<string, OnboardingIconSource>;
 
@@ -92,6 +94,18 @@ export const ONBOARDING_CONFIG = {
         ? 'Enter an address like http://localhost:11434.'
         : 'Enter an address like https://my-mac.tailnet.ts.net.',
       placeholder: platform.runsLocalServers ? 'http://localhost:11434' : 'https://my-mac.tailnet.ts.net',
+    },
+    /** Models downloaded to this device: a model for each job, downloaded on this screen. */
+    onDevice: {
+      title: `On this ${platform.deviceName}`,
+      description: 'Private, free and offline',
+      heading: `On this ${platform.deviceName}`,
+      subtitle: `Runs privately on this ${platform.deviceName}. Nothing leaves it, nothing is charged.`,
+      footer: (size: string) => `Downloads keep going if you leave. ${size} to download.`,
+      ready: 'Every model is downloaded.',
+      start: 'Download and Start',
+      startReady: 'Start',
+      downloading: (percent: number) => `Downloading… ${percent}%`,
     },
     remote: {
       title: 'Online provider',

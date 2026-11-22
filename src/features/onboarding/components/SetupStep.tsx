@@ -1,5 +1,5 @@
-/** First-run: the AI Roci uses. Each option opens its own step (Apple Intelligence, an online provider's key, a local
- *  server); onboarding ends only when one of them finishes, or on Set up later. */
+/** First-run: the AI Roci uses. Each option opens its own step (Apple Intelligence, models on this device, a local server,
+ *  an online provider's key); onboarding ends only when one of them finishes, or on Set up later. */
 
 import React from 'react';
 import { CardRow, Section, WelcomeStep } from '@shared/ui';
@@ -44,6 +44,14 @@ export const SetupStep: React.FC = () => {
     <WelcomeStep title={COPY.heading} secondary={{ label: ONBOARDING_CONFIG.actions.later, onClick: finish }}>
       <Section footer={COPY.footer}>
         {platform.hasAppleIntelligence && <AppleRow />}
+        {platform.hasLocalModels && (
+          <CardRow
+            leading={<OnboardingIcon source={ONBOARDING_ICONS.onDevice} />}
+            title={COPY.onDevice.title}
+            description={COPY.onDevice.description}
+            onOpen={() => setStep('onDevice')}
+          />
+        )}
         <CardRow
           leading={<OnboardingIcon source={ONBOARDING_ICONS.local} />}
           title={COPY.local.title}

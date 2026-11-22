@@ -23,3 +23,6 @@ export { preloadSystemInfo, useSystemInfo } from './hooks/useSystemInfo';
 // Re-export context for provider usage
 export { SettingsProvider, useSettings as useSettingsContext } from '@shared/contexts/SettingsContext';
 export { SETTINGS_SECTIONS } from './components/SettingsNav';
+// Job rows and on-device downloads, shared with onboarding's on-device setup
+export { CapabilityRow, ModelSelect } from './components/shared';
+export { useLocalModelControls } from './hooks/useLocalModels';
