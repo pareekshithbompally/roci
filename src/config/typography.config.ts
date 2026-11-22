@@ -29,7 +29,9 @@ export const TYPOGRAPHY_CLASSES = {
   figureSmall: 'text-callout font-normal tabular-nums',
   /** 12 mono — code: paths, tool names and arguments, error text */
   mono: 'text-callout font-mono',
-  /** 26 / 600 — hero greeting (macOS large title) */
+  /** The home screen's greeting: a Mac's large title (26 / 600), a phone's Title 2 (22 / 600). */
+  greeting: 'text-greeting font-semibold',
+  /** Large title / 600 — a screen's navigation title (Settings), a big figure */
   display: 'text-largeTitle font-semibold',
   /** 17 / 600 — page titles */
   pageTitle: 'text-title2 font-semibold',

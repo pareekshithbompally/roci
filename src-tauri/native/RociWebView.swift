@@ -2,7 +2,8 @@
 // - The page never scrolls as a whole (screens scroll inside it), so the top bar stays put, even when a field takes focus.
 // - The web view sits above the keyboard (resized with it, on the keyboard's own curve), so the composer rides on it.
 // - No form toolbar (˄ ˅ ✓) above the keyboard: a chat field has nothing to step between.
-// - The area behind the web view takes the page colour, so no black strip shows as the keyboard moves.
+// - The area behind the web view, and the window, take the page colour from launch and on every light/dark change, so
+//   nothing black shows beside the keyboard's rounded corners or as it moves.
 
 import UIKit
 import WebKit
@@ -13,6 +14,7 @@ import ObjectiveC
 private final class KeyboardFollower: NSObject {
     private weak var webView: WKWebView?
     private var offsetLock: NSKeyValueObservation?
+    private var pageColour: NSKeyValueObservation?
 
     init(webView: WKWebView) {
         self.webView = webView
@@ -20,6 +22,10 @@ private final class KeyboardFollower: NSObject {
         // Screens scroll inside the page, never the page: any offset WebKit sets is put back before it is drawn.
         offsetLock = webView.scrollView.observe(\.contentOffset, options: [.new]) { scrollView, _ in
             if scrollView.contentOffset != .zero { scrollView.contentOffset = .zero }
+        }
+        // WebKit's page colour (the page's background; it follows light/dark) paints what is behind the web view.
+        pageColour = webView.observe(\.underPageBackgroundColor, options: [.initial, .new]) { webView, _ in
+            Self.paintBehind(webView)
         }
         let center = NotificationCenter.default
         center.addObserver(self, selector: #selector(keyboardWillChange(_:)), name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
@@ -34,11 +40,20 @@ private final class KeyboardFollower: NSObject {
         let covered = hiding ? 0 : max(0, container.bounds.maxY - keyboard.minY)
         let duration = (info[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
         let curve = (info[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt) ?? 7
-        // The live page colour (follows light/dark), so nothing black shows below or around the keyboard.
-        container.backgroundColor = webView.underPageBackgroundColor
+        Self.paintBehind(webView)
         UIView.animate(withDuration: duration, delay: 0, options: UIView.AnimationOptions(rawValue: curve << 16)) {
             webView.frame = CGRect(x: 0, y: 0, width: container.bounds.width, height: container.bounds.height - covered)
         }
+    }
+}
+
+extension KeyboardFollower {
+    /// The web view's container and window in the page colour (the web view may not be in a window yet at launch; the
+    /// next colour change or keyboard move paints it).
+    static func paintBehind(_ webView: WKWebView) {
+        let colour = webView.underPageBackgroundColor
+        webView.superview?.backgroundColor = colour
+        webView.window?.backgroundColor = colour
     }
 }
 

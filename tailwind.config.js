@@ -112,17 +112,19 @@ export default {
       borderWidth: { DEFAULT: 'var(--hairline)' },
       fontSize: {
         // Sizes come from tokens.css: macOS by default, iOS under html.platform-ios.
-        subheadline: ['var(--fs-subheadline)', 'var(--lh-subheadline)'],
-        section: ['var(--fs-section)', { lineHeight: 'var(--lh-section)', fontWeight: 'var(--fw-section)' }],
+        // Each with its line height and letter spacing (Apple's tracking on iOS; none on a Mac).
+        subheadline: ['var(--fs-subheadline)', { lineHeight: 'var(--lh-subheadline)', letterSpacing: 'var(--tr-subheadline)' }],
+        section: ['var(--fs-section)', { lineHeight: 'var(--lh-section)', fontWeight: 'var(--fw-section)', letterSpacing: 'var(--tr-section)' }],
         timer: ['var(--fs-timer)', { lineHeight: 'var(--lh-timer)', fontWeight: 'var(--fw-timer)' }],
-        segment: ['var(--fs-segment)', 'var(--lh-segment)'],
-        callout: ['var(--fs-callout)', 'var(--lh-callout)'],
-        body: ['var(--fs-body)', 'var(--lh-body)'],
-        reading: ['var(--fs-reading)', 'var(--lh-reading)'],
-        title3: ['var(--fs-title3)', 'var(--lh-title3)'],
-        title2: ['var(--fs-title2)', 'var(--lh-title2)'],
-        title1: ['var(--fs-title1)', 'var(--lh-title1)'],
-        largeTitle: ['var(--fs-large-title)', 'var(--lh-large-title)'],
+        segment: ['var(--fs-segment)', { lineHeight: 'var(--lh-segment)', letterSpacing: 'var(--tr-segment)' }],
+        callout: ['var(--fs-callout)', { lineHeight: 'var(--lh-callout)', letterSpacing: 'var(--tr-callout)' }],
+        body: ['var(--fs-body)', { lineHeight: 'var(--lh-body)', letterSpacing: 'var(--tr-body)' }],
+        reading: ['var(--fs-reading)', { lineHeight: 'var(--lh-reading)', letterSpacing: 'var(--tr-reading)' }],
+        title3: ['var(--fs-title3)', { lineHeight: 'var(--lh-title3)', letterSpacing: 'var(--tr-title3)' }],
+        title2: ['var(--fs-title2)', { lineHeight: 'var(--lh-title2)', letterSpacing: 'var(--tr-title2)' }],
+        title1: ['var(--fs-title1)', { lineHeight: 'var(--lh-title1)', letterSpacing: 'var(--tr-title1)' }],
+        largeTitle: ['var(--fs-large-title)', { lineHeight: 'var(--lh-large-title)', letterSpacing: 'var(--tr-large-title)' }],
+        greeting: ['var(--fs-greeting)', { lineHeight: 'var(--lh-greeting)', letterSpacing: 'var(--tr-greeting)' }],
       },
       // 5.5 = a 14px icon + 8px gap (text indented under an icon); 15 = 60px described row
       /** A sheet rises to this share of the screen, its top still showing what it covers (iOS page sheet). */

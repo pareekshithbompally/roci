@@ -3,9 +3,11 @@
 .markdown-content {
   /* Text colour for body, headings, bold and tables; the `aside` variant quiets it. */
   --markdown-text: var(--text-primary);
-  /* The platform reading size (14 macOS, 17 iOS), so a reply matches the text around it. */
+  /* The platform reading style (14 / 22 macOS; Apple's Body 17 / 22 with its tracking on iOS), so a reply matches the
+     text around it. */
   font-size: var(--fs-reading);
-  line-height: 1.6;
+  line-height: var(--lh-reading);
+  letter-spacing: var(--tr-reading);
   color: var(--markdown-text);
   word-wrap: break-word;
   overflow-wrap: break-word;
@@ -16,6 +18,7 @@
   --markdown-text: var(--text-muted);
   font-size: var(--fs-callout);
   line-height: 1.45;
+  letter-spacing: var(--tr-callout);
 }
 .markdown-content[data-variant='aside'] :is(p, ul, ol, blockquote) { line-height: 1.45; margin-bottom: 0.5em; }
 .markdown-content[data-variant='aside'] li { margin-bottom: 0.15em; }
@@ -37,7 +40,7 @@
 
 /* Paragraphs */
 .markdown-content p {
-  line-height: 1.6;
+  line-height: var(--lh-reading);
   margin-bottom: 1em;
 }
 
@@ -52,7 +55,7 @@
 /* Lists */
 .markdown-content ul,
 .markdown-content ol {
-  line-height: 1.6;
+  line-height: var(--lh-reading);
   margin-bottom: 1em;
   padding-left: 1.5em;
   list-style-position: outside;
@@ -79,7 +82,7 @@
 
 /* Blockquotes — accent rule + info tint */
 .markdown-content blockquote {
-  line-height: 1.6;
+  line-height: var(--lh-reading);
   border-left: 3px solid var(--border-focus);
   background-color: var(--info-bg);
   padding: 0.5em 1em;

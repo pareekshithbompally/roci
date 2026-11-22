@@ -98,7 +98,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                 transition={voice.isVoiceActive ? { duration: 0.2 } : voice.chromeEnter}
                 aria-hidden={voice.isVoiceActive || undefined}
               >
-                <Text as="h1" variant="display">{greeting}</Text>
+                <Text as="h1" variant="greeting">{greeting}</Text>
               </motion.div>
               {/* Shared ChatInput — glides to the bottom of the chat on first send */}
               <motion.div
