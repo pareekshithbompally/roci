@@ -88,6 +88,9 @@ export const UI_CONFIG = {
     barMaxWidth: 24,
     barRadius: 4,
     sliceGap: 2,
+    /** A line's stroke, and an area's fill under it as a share of the line's colour. */
+    lineWidth: 2,
+    areaOpacity: 0.15,
     /** Plot inset inside its card (px). */
     inset: 8,
     /** A value change (another measure, another range) morphs the marks this long: the app's enter timing (tailwind ENTER). */

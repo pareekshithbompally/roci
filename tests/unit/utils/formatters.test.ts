@@ -3,6 +3,7 @@ import {
   formatDate,
   formatMonth,
   formatClock,
+  formatFigure,
   formatClockTime,
   formatHour,
   formatShortDate,
@@ -273,5 +274,16 @@ describe('formatClock', () => {
     expect(formatClock(0)).toBe('00:00');
     expect(formatClock(65.9)).toBe('01:05');
     expect(formatClock(4_503)).toBe('75:03');
+  });
+});
+
+describe('formatFigure', () => {
+  afterEach(() => setSystemFormat({ firstWeekday: 1, minDaysInFirstWeek: 1 }));
+
+  it('writes a figure in the device locale, to two decimals, with its unit (a percent sign hugs it)', () => {
+    setSystemFormat({ locale: 'en-US', hour24: false, firstWeekday: 1, minDaysInFirstWeek: 1 });
+    expect(formatFigure(-32.534, '%')).toBe('-32.53%');
+    expect(formatFigure(1234.5, 'USD')).toBe('1,234.5 USD');
+    expect(formatFigure(7)).toBe('7');
   });
 });

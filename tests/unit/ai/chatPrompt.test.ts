@@ -3,7 +3,7 @@ import { buildChatSystemPrompt, formatChatTimeContext, formatSentAt, formatTempo
 import type { ChatModalities, ChatToolset } from '@core/ai/prompts';
 
 const TEXT: ChatModalities = { input: ['text'], output: ['text'] };
-const ALL: ChatToolset = { meetings: true, webSearch: true, image: true, apps: ['Linear', 'Notion'], memory: false };
+const ALL: ChatToolset = { meetings: true, webSearch: true, image: true, views: true, apps: ['Linear', 'Notion'], memory: false };
 const base = { meetingCount: 42, timeContext: formatChatTimeContext() };
 const prompt = (tools: Partial<ChatToolset> = {}, extra: { meetingCount?: number; modalities?: ChatModalities } = {}) =>
   buildChatSystemPrompt({ ...base, modalities: TEXT, ...extra, tools: { ...NO_TOOLS, ...tools } });
@@ -20,7 +20,8 @@ describe('buildChatSystemPrompt', () => {
     const text = prompt(ALL, { modalities: { input: ['text', 'image', 'audio'], output: ['text'] } });
     expect(text).toContain('- You can read: text, images and audio.');
     expect(text).toContain('- You can produce: text and images.');
-    expect(text).toContain("- Your tools: the user's meetings, to-dos and past chats; web search; image generation; connected apps: Linear and Notion.");
+    expect(text).toContain("- Your tools: the user's meetings, to-dos and past chats; web search; image generation; showing charts, figures and tables; connected apps: Linear and Notion.");
+    expect(text).toContain('- Use `show` when figures read better seen');
   });
 
   it('has the model look facts up with its tools instead of training, and caution when a tool fails', () => {

@@ -1,9 +1,8 @@
-import { getToolName, isToolUIPart } from 'ai';
+import { isToolUIPart } from 'ai';
 import type { ChatPart } from '@shared/types';
-import { generatedImageOf, isShownPart, mcpAppOf } from '@shared/utils/chatParts';
-import type { McpAppMeta } from '@extensions/tools/types';
+import { isShownPart, toolViewOf } from '@shared/utils/chatParts';
+import type { ToolView } from '@extensions/tools/types';
 import { toolCallView, type ToolCallView } from '@features/chat/components/tool-call';
-import type { ChatMedia } from '@features/chat/components/MediaPartRenderer';
 
 /** The model's work before it answers: thinking and tool calls. */
 export type ActivityPart = { type: 'reasoning'; text: string } | ToolCallView;
@@ -20,8 +19,7 @@ export interface IndexedPart<P> {
 export type PartSegment =
   | { kind: 'activity'; items: IndexedPart<ActivityPart>[] }
   | { kind: 'text'; item: IndexedPart<string> }
-  | { kind: 'media'; item: IndexedPart<ChatMedia> }
-  | { kind: 'app'; item: IndexedPart<{ app: McpAppMeta; title: string }> };
+  | { kind: 'view'; item: IndexedPart<ToolView> };
 
 /** Separates thinking blocks streamed back to back (OpenAI sends each reasoning summary as its own block). */
 const REASONING_BLOCK_BREAK = '\n\n';
@@ -67,11 +65,9 @@ function addPart(segments: PartSegment[], part: ChatPart, index: number): void {
     addText(segments, part.text, index);
   } else if (isToolUIPart(part)) {
     addActivity(segments, at(toolCallView(part), index));
-    // An image the tool made, or the screen it declared, shows right after its row.
-    const image = generatedImageOf(part);
-    if (image) segments.push({ kind: 'media', item: at(image, index) });
-    const app = mcpAppOf(part);
-    if (app) segments.push({ kind: 'app', item: at({ app, title: getToolName(part) }, index) });
+    // What the tool made (an image, a screen, a chart…) shows right after its row.
+    const view = toolViewOf(part);
+    if (view) segments.push({ kind: 'view', item: at(view, index) });
   }
 }
 
@@ -81,9 +77,9 @@ export function groupActivity(parts: readonly ChatPart[]): PartSegment[] {
   return segments;
 }
 
-/** The step under way while the reply streams: the newest shown part; none once a tool's image or screen closed its step. */
+/** The step under way while the reply streams: the newest shown part; none once what a tool made closed its step. */
 export function liveIndexOf(segments: PartSegment[]): number | null {
   const last = segments.at(-1);
-  if (!last || last.kind === 'media' || last.kind === 'app') return null;
+  if (!last || last.kind === 'view') return null;
   return last.kind === 'activity' ? (last.items.at(-1)?.index ?? null) : last.item.index;
 }

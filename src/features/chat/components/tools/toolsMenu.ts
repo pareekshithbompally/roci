@@ -1,6 +1,6 @@
 /** The Mac Tools menu as native entries (switch rows stay open, MCP servers fan out), and what its switches change once it closes. */
 
-import { Globe, ImageIcon, Info, Library, Plus, Settings2, ShieldCheck, ShieldQuestion } from 'lucide-react';
+import { ChartColumn, Globe, ImageIcon, Info, Library, Plus, Settings2, ShieldCheck, ShieldQuestion } from 'lucide-react';
 import { SiModelcontextprotocol } from '@icons-pack/react-simple-icons';
 import { menuGlyph } from '@shared/components';
 import type { NativeMenuEntry, NativeMenuResult } from '@services/tauri';
@@ -13,6 +13,7 @@ import { formatTokenCount } from '@extensions/usage/format';
 export const TOOLS_MENU_IDS = {
   webSearch: 'web-search',
   imageGeneration: 'image-generation',
+  resultViews: 'result-views',
   meetingTools: 'meeting-tools',
   ask: 'ask-before-running',
   chooseImageModel: 'choose-image-model',
@@ -28,7 +29,7 @@ const ID = TOOLS_MENU_IDS;
 const glyph = (icon: Parameters<typeof menuGlyph>[0]) => ({ icon: menuGlyph(icon), template: true });
 
 function builtInEntries(catalog: ToolCatalog): NativeMenuEntry[] {
-  const { webSearch, imageGeneration, builtIn, modelSupportsTools } = catalog;
+  const { webSearch, imageGeneration, resultViews, builtIn, modelSupportsTools } = catalog;
   const web: NativeMenuEntry = {
     kind: 'toggle', id: ID.webSearch, title: COPY.webSearch, on: webSearch.enabled, enabled: webSearch.available,
     subtitle: webSearch.available ? COPY.via(webSearch.providerLabel) : COPY.notForModel, ...glyph(Globe),
@@ -39,10 +40,13 @@ function builtInEntries(catalog: ToolCatalog): NativeMenuEntry[] {
   const image: NativeMenuEntry = imageGeneration.available
     ? { kind: 'toggle', id: ID.imageGeneration, title: COPY.imageGeneration, subtitle: COPY.via(imageGeneration.modelLabel), on: imageGeneration.enabled, enabled: true, ...glyph(ImageIcon) }
     : { kind: 'row', id: ID.chooseImageModel, title: COPY.imageGeneration, subtitle: COPY.chooseImageModel, enabled: true, ...glyph(ImageIcon) };
+  const views: NativeMenuEntry = {
+    kind: 'toggle', id: ID.resultViews, title: COPY.resultViews, subtitle: COPY.resultViewsHint, on: resultViews.enabled, enabled: true, ...glyph(ChartColumn),
+  };
   const meetings: NativeMenuEntry[] = builtIn.tools.length > 0
     ? [{ kind: 'toggle', id: ID.meetingTools, title: builtIn.label, subtitle: COPY.toolCount(builtIn.tools.length), on: builtIn.enabledCount > 0, enabled: true, ...glyph(Library) }]
     : [];
-  return [web, image, ...meetings];
+  return [web, image, views, ...meetings];
 }
 
 /** A connected server fans out to its own switch for all its tools, then a switch per tool; one still connecting or
@@ -101,6 +105,7 @@ export function toolSwitches(toggled: NativeMenuResult['toggled']): ToolSwitches
   return {
     webSearch: toggled[ID.webSearch],
     imageGeneration: toggled[ID.imageGeneration],
+    resultViews: toggled[ID.resultViews],
     meetingTools: toggled[ID.meetingTools],
     ...(Object.keys(mcpTools).length > 0 && { mcpTools }),
   };

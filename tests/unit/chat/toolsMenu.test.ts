@@ -11,6 +11,7 @@ const catalog = (over: Partial<ToolCatalog> = {}): ToolCatalog => ({
   modelName: 'gpt-5',
   webSearch: { available: true, enabled: true, providerLabel: 'OpenAI', toggle: vi.fn() },
   imageGeneration: { available: true, enabled: false, modelLabel: 'gpt-image-1.5', toggle: vi.fn(), tokens: 90 },
+  resultViews: { enabled: true, toggle: vi.fn(), tokens: 300 },
   builtIn: { key: 'builtin', label: 'Meetings & chats', status: 'builtin', perTool: false, icon: null, enabledCount: 3, tools: [{ key: 'a', name: 'a', description: null, destructive: false, enabled: true }] },
   servers: [
     { key: 'fs', label: 'fs', status: 'connected', perTool: true, icon: 'https://x/icon.png', enabledCount: 1, tools: [
@@ -26,8 +27,9 @@ const catalog = (over: Partial<ToolCatalog> = {}): ToolCatalog => ({
 describe('Mac Tools menu', () => {
   it('built-in tools are switch rows; each connected server fans out to its own switch, then a switch per tool', () => {
     const entries = toolsMenu(catalog(), true, new Map([['fs', 'data:server-icon']]));
-    expect(entries.map((e) => e.kind)).toEqual(['header', 'toggle', 'toggle', 'toggle', 'separator', 'header', 'submenu', 'row', 'separator', 'toggle', 'row']);
-    const fs = entries[6];
+    expect(entries.map((e) => e.kind)).toEqual(['header', 'toggle', 'toggle', 'toggle', 'toggle', 'separator', 'header', 'submenu', 'row', 'separator', 'toggle', 'row']);
+    expect(entries[3]).toMatchObject({ kind: 'toggle', id: TOOLS_MENU_IDS.resultViews, title: 'Charts & tables', on: true });
+    const fs = entries[7];
     expect(fs).toMatchObject({ kind: 'submenu', title: 'fs', subtitle: '1 of 2 on', icon: 'data:server-icon' });
     if (fs.kind === 'submenu') expect(fs.items).toEqual([
       // What all its tools add, whichever are flipped while the menu is open.
@@ -36,7 +38,7 @@ describe('Mac Tools menu', () => {
       { kind: 'toggle', id: 'tool:fs/read', title: 'read', subtitle: undefined, on: true, enabled: true },
       { kind: 'toggle', id: 'tool:fs/write', title: 'write', subtitle: 'Writes', on: false, enabled: true },
     ]);
-    expect(entries[7]).toMatchObject({ kind: 'row', title: 'slow', subtitle: 'Connecting…', enabled: false, icon: 'glyph', template: true });
+    expect(entries[8]).toMatchObject({ kind: 'row', title: 'slow', subtitle: 'Connecting…', enabled: false, icon: 'glyph', template: true });
   });
 
   it('a model without tools offers web search only, with the reason; no MCP section', () => {
@@ -53,8 +55,8 @@ describe('Mac Tools menu', () => {
   it('every switch flipped while open becomes one set of changes, applied in one write', () => {
     // A server's own switch is never read back: only the tool switches it flipped are.
     const changes = toolSwitches({ 'web-search': false, 'meeting-tools': false, 'tool:fs/write': true, 'tool:fs/read': false, 'ask-before-running': false, 'server-tools:fs': true });
-    expect(changes).toEqual({ webSearch: false, imageGeneration: undefined, meetingTools: false, mcpTools: { 'fs/write': true, 'fs/read': false } });
-    const prefs = { meetingTools: true, imageGeneration: true, webSearch: true, disabledMcpTools: ['fs/write'] };
-    expect(withSwitches(prefs, changes)).toEqual({ meetingTools: false, imageGeneration: true, webSearch: false, disabledMcpTools: ['fs/read'] });
+    expect(changes).toEqual({ webSearch: false, imageGeneration: undefined, resultViews: undefined, meetingTools: false, mcpTools: { 'fs/write': true, 'fs/read': false } });
+    const prefs = { meetingTools: true, imageGeneration: true, resultViews: true, webSearch: true, disabledMcpTools: ['fs/write'] };
+    expect(withSwitches(prefs, changes)).toEqual({ meetingTools: false, imageGeneration: true, resultViews: true, webSearch: false, disabledMcpTools: ['fs/read'] });
   });
 });

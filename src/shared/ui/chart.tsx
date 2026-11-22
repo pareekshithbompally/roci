@@ -1,11 +1,11 @@
-/** A chart: Apache ECharts draws the marks only (bars, rings), in the token colours; every word and figure around them is kit
+/** A chart: Apache ECharts draws the marks only (bars, lines, rings), in the token colours; every word and figure around them is kit
  *  text. Hover goes out as an index (`onHover`) and highlight comes in as one (`highlight`), so a chart and its React parts
  *  (a header line, a legend) read as one thing. The theme is rebuilt from the tokens on mount and on each light/dark change. */
 
 import { useEffect, useRef } from 'react';
 import * as echarts from 'echarts/core';
-import { BarChart, PieChart } from 'echarts/charts';
-import type { BarSeriesOption, PieSeriesOption } from 'echarts/charts';
+import { BarChart, LineChart, PieChart } from 'echarts/charts';
+import type { BarSeriesOption, LineSeriesOption, PieSeriesOption } from 'echarts/charts';
 import { AxisPointerComponent, GridComponent, TooltipComponent } from 'echarts/components';
 import type { AxisPointerComponentOption, GridComponentOption, TooltipComponentOption } from 'echarts/components';
 import { SVGRenderer } from 'echarts/renderers';
@@ -16,16 +16,16 @@ import { cssToken } from './utils';
 const C = UI_CONFIG.chart;
 
 // The tooltip component only drives the axis pointer; it never shows content (charts pass `showContent: false`).
-echarts.use([BarChart, PieChart, AxisPointerComponent, GridComponent, TooltipComponent, SVGRenderer]);
+echarts.use([BarChart, LineChart, PieChart, AxisPointerComponent, GridComponent, TooltipComponent, SVGRenderer]);
 
 export type ChartOption = echarts.ComposeOption<
-  BarSeriesOption | PieSeriesOption | AxisPointerComponentOption | GridComponentOption | TooltipComponentOption
+  BarSeriesOption | LineSeriesOption | PieSeriesOption | AxisPointerComponentOption | GridComponentOption | TooltipComponentOption
 >;
 
 const THEME = 'roci';
 
 /** ECharts' theme from the tokens as they are now: series colours, axis labels in muted ink at the caption size (as table
- *  headers), hairlines, and the marks — thin bars with rounded data ends, slices parted by a gap in the card's colour. */
+ *  headers), hairlines, and the marks — thin bars with rounded data ends, plain lines, slices parted by a gap in the card's colour. */
 function tokenTheme(): object {
   const token = cssToken;
   const { fontFamily } = getComputedStyle(document.body);
@@ -43,6 +43,7 @@ function tokenTheme(): object {
     valueAxis: axis,
     tooltip: { axisPointer: { type: 'shadow', shadowStyle: { color: hairline } } },
     bar: { barMaxWidth: C.barMaxWidth, itemStyle: { borderRadius: [C.barRadius, C.barRadius, 0, 0] } },
+    line: { symbol: 'none', lineStyle: { width: C.lineWidth } },
     pie: { itemStyle: { borderColor: token('--bg-grouped-card'), borderWidth: C.sliceGap }, emphasis: { focus: 'self', scaleSize: C.sliceGap * 2 }, blur: { itemStyle: { opacity: C.dimOpacity } } },
   };
 }

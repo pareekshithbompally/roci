@@ -1,7 +1,7 @@
 /** Tools picker state and actions; every toggle writes the saved chat tool preferences. */
 
 import { useCallback, useMemo } from 'react';
-import { generateImageTool, toolRegistry } from '@extensions/tools';
+import { generateImageTool, showTool, toolRegistry } from '@extensions/tools';
 import { toolPromptTokens } from '@extensions/tools/tool-tokens';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -44,6 +44,18 @@ function useImageGenerationToggle(prefs: ChatToolPreferences) {
   // The definition chat sends; its name, description and schema don't depend on the model it draws with.
   const tokens = useMemo(() => toolPromptTokens(generateImageTool({ settings, providers })), [settings, providers]);
   return { available, enabled: available && prefs.imageGeneration, modelLabel, toggle, tokens };
+}
+
+/** The Charts & tables row: `show`, switched by the saved preference; it needs nothing set up. */
+function useResultViewsToggle(prefs: ChatToolPreferences) {
+  const { setSettings } = useSettings();
+  const toggle = useCallback(
+    () => setSettings({ chatTools: { ...prefs, resultViews: !prefs.resultViews } }),
+    [prefs, setSettings],
+  );
+  // What its definition adds to each request; it never changes.
+  const tokens = useMemo(() => toolPromptTokens(showTool), []);
+  return { enabled: prefs.resultViews, toggle, tokens };
 }
 
 export function useToolCatalog() {
@@ -131,6 +143,9 @@ export function useToolCatalog() {
 
   const webSearchAvailable = !!resolved && WEB_SEARCH_PROVIDERS.has(resolved.provider);
   const imageGeneration = useImageGenerationToggle(prefs);
+  const resultViews = useResultViewsToggle(prefs);
+  // The built-in switches beyond the tool groups: each counts as one tool when on.
+  const extras = [imageGeneration, resultViews].filter((row) => row.enabled);
 
   return {
     modelSupportsTools: profile?.tools ?? false,
@@ -142,11 +157,12 @@ export function useToolCatalog() {
       toggle: toggleWebSearch,
     },
     imageGeneration,
+    resultViews,
     builtIn: catalog.builtIn,
     servers: catalog.servers,
-    enabledCount: countEnabled([catalog.builtIn, ...catalog.servers]) + (imageGeneration.enabled ? 1 : 0),
+    enabledCount: countEnabled([catalog.builtIn, ...catalog.servers]) + extras.length,
     /** Tokens the switched-on tools add to each request (web search is the provider's own and isn't counted). */
-    enabledTokens: tokensEnabled([catalog.builtIn, ...catalog.servers]) + (imageGeneration.enabled ? imageGeneration.tokens : 0),
+    enabledTokens: tokensEnabled([catalog.builtIn, ...catalog.servers]) + extras.reduce((sum, row) => sum + row.tokens, 0),
     askBeforeRunning: !(mcpConfig?.mcpSettings.allowAllTools ?? false),
     connectingServer: reconfigure.isPending ? reconfigure.variables?.affected[0] : undefined,
     setGroupEnabled,

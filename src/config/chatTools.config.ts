@@ -6,6 +6,7 @@ import type { AppSettings, ChatToolPreferences } from '@shared/types';
 export const DEFAULT_CHAT_TOOLS: ChatToolPreferences = {
   meetingTools: true,
   imageGeneration: true,
+  resultViews: true,
   webSearch: true,
   disabledMcpTools: [],
 };
@@ -33,6 +34,8 @@ export const TOOLS_MENU_COPY = {
   mcpHeader: 'MCP servers',
   webSearch: 'Web search',
   imageGeneration: 'Image generation',
+  resultViews: 'Charts & tables',
+  resultViewsHint: 'Figures drawn in the chat',
   via: (name: string) => `via ${name}`,
   notForModel: 'Not available for this model',
   chooseImageModel: 'Choose an image model…',

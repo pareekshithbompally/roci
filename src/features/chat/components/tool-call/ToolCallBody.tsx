@@ -1,20 +1,13 @@
 import React from 'react';
-import { toolKey, type ToolCallView } from './toolCallView';
+import type { ToolCallView } from './toolCallView';
 import { DefaultToolBody } from './DefaultToolBody';
 import { MeetingResultsBody } from './MeetingResultsBody';
 
 type ToolBody = React.FC<{ part: ToolCallView }>;
 
-/** Built-in tool calls with a specialised body, by `toolKey`; everything else gets Output and Parameters. */
-const BODIES: Record<string, ToolBody> = {
-  'find.meetings': MeetingResultsBody,
-  'find.meetings.list': MeetingResultsBody,
-};
-
-/** Picks the body renderer for a tool call. MCP tools always use the default body. */
+/** A call that returned meetings lists them; any other shows its Output and Parameters. */
 export function toolBodyFor(part: ToolCallView): ToolBody {
-  if (part.source) return DefaultToolBody;
-  return BODIES[toolKey(part)] ?? DefaultToolBody;
+  return part.meetings?.length ? MeetingResultsBody : DefaultToolBody;
 }
 
 export const ToolCallBody: React.FC<{ part: ToolCallView }> = ({ part }) => {

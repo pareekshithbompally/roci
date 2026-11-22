@@ -4,7 +4,7 @@
  *  graph. Every result carries the id `read` and the suggest tools take. */
 
 import { z } from 'zod';
-import type { MeetingCitation, ToolResult } from '@extensions/tools/types';
+import type { MeetingCitation, MeetingRow, ToolResult } from '@extensions/tools/types';
 import { day, defineTool, idFrom, ok, text, toolDate } from '@extensions/tools/contract';
 import { findMeeting, meetingNotFound, todoLine } from '@extensions/tools/data';
 import { MAX_CITATION_EXCERPT_CHARS, MAX_SNIPPET_CHARS, MAX_TODOS_FOR_LLM } from '@extensions/tools/constants';
@@ -62,9 +62,15 @@ async function searchMeetingsFor(query: string, count: number): Promise<ToolResu
   const best = new Map<string, (typeof results)[number]>();
   for (const r of results) if (!best.has(r.meetingId)) best.set(r.meetingId, r);
   const hits = [...best.values()];
+  const meetings: MeetingRow[] = hits.map((r) => ({
+    id: r.meetingId,
+    title: r.meetingTitle,
+    date: toolDate(r.timestamp),
+    snippet: r.chunkText.slice(0, MAX_SNIPPET_CHARS).replace(/\n/g, ' '),
+  }));
   const lines = hits.flatMap((r, i) => [
-    `${i + 1}. "${r.meetingTitle}" (${toolDate(r.timestamp)})`,
-    `   Relevance: ${confidenceOf(r.score)} | Match: "${r.chunkText.slice(0, MAX_SNIPPET_CHARS).replace(/\n/g, ' ')}..."`,
+    `${i + 1}. "${meetings[i].title}" (${meetings[i].date})`,
+    `   Relevance: ${confidenceOf(r.score)} | Match: "${meetings[i].snippet}..."`,
     `   Meeting ID: ${r.meetingId}`,
     '',
   ]);
@@ -72,7 +78,7 @@ async function searchMeetingsFor(query: string, count: number): Promise<ToolResu
   const citations: MeetingCitation[] = hits
     .filter((r) => r.score >= SCORE_HIGH)
     .map((r) => ({ meetingId: r.meetingId, meetingTitle: r.meetingTitle, meetingTimestamp: r.timestamp, excerpt: r.chunkText.slice(0, MAX_CITATION_EXCERPT_CHARS), score: r.score }));
-  return ok([`Found ${hits.length} relevant meeting(s):\n`, ...lines].join('\n'), { resultCount: hits.length, citations });
+  return ok([`Found ${hits.length} relevant meeting(s):\n`, ...lines].join('\n'), { resultCount: hits.length, citations, meetings });
 }
 
 async function listMeetings({ from_date, to_date }: Input, count: number): Promise<ToolResult> {
@@ -82,8 +88,9 @@ async function listMeetings({ from_date, to_date }: Input, count: number): Promi
   if (found.length === 0) return ok(`No meetings${range}.`, { resultCount: 0 });
   const shown = found.slice(0, count);
   const more = found.length > count ? ' — there are more; narrow the dates or raise the limit' : '';
-  const lines = shown.map((m, i) => `${i + 1}. "${m.title}" — ${toolDate(m.timestamp)} — ID: ${m.id}`);
-  return ok([`Meetings${range} (newest ${shown.length}${more}):`, '', ...lines].join('\n'), { resultCount: shown.length });
+  const meetings: MeetingRow[] = shown.map((m) => ({ id: m.id, title: m.title, date: toolDate(m.timestamp) }));
+  const lines = meetings.map((m, i) => `${i + 1}. "${m.title}" — ${m.date} — ID: ${m.id}`);
+  return ok([`Meetings${range} (newest ${shown.length}${more}):`, '', ...lines].join('\n'), { resultCount: shown.length, meetings });
 }
 
 // ── Chats ──

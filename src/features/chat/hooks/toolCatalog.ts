@@ -123,6 +123,7 @@ export function tokensEnabled(groups: CatalogGroup[]): number {
 export interface ToolSwitches {
   webSearch?: boolean;
   imageGeneration?: boolean;
+  resultViews?: boolean;
   meetingTools?: boolean;
   /** MCP tool key → on. */
   mcpTools?: Record<string, boolean>;
@@ -136,6 +137,7 @@ export function withSwitches(prefs: ChatToolPreferences, changes: ToolSwitches):
     ...prefs,
     webSearch: changes.webSearch ?? prefs.webSearch,
     imageGeneration: changes.imageGeneration ?? prefs.imageGeneration,
+    resultViews: changes.resultViews ?? prefs.resultViews,
     meetingTools: changes.meetingTools ?? prefs.meetingTools,
     disabledMcpTools,
   };

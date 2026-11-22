@@ -23,6 +23,9 @@ const LABELS: Record<string, [string, string]> = {
   'suggest_todo.delete': ['Drafting to-do removal', 'Drafted to-do removal'],
   'suggest_memory.save': ['Drafting memory', 'Drafted memory'],
   'suggest_memory.forget': ['Drafting memory removal', 'Drafted memory removal'],
+  'show.chart': ['Drawing chart', 'Drew chart'],
+  'show.stats': ['Laying out figures', 'Showed figures'],
+  'show.table': ['Building table', 'Showed table'],
   // Native provider tools (web search)
   webSearch: ['Searching the web', 'Searched the web'],
   googleSearch: ['Searching the web', 'Searched the web'],
@@ -77,6 +80,9 @@ const DETAILS: Record<string, (part: ToolCallView) => string | undefined> = {
   'suggest_todo.add': (part) => quoted(part.arguments.text),
   'suggest_todo.update': (part) => quoted(part.arguments.text),
   'suggest_memory.save': (part) => quoted(part.arguments.text),
+  'show.chart': (part) => quoted(part.arguments.title),
+  'show.stats': (part) => quoted(part.arguments.title),
+  'show.table': (part) => quoted(part.arguments.title),
 };
 
 /** A tool's name to read: an MCP server tool without its `server:` prefix, words for underscores ("search meetings"). */

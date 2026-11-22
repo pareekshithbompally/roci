@@ -1,8 +1,8 @@
-/** Reads a chat message's SDK parts: its text, what its tools returned (citations, a generated image), its web sources. */
+/** Reads a chat message's SDK parts: its text, what its tools returned (citations, an image, a screen or view), its web sources. */
 
-import { isTextUIPart, isToolUIPart } from 'ai';
+import { getToolName, isTextUIPart, isToolUIPart } from 'ai';
 import type { ChatMessage, ChatPart, GeneratedImage, MeetingCitation, WebCitation } from '@shared/types';
-import type { McpAppMeta, ToolResult } from '@extensions/tools/types';
+import type { ToolResult, ToolView } from '@extensions/tools/types';
 import { isRecord } from '@shared/utils/validators';
 
 /** The kinds of media a message shows, from a file's media type. */
@@ -40,9 +40,14 @@ export function generatedImageOf(part: ChatPart): GeneratedImage | null {
   return toolResultOf(part)?.meta?.image ?? null;
 }
 
-/** The MCP App screen a tool declared, shown right after its row; null when it has none. */
-export function mcpAppOf(part: ChatPart): McpAppMeta | null {
-  return toolResultOf(part)?.meta?.app ?? null;
+/** What shows right after a tool's row: the image it made, the screen its MCP server declared, or the view `show` drew;
+ *  null when it shows nothing beyond its row. */
+export function toolViewOf(part: ChatPart): ToolView | null {
+  const meta = toolResultOf(part)?.meta;
+  if (!meta || !isToolUIPart(part)) return null;
+  if (meta.image) return { kind: 'image', image: meta.image };
+  if (meta.app) return { kind: 'app', app: meta.app, title: getToolName(part) };
+  return meta.view ?? null;
 }
 
 /** The meetings a message's tools cited, each meeting once with its best-scoring excerpt. */

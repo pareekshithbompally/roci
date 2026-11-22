@@ -85,6 +85,16 @@ export function formatCount(count: number, noun: string): string {
   return `${new Intl.NumberFormat().format(count)} ${noun}${count === 1 ? '' : 's'}`;
 }
 
+/** Decimals a figure keeps when shown (a price, a share). */
+const FIGURE_DECIMALS = 2;
+
+/** A figure in the device's locale with its unit: "1,234.5 USD", "-32.53%" (a percent sign hugs the number). */
+export function formatFigure(value: number, unit?: string): string {
+  const number = new Intl.NumberFormat(systemFormat().locale, { maximumFractionDigits: FIGURE_DECIMALS }).format(value);
+  if (!unit) return number;
+  return unit === '%' ? `${number}%` : `${number} ${unit}`;
+}
+
 /** A running clock, fixed width: "02:13", minutes past the hour kept ("75:03"). */
 export function formatClock(seconds: number): string {
   const pad = (n: number) => Math.floor(n).toString().padStart(2, '0');

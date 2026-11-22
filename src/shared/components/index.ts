@@ -39,3 +39,4 @@ export { menuGlyph } from './menuGlyph';
 export { modelMenuEntries, modelRowText, modelSubtitle, openModelMenu, type ModelMenuOptions } from './modelMenu';
 export { ModelChips, ModelLabel } from './ModelChips';
 export { KnowledgeGraph } from './KnowledgeGraph';
+export { ChartView, StatsView, TableView } from './result-views';

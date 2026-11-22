@@ -28,6 +28,7 @@ export type { BackForwardProps } from './back-forward';
 export { DonutChart } from './donut-chart';
 export type { DonutChartProps, DonutSlice } from './donut-chart';
 export { StatCard } from './stat-card';
+export { Swatch } from './swatch';
 export type { StatCardProps } from './stat-card';
 export type { DataColumn, DataTableEdit, DataTableProps } from './data-table';
 export type { IconTileProps, TileGlyph } from './icon-tile';

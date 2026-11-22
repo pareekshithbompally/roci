@@ -13,6 +13,8 @@ toolRegistry.register(suggestTodoTool);
 export { callToolFromScreen, loadMcpSettings, loadMcpTools } from './mcp-tools';
 /** Built per chat from its settings, so not in the registry (and not published to coding agents). */
 export { generateImageTool, GENERATE_IMAGE_TOOL } from './definitions/generate-image.tool';
+/** Chat only: draws in Roci's chat, which an agent using Roci's MCP server doesn't show. */
+export { showTool, SHOW_TOOL } from './definitions/show.tool';
 /** Chat only, while Memory is on: memory is never written from outside Roci. */
 export { suggestMemoryTool } from './definitions/suggest-memory.tool';
 

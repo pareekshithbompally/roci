@@ -5,6 +5,7 @@ import type { ChatToolPart } from '@shared/types';
 import { TOOL_RESULT_PREVIEW_CHARS } from '@config/chat.config';
 import { toolResultOf } from '@shared/utils/chatParts';
 import { isRecord } from '@shared/utils/validators';
+import type { MeetingRow } from '@extensions/tools/types';
 
 type Args = Record<string, unknown>;
 
@@ -18,6 +19,8 @@ export interface ToolCallView {
   arguments: Args;
   status: 'calling' | 'complete' | 'error';
   result?: { content: string; isError: boolean; executionMs?: number };
+  /** The meetings a meeting find returned, listed in its row. */
+  meetings?: MeetingRow[];
 }
 
 /** The fields of OpenAI's web search action that say what it did (`search`, `openPage`, `findInPage`). */
@@ -68,6 +71,7 @@ export function toolCallView(part: ChatToolPart): ToolCallView {
   const input = part.state !== 'input-streaming' && isRecord(part.input) ? part.input : {};
   const result = resultOf(part);
   const source = part.toolMetadata?.source;
+  const meetings = toolResultOf(part)?.meta?.meetings;
   return {
     type: 'tool_call',
     toolCallId: part.toolCallId,
@@ -76,11 +80,12 @@ export function toolCallView(part: ChatToolPart): ToolCallView {
     arguments: part.providerExecuted && part.state === 'output-available' ? { ...input, ...actionArguments(part.output) } : input,
     status: statusOf(result),
     result,
+    ...(meetings && { meetings }),
   };
 }
 
-/** The argument that says what a built-in tool call does: where `find` looks, what a suggestion does. */
-const MODE_ARGUMENT: Record<string, string> = { find: 'in', suggest_todo: 'action', suggest_memory: 'action' };
+/** The argument that says what a built-in tool call does: where `find` looks, what a suggestion does, what `show` draws. */
+const MODE_ARGUMENT: Record<string, string> = { find: 'in', suggest_todo: 'action', suggest_memory: 'action', show: 'kind' };
 
 /** One key per thing a call does, for its title, glyph and body: `find.meetings` (a search), `find.meetings.list` (no query),
  *  `read.meeting`, `suggest_todo.add`; any other tool is its name. */

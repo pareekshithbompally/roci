@@ -1,6 +1,7 @@
 /** Provider-agnostic tool calling interfaces. */
 
 import type { GeneratedImage } from '@shared/types';
+import type { ResultView } from '@core/ai';
 
 // ── JSON Schema (subset used for tool parameter definitions) ──
 
@@ -87,7 +88,27 @@ export interface ToolResultMeta {
   image?: GeneratedImage;
   /** UI-only: the MCP App screen an MCP tool declared, shown in the reply where the tool ran. */
   app?: McpAppMeta;
+  /** UI-only: a chart, figures or table `show` drew, shown in the reply where the tool ran. */
+  view?: ResultView;
+  /** UI-only: the meetings a meeting find returned, listed in its row. */
+  meetings?: MeetingRow[];
 }
+
+/** One meeting a find returned, as its row lists it. */
+export interface MeetingRow {
+  id: string;
+  title: string;
+  /** When it was, as the model read it. */
+  date: string;
+  /** The passage that matched, for a search. */
+  snippet?: string;
+}
+
+/** What shows in the reply right after a tool's row: an image it made, a plugin's screen, or a view `show` drew. */
+export type ToolView =
+  | { kind: 'image'; image: GeneratedImage }
+  | { kind: 'app'; app: McpAppMeta; title: string }
+  | ResultView;
 
 /** What an MCP App screen needs to show a call: where it lives, and the call's input and whole result. */
 export interface McpAppMeta {

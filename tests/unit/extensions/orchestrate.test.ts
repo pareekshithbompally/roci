@@ -33,6 +33,7 @@ vi.mock('@extensions/tools', () => ({
   loadMcpTools: async () => [],
   generateImageTool: vi.fn(),
   GENERATE_IMAGE_TOOL: 'generate_image',
+  showTool: { name: 'show' },
   suggestMemoryTool: { name: 'suggest_memory' },
 }));
 
@@ -96,7 +97,7 @@ describe('orchestrate — web search', () => {
 
     getWebSearchTools.mockClear();
     replyOnce();
-    await run({ chatTools: { meetingTools: true, imageGeneration: true, webSearch: false, disabledMcpTools: [] } });
+    await run({ chatTools: { meetingTools: true, imageGeneration: true, resultViews: false, webSearch: false, disabledMcpTools: [] } });
     expect(getWebSearchTools).not.toHaveBeenCalled();
   });
 });

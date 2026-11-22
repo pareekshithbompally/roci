@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import {
+  ChartColumn,
   ChevronDown,
   Globe,
   ImageIcon,
@@ -37,6 +38,7 @@ import { platform } from '@platform/index';
 import { nativeMenu } from '@services/tauri';
 import { cachedImage } from '@services/imageCache';
 import { MENU_GAP_PT } from '@config/ui.config';
+import { TOOLS_MENU_COPY } from '@config/chatTools.config';
 import { TOOLS_MENU_IDS, toolSwitches, toolsMenu } from './toolsMenu';
 
 /** `catalog`: the composer's one tool catalog (its context ring reads the same). */
@@ -112,6 +114,7 @@ export const ToolsPicker: React.FC<{ catalog: ToolCatalog; iconOnly?: boolean }>
         {modelSupportsTools && (
           <ImageGenerationItem catalog={catalog} onSetUp={openDefaultModels} onHover={() => setFlyout(null)} />
         )}
+        {modelSupportsTools && <ResultViewsItem catalog={catalog} onHover={() => setFlyout(null)} />}
         {modelSupportsTools ? (
           <GroupItem
             group={catalog.builtIn}
@@ -226,6 +229,23 @@ const ImageGenerationItem: React.FC<{ catalog: ToolCatalog; onSetUp: () => void;
           aria-label="Image generation"
         />
       }
+      chevron={false}
+    />
+  );
+};
+
+/** show: charts, figures and tables drawn in the chat; nothing to set up. */
+const ResultViewsItem: React.FC<{ catalog: ToolCatalog; onHover: () => void }> = ({ catalog, onHover }) => {
+  const { resultViews } = catalog;
+  return (
+    <CommandRow
+      value="charts tables figures show chart graph"
+      onSelect={resultViews.toggle}
+      onPointerEnter={onHover}
+      leading={<RowIcon icon={ChartColumn} />}
+      label={TOOLS_MENU_COPY.resultViews}
+      description={TOOLS_MENU_COPY.resultViewsHint}
+      check={<Checkbox checked={resultViews.enabled} onCheckedChange={resultViews.toggle} aria-label={TOOLS_MENU_COPY.resultViews} />}
       chevron={false}
     />
   );

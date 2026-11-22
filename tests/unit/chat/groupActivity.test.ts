@@ -34,8 +34,8 @@ describe('groupActivity', () => {
   it("puts a tool's image right after its row, before the text that follows", () => {
     const image = { mediaType: 'image/png', path: 'images/a.png', alt: 'a fox' };
     const segments = groupActivity([text('Drawing it.'), call('1', { image }), text('Here it is.')]);
-    expect(segments.map((s) => s.kind)).toEqual(['text', 'activity', 'media', 'text']);
-    expect(segments[2].kind === 'media' && segments[2].item.part).toEqual(image);
+    expect(segments.map((s) => s.kind)).toEqual(['text', 'activity', 'view', 'text']);
+    expect(segments[2].kind === 'view' && segments[2].item.part).toEqual({ kind: 'image', image });
   });
 
   it('shows nothing for parts only the model reads, nor for sources and step starts', () => {
@@ -61,9 +61,16 @@ describe('groupActivity', () => {
   it("puts a tool's MCP App screen right after its row, and the screen closes the live step", () => {
     const app = { server: 'charts', resourceUri: 'ui://charts/line', input: { symbol: 'NVDA' }, result: { content: [] } };
     const segments = groupActivity([call('1', { app }), text('Here it is.')]);
-    expect(segments.map((s) => s.kind)).toEqual(['activity', 'app', 'text']);
-    expect(segments[1].kind === 'app' && segments[1].item.part.app).toEqual(app);
+    expect(segments.map((s) => s.kind)).toEqual(['activity', 'view', 'text']);
+    expect(segments[1].kind === 'view' && segments[1].item.part).toEqual({ kind: 'app', app, title: 'search_meetings' });
     expect(liveIndexOf(groupActivity([call('1', { app })]))).toBeNull();
+  });
+
+  it("puts the chart, figures or table `show` drew right after its row", () => {
+    const view = { kind: 'stats', title: 'YTD', source: { name: 'Exa' }, stats: [{ label: 'NVDA', value: '-32.5%' }] };
+    const segments = groupActivity([call('1', { view }), text('Done.')]);
+    expect(segments.map((s) => s.kind)).toEqual(['activity', 'view', 'text']);
+    expect(segments[1].kind === 'view' && segments[1].item.part).toEqual(view);
   });
 
   it('has no live step once a tool\'s image closed it', () => {
