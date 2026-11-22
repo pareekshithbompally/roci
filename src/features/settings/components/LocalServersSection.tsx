@@ -25,9 +25,9 @@ function modelCount(row: LocalRow): string {
   return row.models.length === 1 ? '1 model' : `${row.models.length} models`;
 }
 
-/** Where the server is, then its models; a server named by its address already shows where it is. */
-function rowDetail(row: LocalRow): string {
-  return serverAppOf(row.id) ? `${serverHost(row.baseUrl)} · ${modelCount(row)}` : modelCount(row);
+/** Where the server is, under its name (one line); a server named by its address already shows where it is. */
+function rowAddress(row: LocalRow): string | undefined {
+  return serverAppOf(row.id) ? serverHost(row.baseUrl) : undefined;
 }
 
 
@@ -106,7 +106,8 @@ export const ServersSection: React.FC<ServersSectionProps> = ({ onOpen, onAdd })
           key={row.id}
           title={getProviderTitle(row.id)}
           leading={<ProvidersAvatar provider={row.id} size={ICON_TILE_PX} />}
-          status={<ProviderStatus state={rowState(row)} label={rowDetail(row)} />}
+          description={rowAddress(row)}
+          status={<ProviderStatus state={rowState(row)} label={modelCount(row)} />}
           onOpen={() => openRow(row)}
         />
       ))}

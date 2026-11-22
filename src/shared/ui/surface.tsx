@@ -143,7 +143,7 @@ export function Dot({ tone = 'muted', size = 'sm', pulse }: { tone?: DotTone; si
 export function Status({ tone = 'muted', pulse, children }: { tone?: DotTone; pulse?: boolean; children: React.ReactNode }) {
   const textTone = tone === 'warning' || tone === 'danger' ? tone : 'muted';
   return (
-    <Text variant="helper" tone={textTone} className="inline-flex items-center gap-1.5">
+    <Text variant="helper" tone={textTone} className="inline-flex items-center gap-1.5 whitespace-nowrap">
       <Dot tone={tone} size="xs" pulse={pulse} />
       {children}
     </Text>

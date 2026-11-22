@@ -111,8 +111,9 @@ function RowBody({ title, description, leading, status, actions, stacked, wrap, 
           description ? 'min-h-15' : 'min-h-row',
         )}
       >
-      {/* Title first (iOS / macOS lists): it keeps its one line; the value side takes what is left and truncates. */}
-      <div className={cn('flex min-w-0', trailing && !stacked ? 'max-w-[70%] shrink-0' : 'flex-1')}>
+      {/* Title first (iOS / macOS lists): beside controls it keeps its space and the controls truncate; beside a status
+          only, the status keeps its one line and the title side truncates instead. */}
+      <div className={cn('flex min-w-0', trailing && !stacked ? cn('max-w-[70%]', actions ? 'shrink-0' : 'shrink') : 'flex-1')}>
         <div className="min-w-0">
           <Text as="p" variant="body" tone={tone} truncate>{title}</Text>
           {description && <Text as="p" variant="helper" tone="muted" truncate={!wrap} className="mt-0.5">{description}</Text>}
@@ -120,8 +121,8 @@ function RowBody({ title, description, leading, status, actions, stacked, wrap, 
         </div>
       </div>
       {trailing && (
-        <div className={cn('flex min-w-0 items-center gap-3', !stacked && 'flex-1 justify-end')}>
-          {statusBeside && <div className="flex min-w-0 items-center gap-2">{status}</div>}
+        <div className={cn('flex items-center gap-3', actions && 'min-w-0', !stacked && 'flex-1 justify-end')}>
+          {statusBeside && <div className="flex shrink-0 items-center gap-2">{status}</div>}
           {/* Controls shrink to the row (a long value truncates) instead of spilling past the card. */}
           {actions && (
             <fieldset disabled={disabled} className="flex min-w-0 items-center gap-2 [&>*]:min-w-0">{actions}</fieldset>
