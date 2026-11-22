@@ -3,7 +3,7 @@
 
 use tauri::ipc::Request;
 use tauri::path::BaseDirectory;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager};
 
 use super::engine::{self, Timed};
 use super::live::{LiveSession, LiveText};
@@ -33,10 +33,11 @@ pub async fn stt_transcribe(app: AppHandle, request: Request<'_>) -> Result<Time
         state.engine.touch(); // a pending idle unload must not fire mid-run
         state.engine.transcribe(model.id, &path, &pcm, &language)
     })
-    .await?;
+    .await;
 
+    // armed however the run ended: the touch above cancelled the earlier deadline
     schedule_idle_unload(app);
-    Ok(segments)
+    segments
 }
 
 /// The speech spans in one WAV raw body (16 kHz mono 16-bit), by the bundled speech detector.
@@ -71,7 +72,8 @@ pub async fn stt_live_start(app: AppHandle, model: String, language: String) -> 
     let path = store::installed_dir(&app, model)?.join(model.main_file().name);
     lock(&app.state::<SttState>().live).take();
     let worker = app.clone();
-    let session = blocking(move || LiveSession::start(worker, model.id, path, language)).await?;
+    let started = blocking(move || LiveSession::start(worker, model.id, path, language)).await;
+    let session = started.inspect_err(|_| schedule_idle_unload(app.clone()))?;
     *lock(&app.state::<SttState>().live) = Some(session);
     Ok(())
 }
@@ -95,10 +97,11 @@ pub async fn stt_live_finish(app: AppHandle) -> Result<LiveText, LocalError> {
     Ok(text)
 }
 
-/// Abandons live dictation, if one is running.
+/// Abandons live dictation, if one is running; the model unloads once idle, as after a finish.
 #[tauri::command]
-pub fn stt_live_cancel(state: State<'_, SttState>) {
-    lock(&state.live).take();
+pub fn stt_live_cancel(app: AppHandle) {
+    lock(&app.state::<SttState>().live).take();
+    schedule_idle_unload(app);
 }
 
 fn f32_samples(bytes: &[u8]) -> Result<Vec<f32>, LocalError> {

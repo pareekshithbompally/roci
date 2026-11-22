@@ -2,6 +2,7 @@
 //! start is counted (a step a quit or crash keeps cutting off stops being retried at launch), and a step ends done,
 //! cancelled (back to waiting) or failed (with its reason). Renaming makes the title the user's.
 
+use crate::changes::{notify, MeetingChange};
 use crate::commands::{meetings_set_status_impl, write_meeting, MeetingStatus, StoreState};
 use crate::pipeline::with_db;
 use crate::error::StoreError;
@@ -105,15 +106,15 @@ fn rename_impl(db: &Connection, id: &str, title: &str) -> Result<(), StoreError>
 }
 
 /// At launch: every meeting a quit or crash left mid-step. Those started fewer than `MAX_STEP_ATTEMPTS` times are returned
-/// to run again; the rest wait for Retry, saying why.
-pub(crate) fn interrupted_impl(db: &Connection) -> Result<Vec<String>, StoreError> {
+/// to run again; the rest wait for Retry, saying why, and are returned second so their change is announced.
+pub(crate) fn interrupted_impl(db: &Connection) -> Result<(Vec<String>, Vec<String>), StoreError> {
     running()?.clear();
     let mut stmt = db.prepare(
         "SELECT id, status, step_attempts FROM meetings WHERE status IN ('transcribing', 'summarizing') ORDER BY created_at",
     )?;
     let cut_off: Vec<(String, String, i64)> =
         stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?.collect::<Result<_, _>>()?;
-    let mut resumable = Vec::new();
+    let (mut resumable, mut failed) = (Vec::new(), Vec::new());
     for (id, status, attempts) in cut_off {
         let Some(step) = Step::running_in(&status) else { continue };
         if attempts < MAX_STEP_ATTEMPTS {
@@ -121,8 +122,9 @@ pub(crate) fn interrupted_impl(db: &Connection) -> Result<Vec<String>, StoreErro
             continue;
         }
         meetings_set_status_impl(db, &id, &MeetingStatus::failed(step.name(), "It stopped before finishing twice. Try again."))?;
+        failed.push(id);
     }
-    Ok(resumable)
+    Ok((resumable, failed))
 }
 
 /// Starts `step`; false when this meeting already runs a step (the caller leaves it alone).
@@ -144,9 +146,12 @@ pub async fn meetings_rename(state: State<'_, StoreState>, id: String, title: St
     write_meeting(&state, id, move |db| rename_impl(db, &target, &title)).await
 }
 
-/// For the recorder's launch recovery (blocking; never on the main thread).
+/// For the recorder's launch recovery (blocking; never on the main thread): the meetings to run again. Those moved to
+/// failed are announced, so a screen that read them mid-step shows Retry.
 pub fn interrupted_meetings<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<String>, StoreError> {
-    with_db(app, interrupted_impl)
+    let (resumable, failed) = with_db(app, interrupted_impl)?;
+    failed.into_iter().for_each(|id| notify(MeetingChange::Saved(id)));
+    Ok(resumable)
 }
 
 #[cfg(test)]
@@ -202,7 +207,7 @@ mod tests {
         begin_impl(&db, "m-ended", Step::Transcribe).expect("start");
         end_impl(&db, "m-ended", Step::Transcribe, &StepEnd::Failed { error: "offline".into() }).expect("fail");
         begin_impl(&db, "m-ended", Step::Transcribe).expect("retry");
-        assert_eq!(interrupted_impl(&db).expect("launch"), vec!["m-ended".to_string()], "one cut-off start: resumed");
+        assert_eq!(interrupted_impl(&db).expect("launch").0, vec!["m-ended".to_string()], "one cut-off start: resumed");
     }
 
     #[test]
@@ -210,9 +215,9 @@ mod tests {
         let db = open_migrated_test_db();
         meeting(&db, "m-cut", "captured", None);
         begin_impl(&db, "m-cut", Step::Summarize).expect("first start");
-        assert_eq!(interrupted_impl(&db).expect("launch 1"), vec!["m-cut".to_string()]);
+        assert_eq!(interrupted_impl(&db).expect("launch 1").0, vec!["m-cut".to_string()]);
         begin_impl(&db, "m-cut", Step::Summarize).expect("second start");
-        assert!(interrupted_impl(&db).expect("launch 2").is_empty());
+        assert_eq!(interrupted_impl(&db).expect("launch 2"), (vec![], vec!["m-cut".to_string()]));
         assert_eq!(field(&db, "m-cut", "status"), "failed");
         assert_eq!(field(&db, "m-cut", "failed_step"), "summarize");
     }
