@@ -69,6 +69,12 @@ export const MCP_COPY = {
   loadFailed: 'Could not load MCP config:',
   connecting: 'Connecting…',
   saving: 'Saving…',
+  editServer: 'Edit MCP Server',
+  addServerTitle: 'Add MCP Server',
+  pasteJson: 'Paste server JSON',
+  alwaysAllow: 'Always Allow',
+  deleteServer: 'Delete Server…',
+  serverOptions: 'Tools',
 } as const;
 
 export const MCP_CONFIG = {

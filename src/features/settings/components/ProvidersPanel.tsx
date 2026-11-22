@@ -1,13 +1,12 @@
 /** Settings › Providers: On this device, the cloud providers and your servers as rows; a row drills into its page (usePaneDrill). */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { getProviderTitle, isLocalProviderId } from '@shared/utils/provider.utils';
 import { ProvidersAvatar } from '@shared/components';
 import { CardRow, ICON_TILE_PX, Section } from '@shared/ui';
 import { ProviderStatus, cloudRowState } from './ProviderStatus';
 import { AddServerForm, ServersSection } from './LocalServersSection';
-import { ADD_SERVER } from '@config/localServers.config';
 import { ProviderDetail } from './ProviderDetail';
 import { OnDeviceDetail } from './OnDeviceDetail';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
@@ -46,17 +45,10 @@ export const ProvidersPanel: React.FC = () => {
   const { providers } = useSettings();
   const requested = useSettingsPage();
   const drill = usePaneDrill(requested ? providerPage(requested) : null);
+  const [adding, setAdding] = useState(false);
   if (drill.view) return drill.view;
 
   const openProvider = (id: string) => drill.open(providerPage(id));
-  const addServerPage: DrillPage = {
-    title: ADD_SERVER.title,
-    render: (close) => (
-      <SettingsPage title={ADD_SERVER.title} onBack={close}>
-        <AddServerForm onAdded={(id) => { close(); openProvider(id); }} />
-      </SettingsPage>
-    ),
-  };
 
   return (
     <SettingsPage pane="providers" onForward={drill.forward}>
@@ -66,7 +58,8 @@ export const ProvidersPanel: React.FC = () => {
           .filter((p) => !isLocalProviderId(p.provider))
           .map((p) => providerRow(p.provider, openProvider, <ProviderStatus state={cloudRowState(p)} />))}
       </Section>
-      <ServersSection onOpen={openProvider} onAdd={() => drill.open(addServerPage)} />
+      <ServersSection onOpen={openProvider} onAdd={() => setAdding(true)} />
+      <AddServerForm open={adding} onOpenChange={setAdding} onAdded={(id) => { setAdding(false); openProvider(id); }} />
     </SettingsPage>
   );
 };

@@ -8,7 +8,6 @@ import { SettingsPage } from './shared';
 import { CardRow, ChoiceControl, Icon, Picker, Section, Switch } from '@shared/ui';
 
 import { useLiveModeLine } from '@features/settings/hooks/useSpeechModels';
-import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { AUDIO_CONFIG, IMPORT_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { LAYOUT } from '@config/layout.config';
 import { platform } from '@platform/index';
@@ -28,14 +27,36 @@ const FOOTER = {
   modelIcons: 'Model icons load from huggingface.co.',
   imports: 'How many imported audio files Roci processes at the same time.',
   /** With Live Transcript on, Stop always finishes the transcript and summary, so the switch has nothing to decide. */
-  afterRecording: { live: 'With Live Transcript on, Stop always finishes the transcript and writes the summary.', off: 'Transcribe After Recording also writes the summary.' },
 } as const;
+
+/** When a recording is transcribed: one choice over the two saved settings (live transcript, transcribe after recording). */
+const TRANSCRIBE_WHEN = {
+  label: 'Transcribe',
+  options: [
+    { value: 'live', label: 'While Recording' },
+    { value: 'after', label: 'After Recording' },
+    { value: 'manual', label: 'Only When I Ask' },
+  ],
+  footer: {
+    live: 'The transcript and notes build as you talk; Stop finishes them and writes the summary.',
+    after: 'Stop transcribes the recording and writes the summary.',
+    manual: 'Recordings are kept; transcribe one from its page when you want it.',
+  },
+} as const;
+
+type TranscribeWhen = keyof typeof TRANSCRIBE_WHEN.footer;
+
+const SETTINGS_FOR: Record<TranscribeWhen, { liveTranscription: boolean; autoTranscribe: boolean }> = {
+  live: { liveTranscription: true, autoTranscribe: true },
+  after: { liveTranscription: false, autoTranscribe: true },
+  manual: { liveTranscription: false, autoTranscribe: false },
+};
 
 export const GeneralPanel: React.FC = () => {
   const { theme, setTheme } = useThemeContext();
   const { settings, setSettings } = useSettings();
   const liveLine = useLiveModeLine();
-  const live = !!settings.liveTranscription;
+  const when: TranscribeWhen = settings.liveTranscription ? 'live' : settings.autoTranscribe ? 'after' : 'manual';
 
   const captureSource = (settings.defaultAudioSource || 'systemAndMicrophone') as (typeof CAPTURE_SOURCES)[number];
 
@@ -128,27 +149,20 @@ export const GeneralPanel: React.FC = () => {
       {platform.canRecord && (
         <Section
           title="Transcription"
-          footer={[TRANSCRIPTION_CONFIG.liveCopy.description, liveLine, FOOTER.afterRecording[live ? 'live' : 'off']].filter(Boolean).join(' ')}
+          footer={[TRANSCRIBE_WHEN.footer[when], when === 'live' ? liveLine : null].filter(Boolean).join(' ')}
         >
           <CardRow
-            title={TRANSCRIPTION_CONFIG.liveCopy.title}
+            title={TRANSCRIBE_WHEN.label}
             actions={
-              <Switch
-                checked={live}
-                onCheckedChange={(checked) => setSettings({ liveTranscription: checked })}
-                aria-label={TRANSCRIPTION_CONFIG.liveCopy.title}
-              />
-            }
-          />
-          <CardRow
-            title="Transcribe After Recording"
-            actions={
-              <Switch
-                checked={live || !!settings.autoTranscribe}
-                disabled={live}
-                onCheckedChange={(checked) => setSettings({ autoTranscribe: checked })}
-                aria-label="Transcribe after recording"
-              />
+              <div className={LAYOUT.settingsSelect}>
+                <Picker
+                  label={TRANSCRIBE_WHEN.label}
+                  value={when}
+                  onChange={(next) => setSettings(SETTINGS_FOR[next as TranscribeWhen])}
+                  placeholder=""
+                  groups={[{ options: [...TRANSCRIBE_WHEN.options] }]}
+                />
+              </div>
             }
           />
         </Section>

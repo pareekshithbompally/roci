@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { MCP_APP_CONFIG, MCP_COPY, type McpConfig, type McpSettings } from '@config/mcp.config';
 import { useToast } from '@shared/contexts/ToastContext';
 import { confirm } from '@shared/stores/confirmStore';
-import { Callout, CardRow, Section, Text } from '@shared/ui';
+import { Callout, CardRow, Section, Switch, Text } from '@shared/ui';
 import { SettingsPage } from '@features/settings/components/shared';
 import {
   useMcpConfig,
@@ -90,7 +90,8 @@ export const McpServersPanel: React.FC = () => {
 
   const serverEntries = Object.entries(config.mcpServers);
   const changeSettings = (partial: Partial<McpSettings>) => applyAndToast((c) => updateSettings(c, partial));
-  const editingConfig = editing?.name ? config.mcpServers[editing.name] : undefined;
+  const editingName = editing?.name ?? null;
+  const editingConfig = editingName ? config.mcpServers[editingName] : undefined;
 
   return (
     <PanelShell>
@@ -118,13 +119,9 @@ export const McpServersPanel: React.FC = () => {
               pending={pendingNames.has(name)}
               disabled={busy}
               onToggle={(active) => handleToggle(name, active)}
-              onRetry={() => handleToggle(name, true)}
               onEdit={() => setEditing({ name })}
-              onDelete={() => void handleDelete(name)}
               alwaysAllowed={config.mcpSettings.trustedServers.includes(name)}
               allowAll={config.mcpSettings.allowAllTools}
-              onAlwaysAllowChange={(allowed) => changeSettings({ trustedServers: withTrust(config.mcpSettings.trustedServers, name, allowed) })}
-              onScreenCodeChange={(allowed) => void handleScreenCode(name, allowed)}
             />
           ))
         )}
@@ -138,7 +135,35 @@ export const McpServersPanel: React.FC = () => {
         editingName={editing?.name ?? null}
         initial={editingConfig}
         onSave={(entries: McpServerEntry[]) => apply((c) => upsertServers(c, editing?.name ?? null, entries))}
-      />
+        onDelete={editingName ? () => { setEditing(null); void handleDelete(editingName); } : undefined}
+      >
+        {editingName && editingConfig && (
+          <Section title={MCP_COPY.serverOptions}>
+            <CardRow
+              title={MCP_COPY.alwaysAllow}
+              disabled={busy || config.mcpSettings.allowAllTools}
+              actions={
+                <Switch
+                  checked={config.mcpSettings.allowAllTools || config.mcpSettings.trustedServers.includes(editingName)}
+                  onCheckedChange={(allowed) => changeSettings({ trustedServers: withTrust(config.mcpSettings.trustedServers, editingName, allowed) })}
+                  aria-label={MCP_COPY.alwaysAllow}
+                />
+              }
+            />
+            <CardRow
+              title={MCP_APP_CONFIG.copy.advancedScreens}
+              disabled={busy}
+              actions={
+                <Switch
+                  checked={!!editingConfig.allowScreenCode}
+                  onCheckedChange={(allowed) => void handleScreenCode(editingName, allowed)}
+                  aria-label={MCP_APP_CONFIG.copy.advancedScreens}
+                />
+              }
+            />
+          </Section>
+        )}
+      </AddEditMcpServerDialog>
 
       <EditMcpJsonDialog
         open={jsonOpen}

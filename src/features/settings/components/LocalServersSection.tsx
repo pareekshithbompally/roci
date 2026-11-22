@@ -1,7 +1,7 @@
 /** "Your Servers": model servers the user runs (Ollama, LM Studio, llama-server), here or on another computer: the section
  *  on the Providers list, and the Add Server form its page shows. */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useToast } from '@shared/contexts/ToastContext';
 import { ADD_SERVER, LOCAL_EMPTY_HINT, LOCAL_RESCAN, LOCAL_SERVERS_FOOTER, LOCAL_SERVERS_GROUP, LOCAL_URL_DRAFT } from '@config/localServers.config';
 import { useLocalServers } from '@features/settings/hooks/useLocalServers';
@@ -11,8 +11,8 @@ import { platform } from '@platform/index';
 import { ProviderStatus, type ProviderRowState } from './ProviderStatus';
 import { serverHost } from '@services/providers/localServers';
 import type { LocalRow } from '@services/providers/localServers';
-import { Button, CardRow, ICON_TILE_PX, Section } from '@shared/ui';
-import { FieldRow } from '@shared/components';
+import { Button, CardRow, ICON_TILE_PX, Input, Section } from '@shared/ui';
+import { FormDialog } from '@shared/components';
 
 
 function rowState(row: LocalRow): ProviderRowState {
@@ -32,42 +32,71 @@ function rowAddress(row: LocalRow): string | undefined {
 
 
 interface AddServerFormProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   /** The server answered and was saved under this id. */
   onAdded: (id: string) => void;
 }
 
-/** A server's address, then the Add Server action row (Back cancels): Roci asks the server for its models before saving
- *  it (errors in a toast). */
-export const AddServerForm: React.FC<AddServerFormProps> = ({ onAdded }) => {
-  const { showToast } = useToast();
+/** Add Server: one form, its address typed in its row and Add in the bar (iPhone, a pushed page) or the footer (a Mac,
+ *  a dialog). Roci asks the server for its models before saving it; what went wrong shows on the form. */
+export const AddServerForm: React.FC<AddServerFormProps> = ({ open, onOpenChange, onAdded }) => {
   const { addUrl } = useLocalServers();
   const [address, setAddress] = useState(LOCAL_URL_DRAFT);
+  const [error, setError] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setAddress(LOCAL_URL_DRAFT);
+    setError(null);
+  }, [open]);
 
   const add = async () => {
     setIsAdding(true);
+    setError(null);
     try {
       const result = await addUrl(address);
-      if ('error' in result) showToast(result.error, 'error');
+      if ('error' in result) setError(result.error);
       else onAdded(result.id);
-    } catch (error: unknown) {
-      console.error('[AddServerForm] Add failed:', error);
-      showToast(ADD_SERVER.failed, 'error');
+    } catch (failure: unknown) {
+      console.error('[AddServerForm] Add failed:', failure);
+      setError(ADD_SERVER.failed);
     } finally {
       setIsAdding(false);
     }
   };
 
-  const ready = !isAdding && address.trim() !== '' && address !== LOCAL_URL_DRAFT;
+  const ready = address.trim() !== '' && address !== LOCAL_URL_DRAFT;
   return (
-    <>
+    <FormDialog
+      open={open}
+      onOpenChange={(next) => !isAdding && onOpenChange(next)}
+      title={ADD_SERVER.title}
+      error={error}
+      submit={{ label: isAdding ? ADD_SERVER.adding : ADD_SERVER.add, onPress: () => void add(), disabled: !ready, busy: isAdding }}
+    >
       <Section footer={ADD_SERVER.footer}>
-        <FieldRow title={ADD_SERVER.address} kind="url" value={address} onChange={setAddress} />
+        <CardRow
+          title={ADD_SERVER.address}
+          actions={
+            <Input
+              variant="plain"
+              type="url"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              autoFocus
+              aria-label={ADD_SERVER.address}
+              value={address}
+              onChange={(e) => { setAddress(e.target.value); setError(null); }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && ready) void add(); }}
+            />
+          }
+        />
       </Section>
-      <Section>
-        <CardRow title={isAdding ? ADD_SERVER.adding : ADD_SERVER.add} tone="accent" disabled={!ready} onPress={() => void add()} />
-      </Section>
-    </>
+    </FormDialog>
   );
 };
 

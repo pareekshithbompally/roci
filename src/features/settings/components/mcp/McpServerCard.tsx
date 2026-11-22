@@ -1,15 +1,13 @@
-/** One MCP server row (Apple's list pattern): icon, name, a quiet line of transport details and state; trailing, only a ⋯ menu
- *  (Edit, Retry, Always Allow, Allow Advanced Screens, Delete) and the on/off switch. */
+/** One MCP server row (Apple's list pattern): icon, name, a quiet line of transport details and state, and the on/off
+ *  switch; tapping the row opens the server's page (its settings, Always Allow, Advanced Screens, Delete). */
 
 import React from 'react';
-import { MoreHorizontal } from 'lucide-react';
 import { MCP_APP_CONFIG, MCP_CONFIG } from '@config/mcp.config';
 import type { McpServerConfig } from '@config/mcp.config';
-import { MENU_SYMBOLS, META_SEPARATOR } from '@config/ui.config';
-import { CardRow, IconButton, Switch } from '@shared/ui';
-import { Menu, ServerIcon } from '@shared/components';
-import type { MenuEntry } from '@shared/components';
-import { maskUrl, serverStatus, type McpServerStatus } from './mcpServerForm';
+import { META_SEPARATOR } from '@config/ui.config';
+import { CardRow, Switch } from '@shared/ui';
+import { ServerIcon } from '@shared/components';
+import { maskUrl, serverStatus } from './mcpServerForm';
 
 interface McpServerCardProps {
   name: string;
@@ -25,18 +23,14 @@ interface McpServerCardProps {
   alwaysAllowed: boolean;
   /** "Run tools without asking" is on, so every server is allowed and the per-server choice is moot. */
   allowAll: boolean;
-  onAlwaysAllowChange: (allowed: boolean) => void;
-  /** Turn advanced screens on (after a warning) or off for this server. */
-  onScreenCodeChange: (allowed: boolean) => void;
   onToggle: (active: boolean) => void;
-  onRetry: () => void;
+  /** Open the server's page. */
   onEdit: () => void;
-  onDelete: () => void;
 }
 
 const COPY = MCP_APP_CONFIG.copy;
 
-const STATUS_LABEL: Record<McpServerStatus, string> = {
+const STATUS_LABEL: Record<ReturnType<typeof serverStatus>, string> = {
   connected: 'Connected',
   connecting: 'Connecting…',
   stopping: 'Stopping…',
@@ -62,22 +56,8 @@ function serverLine(config: McpServerConfig): string[] {
   return parts.filter((part): part is string => !!part);
 }
 
-function menuItems(props: McpServerCardProps, status: McpServerStatus): MenuEntry[] {
-  const { config, alwaysAllowed, allowAll, disabled, onAlwaysAllowChange, onScreenCodeChange, onRetry, onEdit, onDelete } = props;
-  const advanced = !!config.allowScreenCode;
-  return [
-    { type: 'item', label: 'Edit…', symbol: MENU_SYMBOLS.edit, onSelect: onEdit, disabled },
-    ...(status === 'offline' ? [{ type: 'item' as const, label: 'Retry', symbol: MENU_SYMBOLS.retry, onSelect: onRetry, disabled }] : []),
-    { type: 'separator' },
-    { type: 'check', label: 'Always Allow', checked: allowAll || alwaysAllowed, onSelect: () => onAlwaysAllowChange(!alwaysAllowed), disabled: disabled || allowAll },
-    { type: 'check', label: COPY.advancedScreens, checked: advanced, onSelect: () => onScreenCodeChange(!advanced), disabled },
-    { type: 'separator' },
-    { type: 'item', label: 'Delete Server…', symbol: MENU_SYMBOLS.delete, onSelect: onDelete, disabled, destructive: true },
-  ];
-}
-
 export const McpServerCard: React.FC<McpServerCardProps> = (props) => {
-  const { name, config, connected, icon, pending, disabled, alwaysAllowed, allowAll, onToggle } = props;
+  const { name, config, connected, icon, pending, disabled, alwaysAllowed, allowAll, onToggle, onEdit } = props;
   const status = serverStatus(!!config.active, connected, pending);
   const line = [
     ...serverLine(config),
@@ -90,16 +70,8 @@ export const McpServerCard: React.FC<McpServerCardProps> = (props) => {
       leading={<ServerIcon name={name} icon={icon} size="tile" />}
       title={name}
       description={<span title={line}>{line}</span>}
-      actions={
-        <>
-          <Menu
-            label={`${name} options`}
-            trigger={<IconButton icon={MoreHorizontal} label={`${name} options`} size="sm" />}
-            items={menuItems(props, status)}
-          />
-          <Switch checked={!!config.active} onCheckedChange={onToggle} disabled={disabled} aria-label={`Enable ${name}`} />
-        </>
-      }
+      onPress={disabled ? undefined : onEdit}
+      actions={<Switch checked={!!config.active} onCheckedChange={onToggle} disabled={disabled} aria-label={`Enable ${name}`} />}
     />
   );
 };

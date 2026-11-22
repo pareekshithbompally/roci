@@ -22,8 +22,8 @@ export interface ListDetailProps {
   listClassName?: string;
   /** The open item, or nothing. */
   detail: React.ReactNode;
-  /** The open item's title in its pushed page's bar (iPhone). */
-  detailTitle: string;
+  /** The open item's title in its pushed page's bar (iPhone); none when the item's own header names it (Mail). */
+  detailTitle?: string;
   /** Back from the open item (iPhone). */
   onCloseDetail: () => void;
 }
@@ -39,7 +39,7 @@ export function ListDetail({ title, list, listClassName, detail, detailTitle, on
           <Surface edge={['top', 'left', 'right']} radius="lg" className="min-w-0 flex-1 overflow-y-auto custom-scrollbar">{detail}</Surface>
         )}
       </ViewBody>
-      {!beside && detail && <PushedPage title={detailTitle} onBack={onCloseDetail}>{detail}</PushedPage>}
+      {!beside && detail && <PushedPage title={detailTitle ?? ''} onBack={onCloseDetail}>{detail}</PushedPage>}
     </div>
   );
 }

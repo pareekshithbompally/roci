@@ -26,6 +26,19 @@ export interface SettingsNavItem {
   heroTitle?: string;
 }
 
+/** What Integrations connects on this device, named from its capabilities (no Notes, Spotlight or coding agents on iPhone). */
+const INTEGRATIONS_DESCRIPTION = (() => {
+  const names = [
+    platform.hasCalendar && 'Calendar',
+    platform.hasMeetingReminders && 'Reminders',
+    platform.hasAppleNotes && 'Notes',
+    platform.hasSpotlight && 'Spotlight',
+    platform.canLaunchMcpServers && 'your coding agents',
+  ].filter((name): name is string => !!name);
+  const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0] ?? '';
+  return `Connect Roci to ${list}.`;
+})();
+
 export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { id: 'providers', label: 'Providers', icon: Box, group: 'AI', keywords: ['api key', 'openai', 'anthropic', 'gemini', 'local models', 'ollama'], description: 'The AI services Roci can use: your own keys, your own servers, and models on this device.' },
   { id: 'defaultModels', label: 'Default Models', icon: Sparkles, group: 'AI', keywords: ['chat model', 'transcription', 'speech', 'summary', 'images'], description: 'The model Roci uses for each job: chat, transcription, summaries, speech and images.' },
@@ -35,7 +48,7 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { id: 'usage', label: 'Analytics', icon: ChartColumnIncreasing, group: 'Data', keywords: ['usage', 'cost', 'tokens', 'spend', 'prices', 'requests'], description: 'What your AI requests used and cost, and what each model charges.' },
   { id: 'general', label: 'General', icon: Settings, group: 'App', keywords: ['capture', 'audio source', 'microphone', 'imports', 'theme'], description: 'How Roci records, imports and looks.' },
   { id: 'notifications', label: 'Notifications', icon: Bell, group: 'App', available: platform.hasNotifications, keywords: ['meeting reminders', 'alerts'], description: 'Meeting reminders and alerts, and when Roci sends them.' },
-  { id: 'integrations', label: 'Integrations', icon: Puzzle, group: 'App', available: hasIntegrations, keywords: ['calendar', 'reminders', 'apple notes', 'spotlight', 'hex', 'coding agents'], description: 'Connect Roci to Calendar, Reminders, Notes, Spotlight and your coding agents.' },
+  { id: 'integrations', label: 'Integrations', icon: Puzzle, group: 'App', available: hasIntegrations, keywords: ['calendar', 'reminders', 'apple notes', 'spotlight', 'hex', 'coding agents'], description: INTEGRATIONS_DESCRIPTION },
   { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard, group: 'App', available: !platform.hasTouchScreen, keywords: ['keyboard', 'keys', 'hotkeys', 'global shortcuts'], description: 'The keys Roci answers to, in the app and anywhere on your Mac.' },
   { id: 'about', label: 'About', icon: Info, group: 'App', keywords: ['version', 'updates', 'acknowledgements', 'licences', 'open source', 'setup'], heroTitle: 'Roci', description: 'Private meeting notes and AI chat for Mac, iPhone and iPad.' },
 ];

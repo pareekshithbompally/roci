@@ -12,6 +12,8 @@ import { KIT_COPY } from '@config/kitCopy.config';
 
 export interface NavScreen {
   title: string;
+  /** The bar's trailing control (a form's Save). */
+  action?: React.ReactNode;
   content: React.ReactNode;
   /** Called when the user leaves the screen with Back. */
   onPop?: () => void;
@@ -172,12 +174,13 @@ function useEdgeSwipeBack(node: HTMLDivElement | null, back: () => void): void {
   });
 }
 
-/** A pushed screen's bar: a round back button and the centred title. */
-function BackBar({ title, onBack }: { title: string; onBack: () => void }) {
+/** A pushed screen's bar: a round back button, the centred title, and an optional trailing control (a form's Save). */
+function BackBar({ title, onBack, action }: { title: string; onBack: () => void; action?: React.ReactNode }) {
   return (
     <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pt-2 pb-3">
       <IconButton icon={ChevronLeft} label={KIT_COPY.back} size="fab" variant="bar" onClick={onBack} className="justify-self-start" />
       <PushedTitle title={title} />
+      <div className="justify-self-end">{action}</div>
     </header>
   );
 }
@@ -208,7 +211,7 @@ export function PushedPage({ title, onBack, children }: PushedPageProps) {
 /** A pushed screen in a stack. */
 function PushedScreenFrame({ screen, covered, onBack }: { screen: StackEntry; covered: boolean; onBack: () => void }) {
   return (
-    <Screen covered={covered} header={<BackBar title={screen.title} onBack={onBack} />}>
+    <Screen covered={covered} header={<BackBar title={screen.title} onBack={onBack} action={screen.action} />}>
       {screen.content}
     </Screen>
   );
@@ -217,26 +220,43 @@ function PushedScreenFrame({ screen, covered, onBack }: { screen: StackEntry; co
 interface PushedScreenProps {
   open: boolean;
   title: string;
+  /** The bar's trailing control (a form's Save). */
+  action?: React.ReactNode;
   /** The user went Back. */
   onClose: () => void;
   children: React.ReactNode;
 }
 
 /** Declarative push: while `open`, a screen titled `title` is on the enclosing stack, showing `children` live (state stays with the owner). */
-export function PushedScreen({ open, title, onClose, children }: PushedScreenProps) {
+export function PushedScreen({ open, title, action, onClose, children }: PushedScreenProps) {
   const { push, remove } = useNavStack();
   const [target, setTarget] = useState<HTMLDivElement | null>(null);
+  const [actionTarget, setActionTarget] = useState<HTMLDivElement | null>(null);
   const close = useRef(onClose);
   close.current = onClose;
+  const hasAction = action !== undefined;
 
+  // The screen is pushed once per opening; its content and bar control render live into it (portals), so typing in a
+  // form never re-pushes the page.
   useEffect(() => {
     if (!open) return;
-    const id = push({ title, content: <div ref={setTarget} />, onPop: () => close.current() });
+    const id = push({
+      title,
+      action: hasAction ? <div ref={setActionTarget} /> : undefined,
+      content: <div ref={setTarget} />,
+      onPop: () => close.current(),
+    });
     return () => {
       remove(id);
       setTarget(null);
+      setActionTarget(null);
     };
-  }, [open, title, push, remove]);
+  }, [open, title, hasAction, push, remove]);
 
-  return target ? createPortal(children, target) : null;
+  return (
+    <>
+      {target && createPortal(children, target)}
+      {actionTarget && createPortal(action, actionTarget)}
+    </>
+  );
 }

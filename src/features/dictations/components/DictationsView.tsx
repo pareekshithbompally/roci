@@ -132,7 +132,6 @@ export const DictationsView: React.FC = () => {
       list={searchAndList}
       listClassName={DICTATIONS_CONFIG.listColumn}
       detail={detail}
-      detailTitle={selected ? formatClockTime(selected.createdAt) : ''}
       onCloseDetail={() => setSelectedId(null)}
     />
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { useFormFactor } from '@platform/formFactor';
 import { KIT_COPY } from '@config/kitCopy.config';
 import {
@@ -17,7 +17,9 @@ import {
   DialogPortal,
   DialogTitle,
   IconButton,
+  PushedScreen,
   Section,
+  useOptionalNavStack,
   Text,
 } from '@shared/ui';
 
@@ -66,8 +68,9 @@ const MacFooter: React.FC<Pick<FormDialogProps, 'submit' | 'aside' | 'viewOnly' 
 export const FormDialog: React.FC<FormDialogProps> = (props) =>
   useFormFactor() === 'phone' ? <PhoneForm {...props} /> : <DesktopForm {...props} />;
 
-const PhoneForm: React.FC<FormDialogProps> = ({ open, onOpenChange, title, headerAction, error, submit, aside, children }) => (
-  <EditSheet open={open} onOpenChange={onOpenChange} title={title} canSave={!submit.disabled && !submit.busy} onSave={submit.onPress}>
+/** A phone form's content: the fields, the error, and the side command as an action row at the end. */
+const PhoneFormBody: React.FC<Pick<FormDialogProps, 'headerAction' | 'error' | 'aside' | 'children'>> = ({ headerAction, error, aside, children }) => (
+  <>
     {headerAction && <div className="flex justify-end">{headerAction}</div>}
     {children}
     <ErrorLine error={error} />
@@ -76,8 +79,34 @@ const PhoneForm: React.FC<FormDialogProps> = ({ open, onOpenChange, title, heade
         <CardRow title={aside.label} tone={aside.tone ?? 'accent'} disabled={aside.disabled} onPress={aside.onPress} />
       </Section>
     )}
-  </EditSheet>
+  </>
 );
+
+/** Inside a navigation stack (Settings) a form is a pushed page with ✓ in its bar (Settings › Wi-Fi › Other); anywhere
+ *  else, the iOS edit sheet (✕ / title / ✓). */
+const PhoneForm: React.FC<FormDialogProps> = ({ open, onOpenChange, title, submit, ...body }) => {
+  const stacked = useOptionalNavStack() !== null;
+  const canSave = !submit.disabled && !submit.busy;
+  if (!stacked) {
+    return (
+      <EditSheet open={open} onOpenChange={onOpenChange} title={title} canSave={canSave} onSave={submit.onPress}>
+        <PhoneFormBody {...body} />
+      </EditSheet>
+    );
+  }
+  return (
+    <PushedScreen
+      open={open}
+      title={title}
+      onClose={() => onOpenChange(false)}
+      action={<IconButton icon={Check} label={submit.label} size="fab" variant="bar" disabled={!canSave} onClick={submit.onPress} />}
+    >
+      <div className="flex flex-col gap-section p-4">
+        <PhoneFormBody {...body} />
+      </div>
+    </PushedScreen>
+  );
+};
 
 const DesktopForm: React.FC<FormDialogProps> = ({ open, onOpenChange, title, headerAction, error, size = 'lg', children, ...commands }) => (
   <Dialog open={open} onOpenChange={onOpenChange}>

@@ -4,6 +4,7 @@ import React from 'react';
 import { SiModelcontextprotocol } from '@icons-pack/react-simple-icons';
 import { cn, ICON_SIZE_PX, ICON_TILE_PX, IconTile } from '@shared/ui';
 import { useCachedImage } from '@shared/hooks/useCachedImage';
+import { useIconArt } from '@shared/hooks/useIconArt';
 
 interface ServerIconProps {
   name: string;
@@ -16,13 +17,16 @@ interface ServerIconProps {
 
 const PX = { xs: ICON_SIZE_PX.xs, sm: ICON_SIZE_PX.sm, md: ICON_SIZE_PX.md, tile: ICON_TILE_PX } as const;
 
-/** No icon of its own: the MCP mark, on a connections tile in Settings, muted inline elsewhere. */
-const Fallback: React.FC<{ size: keyof typeof PX; className?: string }> = ({ size, className }) =>
-  size === 'tile' ? (
-    <IconTile icon={SiModelcontextprotocol} />
+/** No icon of its own (or not connected yet): Settings' server art on a row tile, so a row keeps its shape whatever its
+ *  state; the MCP mark, muted, inline elsewhere. */
+const Fallback: React.FC<{ size: keyof typeof PX; className?: string }> = ({ size, className }) => {
+  const art = useIconArt();
+  return size === 'tile' ? (
+    <IconTile image={art('server')} />
   ) : (
     <SiModelcontextprotocol size={PX[size]} title="" aria-hidden className={cn('shrink-0 text-muted', className)} />
   );
+};
 
 export const ServerIcon: React.FC<ServerIconProps> = ({ name, icon, size = 'xs', className }) => {
   const { src, failed } = useCachedImage(icon);

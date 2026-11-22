@@ -34,6 +34,10 @@ interface AddEditMcpServerDialogProps {
   initial?: McpServerConfig;
   /** Throw to keep the dialog open and show the message. */
   onSave: (entries: McpServerEntry[]) => Promise<void>;
+  /** An existing server: Delete at the end of its page. */
+  onDelete?: () => void;
+  /** An existing server's own settings, under its fields. */
+  children?: React.ReactNode;
 }
 
 export const AddEditMcpServerDialog: React.FC<AddEditMcpServerDialogProps> = ({
@@ -42,6 +46,8 @@ export const AddEditMcpServerDialog: React.FC<AddEditMcpServerDialogProps> = ({
   editingName,
   initial,
   onSave,
+  onDelete,
+  children,
 }) => {
   const [form, setForm] = useState<McpServerForm>(EMPTY_FORM);
   const [jsonMode, setJsonMode] = useState(false);
@@ -87,12 +93,12 @@ export const AddEditMcpServerDialog: React.FC<AddEditMcpServerDialogProps> = ({
     <FormDialog
       open={open}
       onOpenChange={(next) => !saving && onOpenChange(next)}
-      title={editingName ? 'Edit MCP server' : 'Add MCP server'}
+      title={editingName ? MCP_COPY.editServer : MCP_COPY.addServerTitle}
       error={error}
       headerAction={
         <IconButton
           icon={Braces}
-          label="Paste server JSON"
+          label={MCP_COPY.pasteJson}
           size="sm"
           variant={jsonMode ? 'secondary' : 'ghost'}
           onClick={() => { setJsonMode((v) => !v); setError(null); }}
@@ -100,6 +106,7 @@ export const AddEditMcpServerDialog: React.FC<AddEditMcpServerDialogProps> = ({
         />
       }
       submit={{ label: saving ? MCP_COPY.connecting : KIT_COPY.save, onPress: () => void handleSave(), busy: saving }}
+      aside={onDelete && { label: MCP_COPY.deleteServer, tone: 'danger', onPress: onDelete, disabled: saving }}
     >
       {jsonMode ? (
         <Textarea
@@ -113,6 +120,7 @@ export const AddEditMcpServerDialog: React.FC<AddEditMcpServerDialogProps> = ({
       ) : (
         <ServerFormFields form={form} patch={patch} autoFocusName={!editingName} />
       )}
+      {!jsonMode && children}
     </FormDialog>
   );
 };

@@ -131,9 +131,10 @@ function RowBody({ title, description, leading, status, actions, stacked, wrap, 
       {trailing && (
         <div className={cn('flex items-center gap-3', actions && 'min-w-0', !stacked && 'flex-1 justify-end')}>
           {statusBeside && <div className="flex shrink-0 items-center gap-2">{status}</div>}
-          {/* Controls shrink to the row (a long value truncates) instead of spilling past the card. */}
+          {/* Controls shrink to the row (a long value truncates) instead of spilling past the card; using one never presses
+              the row itself. */}
           {actions && (
-            <fieldset disabled={disabled} className="flex min-w-0 items-center gap-2 [&>*]:min-w-0">{actions}</fieldset>
+            <fieldset disabled={disabled} onClick={(e) => e.stopPropagation()} className="flex min-w-0 items-center gap-2 [&>*]:min-w-0">{actions}</fieldset>
           )}
           {chevron}
         </div>
