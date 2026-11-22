@@ -19,8 +19,15 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   tone?: keyof typeof CARD_TONE;
 }
 
+/** A card's rows reach its edges (their pressed tint spans the full width, clipped to the card's corners, as in an iOS
+ *  inset grouped list) while their content keeps the card's inset. */
 export function Card({ tone = 'default', className, ...props }: CardProps) {
-  return <div className={cn(CARD_TONE[tone], 'rounded-card px-4 divide-y divide-muted', className)} {...props} />;
+  return (
+    <div
+      className={cn(CARD_TONE[tone], 'overflow-hidden rounded-card px-4 divide-y divide-muted [&>[data-card-row]]:-mx-4 [&>[data-card-row]]:px-4', className)}
+      {...props}
+    />
+  );
 }
 
 export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
@@ -96,6 +103,7 @@ function RowBody({ title, description, leading, status, actions, stacked, wrap, 
         className,
       )}
       aria-disabled={disabled || undefined}
+      data-card-row=""
       {...props}
     >
       {/* Pinned rows: a box one title line tall (1lh), so the icon centres on the title line, not on the block. A leading
