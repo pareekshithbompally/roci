@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronLeft } from 'lucide-react';
 import { IconButton } from './button';
 import { Surface } from './surface';
-import { PageScroll } from './page-scroll';
+import { PageScroll, TitlebarSpacer } from './page-scroll';
 import { Text } from './text';
 import { cn } from './utils';
 import { UI_CONFIG } from '@config/ui.config';
@@ -143,6 +143,15 @@ export function NavStack({ title, action, initial, children }: NavStackProps) {
 /** Swipe from the left edge to go back (iOS): the top screen follows the finger; let go far or fast enough and it slides
  *  off and leaves the stack, otherwise it slides back. */
 function useSwipeBack(node: HTMLDivElement | null, top: StackEntry | undefined, drop: (id: number) => void): void {
+  useEdgeSwipeBack(node, () => {
+    if (!top) return;
+    top.onPop?.();
+    drop(top.id);
+  });
+}
+
+/** The page follows a swipe from the left edge; let go far or fast enough and it slides off, then `back` runs. */
+function useEdgeSwipeBack(node: HTMLDivElement | null, back: () => void): void {
   useTouchDrag(node, {
     axis: 'x',
     edgeOnly: true,
@@ -152,32 +161,54 @@ function useSwipeBack(node: HTMLDivElement | null, top: StackEntry | undefined, 
       node.style.translate = `${Math.max(0, dx)}px 0`;
     },
     onEnd: (dx, speed) => {
-      if (!node || !top) return;
+      if (!node) return;
       delete node.dataset.dragging;
       if (!commits(dx, speed, node.offsetWidth, UI_CONFIG.gesture.edgeShare)) {
         node.style.translate = '';
         return;
       }
-      slideOff(node, '100% 0', () => {
-        top.onPop?.();
-        drop(top.id);
-      });
+      slideOff(node, '100% 0', back);
     },
   });
 }
 
-/** A pushed screen: a round back button and the centred title. */
+/** A pushed screen's bar: a round back button and the centred title. */
+function BackBar({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pt-2 pb-3">
+      <IconButton icon={ChevronLeft} label={KIT_COPY.back} size="fab" variant="bar" onClick={onBack} className="justify-self-start" />
+      <PushedTitle title={title} />
+    </header>
+  );
+}
+
+export interface PushedPageProps {
+  title: string;
+  /** The user went Back (the bar's button or a swipe from the left edge). */
+  onBack: () => void;
+  children: React.ReactNode;
+}
+
+/** One page pushed over a view that is not a stack (a list's open item on iPhone): the stack's own bar and push, and a
+ *  swipe from the left edge to go back. It covers the view it was opened from. */
+export function PushedPage({ title, onBack, children }: PushedPageProps) {
+  const [node, setNode] = useState<HTMLDivElement | null>(null);
+  useEdgeSwipeBack(node, onBack);
+  return (
+    <div ref={setNode} className="absolute inset-0 z-10 animate-push-in transition-[translate] duration-ios ease-ios data-[dragging]:transition-none">
+      <Surface className="absolute inset-0 flex flex-col">
+        <TitlebarSpacer />
+        <BackBar title={title} onBack={onBack} />
+        <PageScroll underTitlebar={false} className="flex-1 pb-safe-bottom">{children}</PageScroll>
+      </Surface>
+    </div>
+  );
+}
+
+/** A pushed screen in a stack. */
 function PushedScreenFrame({ screen, covered, onBack }: { screen: StackEntry; covered: boolean; onBack: () => void }) {
   return (
-    <Screen
-      covered={covered}
-      header={
-        <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pt-2 pb-3">
-          <IconButton icon={ChevronLeft} label={KIT_COPY.back} size="fab" variant="bar" onClick={onBack} className="justify-self-start" />
-          <PushedTitle title={screen.title} />
-        </header>
-      }
-    >
+    <Screen covered={covered} header={<BackBar title={screen.title} onBack={onBack} />}>
       {screen.content}
     </Screen>
   );

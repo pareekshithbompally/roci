@@ -1,13 +1,12 @@
 /** Dictations: every dictation made in the app, newest first under its day, searchable. Mac: the list beside the selected dictation;
- *  phone: the list, then one dictation with Back. Each opens to its time, day · length, its model and (cloud) cost badges,
+ *  iPhone: the list, then one dictation pushed (ListDetail). Each opens to its time, day · length, its model and (cloud) cost badges,
  *  and the words; Copy and Delete. */
 
 import React, { useState } from 'react';
-import { ChevronLeft, Copy, Mic, Trash2 } from 'lucide-react';
-import { Button, Icon, IconButton, PageScroll, Row, SearchField, Surface, Text, TitlebarSpacer, ViewBody, ViewHeader } from '@shared/ui';
+import { Copy, Mic, Trash2 } from 'lucide-react';
+import { IconButton, ListDetail, PageScroll, Row, SearchField, Surface, Text, useListBesideDetail, ViewHeader } from '@shared/ui';
 import { CostBadge, ModelBadge, ScreenState, modelCreditOf } from '@shared/components';
 import { useSessionCost } from '@shared/hooks/useSessionUsage';
-import { useFormFactor } from '@platform/formFactor';
 import { useToast } from '@shared/contexts/ToastContext';
 import { confirmDelete } from '@shared/stores/confirmStore';
 import { copyRichText } from '@shared/utils/clipboard';
@@ -77,12 +76,13 @@ const DictationDetail: React.FC<DictationDetailProps> = ({ dictation, onCopy, on
 export const DictationsView: React.FC = () => {
   const [query, setQuery] = useState('');
   const { dictations, hasAny, isLoading, remove } = useDictations(query);
-  const phone = useFormFactor() === 'phone';
+  const beside = useListBesideDetail();
   const { showToast } = useToast();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // A Mac always shows one dictation (the newest match until another is picked); a phone shows the list until one is tapped.
-  const selected = dictations.find((d) => d.id === selectedId) ?? (phone ? undefined : dictations[0]);
+  // Beside the list (a Mac) one dictation is always open (the newest match until another is picked); pushed (iPhone), only
+  // the one tapped.
+  const selected = dictations.find((d) => d.id === selectedId) ?? (beside ? dictations[0] : undefined);
 
   const copy = (dictation: Dictation) => {
     copyRichText(dictation.text)
@@ -125,33 +125,15 @@ export const DictationsView: React.FC = () => {
     );
   }
 
-  // iPhone: one dictation with Back to the list.
-  if (phone && selected) {
-    return (
-      <div className="flex h-full flex-col">
-        <TitlebarSpacer />
-        <header className={`shrink-0 ${LAYOUT.listGutter} pt-2 pb-2`}>
-          <Button variant="ghost" size="sm" onClick={() => setSelectedId(null)}>
-            <Icon icon={ChevronLeft} size="xs" />
-            {DICTATIONS_CONFIG.title}
-          </Button>
-        </header>
-        <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar">{detail}</div>
-      </div>
-    );
-  }
-
-  // The view's header, then (Mac) the list beside the open dictation in one hairline panel, as a meeting's panes: its top
-  // level with the search field, its lines ending at its own rounded corners. iPhone: the list alone.
+  // One list and its open dictation: beside each other on a Mac, pushed like Mail on iPhone (the kit decides).
   return (
-    <div className="flex h-full flex-col">
-      <ViewHeader title={DICTATIONS_CONFIG.title} />
-      <ViewBody className="gap-6">
-        <div className={`flex min-h-0 flex-col gap-3 ${phone ? 'flex-1' : DICTATIONS_CONFIG.listColumn}`}>{searchAndList}</div>
-        {!phone && detail && (
-          <Surface edge={['top', 'left', 'right']} radius="lg" className="min-w-0 flex-1 overflow-y-auto custom-scrollbar">{detail}</Surface>
-        )}
-      </ViewBody>
-    </div>
+    <ListDetail
+      title={DICTATIONS_CONFIG.title}
+      list={searchAndList}
+      listClassName={DICTATIONS_CONFIG.listColumn}
+      detail={detail}
+      detailTitle={selected ? formatClockTime(selected.createdAt) : ''}
+      onCloseDetail={() => setSelectedId(null)}
+    />
   );
 };
