@@ -55,9 +55,10 @@ export const LAYOUT = {
   listGutter: 'px-5',
   /** A top-level view's header (ViewHeader: To-dos, Upcoming, Gallery, Dictations): room above and below its title row. */
   viewHeader: 'pt-2 pb-3',
-  /** A reading view's column (To-dos, Gallery, Dictations): from the sidebar edge, as Upcoming's grid, up to the page column's
-   *  width; with the sidebar collapsed it keeps that width instead of stretching. */
-  viewColumn: 'max-w-4xl w-full',
+  /** A reading view's column (To-dos, Gallery, Dictations): the page column's width, centred in the space beside the sidebar as
+   *  chat's column is (a little wider), so it keeps its place and width whether the sidebar is open or collapsed; the views'
+   *  own gutter inside it is the least room at either edge of a narrow window. */
+  viewColumn: 'max-w-4xl w-full mx-auto',
 } as const;
 
 /** The ⌘K command palette: where it sits and how wide, and its list's one fixed height (it never resizes as you type). */
