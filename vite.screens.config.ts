@@ -4,7 +4,7 @@
 import path from 'path';
 import { defineConfig, mergeConfig } from 'vite';
 import { viteSingleFile } from 'vite-plugin-singlefile';
-import app from './vite.config';
+import app from './vite.config.ts';
 import pkg from './package.json' with { type: 'json' };
 
 const root = path.resolve(import.meta.dirname, 'src/screens');
