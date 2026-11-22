@@ -2454,10 +2454,7 @@ pub async fn insert_usage(
     state: State<'_, StoreState>,
     record: UsageRecord,
 ) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+    on_db(&state, move |db| {
         db.execute(
             "INSERT INTO usage_log (id, timestamp, category, session_id, provider, model,
              input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
@@ -2482,7 +2479,6 @@ pub async fn insert_usage(
         Ok(())
     })
     .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
 /// One AI call made for a session (a meeting, a dictation), newest first.
@@ -2526,14 +2522,7 @@ pub async fn get_session_usage(
     state: State<'_, StoreState>,
     session_id: String,
 ) -> Result<Vec<SessionUsageRow>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        session_usage_impl(db, &session_id)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+    on_db(&state, move |db| session_usage_impl(db, &session_id)).await
 }
 
 /// A call saved without a price: what it used, for `costOf` (extensions/usage/pricing.ts) to price.
@@ -2587,26 +2576,12 @@ fn set_usage_costs_impl(db: &Connection, costs: &[UsageCost]) -> Result<usize, S
 
 #[tauri::command]
 pub async fn unpriced_usage(state: State<'_, StoreState>, provider: String, model: String) -> Result<Vec<UnpricedUsageRow>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        unpriced_usage_impl(db, &provider, &model)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+    on_db(&state, move |db| unpriced_usage_impl(db, &provider, &model)).await
 }
 
 #[tauri::command]
 pub async fn set_usage_costs(state: State<'_, StoreState>, costs: Vec<UsageCost>) -> Result<usize, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        set_usage_costs_impl(db, &costs)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+    on_db(&state, move |db| set_usage_costs_impl(db, &costs)).await
 }
 
 /// The window every usage query reads (`[since, until)`, on the timestamp index); parameters ?1–?2 in `usage_params` order.
@@ -2736,14 +2711,7 @@ pub async fn get_usage_summary(
     state: State<'_, StoreState>,
     query: UsageQuery,
 ) -> Result<UsageSummary, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        usage_summary_impl(db, &query)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+    on_db(&state, move |db| usage_summary_impl(db, &query)).await
 }
 
 // ── Chat Indexing Commands ──

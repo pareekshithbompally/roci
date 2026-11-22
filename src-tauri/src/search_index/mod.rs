@@ -236,12 +236,12 @@ async fn off_main<T: Send + 'static>(work: impl FnOnce() -> Result<T, String> + 
     tauri::async_runtime::spawn_blocking(work).await.map_err(|e| e.to_string())?
 }
 
-/// Meeting pieces matching `query`, by meaning and words, best first; within `meeting_ids` when given.
+/// Meeting pieces matching `query`, by meaning and words, best first, across all meetings.
 #[tauri::command]
-pub async fn search_meetings(app: AppHandle, query: String, limit: usize, meeting_ids: Option<Vec<String>>) -> Result<Vec<SearchHit>, String> {
+pub async fn search_meetings(app: AppHandle, query: String, limit: usize) -> Result<Vec<SearchHit>, String> {
     off_main(move || {
         let vector = query_vector(&app, &query)?;
-        index::search_meetings(&app, &query, vector, limit, meeting_ids).map_err(|e| e.to_string())
+        index::search_meetings(&app, &query, vector, limit, None).map_err(|e| e.to_string())
     })
     .await
 }
