@@ -57,6 +57,15 @@ small built-in list for models it doesn't cover yet.
   <img src=".github/assets/providers.png" alt="Settings › Providers" width="860">
 </p>
 
+## Personalization
+
+Your own instructions and saved prompts, a memory of what you've told it, a vocabulary of names and terms the speech models
+should hear right, and tuning for the models you run.
+
+<p align="center">
+  <img src=".github/assets/personalization.png" alt="Settings › Personalization" width="860">
+</p>
+
 ## Privacy
 
 There is no account, no Roci server and no sync. Meetings, chats, recordings and settings are kept in one SQLite database
