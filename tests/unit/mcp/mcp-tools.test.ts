@@ -157,15 +157,22 @@ describe('callToolFromScreen', () => {
     setup({ allowAllTools: true });
     const whole = { content: [{ type: 'text', text: 'contents' }] };
     service.callTool.mockResolvedValue({ text: 'contents', isError: false, result: whole });
-    expect(await callToolFromScreen('fs', 'read_file', { path: 'a' }, new Set())).toEqual(whole);
-    expect(await callToolFromScreen('other', 'read_file', {}, new Set())).toMatchObject({ isError: true });
-    expect(await callToolFromScreen('fs', 'read_file', {}, new Set(['fs/read_file']))).toMatchObject({ isError: true });
+    expect(await callToolFromScreen('fs', 'read_file', { path: 'a' }, { disabledKeys: new Set() })).toEqual(whole);
+    expect(await callToolFromScreen('other', 'read_file', {}, { disabledKeys: new Set() })).toMatchObject({ isError: true });
+    expect(await callToolFromScreen('fs', 'read_file', {}, { disabledKeys: new Set(['fs/read_file']) })).toMatchObject({ isError: true });
     expect(service.callTool).toHaveBeenCalledTimes(1);
+  });
+
+  it("never runs a tool its server keeps for the model", async () => {
+    setup({ allowAllTools: true });
+    service.getTools.mockResolvedValue([{ ...TOOL, ui: { visibility: ['model'] } }]);
+    expect(await callToolFromScreen('fs', 'read_file', {}, { disabledKeys: new Set() })).toMatchObject({ isError: true });
+    expect(service.callTool).not.toHaveBeenCalled();
   });
 
   it('asks the same approval as the model, and a denial never runs the tool', async () => {
     setup();
-    const pending = callToolFromScreen('fs', 'read_file', { path: 'a' }, new Set());
+    const pending = callToolFromScreen('fs', 'read_file', { path: 'a' }, { disabledKeys: new Set() });
     await answerNextPrompt('deny');
     expect(await pending).toMatchObject({ isError: true });
     expect(service.callTool).not.toHaveBeenCalled();

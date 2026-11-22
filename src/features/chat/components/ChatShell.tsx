@@ -234,7 +234,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
                 <ChatMessage
                   key={message.id}
                   message={message}
-                  onSuggestionClick={(suggestion) => sendMessage(suggestion)}
+                  onSuggestionClick={sendMessage}
                   isLastMessage={index === currentMessages.length - 1}
                   loadingStatus={message.metadata.state === 'loading' ? replyStatus : undefined}
                   isCopied={copiedMessageId === message.id}

@@ -73,7 +73,8 @@ function toDefinition(tool: McpTool, gate: ApprovalGate): ToolDefinition {
       if (!(await gate(tool, args, context.signal))) {
         return result('The user declined to run this tool. Do not retry it; continue without it.', true);
       }
-      return callWithCancellation(tool, args, context.signal);
+      const output = await callWithCancellation(tool, args, !!tool.ui?.resourceUri, context.signal);
+      return result(output.text, output.isError, appMeta(tool, args, output));
     },
   };
 }
@@ -94,11 +95,13 @@ function appMeta(tool: McpTool, input: Record<string, unknown>, output: McpToolO
   return { toolName: '', executionMs: 0, app: { server: tool.server, resourceUri, input, result: output.result } };
 }
 
+/** One call to a connected server, cancelled there when `signal` aborts (the chat stopped, the screen closed). */
 async function callWithCancellation(
   tool: McpTool,
   args: Record<string, unknown>,
+  withResult: boolean,
   signal?: AbortSignal,
-): Promise<ToolResult> {
+): Promise<McpToolOutput> {
   const cancellationToken = crypto.randomUUID();
   const onAbort = () => {
     mcpService.cancelToolCall(cancellationToken).catch((error: unknown) => {
@@ -107,14 +110,7 @@ async function callWithCancellation(
   };
   signal?.addEventListener('abort', onAbort, { once: true });
   try {
-    const output = await mcpService.callTool({
-      server: tool.server,
-      tool: tool.name,
-      arguments: args,
-      cancellationToken,
-      withResult: !!tool.ui?.resourceUri,
-    });
-    return result(output.text, output.isError, appMeta(tool, args, output));
+    return await mcpService.callTool({ server: tool.server, tool: tool.name, arguments: args, cancellationToken, withResult });
   } finally {
     signal?.removeEventListener('abort', onAbort);
   }
@@ -125,20 +121,22 @@ async function callWithCancellation(
 /** A `CallToolResult` a screen reads as failed. */
 const screenError = (text: string): Record<string, unknown> => ({ content: [{ type: 'text', text }], isError: true });
 
-/** A tool call an MCP App screen makes: only to its own server, never to a tool the user switched off, and through the
- *  same approval as the model's calls. The whole result goes back to the screen; the model never sees it. */
+/** A tool call an MCP App screen makes: only to its own server, never to a tool the user switched off or one its server
+ *  keeps for the model (`visibility` without `app`), through the same approval as the model's calls, and given up with the
+ *  screen (`signal`). The whole result goes back to the screen; the model never sees it. */
 export async function callToolFromScreen(
   server: string,
   name: string,
   args: Record<string, unknown>,
-  disabledKeys: ReadonlySet<string>,
+  { disabledKeys, signal }: { disabledKeys: ReadonlySet<string>; signal?: AbortSignal },
 ): Promise<Record<string, unknown>> {
   if (disabledKeys.has(mcpToolKey(server, name))) return screenError(`The tool "${name}" is switched off.`);
   const tool = (await mcpService.getTools()).find((t) => t.server === server && t.name === name);
   if (!tool) return screenError(`${server} offers no tool "${name}".`);
+  if (tool.ui?.visibility && !tool.ui.visibility.includes('app')) return screenError(`"${name}" is not callable from its screen.`);
   const gate = createApprovalGate(await loadMcpSettings());
-  if (!(await gate(tool, args))) return screenError('The user declined to run this tool.');
-  const output = await mcpService.callTool({ server, tool: name, arguments: args, cancellationToken: crypto.randomUUID(), withResult: true });
+  if (!(await gate(tool, args, signal))) return screenError('The user declined to run this tool.');
+  const output = await callWithCancellation(tool, args, true, signal);
   return output.result ?? screenError(output.text);
 }
 

@@ -7,6 +7,7 @@ import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/
 import type { McpUiHostContext } from '@modelcontextprotocol/ext-apps/app-bridge';
 import type { CallToolResult } from '@modelcontextprotocol/client';
 import { mcpService, type OpenedMcpApp } from '@services/mcp.service';
+import { useChatStore } from '@features/chat/stores/chatStore';
 import { getTauriEnvironment, logFromScreen, openUrl } from '@services/tauri';
 import { callToolFromScreen } from '@extensions/tools';
 import { confirm } from '@shared/stores/confirmStore';
@@ -63,8 +64,11 @@ function useScreen(server: string, uri: string): OpenedMcpApp | null {
 
 /** What the screen may ask of Roci, answered with the chat's current state (read when it asks). */
 interface ScreenHost {
+  /** The call the screen shows: its input and whole result. */
+  app: McpAppMeta;
   server: string;
   disabledTools: ReadonlySet<string>;
+  isDark: boolean;
   /** Sends text as the user's message in this chat; absent where the chat can't take one. */
   onSend?: (text: string) => void;
 }
@@ -78,58 +82,80 @@ async function openLinkFromScreen(server: string, url: string): Promise<{ isErro
   return {};
 }
 
-/** The screen's requests: a tool on its own server (through the approval prompt), a link (confirmed), a message (sent as
- *  the user's, as if typed). */
-function answerRequests(bridge: AppBridge, host: React.RefObject<ScreenHost>): void {
-  bridge.oncalltool = async ({ name, arguments: args }) =>
-    (await callToolFromScreen(host.current.server, name, args ?? {}, host.current.disabledTools)) as CallToolResult;
-  bridge.onopenlink = ({ url }) => openLinkFromScreen(host.current.server, url);
-  bridge.onmessage = async ({ content }) => {
-    const text = content.flatMap((block) => (block.type === 'text' ? [block.text] : [])).join('\n').trim();
-    const send = host.current.onSend;
-    if (!text || !send) return { isError: true };
-    send(text);
-    return {};
-  };
+/** A message the screen asks to send, as the user's: refused while a reply is being written (it couldn't be sent), so the
+ *  screen knows it didn't go. */
+function sendFromScreen(content: Array<{ type: string; text?: string }>, onSend: ScreenHost['onSend']): { isError?: boolean } {
+  const text = content.flatMap((block) => (block.type === 'text' && block.text ? [block.text] : [])).join('\n').trim();
+  if (!text || !onSend || useChatStore.getState().replyingSessionId) return { isError: true };
+  onSend(text);
+  return {};
 }
 
-/** Connects the frame once it loads: the handshake, then the call's input and result; the screen reports its height and
- *  may call its server's tools, open links and send messages. */
-function useBridge(frame: React.RefObject<HTMLIFrameElement | null>, app: McpAppMeta, isDark: boolean, onHeight: (h: number) => void, host: React.RefObject<ScreenHost>) {
+/** The screen's requests: a tool on its own server (through the approval prompt, given up if the screen goes), a link
+ *  (confirmed), a message (sent as the user's, as if typed). */
+function answerRequests(bridge: AppBridge, host: React.RefObject<ScreenHost>): void {
+  bridge.oncalltool = async ({ name, arguments: args }, { mcpReq }) =>
+    (await callToolFromScreen(host.current.server, name, args ?? {}, { disabledKeys: host.current.disabledTools, signal: mcpReq.signal })) as CallToolResult;
+  bridge.onopenlink = ({ url }) => openLinkFromScreen(host.current.server, url);
+  bridge.onmessage = async ({ content }) => sendFromScreen(content, host.current.onSend);
+}
+
+/** One bridge per screen, listening before the screen's page loads (a screen may say hello the moment it starts), then the
+ *  page: the handshake, the call's input and result, its size, the theme; closed (and its pending requests given up) when
+ *  the screen goes. */
+function useBridge(
+  frame: React.RefObject<HTMLIFrameElement | null>,
+  screen: OpenedMcpApp | null,
+  host: React.RefObject<ScreenHost>,
+  onHeight: (h: number) => void,
+) {
   const bridgeRef = useRef<AppBridge | null>(null);
 
-  const connect = async () => {
-    const view = frame.current?.contentWindow;
-    if (!view) return;
-    const { version } = await getTauriEnvironment();
-    const capabilities = { logging: {}, openLinks: {}, serverTools: {}, message: { text: {} } };
-    const bridge = new AppBridge(null, { name: APP_CONFIG.name, version: version ?? '' }, capabilities, { hostContext: hostContext(isDark) });
-    answerRequests(bridge, host);
-    bridge.onsizechange = ({ height }) => {
-      if (height) onHeight(Math.min(height, MCP_APP_CONFIG.maxHeight));
+  useEffect(() => {
+    const element = frame.current;
+    const view = element?.contentWindow;
+    if (!screen || !element || !view) return;
+    let bridge: AppBridge | null = null;
+    let gone = false;
+    const connect = async () => {
+      const { version } = await getTauriEnvironment();
+      if (gone) return;
+      const capabilities = { logging: {}, openLinks: {}, serverTools: {}, message: { text: {} } };
+      bridge = new AppBridge(null, { name: APP_CONFIG.name, version: version ?? '' }, capabilities, { hostContext: hostContext(host.current.isDark) });
+      answerRequests(bridge, host);
+      bridge.onsizechange = ({ height }) => {
+        if (height) onHeight(Math.min(height, MCP_APP_CONFIG.maxHeight));
+      };
+      bridge.onloggingmessage = ({ level, data }) => logFromScreen(host.current.server, level, data);
+      const connected = bridge;
+      connected.oninitialized = () => {
+        const { app } = host.current;
+        connected.sendToolInput({ arguments: app.input }).catch(failed('Sending the input failed'));
+        connected.sendToolResult(app.result as CallToolResult).catch(failed('Sending the result failed'));
+      };
+      await connected.connect(new PostMessageTransport(view, view));
+      if (gone) return;
+      bridgeRef.current = connected;
+      element.src = screen.url;
     };
-    bridge.onloggingmessage = ({ level, data }) => logFromScreen(host.current.server, level, data);
-    bridge.oninitialized = () => {
-      bridge.sendToolInput({ arguments: app.input }).catch(failed('Sending the input failed'));
-      bridge.sendToolResult(app.result as CallToolResult).catch(failed('Sending the result failed'));
+    connect().catch(failed('Connecting to the screen failed'));
+    return () => {
+      gone = true;
+      bridgeRef.current = null;
+      bridge?.close().catch(failed('Closing failed'));
     };
-    await bridge.connect(new PostMessageTransport(view, view));
-    bridgeRef.current = bridge;
-  };
+    // A new screen (another server or resource) is a new connection; anything else is read from `host` when it's needed.
+  }, [frame, screen, host, onHeight]);
 
-  // Light/dark changes reach a screen already showing.
+  return bridgeRef;
+}
+
+/** Light/dark changes reach a screen already showing. */
+function useThemeToScreen(bridgeRef: React.RefObject<AppBridge | null>, isDark: boolean): void {
   useEffect(() => {
     const bridge = bridgeRef.current;
     if (bridge) Promise.resolve(bridge.sendHostContextChange(hostContext(isDark))).catch(failed('Sending the theme failed'));
-  }, [isDark]);
-
-  // React has already removed the frame when this runs, so there is no screen left to answer `ui/resource-teardown`
-  // (asking would only time out): the connection just closes.
-  useEffect(() => () => {
-    bridgeRef.current?.close().catch(failed('Closing failed'));
-  }, []);
-
-  return () => void connect().catch(failed('Connecting to the screen failed'));
+  }, [bridgeRef, isDark]);
 }
 
 interface McpAppViewProps {
@@ -144,20 +170,21 @@ export const McpAppView: React.FC<McpAppViewProps> = ({ app, title, onSend }) =>
   const { isDark } = useThemeContext();
   const { settings } = useSettings();
   const [height, setHeight] = useState<number>(MCP_APP_CONFIG.initialHeight);
-  const host = useRef<ScreenHost>({ server: app.server, disabledTools: new Set(), onSend });
-  host.current = { server: app.server, disabledTools: new Set(chatToolPreferences(settings).disabledMcpTools), onSend };
+  const disabledTools = new Set(chatToolPreferences(settings).disabledMcpTools);
+  const host = useRef<ScreenHost>({ app, server: app.server, disabledTools, isDark, onSend });
+  host.current = { app, server: app.server, disabledTools, isDark, onSend };
   const screen = useScreen(app.server, app.resourceUri);
-  const onLoad = useBridge(frameRef, app, isDark, setHeight, host);
+  const bridgeRef = useBridge(frameRef, screen, host, setHeight);
+  useThemeToScreen(bridgeRef, isDark);
 
   if (!screen) return null;
   return (
     <Surface variant={screen.meta?.prefersBorder === false ? 'plain' : 'card'} radius="lg" className="my-2 w-full overflow-hidden">
+      {/* No src here: the bridge points it at the screen once it is listening. */}
       <iframe
         ref={frameRef}
-        src={screen.url}
         title={title}
         sandbox={MCP_APP_CONFIG.sandbox}
-        onLoad={onLoad}
         className="block w-full"
         style={{ height }}
       />
