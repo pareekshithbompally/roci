@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { formatDateTime } from '@shared/utils/formatters';
 import { Images, MessageSquare } from 'lucide-react';
-import { Button, Icon, Lightbox, Surface, Text, Thumbnail, ViewHeader, ViewScroll } from '@shared/ui';
+import { Button, Icon, Surface, Text, Thumbnail, ViewHeader, ViewScroll, Viewer } from '@shared/ui';
 import { ModelBadge, ScreenState } from '@shared/components';
 import { openChat } from '@features/chat';
 import type { GalleryImage } from '@services/storage/images.service';
@@ -77,9 +77,8 @@ export const GalleryView: React.FC = () => {
       </ScreenState>
 
       {open && (
-        <Lightbox
-          src={open.url}
-          alt={open.meta?.prompt ?? GALLERY_CONFIG.title}
+        <Viewer
+          media={{ kind: 'image', src: open.url, alt: open.meta?.prompt ?? GALLERY_CONFIG.title }}
           open
           onOpenChange={(next) => !next && setOpen(null)}
           caption={<ImageCaption image={open} onOpenChat={goToChat} />}

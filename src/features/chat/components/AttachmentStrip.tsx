@@ -1,9 +1,9 @@
 /** The composer's pending attachments: each by its thumbnail or kind, with its name and a remove button; an image opens
- *  full size in the kit Lightbox. */
+ *  full size in the kit Viewer. */
 
 import React, { useState } from 'react';
 import { FileText, Film, Image as ImageIcon, Music, X, type LucideIcon } from 'lucide-react';
-import { Icon, IconButton, Lightbox, Surface, Text, Thumbnail } from '@shared/ui';
+import { Icon, IconButton, Surface, Text, Thumbnail, Viewer } from '@shared/ui';
 import type { FileUIPart } from '@shared/types';
 import { mediaKind, type MediaKind } from '@shared/utils/chatParts';
 
@@ -20,7 +20,7 @@ function ImageTile({ src, name }: { src: string; name: string }) {
       <div className="w-8 shrink-0">
         <Thumbnail src={src} alt={name} onOpen={() => setOpen(true)} />
       </div>
-      <Lightbox src={src} alt={name} open={open} onOpenChange={setOpen} />
+      <Viewer media={{ kind: 'image', src, alt: name }} open={open} onOpenChange={setOpen} />
     </>
   );
 }
