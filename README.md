@@ -89,25 +89,18 @@ GraphQLite for search and the graph, and Swift plugins for Apple Intelligence, c
 Portions of the code are ported from [Jan](https://github.com/janhq/jan) and [Hex](https://github.com/anomalyco/hex),
 under their licences (see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
 
-## Requirements
+## Download
 
-- macOS 26, iOS 26 or iPadOS 26, on Apple silicon.
-- To build: Xcode 26 with its Metal Toolchain, Rust, and Node.js 22.
+The latest Mac app is on the [Releases](https://github.com/pareekshithbompally/roci/releases/latest) page. It needs macOS 26
+or later on Apple silicon.
 
 ## Build from source
 
-```bash
-git clone https://github.com/pareekshithbompally/roci.git
-cd roci
-npm install
-npm run tauri:dev      # run on Mac
-npm run tauri:build    # build the Mac app
-npm test               # run the tests
-```
+See [BUILDING.md](BUILDING.md) for what to install and how to build, run and test it.
 
 ## Contributing
 
-Roci is a personal project that I share as-is. I'm not able to take on issues or pull requests, but you're welcome to fork it and make it your own.
+Roci is a personal project that I share as-is. **I'm not able to take on issues or pull requests**, but you're welcome to fork it and make it your own.
 
 ## License
 
