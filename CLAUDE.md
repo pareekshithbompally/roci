@@ -92,6 +92,9 @@ These are hard constraints. They **override** convenience, speed, and your defau
 
 **Implementing a plan** (`docs/plans/`): read the plan + referenced files, summarize what you'll change and get approval, implement **only** what's specified, build + verify after each phase, don't advance without confirmation.
 
+**Audits** follow [`AUDIT.md`](AUDIT.md): read-only, pillars P1–P7 with Hex as the tie-breaker, findings returned as its
+structured payload and verified by the orchestrator before any fix.
+
 **Chat in plain English. Detail goes in docs.** Console logs use `[ComponentName] message:`, value.
 
 ---
@@ -112,7 +115,8 @@ src/
   config/         *.config.ts — theme + UI + domain tokens (single source of truth)
 services/
   ai/             Vercel AI SDK layer (provider.ts createModel, message-converter, tools-bridge)
-                  transcription/  engine registry (ENGINES) + analyze.ts + cred/format helpers
+                  transcription/  speech router (streams or chunks), adapters, capture, analyze.ts
+                  models/  model records + job routing (models.dev, then config/modelSeed.config.ts)
   storage/        assetsService (the one file write), retention.service, images, recordings, cache, paths
   db/             store client: one domain per Rust command group (meetings, chats, assets, storage …)
   transcription.service.ts  unifiedAIService.ts  platform-fetch.ts  reminder.service.ts
@@ -128,12 +132,17 @@ src-tauri/
 
 **Data layout** (`~/Library/Application Support/ai.roci.roci/`): one database, `roci.db` (meetings, chats, todos, reminders, dictations, settings, providers (each API key AES-256-GCM-encrypted in its row, under the one Keychain item "Roci Safe Storage"), search index + vectors, `assets` + `purge_queue`). Kept files, each an `assets` row: `recordings/*.wav`, `images/` (+ `.thumb.jpg`), `speech/`. Also `cache/` (expiring) and `models/` (downloaded models).
 
-**Transcription pipeline** — two clearly separated stages with their own model settings:
-- `transcriptionModel` (STT engine ID: `whisper-1`, `groq-whisper`, `deepgram`, `elevenlabs`, `gemini`) → fills the **Transcript** tab with verbatim STT output.
-- `analyzeModel` (any text LLM) → fills the **Overview** tab with structured `MeetingSummary`.
-- Engines registered in `services/ai/transcription/engines.ts` (`ENGINES` map). Adding an engine = one entry.
-- Gemini is the only multimodal engine (`viaMultimodal`); all others use `experimental_transcribe()` via the AI SDK.
-- No provider `if/else` forks. `unifiedAIService.transcribeAudio()` does a single engine-registry lookup; `analyzeTranscript()` is generic.
+**Transcription pipeline** — speech and summary are separate jobs, each with its own model in Default Models:
+- `transcriptionModel` (a speech model the user added) fills the **Transcript**; `analyzeModel` (any text model) writes the
+  **Summary** (`MeetingSummary`).
+- What a model is comes from models.dev, then `config/modelSeed.config.ts` (same shape, prices included); `transcribeAdapter`
+  (`services/ai/models`) routes it: the provider's speech endpoint via AI SDK `transcribe` (`SDK_SPEECH_FAMILIES`), a model
+  that also chats through a multimodal prompt, on-device (transcribe.cpp in `src-tauri/src/stt`), or Apple Speech. No
+  per-provider code.
+- Live: one router (`transcription/live.ts`) takes real-time streams when the model streams (`experimental_streamTranscribe`),
+  else chunks (Rust pause-cut chunks → `features/recording/live`). Dictation uses the same router (`capture.ts`).
+- Meetings run transcribe → summarize in `features/recording/pipeline/meetingPipeline.ts` under the store's step guard.
+- Errors go through `toAiError`; every call's cost through `costOf` and the one usage writer.
 
 **Native ↔ web alignment:** never compute native element positions from config — measure empirically (see AGENTS.md). macOS traffic-light center: y=30px.
 
