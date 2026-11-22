@@ -76,5 +76,7 @@ export const streamingStore = {
   getSnapshot: current,
 };
 
-/** The streaming message; re-renders at most once per display frame. */
-export const useStreamingText = (): StreamingSnapshot => useStreamingStore((s) => s);
+/** The streaming message while it is `msgId` (re-renders at most once per display frame), else null: other messages
+ *  don't re-render as it streams. */
+export const useStreamingMessage = (msgId: string | null): StreamingSnapshot | null =>
+  useStreamingStore((s) => (msgId !== null && s.msgId === msgId ? s : null));

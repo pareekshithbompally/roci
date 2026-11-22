@@ -84,11 +84,10 @@ function useBridge(frame: React.RefObject<HTMLIFrameElement | null>, app: McpApp
     if (bridge) Promise.resolve(bridge.sendHostContextChange(hostContext(isDark))).catch(failed('Sending the theme failed'));
   }, [isDark]);
 
-  // The screen is told it is going away, then the connection closes.
+  // React has already removed the frame when this runs, so there is no screen left to answer `ui/resource-teardown`
+  // (asking would only time out): the connection just closes.
   useEffect(() => () => {
-    const bridge = bridgeRef.current;
-    if (!bridge) return;
-    bridge.teardownResource({}).catch(failed('Teardown failed')).finally(() => void bridge.close().catch(failed('Closing failed')));
+    bridgeRef.current?.close().catch(failed('Closing failed'));
   }, []);
 
   return () => void connect().catch(failed('Connecting to the screen failed'));

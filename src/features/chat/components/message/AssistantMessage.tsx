@@ -1,6 +1,6 @@
 import React, { memo, useMemo, useRef } from 'react';
 import { AnimatedProviderIcon } from '@features/chat/components/AnimatedProviderIcon';
-import { useStreamingText } from '@features/chat/stores/streamingStore';
+import { useStreamingMessage } from '@features/chat/stores/streamingStore';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { useModelLabel } from '@shared/hooks/useModelLabel';
 import { Progress, Text } from '@shared/ui';
@@ -13,6 +13,7 @@ import { useReplyCost } from '@features/chat/hooks/useChatCost';
 import AssistantActionBar from './AssistantActionBar';
 import ErrorMessageBox from './ErrorMessageBox';
 import type { AssistantMessageProps } from './types';
+import type { ChatPart } from '@shared/types';
 
 /** "localhost:9931 · Gemma": the provider, then the model by its display name (its rename, if any); one name when they match. */
 function ProviderModelLabel({ provider, model }: { provider?: string; model?: string }) {
@@ -26,23 +27,14 @@ function ProviderModelLabel({ provider, model }: { provider?: string; model?: st
   );
 }
 
-/** Streaming content, isolated so only it re-renders on each chunk. */
-const StreamingContent = memo(({ msgId }: { msgId: string }) => {
-  const streaming = useStreamingText();
-
-  if (streaming.msgId !== msgId || streaming.parts.length === 0) return null;
-
-  return (
-    <PartsList
-      parts={streaming.parts}
-      messageId={msgId}
-      streaming={true}
-      generation={streaming.generation}
-    />
-  );
+/** The message's parts, live while it streams and saved once it's done, through one list: a tool's image or screen keeps
+ *  its place when the reply finishes instead of being rebuilt. Isolated so only it re-renders on each chunk. */
+const MessageParts = memo(({ msgId, parts, streaming }: { msgId: string; parts: ChatPart[]; streaming: boolean }) => {
+  const live = useStreamingMessage(streaming ? msgId : null);
+  return <PartsList parts={live ? live.parts : parts} messageId={msgId} streaming={!!live} generation={live?.generation} />;
 });
 
-StreamingContent.displayName = 'StreamingContent';
+MessageParts.displayName = 'MessageParts';
 
 const AssistantMessage: React.FC<AssistantMessageProps> = ({
   message, onSuggestionClick, isLastMessage, loadingStatus, isCopied, actions, citationHandlers,
@@ -80,12 +72,10 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
         <>
           {/* Message Content */}
           <div ref={bodyRef} className="relative">
-            {isStreaming ? (
-              <StreamingContent msgId={id} />
-            ) : isError && text ? (
+            {!isStreaming && isError && text ? (
               <ErrorMessageBox errorText={text} />
             ) : (
-              <PartsList parts={parts} messageId={id} streaming={false} />
+              <MessageParts msgId={id} parts={parts} streaming={isStreaming} />
             )}
           </div>
 

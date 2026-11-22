@@ -1,4 +1,4 @@
-export { streamingStore, useStreamingText } from './streamingStore';
+export { streamingStore, useStreamingMessage } from './streamingStore';
 export type { StreamingSnapshot } from './streamingStore';
 export {
   todoProposalStore,
