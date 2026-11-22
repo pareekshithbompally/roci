@@ -3,6 +3,8 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { showToast } from '@shared/ui';
+import { PLAYER_CONFIG } from '@config/player.config';
 
 /** What the element plays: a meeting's recording, a chat's audio. `id` says whose it is. */
 export interface PlaybackSession {
@@ -36,13 +38,19 @@ type AudioPlayerStoreState = {
   seek: (seconds: number) => void;
   skip: (seconds: number) => void;
   stop: () => void;
+  /** Stops and unloads the session if it is `id` (its meeting was deleted). */
+  release: (id: string) => void;
   viewShown: () => void;
   viewHidden: () => void;
 };
 
 let element: HTMLAudioElement | null = null;
 
-const failed = (error: unknown) => console.error('[AudioPlayer] Playback failed:', error);
+/** A play the element refused (its file gone, a format it can't read): said, not swallowed. */
+function failed(error: unknown): void {
+  console.error('[AudioPlayer] Playback failed:', error);
+  showToast(PLAYER_CONFIG.copy.playFailed, 'error');
+}
 
 /** The rate and volume the listener chose, applied to the element. */
 function applyPreferences(audio: HTMLAudioElement): void {
@@ -92,7 +100,8 @@ export const useAudioPlayerStore = create<AudioPlayerStoreState>()(
         if (element) applyPreferences(element);
       },
       setVolume: (volume) => {
-        set({ volume, isMuted: volume === 0 ? true : get().isMuted });
+        // Raising the volume from silence is unmuting, as the slider and arrow keys show it.
+        set({ volume, isMuted: volume === 0 });
         if (element) applyPreferences(element);
       },
       toggleMute: () => {
@@ -120,7 +129,8 @@ export const useAudioPlayerStore = create<AudioPlayerStoreState>()(
       },
       seek: (seconds) => {
         const audio = playbackElement();
-        const end = Number.isFinite(audio.duration) ? audio.duration : (get().session?.duration ?? 0);
+        // Before its metadata loads the end isn't known: the element takes the position as where to start.
+        const end = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : Infinity;
         const next = Math.max(0, Math.min(seconds, end));
         audio.currentTime = next;
         set({ currentTime: next });
@@ -132,6 +142,9 @@ export const useAudioPlayerStore = create<AudioPlayerStoreState>()(
         audio.removeAttribute('src');
         audio.load();
         set({ session: null, isPlaying: false, currentTime: 0 });
+      },
+      release: (id) => {
+        if (get().session?.id === id) get().stop();
       },
       viewShown: () => set((s) => ({ viewsOnScreen: s.viewsOnScreen + 1 })),
       viewHidden: () => set((s) => ({ viewsOnScreen: s.viewsOnScreen - 1 })),

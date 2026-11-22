@@ -9,4 +9,5 @@ export const PLAYER_CONFIG = {
   volumeStep: 0.1,
   speeds: [0.5, 0.75, 1, 1.25, 1.5, 2],
   waveform: { barWidth: 3, barGap: 2, barRadius: 2, labelSize: '10px' },
+  copy: { playFailed: "Couldn't play this audio" },
 } as const;

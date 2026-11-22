@@ -34,6 +34,8 @@ function useWaveColors() {
  *  the session first, so pressing it takes the element over. */
 function usePlayback(session: PlaybackSession) {
   const isOwner = useAudioPlayerStore((s) => s.session?.id === session.id);
+  // The file the playback element holds: the owner draws on exactly that, never a newer URL for the same audio.
+  const loadedSrc = useAudioPlayerStore((s) => s.session?.src);
   const enginePlaying = useAudioPlayerStore((s) => s.isPlaying);
   const engineTime = useAudioPlayerStore((s) => s.currentTime);
   const load = useAudioPlayerStore((s) => s.load);
@@ -66,6 +68,7 @@ function usePlayback(session: PlaybackSession) {
 
   return {
     isOwner,
+    src: isOwner && loadedSrc ? loadedSrc : session.src,
     isPlaying: isOwner && enginePlaying,
     currentTime: isOwner ? engineTime : 0,
     togglePlay,
@@ -166,9 +169,15 @@ export const AudioPlayer: React.FC<{ session: PlaybackSession }> = ({ session })
   );
   const plugins = useMemo(() => [hover], [hover]);
 
+  // The bars already drawn: the waveform is rebuilt when playback moves to or from this player, and redraws them instead of
+  // reading and decoding the whole file again. Read once per handover, so taking them never rebuilds it on its own.
+  const drawn = useRef<{ peaks: number[][]; duration: number } | null>(null);
+  const handover = useMemo(() => drawn.current, [playback.isOwner]);
+
   const { wavesurfer } = useWavesurfer({
     container: waveformRef,
-    url: session.src,
+    url: playback.src,
+    ...(handover && { peaks: handover.peaks, duration: handover.duration }),
     // The loaded session draws on the playback element; another player's waveform has its own, never played.
     media: playback.isOwner ? playbackElement() : undefined,
     height: 'auto',
@@ -186,6 +195,13 @@ export const AudioPlayer: React.FC<{ session: PlaybackSession }> = ({ session })
     autoplay: false,
     plugins,
   });
+
+  useEffect(() => {
+    if (!wavesurfer) return;
+    return wavesurfer.on('ready', () => {
+      drawn.current = { peaks: wavesurfer.exportPeaks(), duration: wavesurfer.getDuration() };
+    });
+  }, [wavesurfer]);
 
   // A click on another player's waveform loads its session at that point.
   const { isOwner, seekTo } = playback;
