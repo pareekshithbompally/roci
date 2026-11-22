@@ -22,11 +22,11 @@ export interface TabsProps<T extends string> {
 
 /** Segmented control (macOS and iOS): inset track, the active segment lifts; height follows the platform control scale. */
 export function Tabs<T extends string>({ items, value, onValueChange, fill: fillProp, label, className }: TabsProps<T>) {
-  // iOS segmented controls span the width of their row; macOS ones hug their segments.
+  // iOS segmented controls span the width of their row; macOS ones hug their segments, even in a column that stretches its items.
   const phone = useFormFactor() === 'phone';
   const fill = fillProp ?? phone;
   return (
-    <div role="tablist" aria-label={label} className={cn('items-center gap-0.5 p-0.5 rounded-full bg-control', fill ? 'flex w-full' : 'inline-flex', className)}>
+    <div role="tablist" aria-label={label} className={cn('items-center gap-0.5 p-0.5 rounded-full bg-control', fill ? 'flex w-full' : 'inline-flex w-fit', className)}>
       {items.map((item) => {
         const active = item.value === value;
         return (
