@@ -101,7 +101,7 @@ export default {
       },
       backgroundSize: { shimmer: '200% 100%' },
       // Grouped-list shape (tokens.css): macOS values by default, iOS under html.platform-ios.
-      borderRadius: { card: 'var(--radius-card)', sheet: 'var(--radius-sheet)', field: 'calc(var(--control-md) / 2)' },
+      borderRadius: { card: 'var(--radius-card)', sheet: 'var(--radius-sheet)', bubble: 'var(--radius-bubble)', field: 'calc(var(--control-md) / 2)' },
       minHeight: { row: 'var(--row-min-h)' },
       // A table cell takes its row's height as a minimum (tables ignore min-height on cells).
       height: { row: 'var(--row-min-h)' },

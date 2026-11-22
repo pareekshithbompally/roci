@@ -44,7 +44,7 @@ const VARIANT = {
 } as const;
 
 /** `field`: half a field's height — a capsule at one line that keeps its corners as it grows (iOS message field). */
-const RADIUS = { none: '', md: 'rounded-md', lg: 'rounded-lg', xl: 'rounded-xl', field: 'rounded-field', full: 'rounded-full' } as const;
+const RADIUS = { none: '', md: 'rounded-md', lg: 'rounded-lg', xl: 'rounded-xl', field: 'rounded-field', bubble: 'rounded-bubble', full: 'rounded-full' } as const;
 
 const EDGE = {
   top: 'border-t border-muted',
