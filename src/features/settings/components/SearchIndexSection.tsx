@@ -1,7 +1,7 @@
 /** Search Index: how many meetings and chats are indexed, re-index each, or rebuild everything. */
 
 import React, { useCallback, useState } from 'react';
-import { Button, CardRow, Section, Status } from '@shared/ui';
+import { CardRow, Section, Status } from '@shared/ui';
 import { useToast } from '@shared/contexts/ToastContext';
 import { confirm } from '@shared/stores/confirmStore';
 import { rebuildSearchIndex, type RebuildScope } from '@extensions/rag';
@@ -33,11 +33,7 @@ const IndexActionRow: React.FC<{
     title={label}
     description={total != null && indexed !== undefined ? `${indexed} of ${total} indexed · ${detail}` : detail}
     status={indexed === undefined ? <Status>{PENDING}</Status> : <IndexStatus indexed={indexed} total={total} />}
-    actions={
-      <Button variant="outline" size="sm" onClick={onReindex} disabled={disabled && !busy} loading={busy}>
-        {busy ? 'Indexing…' : 'Re-index'}
-      </Button>
-    }
+    action={{ label: busy ? 'Indexing…' : `Re-index ${label}`, onPress: onReindex, busy, disabled }}
   />
 );
 

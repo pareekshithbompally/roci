@@ -51,6 +51,8 @@ export interface TextProps extends React.HTMLAttributes<HTMLElement> {
   variant?: TextVariant;
   tone?: TextTone;
   truncate?: boolean;
+  /** Up to two lines, then an ellipsis (a title that would otherwise be cut short on a phone). */
+  clamp?: 2;
   /** Work in progress: a light band sweeps across the words in place of `tone`; faint, still text under Reduce Motion. */
   shimmer?: boolean;
   htmlFor?: string;
@@ -59,13 +61,14 @@ export interface TextProps extends React.HTMLAttributes<HTMLElement> {
 const SHIMMER_CLASSES =
   'bg-text-shimmer bg-shimmer bg-clip-text text-transparent animate-text-shimmer motion-reduce:animate-none motion-reduce:bg-none motion-reduce:text-faint';
 
-export function Text({ as: Tag = 'span', variant = 'body', tone = 'primary', truncate, shimmer, className, ...props }: TextProps) {
+export function Text({ as: Tag = 'span', variant = 'body', tone = 'primary', truncate, clamp, shimmer, className, ...props }: TextProps) {
   return (
     <Tag
       className={cn(
         variant === 'inherit' ? '' : TYPOGRAPHY_CLASSES[variant],
         shimmer ? SHIMMER_CLASSES : TONE_CLASSES[tone],
         truncate && 'truncate',
+        clamp === 2 && 'line-clamp-2 break-words',
         className,
       )}
       {...props}

@@ -3,7 +3,8 @@ import { AppStatus } from '@shared/types';
 
 export type ViewType = 'home' | 'settings' | 'reminders' | 'calendar' | 'gallery' | 'dictations';
 export type SettingsPanel = 'general' | 'storage' | 'defaultModels' | 'personalization' | 'providers' | 'integrations' | 'notifications' | 'mcp' | 'usage' | 'shortcuts' | 'about';
-export type ResultTab = 'transcript' | 'summary' | 'todo' | 'related';
+/** `notes`: a phone's own tab for the meeting's notes (the Mac shows them beside the transcript). */
+export type ResultTab = 'transcript' | 'notes' | 'summary' | 'todo' | 'related';
 
 /** What the user asked for while a recording was capturing. */
 export type ExitPromptKind = 'quit' | 'close';

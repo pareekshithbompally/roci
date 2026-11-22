@@ -2,10 +2,10 @@
  *  steps. iPhone: full screen, the title at the top, the main button pinned above the home indicator. */
 
 import React from 'react';
-import type { LucideIcon } from 'lucide-react';
 import { useFormFactor } from '@platform/formFactor';
 import { Button } from './button';
-import { Icon } from './icon';
+import { Card } from './card';
+import { IconTile } from './icon-tile';
 import { Surface } from './surface';
 import { Text } from './text';
 import { TitlebarDragRegion } from './page-scroll';
@@ -20,13 +20,13 @@ export function WelcomeFrame({ stepKey, children }: WelcomeFrameProps) {
   const phone = useFormFactor() === 'phone';
   if (phone) {
     return (
-      <Surface as="main" variant="page" className="flex h-screen flex-col pt-safe-top">
+      <Surface as="main" variant="grouped" className="flex h-dvh flex-col pt-safe-top">
         <div key={stepKey} className="flex min-h-0 flex-1 flex-col animate-fade-in">{children}</div>
       </Surface>
     );
   }
   return (
-    <Surface as="main" variant="page" className="relative flex h-screen justify-center overflow-y-auto px-6 pb-6 pt-welcome-top">
+    <Surface as="main" variant="page" className="relative flex h-dvh justify-center overflow-y-auto px-6 pb-6 pt-welcome-top">
       <TitlebarDragRegion />
       <Surface variant="card" radius="xl" edge="all" className="h-fit w-full max-w-lg p-8 animate-sheet-show">
         <div key={stepKey} className="animate-fade-in">{children}</div>
@@ -78,12 +78,11 @@ export function WelcomeStep({ icon, title, subtitle, primary, secondary, childre
   if (phone) {
     return (
       <>
-        {/* Centred in the space above the button; scrolls instead when it doesn't fit (my-auto never clips the top). */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-section">
-          <div className="my-auto flex flex-col gap-section">
-            {header}
-            {children}
-          </div>
+        {/* The title at the top (iOS setup screens); the step's card centred in the space below it (my-auto never clips
+            the top, so it scrolls instead when it doesn't fit). */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-4 py-section">
+          {header}
+          {children && <div className="my-auto flex flex-col gap-section pt-section">{children}</div>}
         </div>
         {actions && <footer className="shrink-0 px-6 pb-sheet-end pt-3">{actions}</footer>}
       </>
@@ -99,16 +98,23 @@ export function WelcomeStep({ icon, title, subtitle, primary, secondary, childre
 }
 
 export interface FeatureRowProps {
-  icon: LucideIcon;
+  /** The feature's icon art, already in the current appearance. */
+  image: string;
   title: string;
   children: React.ReactNode;
 }
 
-/** A welcome screen's "what it does" line: an accent glyph, a headline and one sentence. */
-export function FeatureRow({ icon, title, children }: FeatureRowProps) {
+/** A welcome screen's "what it does" lines: one inset card of rows on a phone (iOS grouped list), a spaced list in the
+ *  Mac's panel (already a card). */
+export function FeatureList({ children }: { children: React.ReactNode }) {
+  return useFormFactor() === 'phone' ? <Card>{children}</Card> : <div className="flex flex-col gap-3">{children}</div>;
+}
+
+/** One line of it: its icon art, a headline and one sentence. */
+export function FeatureRow({ image, title, children }: FeatureRowProps) {
   return (
-    <div className="flex items-start gap-4">
-      <Icon icon={icon} size="lg" tone="accent" className="shrink-0" />
+    <div className="flex items-center gap-row-icon py-3">
+      <IconTile image={image} />
       <div className="min-w-0 flex-1">
         <Text as="p" variant="bodyStrong">{title}</Text>
         <Text as="p" variant="helper" tone="muted">{children}</Text>

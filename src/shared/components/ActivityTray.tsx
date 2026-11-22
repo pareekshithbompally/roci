@@ -9,6 +9,7 @@ import { ANIMATION_CONFIG } from '@config/animations.config';
 import { ActivityList } from './activity/ActivityList';
 import { useActivity } from './activity/useActivity';
 import { useMinimizedAudio } from './activity/useMinimizedAudio';
+import { KIT_COPY } from '@config/kitCopy.config';
 
 const { maxVisibleRows, rowHeight } = UI_CONFIG.activityTray;
 
@@ -34,7 +35,7 @@ export const ActivityTray: React.FC = () => {
                 <Text variant="label" className="flex-1">Activity ({count})</Text>
                 <Icon icon={collapsed ? ChevronUp : ChevronDown} size="sm" tone="faint" />
               </Row>
-              {activity.canClear && <IconButton icon={X} label="Clear finished" size="sm" onClick={activity.clearSettled} />}
+              {activity.canClear && <IconButton icon={X} label={KIT_COPY.clearFinished} size="sm" onClick={activity.clearSettled} />}
             </div>
             {!collapsed && (
               <>

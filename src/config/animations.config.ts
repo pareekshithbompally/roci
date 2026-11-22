@@ -1,5 +1,7 @@
 /** Animation timings and framer-motion transitions read outside CSS; kit open/close motion lives in tailwind.config.js. */
 
+import { platform } from '@platform/index';
+
 export const ANIMATION_CONFIG = {
   /** The startup splash fading out (ms, CSS easing). */
   transition: {
@@ -27,7 +29,10 @@ export const ANIMATION_CONFIG = {
 
   chat: {
     /** Shared-element id: the composer glides from the landing page to the bottom of the chat */
-    composerLayoutId: 'chat-composer',
+    /** The glide is a Mac flourish measured on the JS thread; on touch the composer simply stays at the keyboard (iOS),
+     *  so neither the shared id nor layout measuring is set there. */
+    composerLayoutId: platform.hasTouchScreen ? undefined : 'chat-composer',
+    composerLayout: platform.hasTouchScreen ? false : ('position' as const),
     /** framer-motion `layoutDependency` per composer host; values must differ or framer skips the shared glide. */
     composerLayoutDependency: { idle: 'idle', chat: 'chat' },
     /** Composer glide (framer-motion, seconds) — standard easeInOut */

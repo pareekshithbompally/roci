@@ -4,6 +4,7 @@ import { createContext, useContext, type ComponentProps } from 'react';
 import { cn } from './utils';
 import { FLOATING_SURFACE, NO_INSETS, SCRIM } from './recipes';
 import { useFormFactor } from '@platform/formFactor';
+import { SheetContent } from './bottom-sheet';
 
 /**
  * A popover on a Mac (NSPopover-like, beside its trigger); on a phone a bottom sheet, as iOS presents detail.
@@ -48,21 +49,16 @@ export interface PopoverContentProps extends ComponentProps<typeof PopoverPrimit
   label?: string;
 }
 
-const PHONE_SHEET = cn(
-  'fixed inset-x-0 bottom-0 z-modal flex max-h-[85vh] flex-col overflow-y-auto rounded-t-sheet bg-grouped p-4 pb-[calc(var(--safe-bottom)+1rem)] shadow-overlay focus:outline-none',
-  'data-[state=open]:animate-rise-show data-[state=closed]:animate-rise-hide',
-);
 
 export function PopoverContent({ className, sideOffset = 4, width = 'lg', label = 'Details', children, ...props }: PopoverContentProps) {
   if (useContext(AsSheet)) {
     return (
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className={SCRIM} />
-        <DialogPrimitive.Content aria-describedby={undefined} className={PHONE_SHEET}>
+        <SheetContent padded aria-describedby={undefined}>
           <DialogPrimitive.Title className="sr-only">{label}</DialogPrimitive.Title>
-          <div aria-hidden className="mx-auto mb-3 h-1 w-9 shrink-0 rounded-full bg-layer-4" />
           <div className={cn('flex min-h-0 flex-col', NO_INSETS)}>{children}</div>
-        </DialogPrimitive.Content>
+        </SheetContent>
       </DialogPrimitive.Portal>
     );
   }

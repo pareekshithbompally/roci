@@ -1,0 +1,30 @@
+/** The kit's own words: labels its parts show or read out (bar buttons, sheet commands), one place for every screen. */
+
+export const KIT_COPY = {
+  cancel: 'Cancel',
+  save: 'Save',
+  done: 'Done',
+  close: 'Close',
+  back: 'Back',
+  delete: 'Delete',
+  more: 'More',
+  download: 'Download',
+  cancelDownload: 'Cancel download',
+  forward: 'Forward',
+  navigation: 'Navigation',
+  time: 'Time',
+  expand: 'Expand',
+  expandTable: 'Expand table',
+  saveTable: 'Save table',
+  clearFinished: 'Clear finished',
+  activity: {
+    title: 'Activity',
+    cancelAll: 'Cancel all',
+    queued: (count: number) => `${count} queued`,
+    button: (summary: string) => `Activity: ${summary}`,
+  },
+  volume: 'Volume',
+  playbackSpeed: 'Playback speed',
+  loading: 'Loading',
+  context: { conversation: 'Conversation so far', lastReply: 'Last reply', roomLeft: 'Room left', cost: 'Cost so far' },
+} as const;

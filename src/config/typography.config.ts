@@ -11,6 +11,10 @@ export const TYPOGRAPHY_CLASSES = {
   body: 'text-body font-normal',
   /** 13 / 500 — row titles, emphasised body */
   bodyStrong: 'text-body font-medium',
+  /** A running clock: 12 inline on a Mac, a 40 pt light timer on a phone (tokens.css `--fs-timer`), tabular digits. */
+  timer: 'text-timer tabular-nums',
+  /** 13 — a group's heading above its card (semibold on macOS, regular on iOS: tokens.css `--fw-section`) */
+  section: 'text-section',
   /** 13 / 600 — headline */
   headline: 'text-body font-semibold',
   /** 14 — long-form reading: chat messages, transcript, summary */
@@ -20,7 +24,7 @@ export const TYPOGRAPHY_CLASSES = {
   /** 15 / 600 — panel and section titles */
   title: 'text-title3 font-semibold',
   /** 13 tabular — figures in a column (costs, counts) that must line up */
-  figure: 'text-body font-normal tabular-nums',
+  figure: 'text-body font-normal tabular-nums whitespace-nowrap',
   /** 12 tabular — inline numbers (percent, times, token counts): the UI font with even-width digits */
   figureSmall: 'text-callout font-normal tabular-nums',
   /** 12 mono — code: paths, tool names and arguments, error text */

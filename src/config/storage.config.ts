@@ -74,8 +74,8 @@ export const StorageConfig = {
   /** Settings › Storage row commands: labelled push buttons (System Settings); a value's tools (copy) are icons. */
   actions: {
     copyPath: 'Copy path',
-    clearCache: 'Clear',
-    refreshCatalog: 'Refresh',
+    clearCache: 'Clear Cache',
+    refreshCatalog: 'Refresh Catalog',
   },
 } as const;
 

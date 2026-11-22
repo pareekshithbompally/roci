@@ -1,7 +1,6 @@
 /** Add or edit one vocabulary term: the term and its "sounds like" spellings; editing also offers Delete Term. */
 
 import React, { useState } from 'react';
-import { Button } from '@shared/ui';
 import { FormDialog, SettingsInput } from '@shared/components';
 import { PERSONALIZATION_CONFIG } from '@config/personalization.config';
 import { addTerm, parseSoundsLike, removeTerm, updateTerm } from '@features/personalization/utils/vocabulary';
@@ -9,8 +8,6 @@ import type { VocabularyEntry } from '@shared/types';
 
 const COPY = PERSONALIZATION_CONFIG.copy.vocabulary;
 /** Links the footer's Add/Save button to the form, so Return in either field saves (as in a native sheet). */
-const FORM_ID = 'vocabulary-term';
-
 interface TermDialogProps {
   /** The term being edited; none adds a new one. */
   entry?: VocabularyEntry;
@@ -45,15 +42,10 @@ export const TermDialog: React.FC<TermDialogProps> = ({ entry, vocabulary, onSav
       title={entry ? COPY.edit : COPY.add}
       size="md"
       error={error}
-      footer={
-        <>
-          {entry && <Button variant="dangerGhost" onClick={remove} className="mr-auto">{COPY.delete}</Button>}
-          <Button variant="ghost" onClick={onClose}>{COPY.cancel}</Button>
-          <Button type="submit" form={FORM_ID} disabled={!term.trim()}>{entry ? COPY.save : COPY.confirmAdd}</Button>
-        </>
-      }
+      submit={{ label: entry ? COPY.save : COPY.confirmAdd, onPress: save, disabled: !term.trim() }}
+      aside={entry ? { label: COPY.delete, onPress: remove, tone: 'danger' } : undefined}
     >
-      <form id={FORM_ID} className="space-y-4" onSubmit={(e) => { e.preventDefault(); save(); }}>
+      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); save(); }}>
         <SettingsInput
           label={COPY.term}
           value={term}

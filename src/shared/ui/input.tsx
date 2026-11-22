@@ -7,8 +7,12 @@ import { Icon } from './icon';
 /** Field heights from the control scale: `md` a form field, `sm` a field inside a row or table cell (macOS inline field). */
 const HEIGHT = { sm: 'h-control-sm', md: 'h-control-md' } as const;
 
+/** `plain`: no field chrome, the text sits in its row (an iOS edit sheet's field). */
+const PLAIN = 'w-full bg-transparent text-body text-primary placeholder:text-faint outline-none';
+
 export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
   size?: keyof typeof HEIGHT;
+  variant?: 'field' | 'plain';
   /** Leading glyph (search, link…) */
   icon?: LucideIcon;
   /** Buttons inside the field's end (show, copy): laid out beside the text, so the text never runs under them. */
@@ -17,7 +21,7 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
 }
 
 /** Canonical single-line text field. */
-export function Input({ icon, trailing, size = 'md', className, ref, ...fieldProps }: InputProps) {
+export function Input({ icon, trailing, size = 'md', variant = 'field', className, ref, ...fieldProps }: InputProps) {
   // Addresses are typed as-is: no auto-capital, no autocorrect.
   const props = fieldProps.type === 'url' || fieldProps.type === 'email' ? { ...LITERAL_TEXT, ...fieldProps } : fieldProps;
   if (trailing) {
@@ -29,7 +33,7 @@ export function Input({ icon, trailing, size = 'md', className, ref, ...fieldPro
       </div>
     );
   }
-  const field = <input ref={ref} className={cn(FIELD, HEIGHT[size], icon && 'pl-8', className)} {...props} />;
+  const field = <input ref={ref} className={cn(variant === 'plain' ? PLAIN : FIELD, HEIGHT[size], icon && 'pl-8', className)} {...props} />;
   if (!icon) return field;
   return (
     <div className="relative w-full">

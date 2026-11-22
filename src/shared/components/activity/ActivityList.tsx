@@ -3,6 +3,7 @@
 import React from 'react';
 import { Button, Separator, Text } from '@shared/ui';
 import { ActivityRow } from './ActivityRow';
+import { KIT_COPY } from '@config/kitCopy.config';
 import { playbackItem } from './activityModel';
 import type { useActivity } from './useActivity';
 import type { MinimizedAudio } from './useMinimizedAudio';
@@ -25,8 +26,8 @@ export const ActivityList: React.FC<ActivityListProps> = ({ activity, audio }) =
       <>
         <Separator />
         <div className="flex items-center gap-2 px-3 py-1.5">
-          {activity.queued > 0 && <Text variant="caption" tone="muted" className="flex-1">{activity.queued} queued</Text>}
-          {activity.canCancelAll && <Button variant="ghost" size="sm" className="ml-auto" onClick={activity.cancelAll}>Cancel all</Button>}
+          {activity.queued > 0 && <Text variant="caption" tone="muted" className="flex-1">{KIT_COPY.activity.queued(activity.queued)}</Text>}
+          {activity.canCancelAll && <Button variant="ghost" size="sm" className="ml-auto" onClick={activity.cancelAll}>{KIT_COPY.activity.cancelAll}</Button>}
         </div>
       </>
     )}

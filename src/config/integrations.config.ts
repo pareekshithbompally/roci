@@ -18,6 +18,7 @@ export const INTEGRATIONS_CONFIG = {
     /** Bundle id: the row shows the app's own icon from macOS; `symbol` on iPhone. */
     app: 'com.apple.iCal',
     symbol: CalendarDays,
+    rows: { week: 'Your upcoming week', view: 'View Schedule' },
   },
   appleIntelligence: {
     title: 'Apple Intelligence',
@@ -60,6 +61,7 @@ export const INTEGRATIONS_CONFIG = {
     icon: '/images/hex-app-sm.png',
     /** Catch-up on focus at most this often (a full read of Hex's meeting list). */
     focusSyncIntervalMs: 60_000,
+    rows: { app: 'Hex app', running: 'Running', open: 'Open Hex', newMeetings: 'New meetings', meetings: 'Meetings', sync: 'Sync now', syncing: 'Syncing…' },
   },
   reminders: {
     title: 'Reminders',

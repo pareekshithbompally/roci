@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { Clock, Pause, Play, Square } from 'lucide-react';
 import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { IconButton, Text, TitlebarSpacer } from '@shared/ui';
+import { CommandBar, IconButton, Text, TitlebarSpacer, cn, useCommandBarSize } from '@shared/ui';
 import { MeetingStatus, ModelCreditLine } from '@shared/components';
 import type { MeetingPhase } from '@shared/types/meetingPhase';
 import { LAYOUT } from '@config/layout.config';
@@ -26,41 +26,51 @@ const PAUSED: MeetingPhase = { kind: 'paused' };
 
 const report = (step: string) => (error: unknown) => console.error(`[RecordingMeetingView] ${step} failed:`, error);
 
+/** What the transcript pane says before any words: nothing when it stopped (the notice says why), else why it's empty. */
+function liveEmptyCopy(stopped: string | null | undefined, liveOn: boolean, hasModel: boolean): string {
+  if (stopped) return '';
+  if (!liveOn) return LIVE.copy.liveOff;
+  return hasModel ? LIVE.copy.empty : LIVE.copy.noModel;
+}
+
 /** One form for every control (Voice Memos): same-size filled round buttons named on hover, transport glyphs solid, colour
  *  the only difference: Stop in the Recording badge's red, Resume in the accent as the next step while paused, the rest neutral. */
-const Controls: React.FC<{ paused: boolean; busy: boolean; beforeStop: () => Promise<void> }> = ({ paused, busy, beforeStop }) => (
-  <div className="flex shrink-0 items-center gap-2">
-    <IconButton
-      icon={paused ? Play : Pause}
-      filled
-      label={paused ? LIVE.copy.resume : LIVE.copy.pause}
-      size="sm"
-      variant={paused ? 'accentTint' : 'secondary'}
-      disabled={busy}
-      onClick={() => void (paused ? recording.resume() : recording.pause()).catch(report('pause'))}
-    />
-    {/* Offered once paused: keep the audio and transcribe later, instead of now. */}
-    {paused && (
+const Controls: React.FC<{ paused: boolean; busy: boolean; beforeStop: () => Promise<void> }> = ({ paused, busy, beforeStop }) => {
+  const size = useCommandBarSize();
+  return (
+    <div className={cn('flex shrink-0 items-center', size === 'fab' ? 'gap-6' : 'gap-2')}>
       <IconButton
-        icon={Clock}
-        label={LIVE.copy.saveForLater}
-        size="sm"
-        variant="secondary"
+        icon={paused ? Play : Pause}
+        filled
+        label={paused ? LIVE.copy.resume : LIVE.copy.pause}
+        size={size}
+        variant={paused ? 'accentTint' : 'secondary'}
         disabled={busy}
-        onClick={() => void beforeStop().catch(report('save notes')).then(() => recording.stop(true)).catch(report('save for later'))}
+        onClick={() => void (paused ? recording.resume() : recording.pause()).catch(report('pause'))}
       />
-    )}
-    <IconButton
-      icon={Square}
-      filled
-      label={busy ? LIVE.copy.stopping : LIVE.copy.stop}
-      size="sm"
-      variant="dangerTint"
-      disabled={busy}
-      onClick={() => void beforeStop().catch(report('save notes')).then(() => recording.stop()).catch(report('stop'))}
-    />
-  </div>
-);
+      {/* Offered once paused: keep the audio and transcribe later, instead of now. */}
+      {paused && (
+        <IconButton
+          icon={Clock}
+          label={LIVE.copy.saveForLater}
+          size={size}
+          variant="secondary"
+          disabled={busy}
+          onClick={() => void beforeStop().catch(report('save notes')).then(() => recording.stop(true)).catch(report('save for later'))}
+        />
+      )}
+      <IconButton
+        icon={Square}
+        filled
+        label={busy ? LIVE.copy.stopping : LIVE.copy.stop}
+        size={size}
+        variant="dangerTint"
+        disabled={busy}
+        onClick={() => void beforeStop().catch(report('save notes')).then(() => recording.stop()).catch(report('stop'))}
+      />
+    </div>
+  );
+};
 
 /** One recording's screen; keyed by the meeting so its notes start fresh for each recording. */
 const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
@@ -85,7 +95,7 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
     segments,
     // a reason means the live transcript stopped; without one it only fell behind or missed a chunk, and carries on
     notice: reason ? `${LIVE.copy.unavailable} ${reason}` : undefined,
-    empty: reason ? '' : speechSelectionOf(settings) ? LIVE.copy.empty : LIVE.copy.noModel,
+    empty: liveEmptyCopy(reason, !!settings.liveTranscription, !!speech),
     footer: drafting || undefined,
     follow: true,
   };
@@ -96,12 +106,12 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
       <div className={`${LAYOUT.pageGutter} pt-3 pb-3`}>
         <div className={`${LAYOUT.pageColumn} space-y-2`}>
           <div className="flex min-w-0 items-center gap-2">
-            <Text as="h1" variant="pageTitle" truncate>{title}</Text>
+            <Text as="h1" variant="pageTitle" clamp={2}>{title}</Text>
             <MeetingStatus phase={paused ? PAUSED : RECORDING} display="badge" />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
-              <Text variant="figureSmall" tone="muted">{clock}</Text>
+              <Text variant="timer" tone="muted">{clock}</Text>
               <ModelCreditLine
                 credits={[
                   { label: LIVE.copy.transcribing, credit: speech?.model ? { provider: speech.provider, model: speech.model } : null },
@@ -109,7 +119,7 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
                 ]}
               />
             </div>
-            <Controls paused={paused} busy={busy} beforeStop={flush} />
+            <CommandBar placement="header"><Controls paused={paused} busy={busy} beforeStop={flush} /></CommandBar>
           </div>
         </div>
       </div>
@@ -121,6 +131,7 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
           />
         </div>
       </div>
+      <CommandBar placement="bottom"><Controls paused={paused} busy={busy} beforeStop={flush} /></CommandBar>
     </motion.div>
   );
 };

@@ -3,8 +3,12 @@ import { createPortal } from 'react-dom';
 import { ChevronLeft } from 'lucide-react';
 import { IconButton } from './button';
 import { Surface } from './surface';
+import { PageScroll } from './page-scroll';
 import { Text } from './text';
 import { cn } from './utils';
+import { UI_CONFIG } from '@config/ui.config';
+import { commits, slideOff, useTouchDrag } from './touch-drag';
+import { KIT_COPY } from '@config/kitCopy.config';
 
 export interface NavScreen {
   title: string;
@@ -22,6 +26,7 @@ interface NavStackApi {
 }
 
 const NavStackContext = createContext<NavStackApi | null>(null);
+
 
 /** The enclosing `NavStack`, or null outside one (Mac and iPad panels drill in place instead of pushing). */
 export function useOptionalNavStack(): NavStackApi | null {
@@ -48,7 +53,8 @@ function Screen({ header, covered, children }: { header: React.ReactNode; covere
   return (
     <Surface variant="grouped" inert={covered || undefined} className="absolute inset-0 flex flex-col">
       {header}
-      <div className="min-h-0 flex-1 overflow-y-auto pb-safe-bottom">{children}</div>
+      {/* The kit's one page scroller: vertical only, and its top edge fades under the bar once content scrolls. */}
+      <PageScroll className="flex-1 pb-safe-bottom">{children}</PageScroll>
     </Surface>
   );
 }
@@ -68,7 +74,7 @@ export interface NavStackProps {
 /** A pushed screen's title takes focus as it appears, so VoiceOver starts on the new screen. */
 function PushedTitle({ title }: { title: string }) {
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => ref.current?.focus(), []);
+  useEffect(() => ref.current?.focus({ preventScroll: true }), []);
   return (
     <div ref={ref} tabIndex={-1} className="min-w-0 outline-none">
       <Text as="h1" variant="headline" truncate>{title}</Text>
@@ -99,6 +105,8 @@ export function NavStack({ title, action, initial, children }: NavStackProps) {
   const drop = useCallback((id: number) => setStack((s) => s.filter((e) => e.id !== id)), []);
   const api = useMemo(() => ({ push, pop, remove }), [push, pop, remove]);
   const top = topOf(stack);
+  const [topNode, setTopNode] = useState<HTMLDivElement | null>(null);
+  useSwipeBack(topNode, top, drop);
 
   return (
     <NavStackContext.Provider value={api}>
@@ -117,24 +125,61 @@ export function NavStack({ title, action, initial, children }: NavStackProps) {
         {stack.map((screen) => (
           <div
             key={screen.id}
-            className={cn('absolute inset-0', screen.leaving ? 'animate-push-out' : !screen.still && 'animate-push-in')}
+            ref={screen === top ? setTopNode : undefined}
+            className={cn(
+              'absolute inset-0 transition-[translate] duration-ios ease-ios data-[dragging]:transition-none',
+              screen.leaving ? 'animate-push-out' : !screen.still && 'animate-push-in',
+            )}
             onAnimationEnd={(e) => { if (screen.leaving && e.target === e.currentTarget) drop(screen.id); }}
           >
-            <Screen
-              covered={screen !== top}
-              header={
-                <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pt-2 pb-3">
-                  <IconButton icon={ChevronLeft} label="Back" size="fab" variant="bar" onClick={pop} className="justify-self-start" />
-                  <PushedTitle title={screen.title} />
-                </header>
-              }
-            >
-              {screen.content}
-            </Screen>
+            <PushedScreenFrame screen={screen} covered={screen !== top} onBack={pop} />
           </div>
         ))}
       </div>
     </NavStackContext.Provider>
+  );
+}
+
+/** Swipe from the left edge to go back (iOS): the top screen follows the finger; let go far or fast enough and it slides
+ *  off and leaves the stack, otherwise it slides back. */
+function useSwipeBack(node: HTMLDivElement | null, top: StackEntry | undefined, drop: (id: number) => void): void {
+  useTouchDrag(node, {
+    axis: 'x',
+    edgeOnly: true,
+    onMove: (dx) => {
+      if (!node) return;
+      node.dataset.dragging = '';
+      node.style.translate = `${Math.max(0, dx)}px 0`;
+    },
+    onEnd: (dx, speed) => {
+      if (!node || !top) return;
+      delete node.dataset.dragging;
+      if (!commits(dx, speed, node.offsetWidth, UI_CONFIG.gesture.edgeShare)) {
+        node.style.translate = '';
+        return;
+      }
+      slideOff(node, '100% 0', () => {
+        top.onPop?.();
+        drop(top.id);
+      });
+    },
+  });
+}
+
+/** A pushed screen: a round back button and the centred title. */
+function PushedScreenFrame({ screen, covered, onBack }: { screen: StackEntry; covered: boolean; onBack: () => void }) {
+  return (
+    <Screen
+      covered={covered}
+      header={
+        <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pt-2 pb-3">
+          <IconButton icon={ChevronLeft} label={KIT_COPY.back} size="fab" variant="bar" onClick={onBack} className="justify-self-start" />
+          <PushedTitle title={screen.title} />
+        </header>
+      }
+    >
+      {screen.content}
+    </Screen>
   );
 }
 

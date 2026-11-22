@@ -9,6 +9,7 @@ import { ProgressRing } from './progress-ring';
 import { Text, TONE_CLASSES } from './text';
 import type { TextTone } from './text';
 import { cn } from './utils';
+import { KIT_COPY } from '@config/kitCopy.config';
 
 const LEVEL_TONE: Record<ContextLevel, TextTone> = {
   ok: 'muted',
@@ -74,14 +75,14 @@ const Breakdown: React.FC<{ usage: ContextUsage; tools?: ContextRingTools; cost?
     <Progress percent={usage.percent} tone={LEVEL_PROGRESS_TONE[usage.level]} />
     <div className="mt-1 flex flex-col gap-2">
       <BreakdownRow
-        label="Conversation so far"
+        label={KIT_COPY.context.conversation}
         value={formatTokens(usage.prompt)}
         sub={usage.cached > 0 ? `${usage.cached.toLocaleString()} from cache` : undefined}
       />
-      <BreakdownRow label="Last reply" value={formatTokens(usage.reply)} />
+      <BreakdownRow label={KIT_COPY.context.lastReply} value={formatTokens(usage.reply)} />
       {tools && <BreakdownRow label="Tools, each message" value={tools.total} sub={tools.note} />}
-      <BreakdownRow label="Room left" value={formatTokens(usage.left)} />
-      {cost && <BreakdownRow label="Cost so far" value={cost.total} sub={cost.note} />}
+      <BreakdownRow label={KIT_COPY.context.roomLeft} value={formatTokens(usage.left)} />
+      {cost && <BreakdownRow label={KIT_COPY.context.cost} value={cost.total} sub={cost.note} />}
     </div>
   </div>
 );

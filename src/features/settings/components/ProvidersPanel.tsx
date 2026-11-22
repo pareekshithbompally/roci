@@ -53,7 +53,7 @@ export const ProvidersPanel: React.FC = () => {
     title: ADD_SERVER.title,
     render: (close) => (
       <SettingsPage title={ADD_SERVER.title} onBack={close}>
-        <AddServerForm onAdded={(id) => { close(); openProvider(id); }} onCancel={close} />
+        <AddServerForm onAdded={(id) => { close(); openProvider(id); }} />
       </SettingsPage>
     ),
   };

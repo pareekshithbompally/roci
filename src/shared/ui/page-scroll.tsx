@@ -1,4 +1,4 @@
-import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
+import { forwardRef, useState, type HTMLAttributes, type ReactNode, type UIEvent } from 'react';
 import { platform } from '@platform/index';
 import { UI_CONFIG } from '@config/ui.config';
 import { LAYOUT } from '@config/layout.config';
@@ -6,6 +6,8 @@ import { edgeFade } from './fade';
 import { cn } from './utils';
 
 const { safeArea } = UI_CONFIG.layout.titlebar;
+/** The titlebar band where there is one (Mac); none on iPhone, whose bar sits above the scroller, so nothing rests in a fade. */
+const titlebarBand = platform.hasWindowChrome ? safeArea : 0;
 const { edgeFadePx, viewFadePx } = UI_CONFIG.layout.pageScroll;
 
 /** Empty room that keeps content clear of a band (the titlebar, a faded edge). */
@@ -21,7 +23,7 @@ export function TitlebarDragRegion() {
 
 /** Reserves the titlebar band (traffic lights + drag strip) above a view's fixed header. */
 export function TitlebarSpacer() {
-  return platform.hasWindowChrome ? <Band height={safeArea} /> : null;
+  return titlebarBand ? <Band height={titlebarBand} /> : null;
 }
 
 export interface PageScrollProps extends HTMLAttributes<HTMLDivElement> {
@@ -38,15 +40,23 @@ export interface PageScrollProps extends HTMLAttributes<HTMLDivElement> {
 
 /** A view's vertical page scroller with edge fades; callers add layout and padding. Use `ScrollArea` for insets. */
 export const PageScroll = forwardRef<HTMLDivElement, PageScrollProps>(
-  ({ underTitlebar = true, fadeTop = false, fadeBottom = false, steady = false, className, style, children, ...props }, ref) => {
+  ({ underTitlebar = true, fadeTop = false, fadeBottom = false, steady = false, className, style, children, onScroll, ...props }, ref) => {
+    // No titlebar (iPhone): the top edge fades only once content has scrolled under the bar, never at rest.
+    const [scrolled, setScrolled] = useState(false);
     const band = fadeTop === true ? edgeFadePx : fadeTop || 0;
-    const top = underTitlebar ? safeArea : band;
+    const barFade = titlebarBand || (scrolled ? edgeFadePx : 0);
+    const top = underTitlebar ? barFade : band;
+    const handleScroll = (e: UIEvent<HTMLDivElement>) => {
+      setScrolled(e.currentTarget.scrollTop > 0);
+      onScroll?.(e);
+    };
     const fade = edgeFade({ top, bottom: fadeBottom ? edgeFadePx : 0 });
     return (
       <div
         ref={ref}
-        className={cn('min-h-0 custom-scrollbar', steady ? 'overflow-y-scroll' : 'overflow-y-auto', className)}
+        className={cn('min-h-0 overflow-x-hidden custom-scrollbar', steady ? 'overflow-y-scroll' : 'overflow-y-auto', className)}
         style={{ ...fade, ...style }}
+        onScroll={handleScroll}
         {...props}
       >
         {underTitlebar && <TitlebarSpacer />}

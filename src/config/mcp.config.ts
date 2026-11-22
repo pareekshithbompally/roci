@@ -56,6 +56,21 @@ export const DEFAULT_MCP_SETTINGS: McpSettings = {
 /** Stable key for one MCP tool in saved preferences (`AppSettings.chatTools`). */
 export const mcpToolKey = (server: string, tool: string) => `${server}/${tool}`;
 
+/** MCP Servers' own words (panel controls, server forms). */
+export const MCP_COPY = {
+  addServer: 'Add Server',
+  editAll: 'Edit as JSON',
+  editAllTitle: 'Edit all MCP servers as JSON',
+  servers: 'Servers',
+  serversFooter: 'Model Context Protocol servers give chat new tools.',
+  empty: 'No servers yet',
+  permissions: 'Permissions',
+  limits: 'Limits',
+  loadFailed: 'Could not load MCP config:',
+  connecting: 'Connecting…',
+  saving: 'Saving…',
+} as const;
+
 export const MCP_CONFIG = {
   /** Rust → webview: a server connected, disconnected, or reconnected. */
   updateEvent: 'mcp-update',

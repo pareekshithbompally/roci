@@ -14,6 +14,8 @@ export function rowClasses(selected?: boolean, size: RowSize = 'md'): string {
     'flex w-full min-h-control-md items-center gap-2 rounded-md px-2.5 text-left text-body text-primary transition-colors cursor-pointer min-w-0',
     ROW_PADDING[size],
     selected ? 'bg-pressed' : 'hover:bg-hover',
+    // Touch: a list row shades while the finger is on it (UITableView highlight).
+    platform.hasTouchScreen && 'active:bg-pressed',
   );
 }
 
@@ -31,7 +33,7 @@ export function Row({ selected, size, leading, className, type = 'button', child
         // Icon and text are one group the row centres; inside it the icon's box is one text line tall (1lh), so it
         // sits on the first line wherever the row places the text.
         <span className="flex min-w-0 flex-1 items-start gap-2">
-          <span className="flex h-[1lh] shrink-0 items-center">{leading}</span>
+          <span className="flex h-[1lh] shrink-0 items-center empty:hidden">{leading}</span>
           <span className="min-w-0 flex-1">{children}</span>
         </span>
       ) : children}
@@ -86,6 +88,7 @@ export function RowAction({ className, type = 'button', ref, ...props }: RowActi
         // Touch screens have no hover: the action stays visible there.
         platform.hasTouchScreen ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 data-[state=open]:opacity-100',
         'hover:bg-pressed',
+        platform.hasTouchScreen && 'active:opacity-60',
         className,
       )}
       {...props}

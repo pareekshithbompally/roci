@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Brain } from 'lucide-react';
-import { Button, Textarea } from '@shared/ui';
+import { Textarea } from '@shared/ui';
 import { ProposalCard, type ProposalItem, FormDialog } from '@shared/components';
 import { PERSONALIZATION_CONFIG } from '@config/personalization.config';
 import { KNOWLEDGE_LIMITS } from '@config/knowledge.config';
@@ -25,7 +25,8 @@ const EditDialog: React.FC<{ proposal: MemoryProposal; onClose: () => void }> = 
       onOpenChange={(open) => !open && onClose()}
       title={COPY.edit}
       size="md"
-      footer={<Button onClick={save} disabled={!text.trim()}>{COPY.done}</Button>}
+      submit={{ label: COPY.done, onPress: save, disabled: !text.trim() }}
+      viewOnly
     >
       <Textarea rows={3} value={text} maxLength={KNOWLEDGE_LIMITS.memory} onChange={(e) => setText(e.target.value)} aria-label={COPY.edit} autoFocus />
     </FormDialog>

@@ -8,6 +8,7 @@ import { UI_CONFIG } from '@config/ui.config';
 import { IconButton } from './button';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogOverlay, DialogPortal, DialogTitle } from './dialog';
 import { ChartLegend } from './chart-legend';
+import { KIT_COPY } from '@config/kitCopy.config';
 
 export interface GraphViewNode {
   id: string;
@@ -74,7 +75,7 @@ export function GraphView({ legend, ...props }: GraphViewProps & { legend?: read
       <div className="relative">
         <Canvas {...props} />
         <div className="absolute right-2 top-2">
-          <IconButton icon={Maximize2} label="Expand" size="sm" onClick={() => setExpanded(true)} />
+          <IconButton icon={Maximize2} label={KIT_COPY.expand} size="sm" onClick={() => setExpanded(true)} />
         </div>
       </div>
       {legend && <GraphLegend items={legend} kindTokens={props.kindTokens} />}
@@ -85,7 +86,7 @@ export function GraphView({ legend, ...props }: GraphViewProps & { legend?: read
             <DialogHeader>
               <DialogTitle>{props.label}</DialogTitle>
               <DialogClose asChild>
-                <IconButton icon={X} label="Close" size="sm" />
+                <IconButton icon={X} label={KIT_COPY.close} size="sm" />
               </DialogClose>
             </DialogHeader>
             {expanded && <Canvas {...props} expanded height={Math.round(window.innerHeight * UI_CONFIG.graph.expandedHeight)} />}

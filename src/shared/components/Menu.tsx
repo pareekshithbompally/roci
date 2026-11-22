@@ -5,10 +5,7 @@
 
 import React, { useState } from 'react';
 import { Check } from 'lucide-react';
-import {
-  BottomSheet, CardRow, DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
-  DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, Icon, Section, SheetBody,
-} from '@shared/ui';
+import { CardRow, DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, Icon, InfoSheet, Section } from '@shared/ui';
 import { nativeMenu, type MenuEntry, type NativeMenuEntry } from '@services/tauri';
 import { MENU_GAP_PT } from '@config/ui.config';
 import { useFormFactor } from '@platform/formFactor';
@@ -146,15 +143,13 @@ export function Menu({ label, trigger, items: source, align = 'end' }: MenuProps
     return (
       <>
         {withClick(trigger, () => prepare(() => setOpen(true)))}
-        <BottomSheet open={open} onOpenChange={setOpen} title={label}>
-          <SheetBody>
-            {sheetGroups(items).map((group, i) => (
-              <Section key={i} title={group.title}>
-                {group.rows.map((entry, j) => <SheetRow key={j} entry={entry} done={() => setOpen(false)} />)}
-              </Section>
-            ))}
-          </SheetBody>
-        </BottomSheet>
+        <InfoSheet open={open} onOpenChange={setOpen} title={label}>
+          {sheetGroups(items).map((group, i) => (
+            <Section key={i} title={group.title}>
+              {group.rows.map((entry, j) => <SheetRow key={j} entry={entry} done={() => setOpen(false)} />)}
+            </Section>
+          ))}
+        </InfoSheet>
       </>
     );
   }

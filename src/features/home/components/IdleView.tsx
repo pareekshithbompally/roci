@@ -103,7 +103,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
               {/* Shared ChatInput — glides to the bottom of the chat on first send */}
               <motion.div
                 className={cn(phone && 'order-last')}
-                layout="position"
+                layout={ANIMATION_CONFIG.chat.composerLayout}
                 layoutId={ANIMATION_CONFIG.chat.composerLayoutId}
                 layoutDependency={ANIMATION_CONFIG.chat.composerLayoutDependency.idle}
                 transition={ANIMATION_CONFIG.chat.composerGlide}
@@ -148,7 +148,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
               {/* chat's model still downloading: say so, instead of sending to setup */}
               {chatDownload && (
                 <div className="flex items-center justify-center gap-2">
-                  <Text as="span" tone="muted"><ProgressRing percent={chatDownload.percent ?? 0} /></Text>
+                  <ProgressRing percent={chatDownload.percent ?? 0} tone="muted" />
                   <Text variant="label" tone="muted">{FINISH_SETUP.downloading(chatDownload.name, chatDownload.percent)}</Text>
                 </div>
               )}

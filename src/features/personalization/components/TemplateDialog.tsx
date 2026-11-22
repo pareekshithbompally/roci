@@ -1,7 +1,7 @@
 /** Edit one prompt template: the user's rewrite, or Roci's text to start from; Reset to Default restores Roci's text. */
 
 import React, { useState } from 'react';
-import { Button, Textarea } from '@shared/ui';
+import { Textarea } from '@shared/ui';
 import { FormDialog } from '@shared/components';
 import { PERSONALIZATION_CONFIG, type PromptTemplateId } from '@config/personalization.config';
 import { promptTemplateDefault } from '@core/ai';
@@ -34,13 +34,8 @@ export const TemplateDialog: React.FC<TemplateDialogProps> = ({ id, label, onClo
       onOpenChange={(open) => !open && onClose()}
       title={COPY.edit(label)}
       error={tooLong ? COPY.tooLong(limits.template) : null}
-      footer={
-        <>
-          <Button variant="ghost" onClick={() => setText(fallback)} disabled={text === fallback} className="mr-auto">{COPY.reset}</Button>
-          <Button variant="ghost" onClick={onClose}>{COPY.cancel}</Button>
-          <Button onClick={save} disabled={tooLong || !text.trim()}>{COPY.save}</Button>
-        </>
-      }
+      submit={{ label: COPY.save, onPress: save, disabled: tooLong || !text.trim() }}
+      aside={{ label: COPY.reset, onPress: () => setText(fallback), disabled: text === fallback }}
     >
       <Textarea variant="code" value={text} onChange={(e) => setText(e.target.value)} aria-label={label} autoFocus />
     </FormDialog>

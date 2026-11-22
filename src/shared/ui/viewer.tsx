@@ -5,6 +5,7 @@ import { IconButton } from './button';
 import { SCRIM } from './recipes';
 import { cn } from './utils';
 import { platform } from '@platform/index';
+import { KIT_COPY } from '@config/kitCopy.config';
 
 /** Room around what is shown: iPhone keeps clear of the close button and the home bar; the Mac leaves an even margin. */
 const FRAME = platform.hasTouchScreen ? 'px-4 pt-20 pb-sheet-end' : 'p-16';
@@ -50,7 +51,7 @@ export function Viewer({ media, open, onOpenChange, caption }: ViewerProps) {
             {caption && <div className="w-full max-w-xl shrink-0">{caption}</div>}
           </div>
           <DialogPrimitive.Close asChild>
-            <IconButton icon={X} label="Close" size="fab" variant="bar" className="absolute top-safe-top right-4 mt-4" />
+            <IconButton icon={X} label={KIT_COPY.close} size="fab" variant="bar" className="absolute top-safe-top right-4 mt-4" />
           </DialogPrimitive.Close>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

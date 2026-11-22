@@ -1,7 +1,7 @@
 /** Hex's transcription models in Default Models while on, and every Hex meeting synced one-way into Roci. */
 
 import React from 'react';
-import { Button, CardRow, Status } from '@shared/ui';
+import { CardRow, Status } from '@shared/ui';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { useHexControls } from '@features/integrations/hooks/useHexControls';
 import { IntegrationRow } from './IntegrationRow';
@@ -24,19 +24,15 @@ export const HexIntegration: React.FC = () => {
   return (
     <IntegrationRow {...hex} icon={<IntegrationIcon app={COPY.app} src={COPY.icon} />} title={COPY.title} description={COPY.description}>
       <CardRow
-        title="Hex app"
-        status={hex.running && <Status tone="success">Running</Status>}
-        actions={!hex.running && <Button variant="outline" size="sm" onClick={hex.openHex}>Open Hex</Button>}
+        title={COPY.rows.app}
+        status={hex.running && <Status tone="success">{COPY.rows.running}</Status>}
+        action={hex.running ? undefined : { label: COPY.rows.open, onPress: hex.openHex }}
       />
-      <CardRow title="New meetings" status={<Status tone={events.tone}>{events.label}</Status>} />
+      <CardRow title={COPY.rows.newMeetings} status={<Status tone={events.tone}>{events.label}</Status>} />
       <CardRow
-        title="Meetings"
+        title={COPY.rows.meetings}
         description={hex.syncError}
-        actions={
-          <Button variant="outline" size="sm" onClick={hex.syncNow} loading={hex.syncing}>
-            {hex.syncing ? 'Syncing…' : 'Sync now'}
-          </Button>
-        }
+        action={{ label: hex.syncing ? COPY.rows.syncing : COPY.rows.sync, onPress: hex.syncNow, busy: hex.syncing }}
       />
     </IntegrationRow>
   );

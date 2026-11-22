@@ -11,8 +11,12 @@ import { useThemeContext } from '@shared/contexts/ThemeContext';
 import { playbackElement, useAudioPlayerStore, type PlaybackSession } from '@shared/stores/audioPlayerStore';
 import { cssToken } from '@shared/utils/cssToken';
 import { PLAYER_CONFIG } from '@config/player.config';
+import { useFormFactor } from '@platform/formFactor';
 import { Button, Icon, IconButton, Popover, PopoverAnchor, PopoverContent, Slider, Surface, Text } from '@shared/ui';
 import { Menu } from './Menu';
+import { KIT_COPY } from '@config/kitCopy.config';
+
+const COPY = PLAYER_CONFIG.copy;
 
 const { skipSeconds, seekSeconds, volumeStep, speeds, waveform } = PLAYER_CONFIG;
 
@@ -118,7 +122,7 @@ function VolumeControl() {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverAnchor asChild>
         <div className="flex items-center" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
-          <IconButton icon={VolumeIcon} size="sm" onClick={toggleMute} label={isMuted ? 'Unmute' : 'Mute'} />
+          <IconButton icon={VolumeIcon} size="sm" onClick={toggleMute} label={isMuted ? COPY.unmute : COPY.mute} />
           <PopoverContent side="top" sideOffset={8} width="auto" className="p-2" onOpenAutoFocus={(e) => e.preventDefault()}>
             <Slider
               orientation="vertical"
@@ -127,7 +131,7 @@ function VolumeControl() {
               step={0.01}
               value={level}
               onChange={(e) => setVolume(parseFloat(e.target.value))}
-              aria-label="Volume"
+              aria-label={KIT_COPY.volume}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={Math.round(level * 100)}
@@ -144,10 +148,10 @@ function SpeedMenu() {
   const setPlaybackRate = useAudioPlayerStore((s) => s.setPlaybackRate);
   return (
     <Menu
-      label="Playback speed"
+      label={KIT_COPY.playbackSpeed}
       align="start"
       trigger={(
-        <Button variant="ghost" size="sm" aria-label={`Playback speed ${playbackRate}x`}>
+        <Button variant="ghost" size="sm" aria-label={COPY.speed(playbackRate)}>
           <Text variant="figureSmall" tone="inherit">{playbackRate}x</Text>
         </Button>
       )}
@@ -213,27 +217,30 @@ export const AudioPlayer: React.FC<{ session: PlaybackSession }> = ({ session })
   usePlayerKeys(playerRef, playback);
 
   const duration = wavesurfer?.getDuration() || session.duration;
+  // A phone's player is compact (Voice Memos): play, time, speed; it skips by tapping the waveform and sets volume with
+  // the device's own buttons.
+  const compact = useFormFactor() === 'phone';
   const displayTime = showRemaining ? `-${formatClock(Math.max(duration - playback.currentTime, 0))}` : formatClock(playback.currentTime);
 
   return (
-    <Surface ref={playerRef} tabIndex={0} variant="card" radius="lg" className="flex flex-col gap-2 w-full p-3 select-none" role="region" aria-label="Audio player">
+    <Surface ref={playerRef} tabIndex={0} variant="card" radius="lg" className="flex flex-col gap-2 w-full p-3 select-none" role="region" aria-label={COPY.player}>
       <div className="flex items-center gap-2">
-        <IconButton icon={SkipBack} size="sm" onClick={() => playback.skipBy(-skipSeconds)} label={`Skip back ${skipSeconds} seconds`} />
-        <Button variant="primary" size="icon" onClick={playback.togglePlay} aria-label={playback.isPlaying ? 'Pause' : 'Play'}>
+        {!compact && <IconButton icon={SkipBack} size="sm" onClick={() => playback.skipBy(-skipSeconds)} label={COPY.skipBack(skipSeconds)} />}
+        <Button variant="primary" size="icon" onClick={playback.togglePlay} aria-label={playback.isPlaying ? COPY.pause : COPY.play}>
           <Icon icon={playback.isPlaying ? Pause : Play} size="sm" className={playback.isPlaying ? 'fill-current' : 'fill-current ml-0.5'} />
         </Button>
-        <IconButton icon={SkipForward} size="sm" onClick={() => playback.skipBy(skipSeconds)} label={`Skip forward ${skipSeconds} seconds`} />
+        {!compact && <IconButton icon={SkipForward} size="sm" onClick={() => playback.skipBy(skipSeconds)} label={COPY.skipForward(skipSeconds)} />}
         <Button
           variant="ghost"
           size="inline"
           onClick={() => setShowRemaining(!showRemaining)}
           className="min-w-16"
-          aria-label={showRemaining ? 'Show elapsed time' : 'Show remaining time'}
+          aria-label={showRemaining ? COPY.showElapsed : COPY.showRemaining}
         >
           <Text variant="figureSmall" tone="inherit">{displayTime}</Text>
         </Button>
         <div className="flex-1" />
-        <VolumeControl />
+        {!compact && <VolumeControl />}
         <SpeedMenu />
         <Text variant="figureSmall" tone="muted" className="min-w-16 text-right">{formatClock(duration)}</Text>
       </div>

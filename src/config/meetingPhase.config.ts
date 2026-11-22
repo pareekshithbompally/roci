@@ -8,6 +8,9 @@ type Kind = MeetingPhase['kind'];
 type BadgeTone = 'default' | 'warning' | 'error' | 'info';
 type IconTone = 'muted' | 'warning' | 'danger' | 'ai';
 
+/** Words the meeting's phase notice shows besides its phase (the AI isn't set up yet). */
+export const MEETING_PHASE_COPY = { setUpAI: 'Set up AI' } as const;
+
 export interface MeetingPhaseStyle {
   icon: LucideIcon;
   iconTone: IconTone;

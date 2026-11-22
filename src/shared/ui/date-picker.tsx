@@ -3,6 +3,7 @@
 import React, { useRef } from 'react';
 import { cn } from './utils';
 import { Button } from './button';
+import { KIT_COPY } from '@config/kitCopy.config';
 
 interface DatePickerProps {
   /** Selected date as YYYY-MM-DD string */
@@ -63,7 +64,7 @@ const HALF_HOUR_SECONDS = 1800;
 export const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, disabled, className }) => (
   <input
     type="time"
-    aria-label="Time"
+    aria-label={KIT_COPY.time}
     value={value}
     step={HALF_HOUR_SECONDS}
     disabled={disabled}

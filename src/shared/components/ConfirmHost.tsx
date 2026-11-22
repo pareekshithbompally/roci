@@ -14,13 +14,14 @@ import {
   Button,
 } from '@shared/ui';
 import { settleConfirm, useConfirmOpen, useConfirmRequest } from '@shared/stores/confirmStore';
+import { KIT_COPY } from '@config/kitCopy.config';
 
 export const ConfirmHost: React.FC = () => {
   const request = useConfirmRequest();
   const open = useConfirmOpen();
   if (!request) return null;
 
-  const { title, description, confirmLabel, cancelLabel = 'Cancel', tone = 'default' } = request;
+  const { title, description, confirmLabel, cancelLabel = KIT_COPY.cancel, tone = 'default' } = request;
 
   return (
     <AlertDialog open={open} onOpenChange={(isOpen) => { if (!isOpen) settleConfirm(false); }}>

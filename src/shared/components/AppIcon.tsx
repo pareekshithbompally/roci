@@ -44,16 +44,23 @@ const TileImage: React.FC<{ src?: string | null }> = ({ src }) => (
   </span>
 );
 
-/** An app's icon image at a kit icon size; an empty slot of the same size when there is none, so rows line up. */
-export const AppImage: React.FC<{ src?: string | null; size: AppIconSize }> = ({ src, size }) => {
+/** An app's icon image at a kit icon size; an empty slot of the same size when there is none, so rows line up. `bare`:
+ *  art with no padding of its own, drawn at an app icon's visible size so it matches the system icons beside it. */
+export const AppImage: React.FC<{ src?: string | null; size: AppIconSize; bare?: boolean }> = ({ src, size, bare }) => {
   if (size === 'tile') return <TileImage src={src} />;
   const px = ICON_SIZE_PX[size];
   if (!src) return <span aria-hidden className="shrink-0 inline-block" style={{ width: px, height: px }} />;
-  return <img src={src} alt="" aria-hidden width={px} height={px} className="shrink-0" />;
+  const drawn = bare ? Math.round(px * UI_CONFIG.appIconBody) : px;
+  return (
+    <span aria-hidden className="inline-flex shrink-0 items-center justify-center" style={{ width: px, height: px }}>
+      <img src={src} alt="" width={drawn} height={drawn} className="shrink-0" />
+    </span>
+  );
 };
 
 export const AppIcon: React.FC<AppIconProps> = ({ app, size, fallback, symbol }) => {
-  const src = useAppIcon(app) ?? fallback;
-  if (src || !symbol) return <AppImage src={src} size={size} />;
+  const icon = useAppIcon(app);
+  const src = icon ?? fallback;
+  if (src || !symbol) return <AppImage src={src} size={size} bare={!icon} />;
   return size === 'tile' ? <IconTile icon={symbol} /> : <Icon icon={symbol} size={size} />;
 };

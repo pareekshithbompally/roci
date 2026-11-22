@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { AppleIntelligenceIntegration } from '@features/integrations';
-import { JOB_GLYPH, ModelDownloadButton, ModelIcon, ModelLabel, ModelSize, ProvidersAvatar } from '@shared/components';
-import { Card, CardRow, ICON_TILE_PX, IconTile, Picker, Section, Status } from '@shared/ui';
+import { JOB_GLYPH, ModelDownloadButton, ModelIcon, ModelLabel, ModelSize } from '@shared/components';
+import { CardRow, ICON_TILE_PX, IconTile, Picker, Section, Status } from '@shared/ui';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { LAYOUT } from '@config/layout.config';
 import { formatFileSize } from '@shared/utils/formatters';
@@ -102,9 +102,6 @@ const Downloads: React.FC = () => {
 
 export const OnDeviceDetail: React.FC = () => (
   <>
-    <Card>
-      <CardRow leading={<ProvidersAvatar provider={ON_DEVICE.id} size={20} />} title={ON_DEVICE.title} />
-    </Card>
     <BuiltIn />
     {platform.hasLocalModels && <Downloads />}
     {platform.hasLocalModels && <Memory />}

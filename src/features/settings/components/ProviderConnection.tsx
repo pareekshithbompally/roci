@@ -4,13 +4,13 @@ import React from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { isManagedSDK } from '@shared/utils/modelResolver';
 import { getProviderTitle } from '@shared/utils/provider.utils';
-import { CardRow, Input, Section, Status } from '@shared/ui';
+import { CardRow, Section, Status } from '@shared/ui';
 import type { DotTone } from '@shared/ui';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ConnectionStatus, ProviderConnection as Connection } from '@features/settings/hooks/useProviderConnection';
 import { renderWithLinks } from '@shared/components';
 import { formatRelativeTime } from '@shared/utils/formatters';
-import { FieldRow, SecretInput } from './shared';
+import { FieldRow } from '@shared/components';
 
 interface ProviderConnectionProps {
   provider: ModelProvider;
@@ -93,13 +93,7 @@ export const ProviderConnection: React.FC<ProviderConnectionProps> = ({ provider
         const placeholder = setting.controller_props.placeholder;
         const update = (next: string) => updateProviderSetting(provider.provider, index, next);
         return (
-          <FieldRow key={setting.key} title={setting.title}>
-            {setting.key === 'api-key' ? (
-              <SecretInput value={value} placeholder={placeholder} label={setting.title} onChange={update} />
-            ) : (
-              <Input size="sm" value={value} placeholder={placeholder} aria-label={setting.title} onChange={(e) => update(e.target.value)} />
-            )}
-          </FieldRow>
+          <FieldRow key={setting.key} title={setting.title} kind={setting.key === 'api-key' ? 'secret' : 'url'} value={value} placeholder={placeholder} onChange={update} />
         );
       })}
       {connection && <TestRows connection={connection} />}

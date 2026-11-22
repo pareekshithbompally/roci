@@ -36,14 +36,14 @@ export const UI_CONFIG = {
   /** A glyph on an app-icon-sized tile, so a bare glyph weighs the same as the app icons beside it. */
   glyphTile: { tile: 34, glyph: 24 },
   /** A Settings pane's header: its icon's edge (px). */
-  paneHero: { tile: 64 },
+  paneHero: { tile: 64, compactTile: 44 },
   /** Settings pane icons (Icon Composer renders), one per pane and appearance: `{dir}/{pane}-{light|dark}.webp`. */
   settingsArt: '/images/settings',
   /** A logo's colour for a tinted badge (useLogoTint): read at `samplePx` square from the pixels at least `minSaturation`
    *  saturated and `minBrightness` bright; under `minShare` of the logo coloured, it counts as mono (no tint). */
   logoTint: { samplePx: 24, minSaturation: 0.3, minBrightness: 0.2, minShare: 0.08 },
   /** A list row's icon image, larger than a line glyph as Apple's are (macOS sidebar 20 pt, iOS Settings 29 pt). */
-  listArt: { desktop: 20, touch: 29 },
+  listArt: { desktop: 20, touch: 27, radius: 0.22 },
   /** Bar chart (usage trends): plot height (taller on touch), bar cap and gap, data-end radius, axis gutters, label density, dimmed bars. */
   /** Data tables: rows shown before the table scrolls inside its card (its header stays). */
   table: {
@@ -124,6 +124,11 @@ export const UI_CONFIG = {
     /** Touch screens: centred banners just under the status bar / Dynamic Island, inset from the screen edges. */
     touch: { belowSafeAreaPx: 8, sidePx: 12 },
   },
+
+  /** Touch drags (iOS, kit `useTouchDrag`): let go past a share of the travel, or faster than `commitSpeed` (px per ms),
+   *  and the move completes, otherwise it springs back. A sheet closes past `sheetShare` of its height; swipe back and the
+   *  sidebar start within `edgePx` of the left edge and complete past `edgeShare` of the width. */
+  gesture: { commitSpeed: 0.5, sheetShare: 0.25, edgePx: 24, edgeShare: 0.35 },
 
   // Command popovers (composer pickers) and their hover flyouts
   picker: {

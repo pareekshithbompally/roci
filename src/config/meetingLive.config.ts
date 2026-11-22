@@ -43,8 +43,44 @@ export const MEETING_LIVE_CONFIG = {
     unavailable: 'Live transcript unavailable. Audio is still recording safely.',
     empty: 'Listening for speech…',
     noModel: 'Choose a speech model in Settings › Default Models to see words as they are said.',
+    /** Live Transcript off: nothing shows while recording; the transcript is written after Stop. */
+    liveOff: 'Live Transcript is off. The transcript is written when you stop.',
   },
 } as const;
 
 /** A recorded source, as Rust names it. */
 export type MeetingSourceId = MeetingSource;
+
+/** A meeting's tabs (the meeting view's one segmented control). */
+export const MEETING_TABS = { summary: 'Summary', transcript: 'Transcript' } as const;
+
+/** A meeting's header commands. */
+export const MEETING_HEADER_COPY = {
+  actions: 'Meeting actions',
+  rename: 'Rename…',
+  renameTitle: 'Rename Meeting',
+  name: 'Name',
+  details: 'Details',
+  save: 'Save',
+} as const;
+
+const plural = (count: number, word: string): string => `${count.toLocaleString()} ${word}${count === 1 ? '' : 's'}`;
+
+/** A meeting's details sheet (⋯ › Details). */
+export const MEETING_DETAILS_COPY = {
+  title: 'About this meeting',
+  done: 'Done',
+  loading: 'Loading…',
+  recording: 'Recording',
+  recorded: 'Recorded',
+  length: 'Length',
+  source: 'Source',
+  file: 'File',
+  transcript: 'Transcript',
+  summary: 'Summary',
+  model: 'Model',
+  usage: 'Usage',
+  words: (n: number) => plural(n, 'word'),
+  speakers: (n: number) => plural(n, 'speaker'),
+  tokens: (input: string, output: string) => `${input} in · ${output} out`,
+} as const;

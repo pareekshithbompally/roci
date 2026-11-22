@@ -132,7 +132,8 @@ const AdvancedSheet: React.FC<TuningProps & { model: LocalModel; tuning: ModelTu
       open={open}
       onOpenChange={(next) => !next && onClose()}
       title={COPY.advancedTitle(model.name)}
-      footer={<Button onClick={onClose}>{COPY.done}</Button>}
+      submit={{ label: COPY.done, onPress: onClose }}
+      viewOnly
     >
       <div className="flex flex-col gap-section">
         <Section title={COPY.sampling} footer={COPY.samplingFooter}>{knobs('sampling')}</Section>

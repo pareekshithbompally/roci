@@ -59,7 +59,7 @@ export const LocalSetup: React.FC = () => {
               leading={<ProvidersAvatar provider={row.id} size={ICON_SIZE_PX.lg} />}
               title={getProviderTitle(row.id)}
               description={row.baseUrl}
-              actions={<Button variant="outline" size="sm" onClick={() => use(row)}>{ACTIONS.use}</Button>}
+              action={{ label: ACTIONS.use, onPress: () => use(row) }}
             />
           ))}
         </Section>

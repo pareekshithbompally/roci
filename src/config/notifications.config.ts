@@ -30,6 +30,9 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   meetingLeadMinutes: 2,
 };
 
+/** The meeting-reminder lead time row (Settings › Notifications). */
+export const MEETING_LEAD_COPY = { title: 'Remind me', label: 'Meeting reminder lead time' } as const;
+
 /** Lead times offered for meeting reminders. */
 export const MEETING_LEAD_OPTIONS = [
   { value: 1, label: '1 min before' },

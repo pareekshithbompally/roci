@@ -2,8 +2,9 @@
  *  in a sheet), and the effective chat prompt. */
 
 import React, { useState } from 'react';
-import { Badge, Button, CardRow, ChoiceControl, Input, Section, Textarea } from '@shared/ui';
-import { FieldRow, SettingsPage } from '@features/settings/components/shared';
+import { Badge, Button, CardRow, ChoiceControl, Section } from '@shared/ui';
+import { SettingsPage } from '@features/settings/components/shared';
+import { FieldRow } from '@shared/components';
 import { PERSONALIZATION_CONFIG, type PromptTemplateId } from '@config/personalization.config';
 import { usePromptSettings } from '@features/personalization/hooks/usePromptSettings';
 import { TemplateDialog } from './TemplateDialog';
@@ -15,12 +16,8 @@ const AboutYou: React.FC = () => {
   const { profile, setProfile } = usePromptSettings();
   return (
     <Section title={copy.about.section} footer={copy.about.footer}>
-      <FieldRow title={copy.about.name}>
-        <Input size="sm" value={profile.name ?? ''} maxLength={limits.name} placeholder={copy.about.namePlaceholder} aria-label={copy.about.name} onChange={(e) => setProfile({ name: e.target.value })} />
-      </FieldRow>
-      <CardRow title={copy.about.about} stacked>
-        <Textarea rows={3} value={profile.about ?? ''} maxLength={limits.about} placeholder={copy.about.aboutPlaceholder} aria-label={copy.about.about} onChange={(e) => setProfile({ about: e.target.value })} />
-      </CardRow>
+      <FieldRow title={copy.about.name} value={profile.name ?? ''} maxLength={limits.name} placeholder={copy.about.namePlaceholder} onChange={(name) => setProfile({ name })} />
+      <FieldRow title={copy.about.about} lines={3} value={profile.about ?? ''} maxLength={limits.about} placeholder={copy.about.aboutPlaceholder} onChange={(about) => setProfile({ about })} />
     </Section>
   );
 };
@@ -41,10 +38,8 @@ const Responses: React.FC = () => {
 const CustomInstructions: React.FC = () => {
   const { customInstructions, setCustomInstructions } = usePromptSettings();
   return (
-    <Section title={copy.instructions.section} footer={copy.instructions.footer}>
-      <div className="py-3">
-        <Textarea rows={5} value={customInstructions} maxLength={limits.customInstructions} placeholder={copy.instructions.placeholder} aria-label={copy.instructions.section} onChange={(e) => setCustomInstructions(e.target.value)} />
-      </div>
+    <Section footer={copy.instructions.footer}>
+      <FieldRow title={copy.instructions.section} lines={5} value={customInstructions} maxLength={limits.customInstructions} placeholder={copy.instructions.placeholder} onChange={setCustomInstructions} />
     </Section>
   );
 };

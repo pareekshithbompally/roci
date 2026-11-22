@@ -1,9 +1,9 @@
-/** One calendar occurrence as Calendar.app's event popover shows it, read-only: stacked cards (title and time beside the
- *  calendar's colour bar, the call, invitees, the calendar, notes), plus Roci's own: Open meeting and Record / Join & Record. */
+/** One calendar occurrence, read-only: its header, the call, invitees, the calendar and notes, plus Roci's own Open meeting
+ *  and Record / Join & Record. The kit's detail parts lay it out (Calendar.app's popover on a Mac, a sheet on a phone). */
 
 import React, { useMemo } from 'react';
-import { ArrowUpRight, Circle, Users, Video } from 'lucide-react';
-import { Button, Icon, IconButton, Popover, PopoverAnchor, PopoverContent, Surface, Text, showToast } from '@shared/ui';
+import { ArrowUpRight, Users, Video } from 'lucide-react';
+import { CardRow, DetailHeader, DetailList, DetailNotes, IconButton, IconTile, Popover, PopoverAnchor, PopoverContent, Text, showToast } from '@shared/ui';
 import { CALENDAR_CONFIG } from '@config/calendar.config';
 import { openUrl } from '@services/tauri';
 import { useEventActions } from '@features/calendar/hooks/useEventActions';
@@ -27,7 +27,7 @@ function cleanDescription(desc: string, meetingUrl: string | null): string {
   }
   return cleaned
     .replace(/<[^>]*>/g, '')
-    .replace(/[-─~:]{4,}/g, '')                       // Google Meet separator junk (::~:~::~:~)
+    .replace(/[-─~:_=]{4,}/g, '')                     // separator rules (Google Meet ::~:~::, Teams ______)
     .replace(/Join with Google Meet/gi, '')
     .replace(/Get more info about Meet at:?/gi, '')
     .replace(/Learn more about Meet at:?/gi, '')
@@ -37,11 +37,12 @@ function cleanDescription(desc: string, meetingUrl: string | null): string {
 }
 
 export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, onClose }) => {
-  // The grid hands over where the event was drawn; the kit popover anchors to it, flips at edges, and closes itself (Esc, click away).
+  // The grid hands over where the event was drawn; the kit popover anchors to it (a sheet on a phone), flips at edges,
+  // and closes itself (Esc, click away).
   const anchor = useMemo(() => ({ current: { getBoundingClientRect: () => anchorRect } }), [anchorRect]);
   const { meeting, action, openMeeting, record } = useEventActions(event);
 
-  const people = event.attendees.filter((a) => a.status !== 'declined').map((a) => a.name ?? a.email ?? 'Unknown');
+  const people = event.attendees.filter((a) => a.status !== 'declined').map((a) => a.name ?? a.email ?? CALENDAR_CONFIG.unknownPerson);
   const notes = event.notes ? cleanDescription(event.notes, event.meeting_url) : '';
 
   const handleOpen = () => {
@@ -52,70 +53,41 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
     onClose();
     record().catch((error: unknown) => {
       console.error('[EventPopover] Starting the recording failed:', error);
-      showToast("Couldn't start recording", 'error');
+      showToast(CALENDAR_CONFIG.recordFailed, 'error');
     });
   };
-  const handleJoin = (url: string) => {
-    openUrl(url).catch((error: unknown) => console.error('[EventPopover] Opening the call failed:', error));
-  };
+  const join = event.meeting_url
+    ? { label: CALENDAR_CONFIG.joinLabel, onPress: () => openUrl(event.meeting_url!).catch((error: unknown) => console.error('[EventPopover] Opening the call failed:', error)) }
+    : undefined;
 
   return (
     <Popover open onOpenChange={(open) => !open && onClose()}>
       <PopoverAnchor virtualRef={anchor} />
-      <PopoverContent side="right" align="center" width="lg" className="p-3 space-y-2">
-        {/* Title and time beside the calendar's colour bar */}
-        <Surface tint={event.calendar_color} className="flex gap-2">
-          <Surface variant="eventBar" radius="full" className="w-1 shrink-0" />
-          <div className="flex-1 min-w-0 space-y-2">
-            <Surface variant="inset" radius="xl" className="px-3 py-2.5 flex items-start gap-1">
-              <Text as="h3" variant="title" className="flex-1 min-w-0">{event.title}</Text>
-              {meeting && <IconButton icon={ArrowUpRight} label="Open meeting" size="sm" className="shrink-0" onClick={handleOpen} />}
-            </Surface>
-            <Surface variant="inset" radius="xl" className="px-3 py-2.5">
-              <Text as="p" variant="body" className="whitespace-pre-wrap">{formatEventWhen(event)}</Text>
-              {event.location && <Text as="p" variant="helper" tone="muted" truncate className="mt-1">{event.location}</Text>}
-            </Surface>
-          </div>
-        </Surface>
-
-        {(event.meeting_url || action) && (
-          <Surface variant="inset" radius="xl" className="px-3 py-2.5 flex items-center gap-2">
-            <Icon icon={Video} size="sm" tone="muted" className="shrink-0" />
-            <Text truncate className="flex-1 min-w-0">{event.meeting_provider ?? 'No call link'}</Text>
-            {event.meeting_url && (
-              <Button variant="outline" size="sm" onClick={() => handleJoin(event.meeting_url!)}>Join</Button>
+      <PopoverContent side="right" align="center" width="lg" label={event.title} className="p-3 space-y-2">
+        <div className="flex flex-col gap-section">
+          <DetailHeader
+            tint={event.calendar_color}
+            title={event.title}
+            subtitle={formatEventWhen(event)}
+            detail={event.location}
+            action={meeting && <IconButton icon={ArrowUpRight} label={CALENDAR_CONFIG.openMeetingLabel} size="sm" onClick={handleOpen} />}
+          />
+          <DetailList>
+            {(event.meeting_url || action) && (
+              <CardRow leading={<IconTile icon={Video} />} title={event.meeting_provider ?? CALENDAR_CONFIG.noCallLink} action={join} />
             )}
-            {action && (
-              <Button variant="accent" size="sm" onClick={handleRecord}>
-                <Icon icon={action === 'join' ? Video : Circle} size="xs" />
-                {CALENDAR_CONFIG.recordLabels[action]}
-              </Button>
+            {action && <CardRow title={CALENDAR_CONFIG.recordLabels[action]} tone="accent" onPress={handleRecord} />}
+            {people.length > 0 && (
+              <CardRow
+                leading={<IconTile icon={Users} />}
+                title={CALENDAR_CONFIG.inviteesLabel}
+                description={people.slice(0, INVITEES_SHOWN).join(', ') + (people.length > INVITEES_SHOWN ? ` +${people.length - INVITEES_SHOWN}` : '')}
+              />
             )}
-          </Surface>
-        )}
-
-        {people.length > 0 && (
-          <Surface variant="inset" radius="xl" className="px-3 py-2.5 flex gap-2">
-            <Icon icon={Users} size="sm" tone="muted" className="shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0 space-y-0.5">
-              {people.slice(0, INVITEES_SHOWN).map((name, i) => <Text as="p" key={i} truncate>{name}</Text>)}
-              {people.length > INVITEES_SHOWN && <Text as="p" variant="helper" tone="muted">+{people.length - INVITEES_SHOWN} more</Text>}
-            </div>
-          </Surface>
-        )}
-
-        <Surface tint={event.calendar_color}>
-          <Surface variant="inset" radius="xl" className="px-3 py-2.5 flex items-center gap-2">
-            <Surface variant="eventBar" radius="full" className="w-2.5 h-2.5 shrink-0" />
-            <Text truncate>{event.calendar_name}</Text>
-          </Surface>
-        </Surface>
-
-        {notes && (
-          <Surface variant="inset" radius="xl" className="px-3 py-2.5">
-            <Text as="p" variant="helper" tone="muted" className="line-clamp-4 break-words whitespace-pre-line">{notes}</Text>
-          </Surface>
-        )}
+            <CardRow title={CALENDAR_CONFIG.calendarLabel} actions={<Text tone="muted" truncate>{event.calendar_name}</Text>} />
+          </DetailList>
+          {notes && <DetailNotes>{notes}</DetailNotes>}
+        </div>
       </PopoverContent>
     </Popover>
   );

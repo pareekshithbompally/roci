@@ -1,7 +1,7 @@
 /** Calendar connection and week view; meeting reminders are switched in Settings › Notifications. */
 
 import React from 'react';
-import { Button, CardRow } from '@shared/ui';
+import { CardRow } from '@shared/ui';
 import { useAppActions } from '@shared/stores/appStore';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { useCalendarControls } from '@features/integrations/hooks/useCalendarControls';
@@ -22,14 +22,7 @@ export const CalendarIntegration: React.FC = () => {
       description={COPY.description}
       deniedHint={COPY.deniedHint}
     >
-      <CardRow
-        title="Your upcoming week"
-        actions={
-          <Button variant="outline" size="sm" onClick={() => setCurrentView('calendar')}>
-            View Schedule
-          </Button>
-        }
-      />
+      <CardRow title={COPY.rows.week} action={{ label: COPY.rows.view, onPress: () => setCurrentView('calendar') }} />
     </IntegrationRow>
   );
 };

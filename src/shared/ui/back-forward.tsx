@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { IconButton } from './button';
 import { Separator } from './surface';
+import { KIT_COPY } from '@config/kitCopy.config';
 
 export interface BackForwardProps {
   /** Goes back; none dims ‹. */
@@ -33,10 +34,10 @@ export function BackForward({ onBack, onForward }: BackForwardProps) {
   }, [onBack, onForward]);
 
   return (
-    <div role="group" aria-label="Navigation" className="inline-flex shrink-0 items-center rounded-full bg-control px-0.5">
-      <IconButton icon={ChevronLeft} label="Back" size="sm" disabled={!onBack} onClick={onBack} />
+    <div role="group" aria-label={KIT_COPY.navigation} className="inline-flex shrink-0 items-center rounded-full bg-control px-0.5">
+      <IconButton icon={ChevronLeft} label={KIT_COPY.back} size="sm" disabled={!onBack} onClick={onBack} />
       <Separator orientation="vertical" className="my-1.5" />
-      <IconButton icon={ChevronRight} label="Forward" size="sm" disabled={!onForward} onClick={onForward} />
+      <IconButton icon={ChevronRight} label={KIT_COPY.forward} size="sm" disabled={!onForward} onClick={onForward} />
     </div>
   );
 }

@@ -1,9 +1,10 @@
 /** Add or edit one MCP server by form (STDIO / HTTP / SSE, args, env, headers, timeout) or pasted JSON. */
 
+import { KIT_COPY } from '@config/kitCopy.config';
 import React, { useEffect, useState } from 'react';
 import { Braces } from 'lucide-react';
-import type { McpServerConfig } from '@config/mcp.config';
-import { Button, IconButton, Tabs, Text, Textarea } from '@shared/ui';
+import { MCP_COPY, type McpServerConfig } from '@config/mcp.config';
+import { IconButton, Tabs, Text, Textarea } from '@shared/ui';
 import { FormDialog, SettingsInput } from '@shared/components';
 import { KeyValueEditor, StringListEditor } from '@features/settings/components/shared';
 import {
@@ -98,12 +99,7 @@ export const AddEditMcpServerDialog: React.FC<AddEditMcpServerDialogProps> = ({
           aria-pressed={jsonMode}
         />
       }
-      footer={
-        <>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving}>{saving ? 'Connecting…' : 'Save'}</Button>
-        </>
-      }
+      submit={{ label: saving ? MCP_COPY.connecting : KIT_COPY.save, onPress: () => void handleSave(), busy: saving }}
     >
       {jsonMode ? (
         <Textarea

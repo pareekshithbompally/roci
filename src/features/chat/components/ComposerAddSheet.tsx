@@ -6,11 +6,12 @@ import { useRecordingMeetingId, useStartRecording } from '@features/recording';
 import { platform } from '@platform/index';
 import { IMPORT_MEETING_LABEL, useImportMeetingActions } from '@features/import';
 import { useAppActions } from '@shared/stores/appStore';
-import { BottomSheet, CardRow, Icon, Section, SheetBody } from '@shared/ui';
+import { CardRow, Icon, InfoSheet, Section } from '@shared/ui';
 import { ChatToolRows } from './tools/ChatToolRows';
 import type { ContextUsage } from '@shared/hooks/useContextUsage';
 import type { AttachOption } from '@features/chat/hooks/useAttachOptions';
 import type { ToolCatalog } from '@features/chat/hooks';
+import { COMPOSER_ADD_COPY as COPY } from '@config/chat.config';
 
 
 interface ComposerAddSheetProps {
@@ -37,19 +38,18 @@ export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpen
   };
 
   return (
-    <BottomSheet open={open} onOpenChange={onOpenChange} title="Add">
-      <SheetBody>
+    <InfoSheet open={open} onOpenChange={onOpenChange} title={COPY.title}>
         {platform.canRecord && !recordingNow && (
-          <Section title="Meeting">
+          <Section title={COPY.meeting}>
             <CardRow
-              title="Record"
+              title={COPY.record}
               leading={<Icon icon={Mic} size="sm" />}
               onPress={closeThen(() => startRecording().catch((error: unknown) => console.error('[ComposerAddSheet] Record failed:', error)))}
             />
           </Section>
         )}
         {onPickFiles && (
-          <Section title="Attach">
+          <Section title={COPY.attach}>
             {attachOptions.map(({ label, icon, accept }) => (
               <CardRow key={label} title={label} leading={<Icon icon={icon} size="sm" />} onPress={closeThen(() => onPickFiles(accept))} />
             ))}
@@ -61,7 +61,6 @@ export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpen
           ))}
         </Section>
         <ChatToolRows catalog={toolCatalog} onChooseImageModel={closeThen(() => openSettings('defaultModels'))} contextUsage={contextUsage} />
-      </SheetBody>
-    </BottomSheet>
+    </InfoSheet>
   );
 };

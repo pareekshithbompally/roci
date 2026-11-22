@@ -37,6 +37,8 @@ const DRAWER_EXIT = '250ms ease-in';
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: 'class',
+  /** `hover:` only where a pointer hovers (Mac): a tap on iOS never leaves a hover fill behind. */
+  future: { hoverOnlyWhenSupported: true },
   content: [
     './index.html',
     './index.tsx',
@@ -106,9 +108,14 @@ export default {
       transitionTimingFunction: { ios: IOS_EASE },
       transitionDuration: { ios: IOS_DURATION },
       // ─── macOS text styles (SF Pro). `reading` is the one exception: long-form chat/transcript ───
+      /** Plain `border` / `divide` lines are one hairline (tokens.css `--hairline`). */
+      borderWidth: { DEFAULT: 'var(--hairline)' },
       fontSize: {
         // Sizes come from tokens.css: macOS by default, iOS under html.platform-ios.
         subheadline: ['var(--fs-subheadline)', 'var(--lh-subheadline)'],
+        section: ['var(--fs-section)', { lineHeight: 'var(--lh-section)', fontWeight: 'var(--fw-section)' }],
+        timer: ['var(--fs-timer)', { lineHeight: 'var(--lh-timer)', fontWeight: 'var(--fw-timer)' }],
+        segment: ['var(--fs-segment)', 'var(--lh-segment)'],
         callout: ['var(--fs-callout)', 'var(--lh-callout)'],
         body: ['var(--fs-body)', 'var(--lh-body)'],
         reading: ['var(--fs-reading)', 'var(--lh-reading)'],
@@ -118,6 +125,8 @@ export default {
         largeTitle: ['var(--fs-large-title)', 'var(--lh-large-title)'],
       },
       // 5.5 = a 14px icon + 8px gap (text indented under an icon); 15 = 60px described row
+      /** A sheet rises to this share of the screen, its top still showing what it covers (iOS page sheet). */
+      maxHeight: { sheet: '92dvh' },
       spacing: { 5.5: '1.375rem', 15: '3.75rem', 'safe-top': 'var(--safe-top)', 'safe-bottom': 'var(--safe-bottom)', 'sheet-end': 'calc(var(--safe-bottom) + 1rem)', 'control-xs': 'var(--control-xs)', 'control-sm': 'var(--control-sm)', 'control-md': 'var(--control-md)', 'control-lg': 'var(--control-lg)', 'welcome-top': '14vh', 'welcome-icon': '4.5rem', 'choice-icon': '4rem', 'row-icon': 'var(--row-icon-gap)', section: 'var(--section-gap)' },
       keyframes: {
         'overlay-show': {

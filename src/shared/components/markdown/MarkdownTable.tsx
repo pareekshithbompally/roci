@@ -22,6 +22,7 @@ import { useCopiedFlag } from '@shared/hooks';
 import { COPY_FORMATS, SAVE_FORMATS, TABLE_FORMATS, serializeTable } from './tableExport';
 import type { TableFormat } from './tableExport';
 import { Menu } from '@shared/components/Menu';
+import { KIT_COPY } from '@config/kitCopy.config';
 
 const FILE_STEM = 'table';
 
@@ -66,7 +67,7 @@ export function MarkdownTable({ children, node: _node, ...props }: TableProps) {
   const actions = (
     <>
       <FormatMenu icon={copied ? Check : Copy} label={copied ? 'Copied' : 'Copy table'} formats={COPY_FORMATS} onPick={(f) => void copy(f)} />
-      <FormatMenu icon={Download} label="Save table" formats={SAVE_FORMATS} onPick={(f) => void save(f)} />
+      <FormatMenu icon={Download} label={KIT_COPY.saveTable} formats={SAVE_FORMATS} onPick={(f) => void save(f)} />
     </>
   );
 
@@ -74,7 +75,7 @@ export function MarkdownTable({ children, node: _node, ...props }: TableProps) {
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-end gap-1">
         {actions}
-        <IconButton icon={Maximize2} label="Expand table" size="sm" onClick={() => setExpanded(true)} />
+        <IconButton icon={Maximize2} label={KIT_COPY.expandTable} size="sm" onClick={() => setExpanded(true)} />
       </div>
       <div className="overflow-x-auto">
         <table ref={tableRef} {...props}>{children}</table>
@@ -89,7 +90,7 @@ export function MarkdownTable({ children, node: _node, ...props }: TableProps) {
               <div className="flex items-center gap-1 -mr-1">
                 {actions}
                 <DialogClose asChild>
-                  <IconButton icon={X} label="Close" size="sm" />
+                  <IconButton icon={X} label={KIT_COPY.close} size="sm" />
                 </DialogClose>
               </div>
             </DialogHeader>

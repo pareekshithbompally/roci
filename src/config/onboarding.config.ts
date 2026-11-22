@@ -1,6 +1,6 @@
 /** First-run flow copy and the icons it shows: welcome (no recording) or permissions (recording), then AI setup. */
 
-import { Bell, CalendarDays, Lock, Mic, Sparkles, SquareTerminal, Volume2, type LucideIcon } from 'lucide-react';
+import { Bell, CalendarDays, SquareTerminal, Volume2, type LucideIcon } from 'lucide-react';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { platform } from '@platform/index';
 
@@ -16,7 +16,7 @@ export interface ThemedImage {
 /** A row's icon: one macOS draws (an app's bundle id, or a settings pane's path), a bundled light/dark image, or a fan of
  *  provider logos or of the on-device engines' logos. */
 export type OnboardingIconSource =
-  | { app: string; symbol: LucideIcon }
+  | { app: string; symbol: LucideIcon; art?: string }
   | { glyph: string }
   | { image: ThemedImage }
   | { providers: readonly string[] }
@@ -32,7 +32,8 @@ export const ONBOARDING_ICONS = {
   calendar: { app: INTEGRATIONS_CONFIG.calendar.app, symbol: CalendarDays },
   // Apple Intelligence's own mark is a bare glyph: on a tile it weighs the same as the app icons beside it.
   appleIntelligence: { glyph: INTEGRATIONS_CONFIG.appleIntelligence.icon },
-  local: { app: 'com.apple.Terminal', symbol: SquareTerminal },
+  // iPhone can't read the Terminal's icon: the bundled server art stands in (docs/design/pane-icons).
+  local: { app: 'com.apple.Terminal', symbol: SquareTerminal, art: 'server' },
   // The engines models run on here: MLX (chat, voices, search) and transcribe.cpp on ggml (speech recognition).
   onDevice: {
     engines: [
@@ -58,9 +59,9 @@ export const ONBOARDING_CONFIG = {
   welcome: {
     heading: 'Welcome to Roci',
     features: [
-      { icon: Sparkles, title: 'Your choice of AI', detail: 'Apple Intelligence, or your own key.' },
-      { icon: Lock, title: 'Private', detail: `Chats stay on this ${platform.deviceName}.` },
-      { icon: Mic, title: 'Talk or type', detail: 'Ask by voice or text, with photos and files.' },
+      { art: 'welcome-choice', title: 'Your choice of AI', detail: 'Apple Intelligence, or your own key.' },
+      { art: 'welcome-private', title: 'Private', detail: `Chats stay on this ${platform.deviceName}.` },
+      { art: 'welcome-talk', title: 'Talk or type', detail: 'Ask by voice or text, with photos and files.' },
     ],
   },
   /** Devices that record: what recording can't work without, asked up front; the rest is optional. */

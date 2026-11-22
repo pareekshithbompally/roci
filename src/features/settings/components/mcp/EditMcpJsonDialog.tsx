@@ -1,7 +1,9 @@
 /** Raw JSON editor for one MCP server or the whole config. */
 
+import { KIT_COPY } from '@config/kitCopy.config';
+import { MCP_COPY } from '@config/mcp.config';
 import React, { useEffect, useState } from 'react';
-import { Button, Textarea } from '@shared/ui';
+import { Textarea } from '@shared/ui';
 import { FormDialog } from '@shared/components';
 
 interface EditMcpJsonDialogProps {
@@ -43,12 +45,7 @@ export const EditMcpJsonDialog: React.FC<EditMcpJsonDialogProps> = ({ open, onOp
       onOpenChange={(next) => !saving && onOpenChange(next)}
       title={title}
       error={error}
-      footer={
-        <>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
-        </>
-      }
+      submit={{ label: saving ? MCP_COPY.saving : KIT_COPY.save, onPress: () => void handleSave(), busy: saving }}
     >
       <Textarea
         variant="code"

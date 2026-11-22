@@ -21,7 +21,7 @@ export function Thumbnail({ src, alt, onOpen, shape = 'square' }: ThumbnailProps
       className={cn(
         'relative block w-full overflow-hidden rounded-xl bg-layer-2 shadow-input outline-none',
         shape === 'square' && 'aspect-square',
-        'transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-focus',
+        'transition-opacity hover:opacity-90 active:opacity-60 focus-visible:ring-2 focus-visible:ring-focus',
       )}
     >
       <img

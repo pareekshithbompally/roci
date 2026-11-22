@@ -21,7 +21,7 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children }) => {
   const settingsRequest = useAppStore((s) => s.settingsRequest);
 
   return (
-    <RevealLayout open={open} onClose={() => setLeftPanel(false)} paneLabel="Sidebar" pane={<Sidebar variant="sheet" shouldOffsetMacControls={false} />}>
+    <RevealLayout open={open} onOpen={() => setLeftPanel(true)} onClose={() => setLeftPanel(false)} paneLabel="Sidebar" pane={<Sidebar variant="sheet" shouldOffsetMacControls={false} />}>
       <Surface as="main" variant="page" className="relative flex h-full flex-col overflow-hidden">
         <TopBar
           leading={<IconButton icon={PanelLeft} size="fab" variant="bar" label="Open sidebar" onClick={() => setLeftPanel(true)} />}

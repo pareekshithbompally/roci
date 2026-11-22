@@ -69,11 +69,11 @@ function Hero({ pane, hero }: { pane?: SettingsPanel; hero?: HeroExtras }) {
   return item ? <PaneHero image={art(item.id)} title={item.heroTitle ?? item.label} description={item.description} {...hero} /> : null;
 }
 
-/** Phone: the screen's bar already shows the title; the screen scrolls. */
+/** Phone: the screen's bar already shows the title; the pane's controls (a segmented control) lead the page; it scrolls. */
 const PhonePage: React.FC<SettingsPageProps> = ({ accessory, pane, hero, children }) => (
   <div className="flex min-h-full flex-col gap-section px-4 pt-2 pb-6">
-    {accessory && <div className="flex items-center justify-end gap-1">{accessory}</div>}
     <Hero pane={pane} hero={hero} />
+    {accessory && <div className="flex items-center justify-center">{accessory}</div>}
     {children}
   </div>
 );

@@ -30,7 +30,7 @@ vi.mock('@services/tauri', () => ({ isTauriEnvironment: () => true, menubarServi
 vi.mock('@services/notifications', () => ({ removeNotices: vi.fn(async () => undefined) }));
 vi.mock('@features/recording/pipeline/meetingPipeline', () => ({ meetingPipeline: pipeline }));
 vi.mock('@shared/contexts/SettingsContext', () => ({
-  useSettings: () => ({ settings: { transcriptionProvider: 'openai', transcriptionModel: 'whisper-1' }, providers: [] }),
+  useSettings: () => ({ settings: { transcriptionProvider: 'openai', transcriptionModel: 'whisper-1', liveTranscription: true }, providers: [] }),
 }));
 vi.mock('@features/notes', () => ({ useMeetingNotes: () => notesApi }));
 vi.mock('@shared/hooks/useMeetings', () => ({ useMeetingBrief: () => ({ id: 'm1', title: 'Test Meeting' }) }));

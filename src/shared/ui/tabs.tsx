@@ -7,6 +7,10 @@ export interface TabItem<T extends string> {
   label: React.ReactNode;
   /** The label as plain text where only text can show (the system menu on a phone); defaults to `label` when it is text. */
   text?: string;
+  /** A phone's label when `label` is too long for a segment a third of a phone wide (one word: "Transcript"). */
+  short?: string;
+  /** Offered on one form factor only: `phone` (a phone's own tab), `desktop` (Mac and iPad: room for it). */
+  only?: 'phone' | 'desktop';
 }
 
 export interface TabsProps<T extends string> {
@@ -25,9 +29,10 @@ export function Tabs<T extends string>({ items, value, onValueChange, fill: fill
   // iOS segmented controls span the width of their row; macOS ones hug their segments, even in a column that stretches its items.
   const phone = useFormFactor() === 'phone';
   const fill = fillProp ?? phone;
+  const shown = items.filter(({ only }) => !only || (only === 'phone') === phone);
   return (
     <div role="tablist" aria-label={label} className={cn('items-center gap-0.5 p-0.5 rounded-full bg-control', fill ? 'flex w-full' : 'inline-flex w-fit', className)}>
-      {items.map((item) => {
+      {shown.map((item) => {
         const active = item.value === value;
         return (
           <button
@@ -37,12 +42,14 @@ export function Tabs<T extends string>({ items, value, onValueChange, fill: fill
             aria-selected={active}
             onClick={() => onValueChange(item.value)}
             className={cn(
-              'h-control-xs px-3 rounded-full text-callout font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-focus',
-              fill && 'flex-1',
+              // a segment's label stays on one line: it truncates rather than wrap
+              'h-control-xs min-w-0 truncate whitespace-nowrap rounded-full text-segment font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-focus',
+              // segments sharing the width need no side padding of their own (the share is the room)
+              fill ? 'flex-1 px-1' : 'px-3',
               active ? 'bg-base text-primary shadow-raised' : 'text-muted hover:text-primary',
             )}
           >
-            {item.label}
+            {phone && item.short ? item.short : item.label}
           </button>
         );
       })}

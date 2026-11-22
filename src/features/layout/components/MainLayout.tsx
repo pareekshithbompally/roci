@@ -68,7 +68,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   if (formFactor === 'phone') return <PhoneShell>{children}</PhoneShell>;
 
   return (
-    <Surface as="main" variant="page" className="relative h-screen overflow-hidden">
+    <Surface as="main" variant="page" className="relative h-dvh overflow-hidden">
       <TitlebarDragRegion />
 
       {/* ⌘K: the command palette beside the column sidebar (the phone searches in its sidebar sheet). */}

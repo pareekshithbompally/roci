@@ -2,7 +2,7 @@
  *  whether it is pinned (pinned memories are always in chat's prompt). */
 
 import React, { useState } from 'react';
-import { Button, CardRow, Picker, Section, Switch, Textarea } from '@shared/ui';
+import { CardRow, Picker, Section, Switch, Textarea } from '@shared/ui';
 import { FormDialog, SettingsInput } from '@shared/components';
 import { LAYOUT } from '@config/layout.config';
 import { PERSONALIZATION_CONFIG } from '@config/personalization.config';
@@ -10,7 +10,6 @@ import { KNOWLEDGE_LIMITS } from '@config/knowledge.config';
 import type { MemoryEntityRow, MemoryInput, MemoryRow } from '@shared/types/native';
 
 const COPY = PERSONALIZATION_CONFIG.memory.copy;
-const FORM_ID = 'memory-form';
 const YOU = 'you';
 
 interface MemoryDialogProps {
@@ -47,14 +46,9 @@ export const MemoryDialog: React.FC<MemoryDialogProps> = ({ memory, entities, on
       onOpenChange={(open) => !open && onClose()}
       title={memory ? COPY.edit : COPY.add}
       size="md"
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>{COPY.cancel}</Button>
-          <Button type="submit" form={FORM_ID} disabled={!ready}>{COPY.save}</Button>
-        </>
-      }
+      submit={{ label: COPY.save, onPress: save, disabled: !ready }}
     >
-      <form id={FORM_ID} className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (ready) save(); }}>
+      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (ready) save(); }}>
         <Textarea rows={3} value={text} maxLength={KNOWLEDGE_LIMITS.memory} placeholder={COPY.placeholder} onChange={(e) => setText(e.target.value)} aria-label={COPY.text} autoFocus />
         <Section>
           <CardRow

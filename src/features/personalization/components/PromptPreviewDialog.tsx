@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Text, Textarea } from '@shared/ui';
+import { Text, Textarea } from '@shared/ui';
 import { FormDialog } from '@shared/components';
 import { PERSONALIZATION_CONFIG } from '@config/personalization.config';
 import { chatToolPreferences } from '@config/chatTools.config';
@@ -32,7 +32,8 @@ export const PromptPreviewDialog: React.FC<{ onClose: () => void }> = ({ onClose
       open
       onOpenChange={(open) => !open && onClose()}
       title={COPY.title}
-      footer={<Button onClick={onClose}>{COPY.close}</Button>}
+      submit={{ label: COPY.close, onPress: onClose }}
+      viewOnly
     >
       <div className="space-y-3">
         <Text as="p" variant="helper" tone="muted">{COPY.note}</Text>

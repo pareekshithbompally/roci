@@ -28,6 +28,8 @@ export interface WorkspaceTranscript {
 interface MeetingWorkspaceProps {
   transcript: WorkspaceTranscript;
   notes: NotesPaneProps;
+  /** A phone inside a meeting's own tabs: show this one part (the tabs already pick it), with no control of its own. */
+  only?: 'transcript' | 'notes';
 }
 
 /** The transcript, scrolling inside its pane; while following, it stays on the newest line unless the reader scrolled back. */
@@ -70,23 +72,47 @@ const Columns: React.FC<MeetingWorkspaceProps> = ({ transcript, notes }) => (
   </Surface>
 );
 
-/** iPhone: one section at a time, picked with a segmented control. */
+/** A phone's notes on one page: the AI notes, then yours, each under its label (no switch, so no second row of tabs). */
+const StackedNotes: React.FC<NotesPaneProps> = ({ onType, ...ai }) => (
+  <div className="flex h-full min-h-0 flex-col">
+    <PaneHeader><Text variant="label" tone="muted">{NOTES.copy.aiNotes}</Text></PaneHeader>
+    <AiNotes {...ai} />
+    <PaneHeader><Text variant="label" tone="muted">{NOTES.copy.yourNotes}</Text></PaneHeader>
+    <YourNotes onType={onType} autoFocus={false} />
+  </div>
+);
+
+/** A phone inside the meeting's tabs: the one part the tabs picked. */
+const OnePart: React.FC<MeetingWorkspaceProps & { only: 'transcript' | 'notes' }> = ({ transcript, notes, only }) => (
+  <div className="flex h-full min-h-0 flex-col overflow-hidden pt-3">
+    {only === 'transcript' ? <TranscriptBody {...transcript} /> : <StackedNotes {...notes} />}
+  </div>
+);
+
+/** iPhone while recording: one section at a time, picked with the screen's one segmented control. */
 const Sections: React.FC<MeetingWorkspaceProps> = ({ transcript, notes }) => {
   const [section, setSection] = useState<PhoneSection>('transcript');
-  const items = [{ value: 'transcript' as const, label: transcript.label }, { value: 'ai' as const, label: NOTES.copy.aiNotes }, { value: 'notes' as const, label: NOTES.copy.yourNotes }];
+  const short = NOTES.copy.sectionShort;
+  const items = [
+    { value: 'transcript' as const, label: transcript.label, short: short.transcript },
+    { value: 'ai' as const, label: NOTES.copy.aiNotes, short: short.ai },
+    { value: 'notes' as const, label: NOTES.copy.yourNotes, short: short.notes },
+  ];
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <Tabs items={items} value={section} onValueChange={setSection} label={NOTES.copy.sections} />
-      <Surface edge={['top', 'left', 'right']} radius="lg" className="flex flex-1 min-h-0 flex-col overflow-hidden pt-3">
+      <div className="flex flex-1 min-h-0 flex-col overflow-hidden pt-3">
         {section === 'transcript' && <TranscriptBody {...transcript} />}
         {section === 'notes' && <YourNotes onType={notes.onType} autoFocus={notes.live} />}
         {section === 'ai' && <AiNotes {...notes} />}
-      </Surface>
+      </div>
     </div>
   );
 };
 
 export const MeetingWorkspace: React.FC<MeetingWorkspaceProps> = (props) => {
-  const Body = useFormFactor() === 'phone' ? Sections : Columns;
+  const phone = useFormFactor() === 'phone';
+  if (phone && props.only) return <OnePart {...props} only={props.only} />;
+  const Body = phone ? Sections : Columns;
   return <Body {...props} />;
 };

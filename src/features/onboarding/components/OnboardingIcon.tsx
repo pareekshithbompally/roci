@@ -4,12 +4,14 @@
 import React from 'react';
 import { AppIcon, AppImage, GlyphTile, IconFan, ProvidersAvatar } from '@shared/components';
 import { useThemeContext } from '@shared/contexts/ThemeContext';
+import { useIconArt } from '@shared/hooks';
 import { ICON_SIZE_PX } from '@shared/ui';
 import type { OnboardingIconSource } from '@config/onboarding.config';
 
 const Glyph: React.FC<{ source: OnboardingIconSource }> = ({ source }) => {
   const { isDark } = useThemeContext();
-  if ('app' in source) return <AppIcon app={source.app} size="xl" symbol={source.symbol} />;
+  const art = useIconArt();
+  if ('app' in source) return <AppIcon app={source.app} size="xl" symbol={source.symbol} fallback={source.art && art(source.art)} />;
   if ('providers' in source) {
     return <IconFan tiles={source.providers.map((provider) => ({ key: provider, logo: (size) => <ProvidersAvatar provider={provider} size={ICON_SIZE_PX[size]} /> }))} />;
   }

@@ -128,8 +128,7 @@ export const ADD_SERVER = {
   title: 'Add Server',
   address: 'Address',
   footer: 'Roci asks the server for its models before saving it, so a typo or a server that isn’t running is caught here.',
-  cancel: 'Cancel',
-  add: 'Add',
+  add: 'Add Server',
   adding: 'Connecting…',
   failed: 'Could not add that server',
 } as const;

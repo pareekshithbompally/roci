@@ -36,7 +36,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
   render() {
     if (this.state.hasError) {
       return (
-        <Surface variant="page" className="p-5 h-screen overflow-auto">
+        <Surface variant="page" className="p-5 h-dvh overflow-auto">
           <Text as="h1" variant="title" tone="danger">Something went wrong</Text>
           <Text as="div" variant="mono" tone="danger" className="mt-3 whitespace-pre-wrap">
             {this.state.error?.message}

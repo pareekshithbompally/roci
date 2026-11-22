@@ -7,8 +7,7 @@ import { useAppStore, useAppActions } from '@shared/stores/appStore';
 import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore';
 import { platform } from '@platform/index';
 import { hasIntegrations } from './IntegrationsPanel';
-import { useThemeContext } from '@shared/contexts/ThemeContext';
-import { UI_CONFIG } from '@config/ui.config';
+import { useIconArt } from '@shared/hooks';
 import { IconTile, Row, RowGroupLabel, type TileGlyph } from '@shared/ui';
 
 export interface SettingsNavItem {
@@ -53,8 +52,7 @@ export const SETTINGS_GROUPS = [...new Set(SETTINGS_SECTIONS.map(({ group }) => 
 
 /** A pane's own icon (sidebar, phone list, pane header) in the current appearance; the line glyph stays for the ⌘K palette. */
 export function usePaneArt(): (id: SettingsPanelType) => string {
-  const { isDark } = useThemeContext();
-  return (id) => `${UI_CONFIG.settingsArt}/${id}-${isDark ? 'dark' : 'light'}.webp`;
+  return useIconArt();
 }
 
 export const SettingsNav: React.FC = () => {

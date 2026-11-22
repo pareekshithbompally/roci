@@ -1,13 +1,11 @@
 /** Add or edit one saved prompt: its name (what the "/" menu shows) and its text. */
 
 import React, { useState } from 'react';
-import { Button, Textarea } from '@shared/ui';
+import { Textarea } from '@shared/ui';
 import { FormDialog, SettingsInput } from '@shared/components';
 import { PERSONALIZATION_CONFIG, type SavedPrompt } from '@config/personalization.config';
 
 const { copy: COPY, limits } = PERSONALIZATION_CONFIG.savedPrompts;
-const FORM_ID = 'saved-prompt';
-
 interface SavedPromptDialogProps {
   /** The prompt being edited; none adds one. */
   saved?: SavedPrompt;
@@ -28,14 +26,9 @@ export const SavedPromptDialog: React.FC<SavedPromptDialogProps> = ({ saved, onS
       open
       onOpenChange={(open) => !open && onClose()}
       title={saved ? COPY.edit : COPY.add}
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>{COPY.cancel}</Button>
-          <Button type="submit" form={FORM_ID} disabled={!ready}>{COPY.save}</Button>
-        </>
-      }
+      submit={{ label: COPY.save, onPress: save, disabled: !ready }}
     >
-      <form id={FORM_ID} className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (ready) save(); }}>
+      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (ready) save(); }}>
         <SettingsInput label={COPY.name} value={name} maxLength={limits.name} placeholder={COPY.namePlaceholder} onChange={(e) => setName(e.target.value)} autoFocus />
         <Textarea rows={6} value={prompt} maxLength={limits.prompt} placeholder={COPY.promptPlaceholder} aria-label={COPY.prompt} onChange={(e) => setPrompt(e.target.value)} />
       </form>

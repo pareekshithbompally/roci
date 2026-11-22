@@ -1,11 +1,10 @@
 /** MCP servers settings; changes run one at a time through `useMcpReconfigure` so two saves never race. */
 
 import React, { useState } from 'react';
-import { Braces, Plus } from 'lucide-react';
-import { MCP_APP_CONFIG, type McpConfig, type McpSettings } from '@config/mcp.config';
+import { MCP_APP_CONFIG, MCP_COPY, type McpConfig, type McpSettings } from '@config/mcp.config';
 import { useToast } from '@shared/contexts/ToastContext';
 import { confirm } from '@shared/stores/confirmStore';
-import { Button, Callout, Icon, IconButton, Section, Text } from '@shared/ui';
+import { Callout, CardRow, Section, Text } from '@shared/ui';
 import { SettingsPage } from '@features/settings/components/shared';
 import {
   useMcpConfig,
@@ -82,33 +81,23 @@ export const McpServersPanel: React.FC = () => {
 
   if (loadError) {
     return (
-      <PanelShell onAdd={() => undefined} onEditAll={() => undefined} actionsDisabled>
-        <Callout variant="error">Could not load MCP config: {errorMessage(loadError)}</Callout>
+      <PanelShell>
+        <Callout variant="error">{MCP_COPY.loadFailed} {errorMessage(loadError)}</Callout>
       </PanelShell>
     );
   }
-  if (isLoading || !config) return <PanelShell onAdd={() => undefined} onEditAll={() => undefined} actionsDisabled />;
+  if (isLoading || !config) return <PanelShell />;
 
   const serverEntries = Object.entries(config.mcpServers);
   const changeSettings = (partial: Partial<McpSettings>) => applyAndToast((c) => updateSettings(c, partial));
   const editingConfig = editing?.name ? config.mcpServers[editing.name] : undefined;
 
   return (
-    <PanelShell onAdd={() => setEditing({ name: null })} onEditAll={() => setJsonOpen(true)} actionsDisabled={busy}>
-      <Section title="Permissions" footer={MCP_PERMISSIONS_FOOTER}>
-        <McpPermissionsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
-      </Section>
-
-      <Section title="Limits" footer={MCP_LIMITS_FOOTER}>
-        <McpLimitsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
-      </Section>
-
-      <Section
-        title="Servers"
-        footer="Model Context Protocol servers give chat new tools."
-      >
+    <PanelShell>
+      {/* The servers first (the pane's content), then the ways to add them as action rows, then how tools behave. */}
+      <Section title={MCP_COPY.servers} footer={MCP_COPY.serversFooter}>
         {serverEntries.length === 0 ? (
-          <Text as="p" variant="helper" tone="muted" className="py-3">No MCP servers yet. Add one to give chat new tools.</Text>
+          <Text as="p" tone="muted" truncate className="py-3">{MCP_COPY.empty}</Text>
         ) : (
           serverEntries.map(([name, server]) => (
             <McpServerCard
@@ -130,6 +119,16 @@ export const McpServersPanel: React.FC = () => {
             />
           ))
         )}
+        <CardRow title={MCP_COPY.addServer} tone="accent" disabled={busy} onPress={() => setEditing({ name: null })} />
+        <CardRow title={MCP_COPY.editAll} tone="accent" disabled={busy} onPress={() => setJsonOpen(true)} />
+      </Section>
+
+      <Section title={MCP_COPY.permissions} footer={MCP_PERMISSIONS_FOOTER}>
+        <McpPermissionsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
+      </Section>
+
+      <Section title={MCP_COPY.limits} footer={MCP_LIMITS_FOOTER}>
+        <McpLimitsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
       </Section>
 
       <AddEditMcpServerDialog
@@ -143,7 +142,7 @@ export const McpServersPanel: React.FC = () => {
       <EditMcpJsonDialog
         open={jsonOpen}
         onOpenChange={setJsonOpen}
-        title="Edit all MCP servers as JSON"
+        title={MCP_COPY.editAllTitle}
         value={config}
         onSave={(parsed) => apply((c) => applyJson(c, parsed))}
       />
@@ -153,28 +152,8 @@ export const McpServersPanel: React.FC = () => {
 
 // ── Shell ──
 
-interface PanelShellProps {
-  onAdd: () => void;
-  onEditAll: () => void;
-  actionsDisabled?: boolean;
-  children?: React.ReactNode;
-}
-
-const PanelShell: React.FC<PanelShellProps> = ({ onAdd, onEditAll, actionsDisabled, children }) => (
-  <SettingsPage
-    pane="mcp"
-    accessory={
-      <>
-        <IconButton icon={Braces} label="Edit all servers as JSON" size="sm" onClick={onEditAll} disabled={actionsDisabled} />
-        <Button variant="outline" onClick={onAdd} disabled={actionsDisabled}>
-          <Icon icon={Plus} size="xs" />
-          Add server
-        </Button>
-      </>
-    }
-  >
-    {children}
-  </SettingsPage>
+const PanelShell: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <SettingsPage pane="mcp">{children}</SettingsPage>
 );
 
 export default McpServersPanel;

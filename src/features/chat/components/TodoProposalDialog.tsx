@@ -1,7 +1,6 @@
 /** Edit a proposed to-do before it is saved: its text, due date, reminder and owner. */
 
 import React, { useState } from 'react';
-import { Button } from '@shared/ui';
 import { FormDialog, SettingsInput } from '@shared/components';
 import { todoProposalStore, type TodoProposal } from '@features/chat/stores/todoProposalStore';
 import { TODOS_CONFIG } from '@config/todos.config';
@@ -25,12 +24,7 @@ export const TodoProposalDialog: React.FC<{ proposal: TodoProposal; onClose: () 
       onOpenChange={(open) => !open && onClose()}
       title={COPY.edit}
       size="md"
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>{COPY.cancel}</Button>
-          <Button type="submit" form="todo-proposal" disabled={!text.trim()}>{COPY.done}</Button>
-        </>
-      }
+      submit={{ label: COPY.done, onPress: save, disabled: !text.trim() }}
     >
       <form id="todo-proposal" className="space-y-4" onSubmit={(e) => { e.preventDefault(); save(); }}>
         <SettingsInput label={COPY.text} value={text} onChange={(e) => setText(e.target.value)} autoFocus />

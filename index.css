@@ -3,8 +3,7 @@
 @tailwind utilities;
 
 body {
-  min-height: 100vh;
-  min-height: -webkit-fill-available;
+  min-height: 100dvh;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   background-color: var(--bg-base);
@@ -36,7 +35,7 @@ code, pre {
 /* Markdown list/content styles moved to src/styles/markdown.css */
 
 #root {
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ─── Custom scrollbar — auto-hide, show on container hover ─── */

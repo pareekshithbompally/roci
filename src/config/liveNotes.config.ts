@@ -20,6 +20,10 @@ export const LIVE_NOTES_CONFIG = {
   },
   copy: {
     yourNotes: 'Your notes',
+    /** A phone meeting's tab holding both the AI notes and yours. */
+    notesTab: 'Notes',
+    /** A phone's one-word segments while recording (a segment is a third of the screen). */
+    sectionShort: { transcript: 'Transcript', ai: 'Summary', notes: 'Notes' },
     aiNotes: 'AI Summary',
     liveTranscript: 'Live transcript',
     transcript: 'Transcript',

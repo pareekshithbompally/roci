@@ -24,8 +24,9 @@ export const HomeView: React.FC = () => {
   const hasSelectedChat = useChatCurrentSessionId() !== null;
   const hasSelectedMeeting = selectedHistoryId !== null;
 
-  // With Live Transcript on, a recording owns the home column (record screen, results after Stop); off, only its activity trace shows.
-  const showRecordingView = recordingMeetingId !== null && !!settings.liveTranscription;
+  // With Live Transcript on, a recording owns the home column (record screen, results after Stop). Off, the record screen
+  // still shows while that meeting is the one open, so its Pause / Stop are always reachable (a phone has no activity tray).
+  const showRecordingView = recordingMeetingId !== null && (!!settings.liveTranscription || selectedHistoryId === recordingMeetingId);
   // Status takes precedence over selections: "New Chat" sets IDLE, which shows IdleView
   const showChatView = status === AppStatus.CHAT && hasSelectedChat;
   const showResultsView = status === AppStatus.RESULTS && hasSelectedMeeting;

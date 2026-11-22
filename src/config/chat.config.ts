@@ -136,3 +136,6 @@ export const MODEL_PICKER_COPY = {
   select: 'Select model',
   noModels: 'No models available - configure providers first',
 } as const;
+
+/** The composer's + sheet (iPhone): its title and groups. */
+export const COMPOSER_ADD_COPY = { title: 'Add', meeting: 'Meeting', record: 'Record', attach: 'Attach' } as const;

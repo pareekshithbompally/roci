@@ -1,7 +1,7 @@
 /** Settings › Storage: location, Keep periods with Delete All…, space used, search index and the models.dev catalog. */
 
 import React from 'react';
-import { Button, CardRow, Picker, Section, Text } from '@shared/ui';
+import { CardRow, Picker, Section, Text } from '@shared/ui';
 import { StorageConfig } from '@config/storage.config';
 import { LAYOUT } from '@config/layout.config';
 import { confirm } from '@shared/stores/confirmStore';
@@ -106,12 +106,8 @@ const SpaceSection: React.FC<{ usage: StorageUsage | undefined }> = ({ usage }) 
       <CardRow
         title="Cache"
         description="Temporary audio and downloaded data; rebuilt when needed."
-        actions={
-          <>
-            <Figure bytes={usage?.cache_bytes} />
-            <Button variant="outline" size="sm" onClick={() => void clear('cache', 'Clear the cache?', 'Temporary files are removed and fetched again when needed.')}>{ACTIONS.clearCache}</Button>
-          </>
-        }
+        actions={<Figure bytes={usage?.cache_bytes} />}
+        action={{ label: ACTIONS.clearCache, onPress: () => void clear('cache', 'Clear the cache?', 'Temporary files are removed and fetched again when needed.') }}
       />
       <CardRow title="Downloaded Models" actions={<Figure bytes={usage?.models_bytes} />} />
       <CardRow title="Total" actions={<Text variant="figure">{total === undefined ? PENDING : formatFileSize(total)}</Text>} />
@@ -129,7 +125,7 @@ const CatalogSection: React.FC = () => {
     });
   return (
     <Section title="Model Catalog" footer="Model abilities, context sizes and prices come from models.dev.">
-      <CardRow title="models.dev" actions={<Button variant="outline" size="sm" loading={refresh.isPending} onClick={onRefresh}>{ACTIONS.refreshCatalog}</Button>} />
+      <CardRow title="models.dev" action={{ label: ACTIONS.refreshCatalog, onPress: onRefresh, busy: refresh.isPending }} />
     </Section>
   );
 };

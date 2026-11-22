@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ANIMATION_CONFIG } from '@config/animations.config';
-import { Pencil, Plus, Clock, Users, ExternalLink, VolumeX } from 'lucide-react';
+import { Plus, Clock, Users, ExternalLink, VolumeX } from 'lucide-react';
 import { useActiveResultTab, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
 import { useMeetingResult } from '@shared/hooks/useMeetingResult';
 import type { ResultTab } from '@shared/stores/appStore';
@@ -16,11 +16,11 @@ import { openUrl } from '@services/tauri';
 import { formatDuration, calendarDayOffset, formatDayLabel, formatClockTime, formatShortDate, formatDateTime } from '@shared/utils/formatters';
 import { MeetingWorkspace, meetingPipeline, useAiBullets, useDraftSegments, useLiveNotes, type WorkspaceTranscript } from '@features/recording';
 import { useMeetingPhase } from '@shared/stores/meetingProgressStore';
-import { LoadingPane, MeetingStatus, RemovedNotice } from '@shared/components';
+import { FormDialog, LoadingPane, MeetingStatus, RemovedNotice, SettingsInput } from '@shared/components';
 import { StorageConfig } from '@config/storage.config';
 import { MeetingPhaseNotice } from './MeetingPhaseNotice';
 import { MeetingActionsMenu } from './MeetingActionsMenu';
-import { MeetingStatsPopover } from './MeetingStatsPopover';
+import { MeetingDetailsDialog } from './MeetingDetailsDialog';
 import { MeetingSourceIcon } from './MeetingSourceIcon';
 import { SummaryTab } from './SummaryTab';
 import { RelatedTab } from './RelatedTab';
@@ -31,15 +31,15 @@ import type { HistoryItem, ProcessedResult } from '@shared/types';
 import { isMeetingBusy, type MeetingPhase } from '@shared/types/meetingPhase';
 import { meetingPhaseDetail } from '@config/meetingPhase.config';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
-import { MEETING_LIVE_CONFIG as LIVE } from '@config/meetingLive.config';
+import { MEETING_HEADER_COPY, MEETING_LIVE_CONFIG as LIVE, MEETING_TABS } from '@config/meetingLive.config';
 import {
   Badge,
   Button,
   Icon,
   IconButton,
-  Input,
   Surface,
   Tabs,
+  TitleBlock,
   Text,
   TitlebarSpacer,
   Tooltip,
@@ -49,11 +49,14 @@ import { TODOS_CONFIG } from '@config/todos.config';
 
 const VIEW = ANIMATION_CONFIG.view;
 
+/** One segmented control (HIG: one, few segments). A phone gives the notes their own tab (a Mac shows them beside the
+ *  transcript); Related needs a Mac's room. */
 const TAB_ITEMS: readonly TabItem<ResultTab>[] = [
-  { value: 'summary', label: 'Summary' },
-  { value: 'transcript', label: 'Transcript' },
+  { value: 'summary', label: MEETING_TABS.summary },
+  { value: 'transcript', label: MEETING_TABS.transcript },
+  { value: 'notes', label: NOTES.copy.notesTab, only: 'phone' },
   { value: 'todo', label: TODOS_CONFIG.title },
-  { value: 'related', label: KNOWLEDGE_GRAPH.tab },
+  { value: 'related', label: KNOWLEDGE_GRAPH.tab, only: 'desktop' },
 ];
 
 /** Today or Tomorrow, else "Nov 17". */
@@ -120,20 +123,18 @@ const MeetingMetaLine: React.FC<{ categories: string[]; meetingId: string }> = (
   );
 };
 
-/** The title, cut off at the title width with the full text on hover; the edit pencil sits right after it. */
-const MeetingTitle: React.FC<{ title: string; onEdit: () => void; children?: React.ReactNode }> = ({ title, onEdit, children }) => (
-  <div className={`flex items-center gap-1 min-w-0 ${LAYOUT.meetingTitle}`}>
+/** The title on one line, cut off with the full text on hover; rename and details live in the ⋯ menu. */
+const MeetingTitle: React.FC<{ title: string }> = ({ title }) => (
+  <div className={`flex min-w-0 items-center ${LAYOUT.meetingTitle}`}>
     <Tooltip content={title}>
       <Text as="h1" variant="pageTitle" truncate>{title}</Text>
     </Tooltip>
-    <IconButton icon={Pencil} size="sm" label="Rename" className="shrink-0" onClick={onEdit} />
-    {children}
   </div>
 );
 
 /** The Transcript tab: the saved transcript (or the in-call one until it is saved) beside the meeting's notes, whose AI lines
  *  are the summary's filled-in notes and key points. Keyed by meeting, so each meeting's notes load fresh. */
-const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phase: MeetingPhase }> = ({ meetingId, result, phase }) => {
+const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phase: MeetingPhase; only: 'transcript' | 'notes' }> = ({ meetingId, result, phase, only }) => {
   const { type, modelProblem } = useLiveNotes(meetingId, false);
   const draft = useDraftSegments(meetingId);
   const summary = result.structuredSummary;
@@ -144,13 +145,15 @@ const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phas
     label: saved || draft.length === 0 ? NOTES.copy.transcript : NOTES.copy.draftTranscript,
     segments: saved ? result.segments ?? [] : draft,
     text: saved ? result.transcript : undefined,
-    empty: busy ? LIVE.copy.finalizing : meetingPhaseDetail(phase) ?? LIVE.copy.none,
+    // while it records there is no final transcript to build yet: it is written after Stop
+    empty: phase.kind === 'recording' || phase.kind === 'paused' ? LIVE.copy.liveOff : busy ? LIVE.copy.finalizing : meetingPhaseDetail(phase) ?? LIVE.copy.none,
     follow: false,
   };
   return (
     <MeetingWorkspace
       transcript={transcript}
       notes={{ onType: type, modelProblem, bullets, writing: busy, live: false }}
+      only={only}
     />
   );
 };
@@ -170,8 +173,9 @@ export const ResultsView: React.FC = () => {
     if (currentHistoryItem) meetingPipeline.toggle(currentHistoryItem.id);
   };
 
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editedTitle, setEditedTitle] = useState('');
+  /** The ⋯ menu's sheets: rename the meeting, or see its details. */
+  const [sheet, setSheet] = useState<'rename' | 'details' | null>(null);
+  const [draftTitle, setDraftTitle] = useState('');
   /** The To-dos tab's new-item form is open; closed when the meeting changes. */
   const [addingTodo, setAddingTodo] = useState(false);
 
@@ -183,18 +187,32 @@ export const ResultsView: React.FC = () => {
   // the list's title is the one renames update at once (optimistically); the meeting's own follows from disk
   const shownTitle = currentHistoryItem?.title || result.title;
 
-  const handleTitleSave = async () => {
-    const title = editedTitle.trim();
-    if (title && title !== shownTitle && currentHistoryItem) await renameMeeting(currentHistoryItem.id, title);
-    setIsEditingTitle(false);
+  const openRename = () => {
+    setDraftTitle(shownTitle);
+    setSheet('rename');
   };
-
-  const handleTitleCancel = () => {
-    setEditedTitle(shownTitle);
-    setIsEditingTitle(false);
+  const saveTitle = () => {
+    const title = draftTitle.trim();
+    setSheet(null);
+    if (title && title !== shownTitle && currentHistoryItem) {
+      renameMeeting(currentHistoryItem.id, title).catch((error: unknown) => console.error('[ResultsView] Rename failed:', error));
+    }
   };
 
   const exportPart = activeResultTab === 'transcript' ? 'transcript' : 'summary';
+  const statusAndMenu = (
+    <>
+      {isMeetingBusy(phase) && <MeetingStatus phase={phase} display="badge" />}
+      <MeetingActionsMenu
+        result={result}
+        part={exportPart}
+        recordingPath={stats?.recording?.path ?? null}
+        onRetranscribe={recordingFileName && phase.kind === 'ready' ? handleTranscribe : undefined}
+        onRename={openRename}
+        onDetails={() => setSheet('details')}
+      />
+    </>
+  );
 
   return (
     <motion.div
@@ -207,43 +225,17 @@ export const ResultsView: React.FC = () => {
       {/* Meeting title — same page column as Settings */}
       <div className={`${LAYOUT.pageGutter} pt-3 pb-3`}>
       <div className={LAYOUT.pageColumn}>
-        {isEditingTitle ? (
-          <div className="flex items-center gap-2">
-            <Input
-              value={editedTitle}
-              onChange={(e) => setEditedTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void handleTitleSave();
-                if (e.key === 'Escape') handleTitleCancel();
-              }}
-              className="flex-1"
-              autoFocus
+        <>
+            <TitleBlock
+              title={
+                <>
+                  <MeetingSourceIcon inputSource={currentHistoryItem?.inputSource} />
+                  <MeetingTitle title={shownTitle} />
+                </>
+              }
+              meta={currentHistoryItem && <MeetingMetaLine categories={result.categories ?? []} meetingId={currentHistoryItem.id} />}
+              accessory={statusAndMenu}
             />
-            <Button variant="primary" size="sm" onClick={() => void handleTitleSave()}>
-              Save
-            </Button>
-            <Button variant="secondary" size="sm" onClick={handleTitleCancel}>
-              Cancel
-            </Button>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center gap-2">
-              <MeetingSourceIcon inputSource={currentHistoryItem?.inputSource} />
-              <MeetingTitle title={shownTitle} onEdit={() => { setEditedTitle(shownTitle); setIsEditingTitle(true); }}>
-                {currentHistoryItem && <MeetingStatsPopover meetingId={currentHistoryItem.id} />}
-              </MeetingTitle>
-              {isMeetingBusy(phase) && <MeetingStatus phase={phase} display="badge" />}
-              <div className="ml-auto shrink-0">
-                <MeetingActionsMenu
-                  result={result}
-                  part={exportPart}
-                  recordingPath={stats?.recording?.path ?? null}
-                  onRetranscribe={recordingFileName && phase.kind === 'ready' ? handleTranscribe : undefined}
-                />
-              </div>
-            </div>
-            {currentHistoryItem && <MeetingMetaLine categories={result.categories ?? []} meetingId={currentHistoryItem.id} />}
             {currentHistoryItem?.scheduledStart && (
               <CalendarMetaRow item={currentHistoryItem} />
             )}
@@ -254,9 +246,20 @@ export const ResultsView: React.FC = () => {
               />
             </div>
           </>
-        )}
       </div>
       </div>
+
+      <FormDialog
+        open={sheet === 'rename'}
+        onOpenChange={(open) => !open && setSheet(null)}
+        title={MEETING_HEADER_COPY.renameTitle}
+        submit={{ label: MEETING_HEADER_COPY.save, onPress: saveTitle, disabled: !draftTitle.trim() || draftTitle.trim() === shownTitle }}
+      >
+        <SettingsInput label={MEETING_HEADER_COPY.name} value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} autoFocus />
+      </FormDialog>
+      {currentHistoryItem && (
+        <MeetingDetailsDialog meetingId={currentHistoryItem.id} open={sheet === 'details'} onOpenChange={(open) => !open && setSheet(null)} />
+      )}
 
       {/* Tabs Navigation */}
       <Surface edge="bottom" className={LAYOUT.pageGutter}>
@@ -292,11 +295,11 @@ export const ResultsView: React.FC = () => {
       )}
 
       {/* Tab content: the Transcript tab's panes scroll inside themselves; the other tabs scroll as a page. */}
-      {activeResultTab === 'transcript' && currentHistoryItem ? (
+      {(activeResultTab === 'transcript' || activeResultTab === 'notes') && currentHistoryItem ? (
         // the record screen's frame exactly: the panes run to the window's bottom edge, open there
         <div className={`${LAYOUT.pageGutter} flex-1 overflow-hidden pt-4`}>
           <div className={`${LAYOUT.pageColumn} h-full flex flex-col min-h-0`}>
-            <TranscriptTab key={currentHistoryItem.id} meetingId={currentHistoryItem.id} result={result} phase={phase} />
+            <TranscriptTab key={currentHistoryItem.id} meetingId={currentHistoryItem.id} result={result} phase={phase} only={activeResultTab === 'notes' ? 'notes' : 'transcript'} />
           </div>
         </div>
       ) : activeResultTab === 'summary' ? (

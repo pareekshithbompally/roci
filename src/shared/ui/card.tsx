@@ -5,6 +5,7 @@ import { Text } from './text';
 import { Icon } from './icon';
 import { activateOnKey } from '@shared/utils/activateOnKey';
 import { useFormFactor } from '@platform/formFactor';
+import { Button } from './button';
 
 /** Grouped settings surface (macOS grouped section): muted label above a filled card; rows 48px (60px with description), inset hairlines. */
 
@@ -46,14 +47,43 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   /** The setting this row depends on is off: the row dims, and every control in it is off (one native fieldset), so a
    *  dependent can't be changed while its parent is off. */
   disabled?: boolean;
+  /** The row's one command (Clear, Re-index): a push button in the row on a Mac; on a phone its own tinted action row
+   *  right below (iOS: a row holds one trailing thing, commands are rows). */
+  action?: RowCommand;
 }
 
-export function CardRow({ title, description, leading, status, actions, stacked, wrap, align = 'center', onOpen, onPress, tone, disabled, className, children, ...props }: CardRowProps) {
-  const press = disabled ? undefined : onOpen ?? onPress;
-  // Phone: the copy keeps the width — state reads under the description, the side holds only the control.
+export interface RowCommand {
+  label: string;
+  onPress: () => void;
+  busy?: boolean;
+  disabled?: boolean;
+  tone?: 'accent' | 'danger';
+}
+
+/** A row's command as the Mac's push button. */
+const CommandButton: React.FC<{ action: RowCommand }> = ({ action }) => (
+  <Button variant="outline" size="sm" onClick={action.onPress} disabled={action.disabled && !action.busy} loading={action.busy}>
+    {action.label}
+  </Button>
+);
+
+export function CardRow({ action, ...props }: CardRowProps) {
   const phone = useFormFactor() === 'phone';
-  const statusBeside = status && !phone;
-  const chevron = onOpen && <Icon icon={ChevronRight} size="sm" className="text-faint" />;
+  if (!action) return <RowBody {...props} phone={phone} />;
+  if (!phone) return <RowBody {...props} phone={phone} actions={<>{props.actions}<CommandButton action={action} /></>} />;
+  return (
+    <>
+      <RowBody {...props} phone={phone} />
+      <RowBody title={action.label} tone={action.tone ?? 'accent'} disabled={action.disabled || action.busy} onPress={action.onPress} phone={phone} />
+    </>
+  );
+}
+
+function RowBody({ title, description, leading, status, actions, stacked, wrap, align = 'center', onOpen, onPress, tone, disabled, phone, className, children, ...props }: Omit<CardRowProps, 'action'> & { phone: boolean }) {
+  const press = disabled ? undefined : onOpen ?? onPress;
+  // A phone row holds one trailing thing: with controls at the side, its state reads under the title instead.
+  const statusBeside = status && !(phone && actions);
+  const chevron = onOpen && <Icon icon={ChevronRight} size="sm" className="shrink-0 text-faint" />;
   const trailing = statusBeside || actions || chevron;
   return (
     <div
@@ -68,10 +98,11 @@ export function CardRow({ title, description, leading, status, actions, stacked,
       aria-disabled={disabled || undefined}
       {...props}
     >
-      {/* Pinned rows: a box one title line tall (1lh), so the icon centres on the title line, not on the block. */}
+      {/* Pinned rows: a box one title line tall (1lh), so the icon centres on the title line, not on the block. A leading
+          icon that draws nothing (a phone's second level) leaves no slot and no gap (empty:hidden), so text lines up. */}
       {leading && (align === 'start' || stacked
-        ? <Text as="div" variant="body" className="mt-2 flex h-[1lh] shrink-0 items-center self-start">{leading}</Text>
-        : <div className="flex shrink-0 items-center">{leading}</div>)}
+        ? <Text as="div" variant="body" className="mt-2 flex h-[1lh] shrink-0 items-center self-start empty:hidden">{leading}</Text>
+        : <div className="flex shrink-0 items-center empty:hidden">{leading}</div>)}
       <div
         className={cn(
           // Row height comes from min-h (44 macOS, 52 iOS); 8pt padding lets any control fit inside it, so rows line up.
@@ -85,7 +116,7 @@ export function CardRow({ title, description, leading, status, actions, stacked,
         <div className="min-w-0">
           <Text as="p" variant="body" tone={tone} truncate>{title}</Text>
           {description && <Text as="p" variant="helper" tone="muted" truncate={!wrap} className="mt-0.5">{description}</Text>}
-          {status && phone && <div className="mt-1 flex items-center gap-2">{status}</div>}
+          {status && !statusBeside && <div className="mt-1 flex items-center gap-2">{status}</div>}
         </div>
       </div>
       {trailing && (
@@ -121,7 +152,7 @@ export function Section({ title, accessory, layout = 'card', footer, className, 
     <section className={cn('flex flex-col gap-2', className)} {...props}>
       {(title || accessory) && (
         <div className="flex items-center justify-between gap-2 min-h-4 mx-4">
-          {title && <Text as="h2" variant="headline" tone="muted">{title}</Text>}
+          {title && <Text as="h2" variant="section" tone="muted">{title}</Text>}
           {accessory}
         </div>
       )}

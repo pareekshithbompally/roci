@@ -3,6 +3,7 @@ import type { ComponentProps, HTMLAttributes } from 'react';
 import { cn } from './utils';
 import { SCRIM, SHEET, SHEET_TITLE, SHEET_DESCRIPTION } from './recipes';
 import { ScrollArea } from './scroll-area';
+import { SheetContent } from './bottom-sheet';
 import { useFormFactor } from '@platform/formFactor';
 
 export const Dialog = DialogPrimitive.Root;
@@ -26,15 +27,12 @@ export interface DialogContentProps extends ComponentProps<typeof DialogPrimitiv
 
 const BARE = 'fixed z-modal focus:outline-none';
 
-/** iOS: a dialog is a sheet rising from the bottom (UIKit page sheet), on the grouped background, clear of the home bar. */
-const PHONE_SHEET = cn(
-  'fixed inset-x-0 bottom-0 z-modal flex max-h-[92vh] flex-col overflow-y-auto rounded-t-sheet bg-grouped p-5 pb-[calc(var(--safe-bottom)+1.25rem)] shadow-overlay focus:outline-none',
-  'data-[state=open]:animate-rise-show data-[state=closed]:animate-rise-hide',
-);
 
 export function DialogContent({ size = 'md', scrollable, bare, className, ...props }: DialogContentProps) {
   const phone = useFormFactor() === 'phone';
-  const frame = bare ? cn(BARE, DIALOG_SIZE[size]) : phone ? PHONE_SHEET : cn(SHEET, DIALOG_SIZE[size], scrollable && 'max-h-[85vh] flex flex-col');
+  // iOS: a dialog is the kit sheet (UIKit page sheet).
+  if (phone && !bare) return <SheetContent padded className={className} {...props} />;
+  const frame = bare ? cn(BARE, DIALOG_SIZE[size]) : cn(SHEET, DIALOG_SIZE[size], scrollable && 'max-h-[85vh] flex flex-col');
   return <DialogPrimitive.Content className={cn(frame, className)} {...props} />;
 }
 

@@ -2,6 +2,7 @@
  *  colour; something small (a stop square) can sit in its middle. */
 
 import React from 'react';
+import { cn } from './utils';
 
 const SIZE = 20;
 const STROKE = 2.5;
@@ -12,12 +13,14 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 export interface ProgressRingProps {
   /** 0–100. */
   percent: number;
+  /** `muted`: the secondary text colour, beside a muted label; omitted, the current colour. */
+  tone?: 'muted';
   children?: React.ReactNode;
 }
 
-export function ProgressRing({ percent, children }: ProgressRingProps) {
+export function ProgressRing({ percent, tone, children }: ProgressRingProps) {
   return (
-    <span className="relative inline-flex shrink-0 items-center justify-center">
+    <span className={cn('relative inline-flex shrink-0 items-center justify-center', tone === 'muted' && 'text-muted')}>
       <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} fill="none" aria-hidden>
         <circle cx={CENTER} cy={CENTER} r={RADIUS} stroke="currentColor" strokeOpacity={0.2} strokeWidth={STROKE} />
         <circle

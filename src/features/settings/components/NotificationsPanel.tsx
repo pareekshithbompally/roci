@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { LAYOUT } from '@config/layout.config';
-import { MEETING_LEAD_OPTIONS, NOTIFICATION_KINDS } from '@config/notifications.config';
+import { MEETING_LEAD_COPY, MEETING_LEAD_OPTIONS, NOTIFICATION_KINDS } from '@config/notifications.config';
 import { CardRow, Picker, Section, Switch } from '@shared/ui';
 import { PermissionAction } from '@shared/components';
 import { useNotificationControls } from '@features/notifications';
@@ -24,17 +24,23 @@ const PermissionRow: React.FC<{ controls: NotificationControls }> = ({ controls 
   );
 };
 
-const LeadTimeSelect: React.FC<{ controls: NotificationControls }> = ({ controls }) => (
-  <div className={LAYOUT.settingsSelect}>
-    <Picker
-      label="Meeting reminder lead time"
-      value={String(controls.preferences.meetingLeadMinutes)}
-      onChange={(value) => controls.setMeetingLeadMinutes(Number(value))}
-      disabled={!controls.preferences.meetingReminders || controls.access === 'needs-settings'}
-      placeholder=""
-      groups={[{ options: MEETING_LEAD_OPTIONS.map((o) => ({ value: String(o.value), label: o.label })) }]}
-    />
-  </div>
+/** When a meeting reminder comes: its own row under the switch (one control per row), dimmed while reminders are off. */
+const LeadTimeRow: React.FC<{ controls: NotificationControls }> = ({ controls }) => (
+  <CardRow
+    title={MEETING_LEAD_COPY.title}
+    disabled={!controls.preferences.meetingReminders || controls.access === 'needs-settings'}
+    actions={
+      <div className={LAYOUT.settingsSelect}>
+        <Picker
+          label={MEETING_LEAD_COPY.label}
+          value={String(controls.preferences.meetingLeadMinutes)}
+          onChange={(value) => controls.setMeetingLeadMinutes(Number(value))}
+          placeholder=""
+          groups={[{ options: MEETING_LEAD_OPTIONS.map((o) => ({ value: String(o.value), label: o.label })) }]}
+        />
+      </div>
+    }
+  />
 );
 
 export const NotificationsPanel: React.FC = () => {
@@ -48,21 +54,20 @@ export const NotificationsPanel: React.FC = () => {
 
       <Section title="Notify me about">
         {KINDS.map(({ kind, label }) => (
-          <CardRow
-            key={kind}
-            title={label}
-            actions={
-              <>
-                {kind === 'meetingReminders' && <LeadTimeSelect controls={controls} />}
+          <React.Fragment key={kind}>
+            <CardRow
+              title={label}
+              actions={
                 <Switch
                   checked={controls.preferences[kind]}
                   disabled={controls.access === 'needs-settings'}
                   onCheckedChange={(on) => controls.setEnabled(kind, on)}
                   aria-label={label}
                 />
-              </>
-            }
-          />
+              }
+            />
+            {kind === 'meetingReminders' && <LeadTimeRow controls={controls} />}
+          </React.Fragment>
         ))}
       </Section>
     </SettingsPage>

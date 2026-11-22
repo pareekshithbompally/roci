@@ -9,5 +9,17 @@ export const PLAYER_CONFIG = {
   volumeStep: 0.1,
   speeds: [0.5, 0.75, 1, 1.25, 1.5, 2],
   waveform: { barWidth: 3, barGap: 2, barRadius: 2, labelSize: '10px' },
-  copy: { playFailed: "Couldn't play this audio" },
+  copy: {
+    playFailed: "Couldn't play this audio",
+    player: 'Audio player',
+    play: 'Play',
+    pause: 'Pause',
+    mute: 'Mute',
+    unmute: 'Unmute',
+    skipBack: (seconds: number) => `Skip back ${seconds} seconds`,
+    skipForward: (seconds: number) => `Skip forward ${seconds} seconds`,
+    speed: (rate: number) => `Playback speed ${rate}x`,
+    showElapsed: 'Show elapsed time',
+    showRemaining: 'Show remaining time',
+  },
 } as const;

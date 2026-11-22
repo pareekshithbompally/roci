@@ -27,6 +27,14 @@
   --fs-title2: 17px;       --lh-title2: 22px;
   --fs-title1: 22px;       --lh-title1: 26px;
   --fs-large-title: 26px;  --lh-large-title: 32px;
+  /* A group's heading above its card (System Settings / UIKit grouped header). */
+  --fs-section: 13px;      --lh-section: 16px;      --fw-section: 600;
+  /* A running clock (a recording's): a Mac's inline figure; a phone's large timer (Voice Memos). */
+  --fs-timer: 12px;        --lh-timer: 16px;        --fw-timer: 400;
+  /* A segmented control's labels: a Mac's 12; iOS UISegmentedControl's 13 so four segments fit a phone's width. */
+  --fs-segment: 12px;      --lh-segment: 16px;
+  /* Separators and outlines: one pixel on a Mac; one device pixel (a hairline) on iOS. */
+  --hairline: 1px;
   --control-xs: 24px;
   --control-sm: 28px;
   --control-md: 32px;
@@ -214,11 +222,15 @@ html.platform-ios {
   --fs-subheadline: 13px;  --lh-subheadline: 18px;
   --fs-callout: 15px;      --lh-callout: 20px;
   --fs-body: 17px;         --lh-body: 22px;
-  --fs-reading: 17px;      --lh-reading: 24px;
+  --fs-reading: 14px;      --lh-reading: 22px;
   --fs-title3: 20px;       --lh-title3: 25px;
   --fs-title2: 22px;       --lh-title2: 28px;
   --fs-title1: 28px;       --lh-title1: 34px;
   --fs-large-title: 34px;  --lh-large-title: 41px;
+  --fs-section: 13px;      --lh-section: 18px;      --fw-section: 400;
+  --fs-timer: 40px;        --lh-timer: 48px;        --fw-timer: 300;
+  --fs-segment: 13px;      --lh-segment: 18px;
+  --hairline: 0.5px;
   --control-xs: 32px;
   --control-sm: 36px;
   --control-md: 44px;
@@ -228,9 +240,9 @@ html.platform-ios {
   --bg-grouped-card: #ffffff;
   --radius-card: 26px;
   --radius-sheet: 38px;
-  --row-min-h: 52px;
-  --row-icon-gap: 16px;
-  --section-gap: 32px;
+  --row-min-h: 48px;
+  --row-icon-gap: 14px;
+  --section-gap: 24px;
   --top-bar-height: 4rem;
 }
 

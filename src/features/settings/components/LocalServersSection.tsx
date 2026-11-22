@@ -11,8 +11,8 @@ import { platform } from '@platform/index';
 import { ProviderStatus, type ProviderRowState } from './ProviderStatus';
 import { serverHost } from '@services/providers/localServers';
 import type { LocalRow } from '@services/providers/localServers';
-import { Button, CardRow, ICON_TILE_PX, Input, Section } from '@shared/ui';
-import { FieldRow } from './shared';
+import { Button, CardRow, ICON_TILE_PX, Section } from '@shared/ui';
+import { FieldRow } from '@shared/components';
 
 
 function rowState(row: LocalRow): ProviderRowState {
@@ -34,11 +34,11 @@ function rowDetail(row: LocalRow): string {
 interface AddServerFormProps {
   /** The server answered and was saved under this id. */
   onAdded: (id: string) => void;
-  onCancel: () => void;
 }
 
-/** A server's address, then Add: Roci asks the server for its models before saving it (errors in a toast). */
-export const AddServerForm: React.FC<AddServerFormProps> = ({ onAdded, onCancel }) => {
+/** A server's address, then the Add Server action row (Back cancels): Roci asks the server for its models before saving
+ *  it (errors in a toast). */
+export const AddServerForm: React.FC<AddServerFormProps> = ({ onAdded }) => {
   const { showToast } = useToast();
   const { addUrl } = useLocalServers();
   const [address, setAddress] = useState(LOCAL_URL_DRAFT);
@@ -58,34 +58,16 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onAdded, onCancel 
     }
   };
 
+  const ready = !isAdding && address.trim() !== '' && address !== LOCAL_URL_DRAFT;
   return (
-    <form
-      className="space-y-section"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void add();
-      }}
-    >
+    <>
       <Section footer={ADD_SERVER.footer}>
-        <FieldRow title={ADD_SERVER.address}>
-          <Input
-            autoFocus
-            size="sm"
-            type="url"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            onKeyDown={(e) => e.key === 'Escape' && onCancel()}
-            aria-label={ADD_SERVER.address}
-          />
-        </FieldRow>
+        <FieldRow title={ADD_SERVER.address} kind="url" value={address} onChange={setAddress} />
       </Section>
-      <div className="flex justify-end gap-2">
-        <Button variant="ghost" size="sm" onClick={onCancel} disabled={isAdding}>{ADD_SERVER.cancel}</Button>
-        <Button type="submit" variant="primary" size="sm" disabled={isAdding || !address.trim()}>
-          {isAdding ? ADD_SERVER.adding : ADD_SERVER.add}
-        </Button>
-      </div>
-    </form>
+      <Section>
+        <CardRow title={isAdding ? ADD_SERVER.adding : ADD_SERVER.add} tone="accent" disabled={!ready} onPress={() => void add()} />
+      </Section>
+    </>
   );
 };
 

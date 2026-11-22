@@ -7,7 +7,8 @@ import { Icon, type IconSize } from './icon';
 import { LIST_ART_PX } from './icon-tile';
 import { UI_CONFIG } from '@config/ui.config';
 
-/** Canonical button: colour lives in `variant`, shape in `size`; call sites never pass colour or padding classes. */
+/** Canonical button: colour lives in `variant`, shape in `size`; call sites never pass colour or padding classes. Square
+ *  sizes never shrink: a crowded row can't squeeze a round button into a pill. */
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'dangerTint' | 'success' | 'accent' | 'accentTint' | 'ghost' | 'dangerGhost' | 'link' | 'ai' | 'bar';
 
 export type ButtonSize = 'inline' | 'toolbar' | 'sm' | 'md' | 'lg' | 'icon' | 'iconSm' | 'iconXs' | 'fab';
@@ -39,21 +40,24 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
   /** No box — sits in a line of text; on touch screens an invisible overlay widens the tap area without moving the text */
   inline: cn('text-callout gap-1', platform.hasTouchScreen && "relative after:absolute after:-inset-2 after:content-['']"),
   /** Dense control in a toolbar row (composer): tight padding, at least square (control-sm) so an icon alone fits */
-  toolbar: 'h-control-sm min-w-control-sm px-1.5 text-callout rounded-md',
+  toolbar: 'h-control-sm min-w-control-sm shrink-0 px-1.5 text-callout rounded-md',
   sm: 'h-control-sm px-3 text-callout rounded-full',
   md: 'h-control-md px-4 text-body rounded-full',
   /** A screen's main action (first-run Continue): iOS prominent button height. */
   lg: 'h-control-lg px-6 text-body rounded-full',
-  icon: 'h-control-md w-control-md rounded-full',
-  iconSm: 'h-control-sm w-control-sm rounded-full',
+  icon: 'h-control-md w-control-md shrink-0 rounded-full',
+  iconSm: 'h-control-sm w-control-sm shrink-0 rounded-full',
   /** Inline row actions (tray rows, list rows) */
-  iconXs: 'h-control-xs w-control-xs rounded-md',
+  iconXs: 'h-control-xs w-control-xs shrink-0 rounded-md',
   /** Round 44 pt action: the meeting chat's floating button, the iOS sheet's Back and Close */
-  fab: 'h-11 w-11 rounded-full',
+  fab: 'h-11 w-11 shrink-0 rounded-full',
 };
 
-const BASE_CLASSES =
-  'inline-flex items-center justify-center gap-1.5 whitespace-nowrap font-medium transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed';
+const BASE_CLASSES = cn(
+  'inline-flex items-center justify-center gap-1.5 whitespace-nowrap font-medium transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed',
+  // Touch: an iOS button dims the moment a finger lands, not on release.
+  platform.hasTouchScreen && 'active:opacity-60',
+);
 
 /** Busy, not disabled: full opacity, clicks swallowed, `aria-busy` for assistive tech. */
 const LOADING_CLASSES = 'cursor-progress';

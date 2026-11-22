@@ -251,7 +251,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
       {/* Composer */}
       <motion.div
         className={cn('shrink-0', LAYOUT.chatColumn)}
-        layout="position"
+        layout={ANIMATION_CONFIG.chat.composerLayout}
         layoutId={composerLayoutId}
         layoutDependency={ANIMATION_CONFIG.chat.composerLayoutDependency.chat}
         transition={ANIMATION_CONFIG.chat.composerGlide}

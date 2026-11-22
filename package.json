@@ -2,7 +2,7 @@
   "name": "roci",
   "private": true,
   "license": "MIT",
-  "version": "1.10.0",
+  "version": "1.10.2",
   "type": "module",
   "engines": {
     "node": ">=22"

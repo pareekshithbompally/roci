@@ -16,6 +16,14 @@ export const CALENDAR_CONFIG = {
 
   /** The popover's record actions; the same words as the reminders and the menu bar. */
   recordLabels: { join: 'Join & Record', record: 'Record' },
+  /** The event detail's rows (iPhone): the call's command, who's invited, which calendar. */
+  joinLabel: 'Join',
+  openMeetingLabel: 'Open meeting',
+  noCallLink: 'No call link',
+  unknownPerson: 'Unknown',
+  recordFailed: "Couldn't start recording",
+  inviteesLabel: 'Invitees',
+  calendarLabel: 'Calendar',
 
   /** All-day events: the grid's row label and the popover's time line. */
   allDayLabel: 'all-day',

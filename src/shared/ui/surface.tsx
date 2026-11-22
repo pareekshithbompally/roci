@@ -97,7 +97,7 @@ export function Surface({
         RADIUS[radius],
         edges.map((e) => EDGE[e]).join(' '),
         interactive && 'cursor-pointer',
-        selected ? 'bg-tint-pressed' : interactive && 'hover:bg-tint-hover',
+        selected ? 'bg-tint-pressed' : interactive && 'hover:bg-tint-hover active:bg-tint-pressed',
         className,
       )}
       style={tint ? { ...style, ['--event-tint' as string]: tint } : style}
