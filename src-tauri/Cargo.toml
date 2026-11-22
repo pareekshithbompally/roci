@@ -1,7 +1,7 @@
 [package]
 name = "Roci"
 version = "1.10.2"
-description = "AI-powered voice capture, transcription, and insights"
+description = "Private meeting notes and AI chat for Mac, iPhone and iPad."
 authors = ["Pareekshith Bompally"]
 license = "MIT"
 repository = "https://github.com/pareekshithbompally/roci"

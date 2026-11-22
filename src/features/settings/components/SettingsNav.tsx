@@ -37,7 +37,7 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { id: 'notifications', label: 'Notifications', icon: Bell, group: 'App', available: platform.hasNotifications, keywords: ['meeting reminders', 'alerts'], description: 'Meeting reminders and alerts, and when Roci sends them.' },
   { id: 'integrations', label: 'Integrations', icon: Puzzle, group: 'App', available: hasIntegrations, keywords: ['calendar', 'reminders', 'apple notes', 'spotlight', 'hex', 'coding agents'], description: 'Connect Roci to Calendar, Reminders, Notes, Spotlight and your coding agents.' },
   { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard, group: 'App', available: !platform.hasTouchScreen, keywords: ['keyboard', 'keys', 'hotkeys', 'global shortcuts'], description: 'The keys Roci answers to, in the app and anywhere on your Mac.' },
-  { id: 'about', label: 'About', icon: Info, group: 'App', keywords: ['version', 'updates', 'acknowledgements', 'licences', 'open source', 'setup'], heroTitle: 'Roci', description: 'Private, local-first meeting notes with AI chat built in.' },
+  { id: 'about', label: 'About', icon: Info, group: 'App', keywords: ['version', 'updates', 'acknowledgements', 'licences', 'open source', 'setup'], heroTitle: 'Roci', description: 'Private meeting notes and AI chat for Mac, iPhone and iPad.' },
 ];
 
 

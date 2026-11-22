@@ -87,8 +87,8 @@
     "publisher": "Roci",
     "copyright": "Copyright \u00a9 2026 Pareekshith Bompally",
     "category": "Productivity",
-    "shortDescription": "AI-powered voice capture, transcription, and insights",
-    "longDescription": "Roci is a powerful desktop application for real-time system audio capture, transcription, and intelligent summarization. Perfect for meetings, lectures, podcasts, and any audio content that needs to be transcribed and analyzed.",
+    "shortDescription": "Private meeting notes and AI chat for Mac, iPhone and iPad.",
+    "longDescription": "Roci records your meetings and writes the transcript, summary and to-dos, privately on your device or with the AI you choose. Chat with any model about your meetings or anything else, on Mac, iPhone and iPad.",
     "macOS": {
       "minimumSystemVersion": "26.0",
       "entitlements": "entitlements.plist",
