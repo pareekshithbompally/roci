@@ -28,16 +28,17 @@
   appears while you talk: word by word with a model that streams, every few seconds otherwise.
 - **Transcribes and summarizes** with the speech and text models you pick: a summary, action items and to-dos, and your
   own notes filled in from what was said. Save a recording for later and summarize it when you want.
-- **Dictation** anywhere you type, with the same speech models.
-- **Search by meaning.** Ask about anything said in past meetings; answers point back to the meeting and the moment.
-  Hybrid search (keywords plus vectors) runs in the app's own database.
+- **Chat.** Ask about your meetings, or about anything else, with any model you've added. Answers about meetings point
+  back to the meeting and the moment. Add MCP servers, local or remote, to give chat more tools.
+- **Dictation.** Speak instead of typing, with the same speech models; every dictation is kept.
+- **Search by meaning.** Hybrid search (keywords plus vectors) over everything said, in the app's own database.
 - **A knowledge graph that builds up over time.** Each meeting adds the people, organizations, projects and topics it
   discussed, and how they relate, so links between meetings are there when you need them.
 - **Tracks what AI costs.** Every call is logged with its tokens or audio minutes and priced from models.dev, or from your
   own price. Usage shows cost by model, by use and over time.
 - **Calendar.** Upcoming meetings, a reminder before each one, and a Record button in it.
-- **Tools.** Web search and image generation with cloud models. Add any MCP server to give Roci more tools, or connect
-  your coding agents to Roci's own MCP server so they can use Roci's tools.
+- **Tools.** Web search and image generation with cloud models. Coding agents can connect to Roci's own MCP server to
+  use Roci's tools.
 
 <p align="center">
   <img src=".github/assets/meeting.png" alt="A meeting in Roci: transcript beside the AI summary" width="860">
