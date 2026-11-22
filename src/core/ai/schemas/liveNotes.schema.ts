@@ -6,7 +6,7 @@ import { z } from 'zod';
 const text = z.string().trim().min(1).describe('One or two short sentences: the point, then the specifics (names, numbers, dates). No times, no ids.');
 
 const points = z.array(z.strictObject({
-  id: z.string().optional().describe('The id of a point so far, to correct it; leave it out for a new point.'),
+  id: z.string().optional().describe('The id of a point so far, to correct it; null for a new point.'),
   text,
 })).describe('New points from the new transcript, and points so far that it corrects. Empty for small talk.');
 

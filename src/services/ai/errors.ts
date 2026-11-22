@@ -7,7 +7,7 @@ import { isAppleError } from '@services/ai/apple/appleIntelligence.service';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { errorMessage } from '@shared/utils/errors';
 
-export type AiErrorKind = 'setup' | 'auth' | 'rateLimit' | 'contextWindow' | 'network' | 'cancelled' | 'badReply' | 'device' | 'unknown';
+export type AiErrorKind = 'setup' | 'auth' | 'rateLimit' | 'contextWindow' | 'rejected' | 'network' | 'cancelled' | 'badReply' | 'device' | 'unknown';
 
 export class AiError extends Error {
   readonly kind: AiErrorKind;
@@ -46,7 +46,14 @@ function apiCallError(error: APICallError, job: AiJob, provider: string): AiErro
   if (isContextOverflow(error)) {
     return new AiError('contextWindow', `This is too long for the ${SETTING[job]}. Choose one with a larger context in Settings › Default Models.`, { cause: error });
   }
+  if (error.statusCode === 400) return new AiError('rejected', `${name} rejected the request: ${firstSentence(error.message)}`, { cause: error });
   return new AiError('unknown', `${name} couldn't answer (${error.statusCode ?? 'no response'}). Try again.`, { cause: error });
+}
+
+/** A provider's own reason, up to its first sentence (the rest is usually where in the request it went wrong). */
+function firstSentence(message: string): string {
+  const [first = message] = message.split(/(?<=\.)\s/);
+  return first.trim();
 }
 
 /** `error` as an `AiError` (an `AiError` passes through). `provider` names who failed. */

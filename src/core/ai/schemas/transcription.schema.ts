@@ -19,8 +19,8 @@ export function meetingSummarySchema(withNotes: boolean) {
     decisionsMade: lines('Decisions that were agreed, one short sentence each, with the reason when one was given. Empty if none.'),
     actionItems: z.array(z.strictObject({
       text: line.describe('The task as a short instruction: "Send the Q3 report to Priya".'),
-      owner: z.string().trim().min(1).optional().describe('Who will do it, only when the meeting says.'),
-      dueDate: z.string().trim().min(1).optional().describe('When it is due, YYYY-MM-DD, only when the meeting gives a date or day.'),
+      owner: z.string().trim().min(1).optional().describe('Who will do it, only when the meeting says; null otherwise.'),
+      dueDate: z.string().trim().min(1).optional().describe('When it is due, YYYY-MM-DD, only when the meeting gives a date or day; null otherwise.'),
     })).describe('Tasks someone agreed to do. Empty if none.'),
     nextSteps: lines('What happens after this meeting that no one took on as an action item, one short sentence each. Empty if none.'),
   }).describe('The meeting summary, section by section.');
