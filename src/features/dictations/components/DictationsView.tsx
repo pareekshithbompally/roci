@@ -1,4 +1,4 @@
-/** Dictations: every dictation made in the app, newest first, searchable. Mac: the list beside the selected dictation;
+/** Dictations: every dictation made in the app, newest first under its day, searchable. Mac: the list beside the selected dictation;
  *  phone: the list, then one dictation with Back. Each opens to its time, day · length, its model and (cloud) cost badges,
  *  and the words; Copy and Delete. */
 
@@ -11,7 +11,7 @@ import { useFormFactor } from '@platform/formFactor';
 import { useToast } from '@shared/contexts/ToastContext';
 import { confirmDelete } from '@shared/stores/confirmStore';
 import { copyRichText } from '@shared/utils/clipboard';
-import { formatDayLabel, formatDuration, formatClockTime, formatRelativeTime } from '@shared/utils/formatters';
+import { formatDayLabel, formatDuration, formatClockTime, groupByLabel } from '@shared/utils/formatters';
 import { LAYOUT } from '@config/layout.config';
 import { DICTATIONS_CONFIG } from '@config/dictations.config';
 import type { Dictation } from '@shared/types';
@@ -23,16 +23,22 @@ interface DictationListProps {
   onSelect: (id: string) => void;
 }
 
-/** One line per dictation: its words with the time ago beside them (length and model are on the open dictation). */
+/** The dictations under their day (Today, Yesterday, then dates, as Gallery groups), one line each: the words with the time
+ *  of day beside them (length and model are on the open dictation). */
 const DictationList: React.FC<DictationListProps> = ({ dictations, selectedId, onSelect }) => (
-  <>
-    {dictations.map((dictation) => (
-      <Row key={dictation.id} selected={dictation.id === selectedId} onClick={() => onSelect(dictation.id)}>
-        <Text as="span" truncate className="min-w-0 flex-1">{dictation.text}</Text>
-        <Text as="span" variant="figureSmall" tone="muted" className="shrink-0">{formatRelativeTime(dictation.createdAt, { short: true })}</Text>
-      </Row>
+  <div className="space-y-3">
+    {groupByLabel(dictations, (dictation) => formatDayLabel(dictation.createdAt)).map((day) => (
+      <section key={day.label}>
+        <Text as="h2" variant="label" tone="muted" className="px-2.5 pb-1">{day.label}</Text>
+        {day.items.map((dictation) => (
+          <Row key={dictation.id} selected={dictation.id === selectedId} onClick={() => onSelect(dictation.id)}>
+            <Text as="span" truncate className="min-w-0 flex-1">{dictation.text}</Text>
+            <Text as="span" variant="figureSmall" tone="muted" className="shrink-0">{formatClockTime(dictation.createdAt)}</Text>
+          </Row>
+        ))}
+      </section>
     ))}
-  </>
+  </div>
 );
 
 interface DictationDetailProps {
