@@ -18,6 +18,7 @@ import { memoryLines } from '@shared/utils/memories';
 import { memoryOn } from '@shared/utils/personalization';
 import { matchesAllWords } from '@shared/utils/textMatch';
 import { TODOS_CONFIG } from '@config/todos.config';
+import { ROCI_SCREENS } from '@config/mcp.config';
 
 const SCOPES = ['meetings', 'chats', 'todos', 'memories', 'knowledge'] as const;
 
@@ -183,6 +184,7 @@ const FIND: Record<(typeof SCOPES)[number], (args: Input) => Promise<ToolResult>
 
 export const findTool = defineTool({
   name: 'find',
+  screen: ROCI_SCREENS.meetings.uri,
   description:
     "Find the user's own meetings, chats, to-dos, memories or knowledge (the people, projects and topics in them); not for " +
     'facts about the world. Set `in`. With a query: the ' +

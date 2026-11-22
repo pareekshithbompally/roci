@@ -40,3 +40,4 @@ export { modelMenuEntries, modelRowText, modelSubtitle, openModelMenu, type Mode
 export { ModelChips, ModelLabel } from './ModelChips';
 export { KnowledgeGraph } from './KnowledgeGraph';
 export { ChartView, StatsView, TableView } from './result-views';
+export { MeetingList } from './MeetingList';

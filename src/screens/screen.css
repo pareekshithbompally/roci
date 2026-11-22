@@ -1,0 +1,13 @@
+/* A screen's page inside an agent's app: the kit's styles on a body that grows with its content (the host sizes the frame
+   to it), in the token colours the host's theme maps onto. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
+  background-color: transparent;
+  color: var(--text-primary);
+  overflow-wrap: break-word;
+}

@@ -42,6 +42,8 @@ export interface ToolDefinition {
   source?: string;
   /** Changes the user's data. Agents using Roci's MCP server are told so (they ask before calling it). */
   writes?: boolean;
+  /** MCP Apps: the screen (`ui://roci/…`) Roci's MCP server gives agents' apps for this tool's results. */
+  screen?: string;
 }
 
 // ── Tool Context (passed by orchestrator to tool execute()) ──

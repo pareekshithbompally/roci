@@ -133,3 +133,9 @@ export const MCP_APP_CONFIG = {
   /** Body text sizes by the spec's steps (sent as `--font-text-<step>-size`). */
   textSizes: { xs: '--fs-subheadline', sm: '--fs-callout', md: '--fs-body', lg: '--fs-reading' },
 } as const;
+
+/** Roci's own MCP App screens, for agents' apps that show them (Claude, VS Code…): each a page built from the kit
+ *  (`src/screens`, `npm run build:screens`) and served with the app at `path`. */
+export const ROCI_SCREENS = {
+  meetings: { uri: 'ui://roci/meetings', path: '/screens/meetings.html' },
+} as const;

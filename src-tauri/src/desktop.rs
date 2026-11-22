@@ -132,6 +132,7 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       // MCP server (Roci's tools for coding agents)
       mcp_server::commands::mcp_host_publish_tools,
       mcp_server::commands::mcp_host_reply,
+      mcp_server::commands::mcp_host_reply_read,
       mcp_server::commands::mcp_host_status,
       mcp_server::commands::coding_agents_status,
       mcp_server::commands::coding_agent_set,

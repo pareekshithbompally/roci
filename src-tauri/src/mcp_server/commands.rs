@@ -27,6 +27,12 @@ pub fn mcp_host_reply(state: State<'_, McpHostState>, id: u64, reply: ToolReply)
     state.reply(id, reply);
 }
 
+/// The answer to one `mcp-host://read`: the screen's HTML, or why there is none.
+#[tauri::command]
+pub fn mcp_host_reply_read(state: State<'_, McpHostState>, id: u64, html: Option<String>, error: Option<String>) {
+    state.reply_read(id, html.ok_or_else(|| error.unwrap_or_default()));
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerOverview {

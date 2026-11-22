@@ -35,6 +35,9 @@ Both commands first run `scripts/build-mlx.sh`, which builds the on-device engin
 `src-tauri/frameworks`. The first time takes a few minutes; after that it is rebuilt only when its sources change. The
 first Rust build also takes a while, as it compiles transcribe.cpp and SQLite's extensions.
 
+`npm run dev` and `npm run build` first run `npm run build:screens`: Roci's MCP App screens (`src/screens`, for agents'
+apps that show them) are each built into one self-contained page in `public/screens` (generated, not committed).
+
 ## Checks
 
 ```bash

@@ -14,8 +14,9 @@ use std::{
 use rmcp::{
     ErrorData as McpError, RoleServer, ServerHandler, ServiceExt,
     model::{
-        CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, Implementation,
-        ListToolsResult, PaginatedRequestParams, ServerCapabilities, ServerConfig, Tool,
+        CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, Implementation, ListResourcesResult,
+        ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult,
+        Resource, ResourceContents, ServerCapabilities, ServerConfig, Tool,
     },
     service::RequestContext,
 };
@@ -31,6 +32,10 @@ use super::{SERVER_NAME, socket_path};
 
 /// Rust → webview: run one tool (`ToolCallRequest`).
 pub const CALL_EVENT: &str = "mcp-host://call";
+/// Rust → webview: read one of Roci's MCP App screens (`ScreenReadRequest`).
+pub const READ_EVENT: &str = "mcp-host://read";
+/// MCP Apps: a screen's MIME type.
+const SCREEN_MIME: &str = "text/html;profile=mcp-app";
 /// Rust → webview: the listener or its client count changed.
 pub const STATUS_EVENT: &str = "mcp-host://status";
 
@@ -53,6 +58,8 @@ pub struct McpHostState {
     /// `None` until the webview publishes its tools.
     tools: Mutex<Option<watch::Sender<Option<Vec<Tool>>>>>,
     pending: Mutex<HashMap<u64, oneshot::Sender<ToolReply>>>,
+    /// Screen reads waiting on the webview: its HTML, or why it has none.
+    pending_reads: Mutex<HashMap<u64, oneshot::Sender<Result<String, String>>>>,
     next_call: AtomicU64,
     next_session: AtomicU64,
     /// Agents connected now, by session, as each announced itself when it connected.
@@ -62,12 +69,21 @@ pub struct McpHostState {
     listening: std::sync::atomic::AtomicBool,
 }
 
-/// What the webview sends back for one call.
+/// What the webview sends back for one call: the text the agent's model reads and, for a tool with a screen, the data
+/// the screen draws.
 #[derive(Debug, serde::Deserialize)]
 pub struct ToolReply {
     pub text: String,
     #[serde(rename = "isError")]
     pub is_error: bool,
+    #[serde(rename = "structuredContent", default)]
+    pub structured_content: Option<serde_json::Value>,
+}
+
+#[derive(Clone, Serialize)]
+struct ScreenReadRequest<'a> {
+    id: u64,
+    uri: &'a str,
 }
 
 #[derive(Clone, Serialize)]
@@ -141,6 +157,13 @@ impl McpHostState {
             .unwrap_or_else(|e| e.into_inner())
             .remove(&id);
         // None: the call already timed out or was cancelled by the agent.
+        if let Some(sender) = sender {
+            let _ = sender.send(reply);
+        }
+    }
+
+    pub fn reply_read(&self, id: u64, reply: Result<String, String>) {
+        let sender = self.pending_reads.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
         if let Some(sender) = sender {
             let _ = sender.send(reply);
         }
@@ -334,8 +357,46 @@ impl RociServer {
         state.forget(id);
         match outcome {
             Ok(Ok(reply)) if reply.is_error => error_result(reply.text),
-            Ok(Ok(reply)) => CallToolResult::success(vec![ContentBlock::text(reply.text)]),
+            Ok(Ok(reply)) => {
+                let mut result = CallToolResult::success(vec![ContentBlock::text(reply.text)]);
+                result.structured_content = reply.structured_content;
+                result
+            }
             _ => error_result(format!("{} did not finish {name} in time", env!("APP_NAME"))),
+        }
+    }
+}
+
+impl RociServer {
+    /// The screens the published tools declare (`_meta.ui.resourceUri`), each once.
+    async fn screens(&self) -> Result<Vec<String>, McpError> {
+        let mut uris: Vec<String> = self
+            .tools()
+            .await?
+            .iter()
+            .filter_map(|tool| tool.meta.as_ref()?.0.get("ui")?.get("resourceUri")?.as_str().map(str::to_string))
+            .collect();
+        uris.sort();
+        uris.dedup();
+        Ok(uris)
+    }
+
+    /// A screen's HTML, read by the webview (it serves the built screens with the app).
+    async fn read_screen(&self, uri: &str) -> Result<String, McpError> {
+        let state = self.state();
+        let id = state.next_call.fetch_add(1, Ordering::Relaxed);
+        let (tx, rx) = oneshot::channel();
+        state.pending_reads.lock().unwrap_or_else(|e| e.into_inner()).insert(id, tx);
+        if let Err(e) = self.app.emit(READ_EVENT, ScreenReadRequest { id, uri }) {
+            state.pending_reads.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
+            return Err(McpError::internal_error(format!("could not read {uri}: {e}"), None));
+        }
+        let outcome = timeout(CALL_TIMEOUT, rx).await;
+        state.pending_reads.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
+        match outcome {
+            Ok(Ok(Ok(html))) => Ok(html),
+            Ok(Ok(Err(why))) => Err(McpError::resource_not_found(why, None)),
+            _ => Err(McpError::internal_error(format!("{} did not read {uri} in time", env!("APP_NAME")), None)),
         }
     }
 }
@@ -347,7 +408,7 @@ fn error_result(text: String) -> CallToolResult {
 
 impl ServerHandler for RociServer {
     fn get_info(&self) -> ServerConfig {
-        ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
+        ServerConfig::new(ServerCapabilities::builder().enable_tools().enable_resources().build())
             .with_server_info(Implementation::new(SERVER_NAME, env!("CARGO_PKG_VERSION")))
             .with_instructions(INSTRUCTIONS)
     }
@@ -358,6 +419,33 @@ impl ServerHandler for RociServer {
         _context: RequestContext<RoleServer>,
     ) -> Result<ListToolsResult, McpError> {
         Ok(ListToolsResult::with_all_items(self.tools().await?))
+    }
+
+    async fn list_resources(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListResourcesResult, McpError> {
+        let resources = self
+            .screens()
+            .await?
+            .into_iter()
+            .map(|uri| Resource::new(uri.clone(), uri).with_mime_type(SCREEN_MIME))
+            .collect();
+        Ok(ListResourcesResult::with_all_items(resources))
+    }
+
+    async fn read_resource(
+        &self,
+        request: ReadResourceRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ReadResourceResponse, McpError> {
+        if !self.screens().await?.contains(&request.uri) {
+            return Err(McpError::resource_not_found(format!("No screen {}", request.uri), None));
+        }
+        let html = self.read_screen(&request.uri).await?;
+        let contents = ResourceContents::text(html, request.uri).with_mime_type(SCREEN_MIME);
+        Ok(ReadResourceResult::new(vec![contents]).into())
     }
 
     async fn call_tool(
