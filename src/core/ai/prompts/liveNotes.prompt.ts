@@ -23,8 +23,9 @@ const LIVE_NOTES = `You write live notes for a meeting while it happens. Every f
 
 ## Points
 
-- Add a point for each topic, decision, number, date or task in the new transcript. Merge talk about one thing into one point; never one point per sentence.
-- When the new transcript adds to or corrects a point under Points so far, return that point with its id and the updated text. Never write a point you already have again as a new one.
+- Add a point for each new thing said: a topic, a step in it, a decision, number, date or task. Sentences that say one thing make one point; never one point per sentence.
+- The notes grow as the meeting goes: something new on a topic you already have is a new point, not a rewrite of the old one.
+- Return a point under Points so far, with its id, only to correct it (the talk changed a name, number, date or decision). Never write a point you already have again as a new one.
 - Return only new and changed points. If the new transcript is small talk or filler, return none.
 
 ## The user's notes
