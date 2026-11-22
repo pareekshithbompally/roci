@@ -1,14 +1,10 @@
 name: Release
 
+# A release is a v* tag pushed by the owner (the tag ruleset allows no one else); a failed run is re-run from Actions.
 on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Tag to release (e.g. v1.0.0)"
-        required: true
 
 # Nothing by default; the release job asks for what it needs.
 permissions: {}
@@ -18,14 +14,13 @@ jobs:
     # Only this repo, started by its owner: a fork or anyone else never reaches the signing steps.
     if: github.repository == 'pareekshithbompally/roci' && github.actor == 'pareekshithbompally'
     runs-on: macos-latest # Apple Silicon (M1+) runner
+    environment: release # deploys only from v* tags
     permissions:
       contents: write # create the release
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          # a manual run builds the tag it publishes, never the branch it was started from
-          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
           persist-credentials: false
 
       - name: Select Xcode 26
@@ -92,16 +87,7 @@ jobs:
 
       - name: Get version from tag
         id: version
-        env:
-          EVENT: ${{ github.event_name }}
-          INPUT_TAG: ${{ inputs.tag }}
-        run: |
-          if [ "$EVENT" = "workflow_dispatch" ]; then
-            TAG="$INPUT_TAG"
-          else
-            TAG="${GITHUB_REF#refs/tags/}"
-          fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
       - name: Locate DMG
         id: dmg

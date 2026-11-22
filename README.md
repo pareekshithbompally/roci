@@ -104,4 +104,5 @@ Roci is a personal project that I share as-is. **I'm not able to take on issues 
 
 ## License
 
-MIT. See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+MIT. See [LICENSE](LICENSE), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and [TRADEMARK.md](TRADEMARK.md) for the
+name and icon. Security reports: [SECURITY.md](.github/SECURITY.md).
