@@ -24,5 +24,10 @@
     <string>Roci connects to model servers you run on your network, such as Ollama or llama-server on another computer.</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
+	<!-- iPhone is portrait only; iPad keeps every orientation (UISupportedInterfaceOrientations~ipad). -->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
 </dict>
 </plist>
