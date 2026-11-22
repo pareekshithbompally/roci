@@ -131,6 +131,15 @@
 
 .markdown-content a:hover { text-decoration: underline; }
 
+/* Display equations: a wide one scrolls sideways inside itself (as tables and code do), never the page; a little padding
+   keeps tall fractions and their bars clear of the scroll edge. */
+.markdown-content .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25em 0;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Tables */
 .markdown-content table {
   width: 100%;
