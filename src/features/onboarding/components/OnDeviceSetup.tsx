@@ -41,10 +41,10 @@ const choicesOf = (models: LocalModel[], kind: LocalModelKind): ModelChoice[] =>
     value: m.id, provider: ON_DEVICE, modelId: m.id, label: m.name, ready: true, hint: formatFileSize(m.bytes),
   }));
 
-/** The picks as the defaults Settings › Default Models shows. */
+/** The picks as the defaults Settings › Default Models shows ("Same as chat" saves the chat model, as that panel shows it). */
 const settingsOf = (picks: Picks): Partial<AppSettings> => ({
   chatModel: picks.chat,
-  analyzeModel: picks.summaries ?? undefined,
+  analyzeModel: picks.summaries ?? picks.chat,
   transcriptionProvider: ON_DEVICE,
   transcriptionModel: picks.speech,
   readAloudEngine: picks.voice,

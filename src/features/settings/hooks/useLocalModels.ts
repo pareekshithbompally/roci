@@ -159,3 +159,14 @@ export function useLocalModelIdle(): void {
     setLocalModelIdle(minutes).catch(report('idle'));
   }, [minutes]);
 }
+
+/** The chat model on this device while it downloads (its name and progress), for home to say chat is on its way; null once
+ *  it is ready, or when chat isn't an on-device model. */
+export function useChatModelDownload(): { name: string; percent: number | null } | null {
+  const { settings } = useSettings();
+  const { data: models = [] } = useLocalModels();
+  const controls = useLocalModelControls();
+  const model = models.find((m) => m.kind === 'chat' && m.id === settings.chatModel);
+  const control = model && controls[model.id];
+  return model && control?.status === 'busy' ? { name: model.name, percent: control.percent } : null;
+}

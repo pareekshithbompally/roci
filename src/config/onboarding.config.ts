@@ -145,5 +145,7 @@ export const ONBOARDING_CONFIG = {
   finishSetup: {
     start: 'Set up AI to start',
     defaults: (left: number) => `Choose default models · ${left} left`,
+    /** Chat's model on this device still downloading (onboarding opened the app before it finished). */
+    downloading: (name: string, percent: number | null) => `Getting chat ready · ${name}${percent === null ? '' : ` · ${percent}%`}`,
   },
 } as const;

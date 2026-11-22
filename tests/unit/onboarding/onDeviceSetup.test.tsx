@@ -47,7 +47,7 @@ describe('OnDeviceSetup', () => {
     const { rerender } = render(<OnDeviceSetup />);
     fireEvent.click(screen.getByRole('button', { name: 'Download and Start' }));
     expect(setSettings).toHaveBeenCalledWith(expect.objectContaining({
-      chatModel: 'chat-a', analyzeModel: undefined, transcriptionProvider: 'on-device', transcriptionModel: 'stt', readAloudEngine: 'tts',
+      chatModel: 'chat-a', analyzeModel: 'chat-a', transcriptionProvider: 'on-device', transcriptionModel: 'stt', readAloudEngine: 'tts',
     }));
     expect(download.mock.calls.map(([id]) => id)).toEqual(['chat-a', 'stt']);
     rerender(<OnDeviceSetup />);

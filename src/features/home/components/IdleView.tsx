@@ -9,11 +9,11 @@ import { ChatInput } from '@features/chat';
 import { LandingGlow } from './LandingGlow';
 import { useVoiceCapture } from '@features/chat';
 import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
-import { aiSetupStep, useAIReadiness, useOpenAISetup } from '@features/settings';
+import { aiSetupStep, useAIReadiness, useChatModelDownload, useOpenAISetup } from '@features/settings';
 import { ONBOARDING_CONFIG } from '@config/onboarding.config';
 import { LAYOUT } from '@config/layout.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
-import { Button, cn, Icon, Text, TitlebarSpacer } from '@shared/ui';
+import { Button, cn, Icon, ProgressRing, Text, TitlebarSpacer } from '@shared/ui';
 import { LoadingPane } from '@shared/components';
 import { motion } from 'framer-motion';
 import { platform } from '@platform/index';
@@ -67,6 +67,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   const hasConfiguredProviders = aiReady.text;
   const setupStep = aiSetupStep(aiReady);
   const handleSetupProviders = useOpenAISetup();
+  const chatDownload = useChatModelDownload();
   // Phone: the greeting fills the screen and the composer sits at the bottom, above the keyboard.
   const phone = useFormFactor() === 'phone';
 
@@ -144,7 +145,14 @@ export const IdleView: React.FC<IdleViewProps> = () => {
               </motion.div>
 
               {/* Until AI is fully set up: a provider first (chat waits for one), then the default models still to choose. */}
-              {setupStep && (
+              {/* chat's model still downloading: say so, instead of sending to setup */}
+              {chatDownload && (
+                <div className="flex items-center justify-center gap-2">
+                  <Text as="span" tone="muted"><ProgressRing percent={chatDownload.percent ?? 0} /></Text>
+                  <Text variant="label" tone="muted">{FINISH_SETUP.downloading(chatDownload.name, chatDownload.percent)}</Text>
+                </div>
+              )}
+              {setupStep && !chatDownload && (
                 <div className="flex justify-center">
                   <Button variant="outline" size="sm" onClick={handleSetupProviders}>
                     {setupStep.panel === 'providers' ? FINISH_SETUP.start : FINISH_SETUP.defaults(setupStep.left)}
