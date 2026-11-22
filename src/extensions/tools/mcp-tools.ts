@@ -120,6 +120,28 @@ async function callWithCancellation(
   }
 }
 
+// ── Calls from an MCP App screen ──
+
+/** A `CallToolResult` a screen reads as failed. */
+const screenError = (text: string): Record<string, unknown> => ({ content: [{ type: 'text', text }], isError: true });
+
+/** A tool call an MCP App screen makes: only to its own server, never to a tool the user switched off, and through the
+ *  same approval as the model's calls. The whole result goes back to the screen; the model never sees it. */
+export async function callToolFromScreen(
+  server: string,
+  name: string,
+  args: Record<string, unknown>,
+  disabledKeys: ReadonlySet<string>,
+): Promise<Record<string, unknown>> {
+  if (disabledKeys.has(mcpToolKey(server, name))) return screenError(`The tool "${name}" is switched off.`);
+  const tool = (await mcpService.getTools()).find((t) => t.server === server && t.name === name);
+  if (!tool) return screenError(`${server} offers no tool "${name}".`);
+  const gate = createApprovalGate(await loadMcpSettings());
+  if (!(await gate(tool, args))) return screenError('The user declined to run this tool.');
+  const output = await mcpService.callTool({ server, tool: name, arguments: args, cancellationToken: crypto.randomUUID(), withResult: true });
+  return output.result ?? screenError(output.text);
+}
+
 // ── Approval ("Run tools without asking" + per-server grants) ──
 
 /** One gate per turn: an "always allow" answer covers the rest of the turn too. */

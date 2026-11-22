@@ -29,9 +29,16 @@ function ProviderModelLabel({ provider, model }: { provider?: string; model?: st
 
 /** The message's parts, live while it streams and saved once it's done, through one list: a tool's image or screen keeps
  *  its place when the reply finishes instead of being rebuilt. Isolated so only it re-renders on each chunk. */
-const MessageParts = memo(({ msgId, parts, streaming }: { msgId: string; parts: ChatPart[]; streaming: boolean }) => {
+interface MessagePartsProps {
+  msgId: string;
+  parts: ChatPart[];
+  streaming: boolean;
+  onSend?: (text: string) => void;
+}
+
+const MessageParts = memo(({ msgId, parts, streaming, onSend }: MessagePartsProps) => {
   const live = useStreamingMessage(streaming ? msgId : null);
-  return <PartsList parts={live ? live.parts : parts} messageId={msgId} streaming={!!live} generation={live?.generation} />;
+  return <PartsList parts={live ? live.parts : parts} messageId={msgId} streaming={!!live} generation={live?.generation} onSend={onSend} />;
 });
 
 MessageParts.displayName = 'MessageParts';
@@ -75,7 +82,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             {!isStreaming && isError && text ? (
               <ErrorMessageBox errorText={text} />
             ) : (
-              <MessageParts msgId={id} parts={parts} streaming={isStreaming} />
+              <MessageParts msgId={id} parts={parts} streaming={isStreaming} onSend={onSuggestionClick} />
             )}
           </div>
 

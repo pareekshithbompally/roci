@@ -126,6 +126,10 @@ export const MCP_APP_CONFIG = {
     '--shadow-md': '--shadow-raised',
     '--shadow-lg': '--shadow-overlay',
   },
+  copy: {
+    openLinkTitle: (server: string) => `${server} wants to open a link`,
+    openLink: 'Open',
+  },
   /** Body text sizes by the spec's steps (sent as `--font-text-<step>-size`). */
   textSizes: { xs: '--fs-subheadline', sm: '--fs-callout', md: '--fs-body', lg: '--fs-reading' },
 } as const;

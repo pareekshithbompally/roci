@@ -13,7 +13,7 @@ vi.mock('@services/mcp.service', () => ({ mcpService: service }));
 vi.mock('@services/tauri', () => ({ isTauriEnvironment: () => true }));
 vi.mock('@shared/query/queryClient', () => ({ queryClient: { invalidateQueries: vi.fn() } }));
 
-import { loadMcpSettings, loadMcpTools } from '@extensions/tools/mcp-tools';
+import { callToolFromScreen, loadMcpSettings, loadMcpTools } from '@extensions/tools/mcp-tools';
 import { useToolApprovalStore } from '@shared/stores/toolApprovalStore';
 import type { ToolContext } from '@extensions/tools/types';
 
@@ -144,5 +144,30 @@ describe('loadMcpSettings', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(await loadMcpSettings()).toEqual(DEFAULT_MCP_SETTINGS);
     spy.mockRestore();
+  });
+});
+
+describe('callToolFromScreen', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useToolApprovalStore.setState({ pending: [] });
+  });
+
+  it("calls only its own server's tools, never a switched-off one, and returns the whole result", async () => {
+    setup({ allowAllTools: true });
+    const whole = { content: [{ type: 'text', text: 'contents' }] };
+    service.callTool.mockResolvedValue({ text: 'contents', isError: false, result: whole });
+    expect(await callToolFromScreen('fs', 'read_file', { path: 'a' }, new Set())).toEqual(whole);
+    expect(await callToolFromScreen('other', 'read_file', {}, new Set())).toMatchObject({ isError: true });
+    expect(await callToolFromScreen('fs', 'read_file', {}, new Set(['fs/read_file']))).toMatchObject({ isError: true });
+    expect(service.callTool).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks the same approval as the model, and a denial never runs the tool', async () => {
+    setup();
+    const pending = callToolFromScreen('fs', 'read_file', { path: 'a' }, new Set());
+    await answerNextPrompt('deny');
+    expect(await pending).toMatchObject({ isError: true });
+    expect(service.callTool).not.toHaveBeenCalled();
   });
 });
