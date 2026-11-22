@@ -2,10 +2,10 @@
  *  term list (Deepgram's `keyterm` is one term; ElevenLabs files and OpenAI streams take none) gets nothing. */
 
 import { TRANSCRIPTION_CONFIG, type SdkSpeechFamily } from '@config/transcription.config';
-import type { experimental_streamTranscribe, experimental_transcribe } from 'ai';
+import type { experimental_streamTranscribe, transcribe } from 'ai';
 import { termsWithin } from '@core/ai/prompts/personalization.prompt';
 
-type FileOptions = Parameters<typeof experimental_transcribe>[0]['providerOptions'];
+type FileOptions = Parameters<typeof transcribe>[0]['providerOptions'];
 type LiveOptions = Parameters<typeof experimental_streamTranscribe>[0]['providerOptions'];
 
 const { promptChars, keyterms } = TRANSCRIPTION_CONFIG.vocabularyHints;

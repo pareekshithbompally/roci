@@ -1,6 +1,6 @@
 /** One adapter per speech API family, each taking one 16 kHz mono WAV part and returning its text and segments. */
 
-import { experimental_transcribe as transcribe, generateText } from 'ai';
+import { transcribe, generateText } from 'ai';
 import { createModel, createTranscriptionModel } from '@services/ai/provider';
 import { extractTokenUsage } from '@services/ai/types';
 import { verbatimTranscribePrompt } from '@core/ai/prompts/transcription.prompt';
