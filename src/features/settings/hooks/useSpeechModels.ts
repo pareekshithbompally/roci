@@ -21,6 +21,9 @@ import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { MEETING_LIVE_CONFIG } from '@config/meetingLive.config';
 import type { LocalModel } from '@services/localModels.service';
 import { useLocalModels } from '@shared/hooks/useLocalModels';
+import { captureSourceOf } from '@shared/utils/audio.utils';
+import { isIntegrationEnabled } from '@shared/utils/integrations';
+import type { AppSettings } from '@shared/types';
 
 const speechModels = (models: LocalModel[]) => models.filter((m) => m.kind === 'speech');
 
@@ -74,13 +77,13 @@ export function useLiveDictation(): LiveDictation | null {
 /** What the chosen speech model does live, for the Live Transcript footer: a model known to stream streams in meetings
  *  when its engine runs a stream per side, else dictation only; a cloud model is tried; no streaming engine means chunks. */
 export function useLiveModeLine(): string | null {
-  const { providers } = useSettings();
+  const { settings, providers } = useSettings();
   const option = useSelectedSpeechOption();
   if (!option) return null;
   const { liveCopy } = TRANSCRIPTION_CONFIG;
   if (!runsLive(option, providers, 1)) return liveCopy.chunks;
   if (!option.live) return liveCopy.tried;
-  return runsLive(option, providers, MEETING_LIVE_CONFIG.sides.systemAndMicrophone.length) ? liveCopy.streams : liveCopy.dictationOnly;
+  return runsLive(option, providers, MEETING_LIVE_CONFIG.sides[captureSourceOf(settings)].length) ? liveCopy.streams : liveCopy.dictationOnly;
 }
 
 /** Whether the selected speech model can run now (composer mic). */
@@ -91,12 +94,26 @@ export function useSpeechInputReady(): boolean {
   return isSpeechSelectionReady(speechSelectionOf(settings), providers, sources);
 }
 
-/** Re-read keyless sources for a tray pick, since a model may have gone or Hex quit since the list was built. */
-export async function freshSpeechSources(): Promise<SpeechSources> {
+/** A status read fresh; a source that can't answer reads as not ready, so it never blocks a pick from another source. */
+const freshStatus = <T>(queryKey: readonly unknown[], queryFn: () => Promise<T>): Promise<T | undefined> =>
+  queryClient.fetchQuery({ queryKey, queryFn, staleTime: 0 }).catch((error: unknown) => {
+    console.warn('[useSpeechModels] A speech source did not answer:', error);
+    return undefined;
+  });
+
+/** Re-read keyless sources for a tray pick, since a model may have gone or Hex quit since the list was built; integrations
+ *  only when they are on, as the menus list them. */
+export async function freshSpeechSources(settings: AppSettings): Promise<SpeechSources> {
+  const hexOn = isIntegrationEnabled(settings, 'hex');
+  const appleOn = isIntegrationEnabled(settings, 'appleIntelligence');
   const [models, hex, apple] = await Promise.all([
-    queryClient.fetchQuery({ queryKey: queryKeys.localModels(), queryFn: getLocalModels, staleTime: 0 }),
-    queryClient.fetchQuery({ queryKey: queryKeys.hexStatus(), queryFn: getHexStatus, staleTime: 0 }),
-    queryClient.fetchQuery({ queryKey: queryKeys.appleSpeechStatus(), queryFn: getAppleSpeechStatus, staleTime: 0 }),
+    freshStatus(queryKeys.localModels(), getLocalModels),
+    hexOn ? freshStatus(queryKeys.hexStatus(), getHexStatus) : undefined,
+    appleOn ? freshStatus(queryKeys.appleSpeechStatus(), getAppleSpeechStatus) : undefined,
   ]);
-  return { onDevice: { models: speechModels(models) }, hex: { status: hex }, appleSpeech: { status: apple } };
+  return {
+    onDevice: { models: speechModels(models ?? []) },
+    ...(hexOn ? { hex: { status: hex } } : {}),
+    ...(appleOn ? { appleSpeech: { status: apple } } : {}),
+  };
 }

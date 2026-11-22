@@ -164,7 +164,7 @@ const App: React.FC = () => {
   const applySpeechModel = async (key: string) => {
     try {
       const selection = parseModelKey(key);
-      if (!selection || !isSpeechSelectionReady(selection, providers, await freshSpeechSources())) {
+      if (!selection || !isSpeechSelectionReady(selection, providers, await freshSpeechSources(settings))) {
         toast.showToast("That speech model isn't ready. Check Settings › Default Models.", 'warning');
         return;
       }

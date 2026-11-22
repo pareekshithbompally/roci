@@ -33,19 +33,31 @@ export const setSpeechVocabulary = (entries: VocabularyEntry[], boost: Recogniti
 
 const display = (text: LiveText) => `${text.committed}${text.tentative}`.trim();
 
+/** The engine's one stream is taken (a meeting or a dictation holds it until it finishes or is cancelled). */
+let streamTaken = false;
+
 /** Streaming on this Mac (models that stream: Parakeet, Nemotron — the catalog knows which). The engine holds its one loaded
- *  model for the whole stream, so one stream runs at a time. Audio goes as raw f32. */
+ *  model for the whole stream, so one stream runs at a time: a second open is refused while one is held (a dictation then
+ *  records its clip, a meeting goes to chunks), never replacing it. Audio goes as raw f32. */
 export const onDeviceStreaming: StreamingEngine = {
   concurrent: 1,
   async open({ model, language }) {
+    if (streamTaken) throw new Error(`Live speech is already running on this ${platform.deviceName}.`);
     const worded = (error: unknown): never => {
       throw new Error(onDeviceErrorMessage(error, model), { cause: error });
     };
-    await invoke('stt_live_start', { model, language }).catch(worded);
+    const release = () => {
+      streamTaken = false;
+    };
+    streamTaken = true;
+    await invoke('stt_live_start', { model, language }).catch((error: unknown) => {
+      release();
+      return worded(error);
+    });
     return {
       feed: (pcm) => invoke<LiveText>('stt_live_feed', new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength)).catch(worded),
-      finish: () => invoke<LiveText>('stt_live_finish').then(display, worded),
-      cancel: () => invoke('stt_live_cancel'),
+      finish: () => invoke<LiveText>('stt_live_finish').then(display, worded).finally(release),
+      cancel: () => invoke<void>('stt_live_cancel').finally(release),
     };
   },
 };

@@ -1,4 +1,6 @@
-import { AUDIO_CONFIG } from '@config/audio.config';
+import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
+import { platform } from '@platform/index';
+import type { AppSettings } from '@shared/types';
 
 export const audioContextOptions = { sampleRate: AUDIO_CONFIG.recording.defaultSampleRate };
 
@@ -42,3 +44,7 @@ export function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
+
+/** What a recording captures: the source chosen in Settings › General › Capture on Mac; the microphone on iPhone and iPad. */
+export const captureSourceOf = (settings: Pick<AppSettings, 'defaultAudioSource'>): AudioCaptureSource =>
+  platform.canCaptureSystemAudio ? settings.defaultAudioSource ?? 'systemAndMicrophone' : 'microphone';

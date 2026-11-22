@@ -6,11 +6,11 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { recording } from '@features/recording/stores/recordingStore';
 import { liveTranscript } from '@features/recording/live';
 import { MEETING_LIVE_CONFIG as LIVE } from '@config/meetingLive.config';
-import { platform } from '@platform/index';
+import { captureSourceOf } from '@shared/utils/audio.utils';
 
 export function useStartRecording(): () => Promise<string> {
   const { settings, providers } = useSettings();
-  const source = platform.canCaptureSystemAudio ? settings.defaultAudioSource ?? 'systemAndMicrophone' : 'microphone';
+  const source = captureSourceOf(settings);
   const live = !!settings.liveTranscription;
   return useCallback(async () => {
     const streaming = live && (await liveTranscript.prepare(() => ({ settings, providers }), LIVE.sides[source]));
