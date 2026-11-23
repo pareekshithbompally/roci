@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Roci",
-  "version": "1.10.4",
+  "version": "1.11.0",
   "identifier": "ai.roci.roci",
   "build": {
     "frontendDist": "../dist",
@@ -115,7 +115,7 @@
     "iOS": {
       "developmentTeam": "8TV3HMU3KY",
       "minimumSystemVersion": "26.0",
-      "bundleVersion": "2"
+      "bundleVersion": "1"
     }
   }
 }
