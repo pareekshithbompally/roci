@@ -1,6 +1,6 @@
 [package]
 name = "Roci"
-version = "1.10.3"
+version = "1.10.4"
 description = "Private meeting notes and AI chat for Mac, iPhone and iPad."
 authors = ["Pareekshith Bompally"]
 license = "MIT"

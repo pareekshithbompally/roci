@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Roci",
-  "version": "1.10.3",
+  "version": "1.10.4",
   "identifier": "ai.roci.roci",
   "build": {
     "frontendDist": "../dist",
