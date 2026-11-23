@@ -14,6 +14,7 @@ const SuggestionsList: React.FC<SuggestionsListProps> = ({ suggestions, onSugges
       <Row
         key={i}
         size="sm"
+        flush
         onClick={() => onSuggestionClick(suggestion)}
         leading={<Icon icon={ArrowRight} size="xs" tone="faint" />}
       >

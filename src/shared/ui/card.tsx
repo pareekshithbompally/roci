@@ -160,21 +160,24 @@ export interface SectionProps extends Omit<React.HTMLAttributes<HTMLElement>, 't
   layout?: 'card' | 'stack';
   /** What the group's rows do, in a sentence or two under the card (System Settings footer); rows stay one line. */
   footer?: React.ReactNode;
+  /** Title and footer on the column's edge, not inset to the card's rows (a block inside a reply's text). */
+  flush?: boolean;
 }
 
 /** A card of rows (or a stack of groups): optional label line, the content, optional footer. */
-export function Section({ title, accessory, layout = 'card', footer, className, children, ...props }: SectionProps) {
+export function Section({ title, accessory, layout = 'card', footer, flush, className, children, ...props }: SectionProps) {
+  const inset = flush ? undefined : 'mx-4';
   return (
     <section className={cn('flex flex-col gap-2', className)} {...props}>
       {(title || accessory) && (
-        <div className="flex items-center justify-between gap-2 min-h-4 mx-4">
+        <div className={cn('flex items-center justify-between gap-2 min-h-4', inset)}>
           {title && <Text as="h2" variant="section" tone="muted" className="shrink-0">{title}</Text>}
           {accessory}
         </div>
       )}
       {/* The card fills the section, so sections side by side in a grid row end level. */}
       {layout === 'card' ? <Card className="flex-1">{children}</Card> : <div className="flex flex-col gap-6">{children}</div>}
-      {footer && <Text as="p" variant="caption" tone="muted" className="mx-4">{footer}</Text>}
+      {footer && <Text as="p" variant="caption" tone="muted" className={inset}>{footer}</Text>}
     </section>
   );
 }

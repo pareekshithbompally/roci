@@ -38,7 +38,7 @@ export const TableView: React.FC<{ view: TableViewModel }> = ({ view }) => {
   const rows = useMemo(() => view.rows.map((cells, i) => ({ key: `r${i}`, cells })), [view.rows]);
   const columns = useMemo(() => view.columns.map((header, i) => columnOf(header, i, rows)), [view.columns, rows]);
   return (
-    <Section title={view.title} layout="stack" footer={<SourceLine source={view.source} />}>
+    <Section flush title={view.title} layout="stack" footer={<SourceLine source={view.source} />}>
       <DataTable columns={columns} rows={rows} rowKey={(row) => row.key} label={view.title} empty={COPY.emptyTable} />
     </Section>
   );

@@ -1,3 +1,4 @@
+import type React from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from './utils';
 import { UI_CONFIG } from '@config/ui.config';
@@ -30,6 +31,12 @@ export interface IconProps {
   className?: string;
   /** Accessible name. When omitted, the icon is aria-hidden (decorative). */
   label?: string;
+}
+
+/** A row's leading glyph (an icon, an avatar, a server's logo) centred in one fixed-width slot — the kit's small icon size —
+ *  so every row's glyph lines up and its text starts at the same place, whatever the glyph's own width. */
+export function GlyphSlot({ children }: { children: React.ReactNode }) {
+  return <span className="inline-flex shrink-0 items-center justify-center" style={{ width: ICON_SIZE_PX.sm }}>{children}</span>;
 }
 
 export function Icon({ icon: IconComponent, size = 'md', tone = 'inherit', strokeWidth = ICON_STROKE_WIDTH, className, label }: IconProps) {

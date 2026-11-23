@@ -38,7 +38,7 @@ export const ChartView: React.FC<{ view: ChartViewModel }> = ({ view }) => {
   const legend = useMemo(() => view.series.map((s, i) => ({ token: seriesToken(i), label: s.name })), [view.series]);
   const shown = hovered ?? view.labels.length - 1;
   return (
-    <Section title={view.title} footer={<SourceLine source={view.source} />}>
+    <Section flush title={view.title} footer={<SourceLine source={view.source} />}>
       <div className="flex flex-col gap-1 py-3">
         <Text variant="figure" tone={hovered === null ? 'muted' : 'primary'}>{readout(view, shown)}</Text>
         <Chart option={option} height={RESULT_VIEWS_CONFIG.chartHeight} label={view.title} onHover={setHovered} />

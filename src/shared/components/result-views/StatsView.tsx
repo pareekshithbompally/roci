@@ -9,7 +9,7 @@ import { SourceLine } from './SourceLine';
 type StatsViewModel = Extract<ResultView, { kind: 'stats' }>;
 
 export const StatsView: React.FC<{ view: StatsViewModel }> = ({ view }) => (
-  <Section title={view.title} layout="stack" footer={<SourceLine source={view.source} asOf={view.asOf} />}>
+  <Section flush title={view.title} layout="stack" footer={<SourceLine source={view.source} asOf={view.asOf} />}>
     <StatGroup stats={view.stats.map((stat) => ({ label: stat.label, value: stat.value, detail: stat.change }))} />
   </Section>
 );

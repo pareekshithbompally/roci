@@ -1,4 +1,5 @@
-/** Model icon with an animated ring while loading or streaming; fixed outer size so it never shifts. */
+/** Model icon with an animated ring while loading or streaming; the ring is drawn outside the icon's box, so the icon takes
+ *  the same room as any row glyph and never shifts. */
 
 import React from 'react';
 import { ModelIcon } from '@shared/components';
@@ -19,20 +20,13 @@ export const AnimatedProviderIcon: React.FC<AnimatedProviderIconProps> = ({
   size = 20,
   isAnimating = false,
 }) => {
-  // Fixed outer dimension: icon size + ring padding
-  const ringPad = 4;
-  const outerSize = size + ringPad * 2;
-
   return (
-    <div
-      className="relative inline-flex items-center justify-center shrink-0"
-      style={{ width: outerSize, height: outerSize }}
-    >
+    <div className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
       {/* Animated gradient ring */}
       {isAnimating && (
         <Surface
           radius="full"
-          className="absolute inset-0 animate-spin"
+          className="absolute -inset-1 animate-spin"
           style={{
             background: 'conic-gradient(from 0deg, transparent, var(--info-fg), var(--ai-accent), transparent)',
             padding: '2px',

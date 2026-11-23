@@ -3,7 +3,7 @@ import { AnimatedProviderIcon } from '@features/chat/components/AnimatedProvider
 import { useStreamingMessage } from '@features/chat/stores/streamingStore';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { useModelLabel } from '@shared/hooks/useModelLabel';
-import { Progress, Text } from '@shared/ui';
+import { GlyphSlot, ICON_SIZE_PX, Progress, Text } from '@shared/ui';
 import { useReadAloud } from '@shared/hooks/useReadAloud';
 import { useSpeechHighlight } from '@shared/hooks/useSpeechHighlight';
 import { meetingCitationsOf, messageText, webCitationsOf } from '@shared/utils/chatParts';
@@ -66,7 +66,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
     <div className="w-full min-h-15">
       {/* Provider/Model Header — always visible, consistent across all states */}
       <div className="flex items-center gap-2 mb-2">
-        <AnimatedProviderIcon provider={provider || 'unknown'} modelId={model} size={18} isAnimating={isLoading || isStreaming} />
+        <GlyphSlot><AnimatedProviderIcon provider={provider || 'unknown'} modelId={model} size={ICON_SIZE_PX.sm} isAnimating={isLoading || isStreaming} /></GlyphSlot>
         <Text variant="helper" tone="muted">
           {/* The model, always: a running tool shows in its own row below, not here too. */}
           {isLoading ? status.label : <ProviderModelLabel provider={provider} model={model} />}

@@ -2,7 +2,7 @@
  *  while it runs) and trailing meta, as a secondary line under the reply's reading text. */
 
 import React from 'react';
-import { Text } from '@shared/ui';
+import { GlyphSlot, Text } from '@shared/ui';
 
 export interface ActivityHeaderProps {
   /** The step's glyph (a kit Icon, an MCP server's icon). */
@@ -16,7 +16,7 @@ export interface ActivityHeaderProps {
 
 export const ActivityHeader: React.FC<ActivityHeaderProps> = ({ glyph, title, running, meta }) => (
   <>
-    {glyph}
+    <GlyphSlot>{glyph}</GlyphSlot>
     <Text variant="helper" tone="muted" shimmer={running} truncate className="mr-auto min-w-0">{title}</Text>
     {meta}
   </>

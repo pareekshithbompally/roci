@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from './utils';
 import { Text } from './text';
+import { GlyphSlot } from './icon';
 import { platform } from '@platform/index';
 
 /** Canonical list/sidebar row (control-md: 32 px on macOS, 44 pt on iOS) (Row, rowClasses, RowAction, RowGroupLabel) so every list shares one shape. */
@@ -29,16 +30,18 @@ export interface RowProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
   size?: RowSize;
   /** An icon on the text's first line, however many lines the text wraps to. */
   leading?: React.ReactNode;
+  /** Inside a column of text (a reply's suggestions): its content sits on the column's edge, its highlight hangs outside it. */
+  flush?: boolean;
 }
 
-export function Row({ selected, size, leading, className, type = 'button', children, ...props }: RowProps) {
+export function Row({ selected, size, leading, flush, className, type = 'button', children, ...props }: RowProps) {
   return (
-    <button type={type} className={cn(rowClasses(selected, size), className)} {...props}>
+    <button type={type} className={cn(rowClasses(selected, size), flush && '-mx-2.5 w-auto', className)} {...props}>
       {leading ? (
         // Icon and text are one group the row centres; inside it the icon's box is one text line tall (1lh), so it
         // sits on the first line wherever the row places the text.
         <span className="flex min-w-0 flex-1 items-start gap-2">
-          <span className="flex h-[1lh] shrink-0 items-center empty:hidden">{leading}</span>
+          <span className="flex h-[1lh] shrink-0 items-center empty:hidden"><GlyphSlot>{leading}</GlyphSlot></span>
           <span className="min-w-0 flex-1">{children}</span>
         </span>
       ) : children}
