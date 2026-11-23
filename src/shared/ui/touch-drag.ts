@@ -35,6 +35,16 @@ interface Track {
   speed: number;
 }
 
+/** The touch landed on something that drags sideways itself (a wide table, code or equation that scrolls, a slider), so a
+ *  sideways gesture belongs to it, not to a screen-wide drag. */
+export function inSidewaysControl(target: Element, within: Element): boolean {
+  if (target.closest('input[type="range"]')) return true;
+  for (let el: Element | null = target; el && within.contains(el); el = el.parentElement) {
+    if (el.scrollWidth > el.clientWidth && /auto|scroll/.test(getComputedStyle(el).overflowX)) return true;
+  }
+  return false;
+}
+
 /** A move of `moved` px along a travel of `size` px, past `share` of it or faster than a flick, goes all the way. */
 export function commits(moved: number, speed: number, size: number, share: number): boolean {
   return moved > size * share || speed > commitSpeed;

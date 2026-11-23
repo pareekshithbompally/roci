@@ -20,8 +20,8 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   /** The system push button (macOS 26 / iOS 26): a filled control-grey capsule, no outline. */
   outline: 'bg-control text-primary hover:bg-control-hover',
   danger: 'bg-danger text-on-accent hover:opacity-90',
-  /** Start recording: the system red glyph on no fill (the composer's record dot). */
-  record: 'text-danger hover:bg-hover',
+  /** Start recording: the system red dot on the neutral control fill (beside the composer's other round controls). */
+  record: 'bg-control text-danger hover:bg-control-hover',
   /** A screen's one red action, as a tint (Stop a recording, beside the Recording badge in the same red). */
   dangerTint: 'bg-danger-subtle text-danger hover:opacity-80',
   success: 'bg-success text-on-accent hover:opacity-90',

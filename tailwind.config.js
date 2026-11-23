@@ -101,7 +101,7 @@ export default {
       },
       backgroundSize: { shimmer: '200% 100%' },
       // Grouped-list shape (tokens.css): macOS values by default, iOS under html.platform-ios.
-      borderRadius: { card: 'var(--radius-card)', block: 'var(--radius-block)', sheet: 'var(--radius-sheet)', bubble: 'var(--radius-bubble)', field: 'calc(var(--control-md) / 2)' },
+      borderRadius: { composer: 'calc(var(--control-md) / 2 + 0.25rem)', card: 'var(--radius-card)', block: 'var(--radius-block)', sheet: 'var(--radius-sheet)', bubble: 'var(--radius-bubble)', field: 'calc(var(--control-md) / 2)' },
       minHeight: { row: 'var(--row-min-h)' },
       // A table cell takes its row's height as a minimum (tables ignore min-height on cells).
       height: { row: 'var(--row-min-h)', sheet: 'var(--sheet-max)', 'sheet-rest': 'var(--sheet-rest)' },
@@ -159,18 +159,18 @@ export default {
         // AI output landing: the copper wash fades out of a new or changed line.
         'ai-arrive': { from: { backgroundColor: 'var(--ai-wash)' }, to: { backgroundColor: 'transparent' } },
         // Landing glow blobs; translate(-50%, -50%) makes `left/top` mark each blob's centre.
+        // The halo breathes in place around the mark (never drifts away from it, so it never fades from view).
         'glow-drift-1': {
-          '0%, 100%': { transform: 'translate(-50%, -50%) translate(0, 0) scale(1)' },
-          '33%': { transform: 'translate(-50%, -50%) translate(3rem, 2rem) scale(1.08)' },
-          '66%': { transform: 'translate(-50%, -50%) translate(-2rem, 3rem) scale(0.95)' },
+          '0%, 100%': { transform: 'translate(-50%, -50%) scale(1)' },
+          '50%': { transform: 'translate(-50%, -50%) scale(1.08)' },
         },
         'glow-drift-2': {
           '0%, 100%': { transform: 'translate(-50%, -50%) translate(0, 0) scale(1)' },
-          '50%': { transform: 'translate(-50%, -50%) translate(-4rem, -2rem) scale(1.12)' },
+          '50%': { transform: 'translate(-50%, -50%) translate(-0.75rem, 0.5rem) scale(1.06)' },
         },
         'glow-drift-3': {
-          '0%, 100%': { transform: 'translate(-50%, -50%) translate(0, 0) scale(1)' },
-          '50%': { transform: 'translate(-50%, -50%) translate(5rem, -3rem) scale(0.92)' },
+          '0%, 100%': { transform: 'translate(-50%, -50%) scale(1)' },
+          '50%': { transform: 'translate(-50%, -50%) scale(0.96)' },
         },
       },
       animation: {

@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { cn, dismissKeyboard } from './utils';
 import { Surface } from './surface';
 import { UI_CONFIG } from '@config/ui.config';
-import { commits, useTouchDrag } from './touch-drag';
+import { commits, inSidewaysControl, useTouchDrag } from './touch-drag';
 import { KIT_COPY } from '@config/kitCopy.config';
 
 export interface RevealLayoutProps {
@@ -22,12 +22,13 @@ export interface RevealLayoutProps {
  * iOS sidebar: the main view slides aside — still in view, with rounded corners — to reveal the pane beneath it.
  * A swipe from the left edge opens it; a swipe back, a tap on the main view or Escape closes it; while open the main view takes no input and focus moves into the pane.
  */
-/** The main view follows a sideways drag (closed: from the left edge; open: anywhere on it); let go past a share of the
+/** The main view follows a sideways drag from anywhere on it; let go past a share of the
  *  pane's width or with a flick and it opens or closes, otherwise it slides back. */
 function useRevealDrag(main: HTMLDivElement | null, paneRef: React.RefObject<HTMLElement | null>, open: boolean, onOpen: () => void, onClose: () => void): void {
   useTouchDrag(main, {
+    // From anywhere on the view, not only the edge (a phone's sidebar), except on something that drags sideways itself.
     axis: 'x',
-    edgeOnly: !open,
+    ignores: (target) => !main || inSidewaysControl(target, main),
     onMove: (dx) => {
       const pane = paneRef.current;
       if (!main || !pane) return;

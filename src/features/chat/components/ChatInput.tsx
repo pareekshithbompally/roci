@@ -272,13 +272,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // iPhone: a recording holds the one audio session, so the mic is greyed until it stops.
   const micHeld = platform.sharesAudioSession && recordingMeetingId !== null;
   const micLabel = micHeld ? DICTATION_COPY.offWhileRecording : 'Voice input';
-  // The bar's end (one rule, Mac and phone): stop while a reply is written; send once there is a draft; with none, the
+  // Every control in the bar is one round, filled shape (neutral, the copper send, the red stop), so none outweighs
+  // another. The bar's end (one rule, Mac and phone): stop while a reply is written; send once there is a draft; with none, the
   // other ways to start (dictate, record), and send only when neither is offered.
   const canRecord = !!onRecord && recordingMeetingId === null;
   const offersStarts = !isLoading && !canSendDraft(value, attachments) && (canDictate || canRecord);
 
   const textField = (
-    <Text as="div" variant="reading" className={phone ? 'min-w-0 flex-1 self-center py-1.5' : 'px-3 pt-3 pb-1'}>
+    <Text as="div" variant="reading" className={phone ? 'min-w-0 flex-1 self-center py-2.5' : 'px-3 pt-3 pb-1'}>
       <Textarea
         variant="bare"
         ref={inputRef}
@@ -298,14 +299,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   );
 
   // Every item in the row is one control height, so the toolbar (or, on a phone, +, the text line) and send share a centre line.
-  const controlSize = 'sm';
+  // A phone's bar holds 44 pt controls (Messages); a Mac's toolbar the compact size.
+  const controlSize = phone ? 'md' : 'sm';
   const sendControls = (
     <div className="flex shrink-0 items-center gap-1">
       {isLoading ? (
         <IconButton icon={Square} label="Stop generation" variant="danger" filled size={controlSize} onClick={onStop} />
       ) : offersStarts ? (
         <>
-          {canDictate && <IconButton icon={Mic} label={micLabel} size={controlSize} onClick={onSpeechStart} disabled={disabled || micHeld} />}
+          {canDictate && <IconButton icon={Mic} label={micLabel} variant="outline" size={controlSize} onClick={onSpeechStart} disabled={disabled || micHeld} />}
           {canRecord && <IconButton icon={Circle} filled label={COMPOSER_ADD_COPY.record} variant="record" size={controlSize} onClick={onRecord} />}
         </>
       ) : (
@@ -339,7 +341,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           <Surface
             data-testid="composer-frame"
             variant={voiceActive ? 'plain' : 'bar'}
-            radius={phone ? 'field' : 'xl'}
+            radius={phone ? 'composer' : 'xl'}
             className="relative transition-[background-color,box-shadow] duration-300 ease-out"
           >
             <AnimatePresence initial={false}>
@@ -374,7 +376,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               {phone ? (
                 // Phone: one bar — + at its start (the Add sheet), the field, its end controls.
                 <div className="flex items-end gap-1 p-1">
-                  <IconButton icon={Plus} label={COMPOSER_ADD_COPY.title} size={controlSize} onClick={() => setAddOpen(true)} />
+                  <IconButton icon={Plus} label={COMPOSER_ADD_COPY.title} variant="outline" size={controlSize} onClick={() => setAddOpen(true)} />
                   {textField}
                   {sendControls}
                 </div>

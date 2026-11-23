@@ -1,6 +1,8 @@
 // iOS / iPadOS: the app's web view behaves like a native screen around the keyboard.
 // - The page never scrolls as a whole (screens scroll inside it), so the top bar stays put, even when a field takes focus.
-// - The web view sits above the keyboard (resized with it, on the keyboard's own curve), so the composer rides on it.
+// - The keyboard floats over the page, as over a native screen: the web view keeps the whole screen (its content shows
+//   beside the keyboard's rounded corners) and the page is told the keyboard's height and timing (`--keyboard-inset`,
+//   `--keyboard-duration`), so the composer and sheets lift above it.
 // - No form toolbar (˄ ˅ ✓) above the keyboard: a chat field has nothing to step between.
 // - The area behind the web view, and the window, take the page colour from launch and on every light/dark change, so
 //   nothing black shows beside the keyboard's rounded corners or as it moves.
@@ -9,8 +11,8 @@ import UIKit
 import WebKit
 import ObjectiveC
 
-/// Resizes the web view to the area above the keyboard as the keyboard moves, and keeps the page itself from scrolling:
-/// WebKit scrolls a focused field into view on its own, which fought the resize and bounced the whole screen.
+/// Tells the page how much of the screen the keyboard covers as it moves, and keeps the page itself from scrolling: WebKit
+/// scrolls a focused field into view on its own, which would bounce the whole screen.
 private final class KeyboardFollower: NSObject {
     private weak var webView: WKWebView?
     private var offsetLock: NSKeyValueObservation?
@@ -39,10 +41,11 @@ private final class KeyboardFollower: NSObject {
         let keyboard = container.convert(end, from: nil)
         let covered = hiding ? 0 : max(0, container.bounds.maxY - keyboard.minY)
         let duration = (info[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
-        let curve = (info[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt) ?? 7
         Self.paintBehind(webView)
-        UIView.animate(withDuration: duration, delay: 0, options: UIView.AnimationOptions(rawValue: curve << 16)) {
-            webView.frame = CGRect(x: 0, y: 0, width: container.bounds.width, height: container.bounds.height - covered)
+        let script = "document.documentElement.style.setProperty('--keyboard-duration','\(duration)s');"
+            + "document.documentElement.style.setProperty('--keyboard-inset','\(Int(covered.rounded()))px');"
+        webView.evaluateJavaScript(script) { _, error in
+            if let error { NSLog("[RociWebView] keyboard inset failed: %@", error.localizedDescription) }
         }
     }
 }

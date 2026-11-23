@@ -1,5 +1,8 @@
 /* Design tokens: Tier 1 primitives (never read by components), Tier 2 roles swapped by `.dark` on <html>. */
 
+/* Registered so the keyboard's height animates (on the keyboard's own time, set with it), not jumps. */
+@property --keyboard-inset { syntax: '<length>'; inherits: true; initial-value: 0px; }
+
 :root {
   /* ─── Stacking: one scale for everything that floats above the app shell (theme-independent).
          Non-modal floating panels < dialogs < menus and popovers (a select in a dialog opens above it)
@@ -12,7 +15,10 @@
 
   /* ─── Device safe areas (iPhone notch, home indicator); 0 on macOS. ─── */
   --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* The keyboard floats over the page (iPhone): its height above the screen's bottom, set by the native view as it moves
+     (RociWebView.swift); everything that clears the home indicator clears the keyboard too. */
+  --keyboard-inset: 0px;
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--keyboard-inset));
   /* Slide-over sidebar on a phone: most of the screen, never wider than the desktop sidebar's max. */
   --drawer-start-width: min(85vw, 20rem);
   /* The phone's top bar below the status bar (TopBar; none on a Mac); a view's colour runs up behind it by this much plus the safe area. */
@@ -215,9 +221,9 @@
   --badge-tint-from: 28%;
   --badge-tint-to: 8%;
   /* Landing glow (LandingGlow): copper core, amber companion, copper wash, behind the greeting — light enough that text on it stays on white */
-  --bg-glow-core: color-mix(in srgb, var(--copper-500) 20%, transparent);
-  --bg-glow-companion: color-mix(in srgb, var(--copper-400) 18%, transparent);
-  --bg-glow-wash: color-mix(in srgb, var(--copper-400) 14%, transparent);
+  --bg-glow-core: color-mix(in srgb, var(--copper-500) 38%, transparent);
+  --bg-glow-companion: color-mix(in srgb, var(--copper-400) 30%, transparent);
+  --bg-glow-wash: color-mix(in srgb, var(--copper-400) 24%, transparent);
   /* Recording pill (DotScope canvas, read live): voice in copper, processing in sand, failure in danger red. */
   --scope-you: var(--copper-600);
   --scope-you-core: var(--copper-400);
@@ -268,6 +274,7 @@ html.platform-ios {
   --row-icon-gap: 14px;
   --section-gap: 24px;
   --top-bar-height: 4rem;
+  transition: --keyboard-inset var(--keyboard-duration, 0.25s) cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 html.platform-ios.dark {
