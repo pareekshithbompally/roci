@@ -1,4 +1,4 @@
-/** The first-run flow: one frame whose content changes per step (welcome or permissions, AI setup and its options). */
+/** The first-run flow: one frame whose content changes per step (welcome, permissions on the Mac, AI setup and its options). */
 
 import React from 'react';
 import { WelcomeFrame } from '@shared/ui';

@@ -38,7 +38,7 @@ export { Text, Code } from './text';
 export { AiLine } from './ai-work';
 export type { AiLineState } from './ai-work';
 export type { TextProps, TextVariant, TextTone } from './text';
-export { Row, rowClasses, actionRowClasses, RowAction, RowGroupLabel, RowTitle } from './row';
+export { Row, rowClasses, actionRowClasses, HoverReveal, RowAction, RowGroupLabel, RowTitle } from './row';
 export type { RowProps } from './row';
 export { Button, IconButton } from './button';
 export type { ButtonProps, ButtonVariant, ButtonSize, IconButtonProps } from './button';

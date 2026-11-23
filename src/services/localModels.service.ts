@@ -19,6 +19,8 @@ export interface LocalModel {
   bytes: number;
   installed: boolean;
   downloading: boolean;
+  /** Its download was interrupted: some of it is here and continues where it stopped. */
+  partial: boolean;
   /** A downloaded chat model's context window, from its own config (null otherwise). */
   contextTokens: number | null;
   /** A downloaded chat model's chat template takes tools (tool calling); null otherwise. */
@@ -56,6 +58,9 @@ export async function getLocalModels(): Promise<LocalModel[]> {
 }
 
 export const downloadLocalModel = (id: string): Promise<void> => invoke('local_model_download', { id });
+
+/** Bytes free for downloads on this device. */
+export const localModelFreeSpace = (): Promise<number> => invoke('local_model_free_space');
 
 export const cancelLocalModelDownload = (id: string): Promise<void> => invoke('local_model_cancel', { id });
 

@@ -3,7 +3,7 @@ import { isFileUIPart } from 'ai';
 import { formatClockTime } from '@shared/utils/formatters';
 import { Copy, Check, FileAudio, FileX } from 'lucide-react';
 import { MediaPartRenderer } from '@features/chat/components/MediaPartRenderer';
-import { Surface, Text, Icon, IconButton } from '@shared/ui';
+import { HoverReveal, Surface, Text, Icon, IconButton } from '@shared/ui';
 import { useQuery } from '@tanstack/react-query';
 import { store } from '@services/db';
 import { queryKeys } from '@shared/query/queryKeys';
@@ -51,7 +51,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ message, isCopied, actions })
     <div className="flex flex-col items-end max-w-[75%]">
       {/* Meeting context chips (read-only) */}
       {meetingRefs && meetingRefs.length > 0 && <MeetingChips refs={meetingRefs} />}
-      <Surface variant="inset" radius="bubble" className="group relative inline-block px-3.5 py-2">
+      <Surface variant="inset" radius="bubble" className="group/row relative inline-block px-3.5 py-2">
         <Text as="div" variant="reading" className="max-h-[40vh] overflow-y-auto custom-scrollbar">
           {text}
         </Text>
@@ -63,13 +63,9 @@ const UserMessage: React.FC<UserMessageProps> = ({ message, isCopied, actions })
         )}
         {/* Copy icon for user messages */}
         {onCopy && (
-          <IconButton
-            icon={isCopied ? Check : Copy}
-            label="Copy message"
-            size="sm"
-            onClick={() => onCopy(id, text)}
-            className="absolute -bottom-1 -left-9 opacity-0 group-hover:opacity-100"
-          />
+          <HoverReveal className="absolute -bottom-1 -left-9">
+            <IconButton icon={isCopied ? Check : Copy} label="Copy message" size="sm" onClick={() => onCopy(id, text)} />
+          </HoverReveal>
         )}
       </Surface>
 

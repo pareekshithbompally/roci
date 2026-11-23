@@ -11,6 +11,7 @@ import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import type { LocalModel } from '@services/localModels.service';
+import { modelKey, parseModelKey } from '@services/ai/models/keys';
 import type { ModelProfile, ModelRef } from '@services/ai/models';
 
 const ON_DEVICE = LOCAL_MODELS_CONFIG.provider.id;
@@ -33,25 +34,23 @@ export function providerCredentials(provider: ModelProvider): { apiKey: string; 
   };
 }
 
-/** A model id resolved against the configured providers, or null if not found. */
+/** A saved selection (`provider::model`) resolved on its own provider; null when that provider is off or no longer lists it. */
 export function resolveModel(
-  modelId: string,
+  key: string | undefined,
   providers: ModelProvider[]
 ): ResolvedModel | null {
-  if (!modelId) return null;
+  const ref = key ? parseModelKey(key) : null;
+  const provider = ref && providers.find((p) => p.active && p.provider === ref.provider);
+  const model = provider?.models?.find((m) => m.id === ref?.model);
+  if (!provider || !model) return null;
+  return { modelId: model.id, provider: provider.provider, ...providerCredentials(provider), model, providerConfig: provider };
+}
 
-  for (const provider of providers) {
-    // Skip inactive providers
-    if (!provider.active) continue;
-
-    // Find the model in this provider's model list
-    const model = provider.models?.find(m => m.id === modelId);
-    if (model) {
-      return { modelId, provider: provider.provider, ...providerCredentials(provider), model, providerConfig: provider };
-    }
-  }
-
-  return null;
+/** A selection saved as a bare model id becomes its key, on the provider that id ran on: the first active one listing it. */
+export function keyedSelection(value: string, providers: ModelProvider[]): string {
+  if (parseModelKey(value)) return value;
+  const provider = providers.find((p) => p.active && p.models?.some((m) => m.id === value));
+  return provider ? modelKey({ provider: provider.provider, model: value }) : value;
 }
 
 /** A model on one named provider (provider + model selections); the model need not be in the provider's list. */
@@ -159,8 +158,8 @@ export function onDeviceChatModel(m: LocalModel): Model {
 }
 
 /** Chat models downloaded to this device as one provider entry (no key). */
-function onDeviceChatProvider(localModels: LocalModel[]): ModelProvider | null {
-  const models = localModels.filter((m) => m.kind === 'chat' && m.installed).map(onDeviceChatModel);
+function onDeviceChatProvider(localModels: LocalModel[], include = (m: LocalModel) => m.installed): ModelProvider | null {
+  const models = localModels.filter((m) => m.kind === 'chat' && include(m)).map(onDeviceChatModel);
   return models.length > 0 ? { provider: ON_DEVICE, active: true, settings: [], models } : null;
 }
 
@@ -168,6 +167,12 @@ function onDeviceChatProvider(localModels: LocalModel[]): ModelProvider | null {
 export function modelSources(providers: ModelProvider[], settings: AppSettings, localModels = cachedLocalModels()): ModelProvider[] {
   const builtIn = [isIntegrationEnabled(settings, 'appleIntelligence') && APPLE_INTELLIGENCE_PROVIDER, onDeviceChatProvider(localModels)];
   return [...providers, ...builtIn.filter((p): p is ModelProvider => !!p)];
+}
+
+/** Every source a saved selection may name: as `modelSources`, plus chat models still on their way to this device. */
+export function selectableSources(providers: ModelProvider[], settings: AppSettings, localModels: LocalModel[]): ModelProvider[] {
+  const onTheWay = onDeviceChatProvider(localModels, (m) => m.downloading || m.partial);
+  return [...modelSources(providers, settings, localModels), ...(onTheWay ? [onTheWay] : [])];
 }
 
 /** The model a chat runs on, resolved against every model source: the one it is locked to (`chatModelOf`), else the

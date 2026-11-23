@@ -8,8 +8,9 @@ import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { store } from '@services/db';
 import { predefinedProviders, MANAGED_SDK_PROVIDERS } from '@config/providers.config';
-import { modelSources } from '@shared/utils/modelResolver';
+import { keyedSelection, resolveModel, selectableSources } from '@shared/utils/modelResolver';
 import { defaultSpeechSelection } from '@services/ai/transcription';
+import { modelKey } from '@services/ai/models/keys';
 import { queryKeys } from '@shared/query/queryKeys';
 import { getLocalModels, type LocalModel } from '@services/localModels.service';
 import { READ_ALOUD_CONFIG } from '@config/readAloud.config';
@@ -21,12 +22,16 @@ interface SettingsState {
   providers: ModelProvider[];
   /** Loading state */
   isLoading: boolean;
+  /** Settings couldn't be read: nothing is shown as unset and nothing is saved until a reload works. */
+  loadError: unknown;
 }
 
 /** A provider change: fields to set, or a function of the provider as saved now. */
 type ProviderUpdate = Partial<ModelProvider> | ((current: ModelProvider) => Partial<ModelProvider>);
 
 interface SettingsContextValue extends SettingsState {
+  /** Reads settings again after a failed load. */
+  reload: () => void;
   /** Set app settings: the changes, or computed from the settings as they are now (so quick successive edits all land). */
   setSettings: (updates: Partial<AppSettings> | ((current: AppSettings) => Partial<AppSettings>)) => void;
   /** Add a provider */
@@ -183,29 +188,26 @@ function dropRemovedVoiceEngine(settings: AppSettings, localModels: LocalModel[]
   settings.readAloudVoice = undefined;
 }
 
-/** Clears a chat, summary or titles & follow-ups model that no source serves any more, so a working one is picked instead. */
-function dropUnservedModels(settings: AppSettings, sources: ModelProvider[]): void {
-  const served = (id: string) => sources.some((p) => p.models?.some((m) => m.id === id));
-  if (settings.chatModel && !served(settings.chatModel)) {
-    console.log('[SettingsContext] Clearing dangling chat model:', settings.chatModel);
-    settings.chatModel = '';
-  }
-  if (settings.analyzeModel && !served(settings.analyzeModel)) {
-    console.log('[SettingsContext] Clearing dangling analyze model:', settings.analyzeModel);
-    settings.analyzeModel = '';
-  }
-  if (settings.chatExtrasModel && !served(settings.chatExtrasModel)) {
-    console.log('[SettingsContext] Clearing dangling titles & follow-ups model:', settings.chatExtrasModel);
-    settings.chatExtrasModel = undefined;
-  }
+/** Chat, summary and titles & follow-ups selections as keys; one no source serves any more is cleared. */
+function keyAndDropModels(settings: AppSettings, sources: ModelProvider[]): void {
+  const keep = (value: string): string => {
+    const key = keyedSelection(value, sources);
+    if (resolveModel(key, sources)) return key;
+    console.log('[SettingsContext] Clearing dangling model:', value);
+    return '';
+  };
+  if (settings.chatModel) settings.chatModel = keep(settings.chatModel);
+  if (settings.analyzeModel) settings.analyzeModel = keep(settings.analyzeModel);
+  if (settings.chatExtrasModel) settings.chatExtrasModel = keep(settings.chatExtrasModel) || undefined;
 }
 
 export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {
   const queryClient = useQueryClient();
 
-  const { data: loaded = FALLBACK_SETTINGS, isLoading } = useQuery({
+  const { data: loaded = FALLBACK_SETTINGS, isLoading, error: loadError, refetch } = useQuery({
     queryKey: queryKeys.storeSettings(),
     queryFn: loadAllSettings,
+    retry: false,
   });
 
   /** The settings query function: loads the full snapshot on mount and on invalidation. */
@@ -245,16 +247,16 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
           return null;
         });
       if (localModels) {
-        dropUnservedModels(loadedSettings, modelSources(loadedProviders, loadedSettings, localModels));
+        keyAndDropModels(loadedSettings, selectableSources(loadedProviders, loadedSettings, localModels));
         dropRemovedVoiceEngine(loadedSettings, localModels);
       }
 
       if (!loadedSettings.chatModel) {
         // No chat model yet: the first model of the first usable provider.
-        const autoSelectedModel = loadedProviders.find((p) => p.active && hasApiKey(p) && p.models?.length)?.models?.[0]?.id;
-        if (autoSelectedModel) {
-          loadedSettings.chatModel = autoSelectedModel;
-          console.log('[SettingsContext] Auto-selected first available model:', autoSelectedModel);
+        const usable = loadedProviders.find((p) => p.active && hasApiKey(p) && p.models?.length);
+        if (usable) {
+          loadedSettings.chatModel = modelKey({ provider: usable.provider, model: usable.models[0].id });
+          console.log('[SettingsContext] Auto-selected first available model:', loadedSettings.chatModel);
         }
       }
 
@@ -277,11 +279,9 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       console.log('[SettingsContext] Transcription model:', loadedSettings.transcriptionModel);
       return { settings: loadedSettings, providers: loadedProviders };
     } catch (error) {
+      // Never defaults in their place: they would read as a first run, and saving them would replace what is on disk.
       console.error('[SettingsContext] Error loading settings:', error);
-      return {
-        settings: defaultSettings,
-        providers: predefinedProviders.map(p => ({ ...p })),
-      };
+      throw error;
     }
   }
 
@@ -367,12 +367,14 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
 
   /** Optimistic, synchronous cache update (a reload in flight is cancelled so it can't overwrite it), then a debounced disk write. */
   const updateCache = useCallback((updater: (prev: LoadedSettings) => LoadedSettings) => {
+    // nothing loaded: an edit would save defaults over what is on disk
+    if (!readSnapshot()) return;
     void queryClient.cancelQueries({ queryKey: queryKeys.storeSettings() });
     queryClient.setQueryData<LoadedSettings>(queryKeys.storeSettings(), (old) =>
       updater(old ?? FALLBACK_SETTINGS)
     );
     schedulePersist();
-  }, [queryClient, schedulePersist]);
+  }, [queryClient, readSnapshot, schedulePersist]);
 
   const setSettings = useCallback((updates: Partial<AppSettings> | ((current: AppSettings) => Partial<AppSettings>)) => {
     updateCache(prev => ({
@@ -433,17 +435,21 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }));
   }, [updateCache]);
 
+  const reload = useCallback(() => void refetch(), [refetch]);
+
   // One value per settings change, so its users re-render only when settings do.
   const value = useMemo<SettingsContextValue>(() => ({
     settings: loaded.settings,
     providers: loaded.providers,
     isLoading,
+    loadError,
+    reload,
     setSettings,
     addProvider,
     updateProvider,
     updateProviderSetting,
     saveSettings,
-  }), [loaded, isLoading, setSettings, addProvider, updateProvider, updateProviderSetting, saveSettings]);
+  }), [loaded, isLoading, loadError, reload, setSettings, addProvider, updateProvider, updateProviderSetting, saveSettings]);
 
   return (
     <SettingsContext.Provider value={value}>

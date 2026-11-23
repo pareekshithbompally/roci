@@ -5,6 +5,7 @@ import { requiresApiKey, resolveSummaryModel, type ResolvedModel } from '@shared
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
+import { parseModelKey } from './models/keys';
 import { AiError } from './errors';
 
 export type ModelCheck = { model: ResolvedModel; problem?: undefined } | { model?: undefined; problem: AiError };
@@ -14,7 +15,7 @@ export function summaryModel(settings: AppSettings, providers: ModelProvider[]):
   const model = resolveSummaryModel(settings, providers);
   if (!model) {
     const id = settings.analyzeModel || settings.chatModel;
-    const which = id ? `Summary model "${id}" isn't available.` : 'No Summary model is chosen.';
+    const which = id ? `Summary model "${parseModelKey(id)?.model ?? id}" isn't available.` : 'No Summary model is chosen.';
     return { problem: new AiError('setup', `${which} Choose one in Settings › Default Models.`) };
   }
   const keyProblem = missingKey(model);

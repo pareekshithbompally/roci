@@ -1,7 +1,9 @@
-/** First-run flow copy and the icons it shows: welcome (no recording) or permissions (recording), then AI setup. */
+/** First-run flow copy and the icons it shows: welcome, permissions (the Mac), then AI setup. */
 
 import { Bell, CalendarDays, SquareTerminal, Volume2, type LucideIcon } from 'lucide-react';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
+import { IMAGE_GENERATION_CONFIG } from '@config/imageGeneration.config';
+import { READ_ALOUD_CONFIG } from '@config/readAloud.config';
 import { platform } from '@platform/index';
 
 /** System Settings panes ship as ExtensionKit bundles; Launch Services resolves apps by id but not these, so they go by path. */
@@ -55,7 +57,7 @@ export interface OnboardingPermissionCopy {
 }
 
 export const ONBOARDING_CONFIG = {
-  /** Devices that don't record: what Roci does; access is asked when a feature first needs it. */
+  /** The first screen: what Roci does. */
   welcome: {
     heading: 'Welcome to Roci',
     features: [
@@ -64,7 +66,7 @@ export const ONBOARDING_CONFIG = {
       { art: 'welcome-talk', title: 'Talk or type', detail: 'Ask by voice or text, with photos and files.' },
     ],
   },
-  /** Devices that record: what recording can't work without, asked up front; the rest is optional. */
+  /** The Mac: what recording can't work without, asked up front; iPhone and iPad ask when a feature first needs it. */
   permissions: {
     heading: 'Allow access',
     subheading: `Roci records your meetings on this ${platform.deviceName}.`,
@@ -87,7 +89,6 @@ export const ONBOARDING_CONFIG = {
       needsSettings: platform.canOpenSettingsPanes
         ? `Turn it on in ${platform.settingsAppName}, then come back.`
         : 'Turn it on in Settings › Apple Intelligence & Siri, then come back.',
-      use: 'Use Apple Intelligence',
     },
     /** The online providers' step: pick one, then its key. */
     providers: {
@@ -102,6 +103,8 @@ export const ONBOARDING_CONFIG = {
       /** The servers already running on a device that runs them, each with Use. */
       found: `Found on this ${platform.deviceName}`,
       scanning: 'Looking for servers…',
+      connected: 'Connected',
+      connectedTo: (address: string) => `Connected to ${address}.`,
       none: `No server found on this ${platform.deviceName}.`,
       /** One by address: on this device over http, on another computer (over Tailscale) over https. */
       address: 'Server address',
@@ -111,22 +114,24 @@ export const ONBOARDING_CONFIG = {
         : 'Enter an address like https://my-mac.tailnet.ts.net.',
       placeholder: platform.runsLocalServers ? 'http://localhost:11434' : 'https://my-mac.tailnet.ts.net',
     },
-    /** Models downloaded to this device: a model for each job, downloaded on this screen, in three states (choosing,
-     *  downloading, ready). */
+    /** Models downloaded to this device, in the background once accepted. */
     onDevice: {
       title: `On this ${platform.deviceName}`,
       description: 'Private, free and offline',
-      heading: `On this ${platform.deviceName}`,
       subtitle: `Private and offline. Nothing leaves this ${platform.deviceName}, nothing is charged.`,
-      footer: {
-        choosing: (size: string) => `${size} to download. Chat runs on MLX, speech recognition on transcribe.cpp.`,
-        downloading: (left: string) => `${left} left. You can open Roci now; the downloads carry on and each job turns on when its model is ready.`,
-        ready: `Everything is on this ${platform.deviceName}. Change models any time in Settings › Default Models.`,
-      },
-      start: 'Download and Start',
-      downloading: (percent: number) => `Downloading… ${percent}%`,
-      openNow: 'Open Roci Now',
-      ready: 'Start Using Roci',
+      size: (size: string) => `${size} to download. It carries on while you use Roci.`,
+      noSpace: (size: string) => `Not enough space: these need ${size} free.`,
+      unavailable: `Models can’t run on this ${platform.deviceName}.`,
+    },
+    /** What a connected provider offers, read-only; changed later in Settings. */
+    defaults: {
+      title: 'Defaults',
+      accept: 'Go with Defaults',
+      footer: 'You can change these in Settings › Default Models.',
+      noChat: 'No default available: no chat model Roci can start with was found.',
+      deviceVoice: READ_ALOUD_CONFIG.system.label,
+      off: IMAGE_GENERATION_CONFIG.off.label,
+      notSetUp: 'Not set up',
     },
     remote: {
       title: 'Online provider',
@@ -137,14 +142,20 @@ export const ONBOARDING_CONFIG = {
   actions: {
     continue: 'Continue',
     later: 'Set up later',
-    back: 'Back',
+    notNow: 'Not now',
+    cancel: 'Cancel',
     use: 'Use',
     connect: 'Connect',
+    retry: 'Try Again',
     openSettings: `Open ${platform.settingsAppName}`,
   },
+  /** Settings couldn't be read: shown in place of the app. */
+  loadError: 'Roci couldn’t read its data',
   /** After onboarding, until AI is fully set up (home's button): a provider first, then the default models. */
   finishSetup: {
     start: 'Set up AI to start',
+    /** Chat's model on this device stopped before it finished downloading. */
+    resume: (name: string) => `Finish downloading ${name}`,
     defaults: (left: number) => `Choose default models · ${left} left`,
     /** Chat's model on this device still downloading (onboarding opened the app before it finished). */
     downloading: (name: string, percent: number | null) => `Getting chat ready · ${name}${percent === null ? '' : ` · ${percent}%`}`,

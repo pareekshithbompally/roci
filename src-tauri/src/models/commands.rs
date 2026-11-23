@@ -18,6 +18,8 @@ pub struct LocalModelStatus {
     bytes: u64,
     installed: bool,
     downloading: bool,
+    /// An interrupted download: some of it is here and continues where it stopped.
+    partial: bool,
     /// A downloaded chat model's context window, as its own config states (the chat's context ring); None otherwise.
     context_tokens: Option<u64>,
     /// A downloaded chat model's chat template takes tool definitions (tool calling); None otherwise.
@@ -43,6 +45,7 @@ pub fn local_models(app: AppHandle, state: State<'_, ModelsState>) -> Result<Vec
                 bytes: m.bytes(),
                 installed,
                 downloading: state.downloads.is_active(m.id),
+                partial: !installed && store::is_started(&dir, m),
                 context_tokens: (installed && m.kind == Kind::Chat).then(|| context_tokens(&dir)).flatten(),
                 tools: (installed && m.kind == Kind::Chat).then(|| takes_tools(&dir)),
                 vision: (installed && m.kind == Kind::Chat).then(|| model_config(&dir).is_some_and(|c| c.get("vision_config").is_some())),
@@ -121,6 +124,12 @@ pub fn local_model_download(app: AppHandle, state: State<'_, ModelsState>, id: S
         app.state::<ModelsState>().downloads.end(model.id);
     });
     Ok(())
+}
+
+/// Bytes free for downloads on the volume that keeps the models.
+#[tauri::command]
+pub fn local_model_free_space(app: AppHandle) -> Result<u64, LocalError> {
+    store::free_space(&app)
 }
 
 /// Stops a download; what arrived is kept and resumed next time.

@@ -40,8 +40,8 @@ const SETTINGS: Record<string, unknown> = {
   transcriptionModel: 'parakeet_unified_en',
   hexIntegration: { enabled: true },
   appleIntelligenceIntegration: { enabled: true },
-  analyzeModel: 'apple-intelligence',
-  chatModel: 'apple-intelligence',
+  analyzeModel: 'apple-intelligence::apple-intelligence',
+  chatModel: 'apple-intelligence::apple-intelligence',
 };
 
 function row(m: Meeting) {

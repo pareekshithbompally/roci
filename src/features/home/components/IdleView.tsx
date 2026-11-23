@@ -147,7 +147,12 @@ export const IdleView: React.FC<IdleViewProps> = () => {
 
               {/* Until AI is fully set up: a provider first (chat waits for one), then the default models still to choose. */}
               {/* chat's model still downloading: say so, instead of sending to setup */}
-              {chatDownload && (
+              {chatDownload?.stopped && (
+                <div className="flex justify-center">
+                  <Button variant="outline" size="sm" onClick={chatDownload.retry}>{FINISH_SETUP.resume(chatDownload.name)}</Button>
+                </div>
+              )}
+              {chatDownload && !chatDownload.stopped && (
                 <div className="flex items-center justify-center gap-2">
                   <ProgressRing percent={chatDownload.percent ?? 0} tone="muted" />
                   <Text variant="label" tone="muted">{FINISH_SETUP.downloading(chatDownload.name, chatDownload.percent)}</Text>

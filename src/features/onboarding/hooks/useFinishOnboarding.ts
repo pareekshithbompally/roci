@@ -1,18 +1,17 @@
-/** Ends the first-run flow: the app opens (leaving Settings when setup was run again from there), and a later "Run setup
- *  again" starts from the first step. */
+/** Ends the first-run flow: the app opens, leaving Settings when setup was run again from there. */
 
 import { useCallback } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useAppActions } from '@shared/stores/appStore';
-import { FIRST_ONBOARDING_STEP, useSetOnboardingStep } from '@features/onboarding/stores/onboardingStore';
+import { useResetOnboarding } from '@features/onboarding/stores/onboardingStore';
 
 export function useFinishOnboarding(): () => void {
   const { setSettings } = useSettings();
-  const setStep = useSetOnboardingStep();
+  const reset = useResetOnboarding();
   const { leaveSettings } = useAppActions();
   return useCallback(() => {
     setSettings({ onboarding: { completed: true } });
-    setStep(FIRST_ONBOARDING_STEP);
+    reset();
     leaveSettings();
-  }, [setSettings, setStep, leaveSettings]);
+  }, [setSettings, reset, leaveSettings]);
 }

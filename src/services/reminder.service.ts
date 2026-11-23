@@ -3,7 +3,7 @@
 import { MS_PER_MINUTE } from '@shared/utils/localDate';
 import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
 import { TODOS_CONFIG } from '@config/todos.config';
-import { askNotificationsOnFirstUse, onNotificationResponse, removeNotices, scheduleNotice, type Notice } from '@services/notifications';
+import { askNotificationsOnFirstUse, notificationStatus, onNotificationResponse, removeNotices, scheduleNotice, type Notice } from '@services/notifications';
 import { store } from './db';
 import type { ReminderEntry } from '@shared/types';
 import { hashToNotificationId, formatReminderDate } from '@shared/utils/todo.utils';
@@ -14,6 +14,9 @@ const TODO = NOTIFICATIONS_CONFIG.todo;
 
 type ViewMeetingHandler = (meetingId: string) => void;
 let viewMeetingHandler: ViewMeetingHandler | null = null;
+
+/** Whether the reminder will fire; `denied`: notifications are off for Roci. */
+export type ScheduleOutcome = 'scheduled' | 'denied' | 'past' | 'unavailable';
 
 export interface ScheduleReminderParams {
   todoId: string;
@@ -61,19 +64,20 @@ class ReminderService {
     await store.assets.noticesCleared(owed.map((notice) => notice.id));
   }
 
-  async schedule(params: ScheduleReminderParams): Promise<boolean> {
-    if (!platform.hasNotifications) return false;
+  async schedule(params: ScheduleReminderParams): Promise<ScheduleOutcome> {
+    if (!platform.hasNotifications) return 'unavailable';
     const fireAt = new Date(params.reminderDateTime);
     if (fireAt.getTime() <= Date.now()) {
       console.warn('[ReminderService] Cannot schedule reminder in the past');
-      return false;
+      return 'past';
     }
     // Setting a reminder is the first use of notifications on a device that didn't ask during setup.
     await askNotificationsOnFirstUse();
+    if ((await notificationStatus()) === 'denied') return 'denied';
     await scheduleNotice(reminderNotice(params), fireAt);
     await store.reminders.upsert(params.todoId, hashToNotificationId(params.todoId), fireAt.getTime());
     console.log(`[ReminderService] Scheduled reminder at ${formatReminderDate(params.reminderDateTime)}`);
-    return true;
+    return 'scheduled';
   }
 
   async cancel(todoId: string): Promise<void> {
@@ -88,10 +92,6 @@ class ReminderService {
   async getReminder(todoId: string): Promise<ReminderEntry | null> {
     const due = await store.reminders.due();
     return due.find((r) => r.todoId === todoId) ?? null;
-  }
-
-  async getAllScheduled(): Promise<ReminderEntry[]> {
-    return store.reminders.due();
   }
 
   onViewMeeting(handler: ViewMeetingHandler): () => void {
@@ -128,11 +128,6 @@ class ReminderService {
     }
     if (action === TODO.actions.viewMeeting && meetingId) viewMeetingHandler?.(meetingId);
     await store.reminders.setStatus(todoId, 'fired');
-  }
-
-  dispose(): void {
-    this.unsubscribeResponse?.();
-    this.unsubscribeResponse = null;
   }
 }
 

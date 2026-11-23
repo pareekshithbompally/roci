@@ -149,7 +149,7 @@ export function useToolCatalog() {
 
   return {
     modelSupportsTools: profile?.tools ?? false,
-    modelName: resolved?.modelId ?? settings.chatModel,
+    modelName: resolved?.modelId ?? '',
     webSearch: {
       available: webSearchAvailable,
       enabled: webSearchAvailable && prefs.webSearch,

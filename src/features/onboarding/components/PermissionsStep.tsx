@@ -1,4 +1,4 @@
-/** First-run step on a device that records: what recording needs, then what's optional; each row asks natively, or
+/** First-run step on the Mac: what recording needs, then what's optional; each row asks natively, or
  *  opens System Settings with the drag guide. */
 
 import React from 'react';
@@ -6,7 +6,7 @@ import { CardRow, Section, WelcomeStep } from '@shared/ui';
 import { PermissionAction } from '@shared/components';
 import { ONBOARDING_CONFIG, ONBOARDING_ICONS } from '@config/onboarding.config';
 import { useOnboardingPermissions, type OnboardingPermission } from '@features/onboarding/hooks/useOnboardingPermissions';
-import { useSetOnboardingStep } from '@features/onboarding/stores/onboardingStore';
+import { useOnboardingBack, useSetOnboardingStep } from '@features/onboarding/stores/onboardingStore';
 import { OnboardingIcon } from './OnboardingIcon';
 
 const COPY = ONBOARDING_CONFIG.permissions;
@@ -28,6 +28,7 @@ const PermissionRow: React.FC<{ row: OnboardingPermission }> = ({ row }) => (
 export const PermissionsStep: React.FC = () => {
   const { rows, requiredReady, applyGranted } = useOnboardingPermissions();
   const setStep = useSetOnboardingStep();
+  const back = useOnboardingBack();
   const next = () => {
     applyGranted();
     setStep('setup');
@@ -40,7 +41,8 @@ export const PermissionsStep: React.FC = () => {
       title={COPY.heading}
       subtitle={COPY.subheading}
       primary={{ label: ACTIONS.continue, onClick: next, disabled: !requiredReady }}
-      secondary={{ label: ACTIONS.later, onClick: next }}
+      secondary={{ label: ACTIONS.notNow, onClick: next }}
+      onBack={back}
     >
       {required.length > 0 && (
         <Section title={COPY.required.title} footer={whyOf(required)}>

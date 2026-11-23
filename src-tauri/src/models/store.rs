@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
+use objc2_foundation::{NSArray, NSNumber, NSString, NSURL, NSURLVolumeAvailableCapacityForImportantUsageKey};
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::AsyncWriteExt;
 
@@ -85,6 +86,25 @@ fn has_file(dir: &Path, file: &ModelFile) -> bool {
 
 pub fn is_installed(dir: &Path, model: &LocalModel) -> bool {
     model.files.iter().all(|f| has_file(dir, f))
+}
+
+/// Some of the model is here: a whole file, or part of one.
+pub fn is_started(dir: &Path, model: &LocalModel) -> bool {
+    model.files.iter().any(|f| has_file(dir, f) || dir.join(format!("{}.part", f.name)).exists())
+}
+
+/// What the system can free for a download the user asked for (purgeable space included).
+pub fn free_space(app: &AppHandle) -> Result<u64, LocalError> {
+    let dir = app.path().app_data_dir().map_err(|e| LocalError::Io(e.to_string()))?;
+    let url = NSURL::fileURLWithPath(&NSString::from_str(&dir.to_string_lossy()));
+    // SAFETY: the key is a Foundation constant.
+    let key = unsafe { NSURLVolumeAvailableCapacityForImportantUsageKey };
+    let values = url.resourceValuesForKeys_error(&NSArray::from_slice(&[key])).map_err(|e| LocalError::Io(e.localizedDescription().to_string()))?;
+    values
+        .objectForKey(key)
+        .and_then(|value| value.downcast::<NSNumber>().ok())
+        .map(|bytes| bytes.unsignedLongLongValue())
+        .ok_or_else(|| LocalError::Io("free space is unknown".into()))
 }
 
 /// The model's folder, or `NotDownloaded` until every file is there.

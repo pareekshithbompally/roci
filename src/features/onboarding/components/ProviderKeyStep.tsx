@@ -1,58 +1,36 @@
-/** First-run: one provider's key (the same field, Test and status as Settings). Continue tests the key; once it
- *  connects, the provider is turned on, chat and summaries use its first model, and onboarding ends. */
+/** First-run: one provider's key (the same field, Test and status as Settings). Continue tests it; once it connects, the
+ *  provider's defaults show below. */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import { WelcomeStep } from '@shared/ui';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { ProviderConnection, useProviderConnection } from '@features/settings';
+import type { DetectedProvider } from '@features/settings';
 import { ONBOARDING_CONFIG } from '@config/onboarding.config';
-import { useFinishOnboarding } from '@features/onboarding/hooks/useFinishOnboarding';
-import { useOnboardingProviderId, useSetOnboardingStep } from '@features/onboarding/stores/onboardingStore';
-
-const ACTIONS = ONBOARDING_CONFIG.actions;
+import { useGoWithDefaults } from '@features/onboarding/hooks/useGoWithDefaults';
+import { useOnboardingBack, useOnboardingProviderId } from '@features/onboarding/stores/onboardingStore';
+import { DefaultsList } from './DefaultsList';
 
 const KeyStep: React.FC<{ provider: ModelProvider }> = ({ provider }) => {
-  const id = provider.provider;
   const connection = useProviderConnection(provider);
-  const state = connection.status.state;
-  const { updateProvider, setSettings } = useSettings();
-  const finish = useFinishOnboarding();
-  const setStep = useSetOnboardingStep();
-  // Continue pressed: finish as soon as the key connects; a failure stays here with its message.
-  const [continuing, setContinuing] = useState(false);
-  const firstModel = provider.models?.[0]?.id;
-
-  const use = useCallback(() => {
-    updateProvider(id, { active: true });
-    if (firstModel) setSettings({ chatModel: firstModel, analyzeModel: firstModel });
-    finish();
-  }, [id, firstModel, updateProvider, setSettings, finish]);
-
-  useEffect(() => {
-    if (!continuing) return;
-    if (state === 'connected') use();
-    if (state === 'failed') setContinuing(false);
-  }, [continuing, state, use]);
-
-  const proceed = () => {
-    if (state === 'connected') return use();
-    setContinuing(true);
-    connection.test();
+  const { status, test } = connection;
+  const back = useOnboardingBack();
+  const listed = status.state === 'connected' ? status.models : null;
+  const detected = useMemo<DetectedProvider | null>(() => listed && { id: provider.provider, listed, provider }, [listed, provider]);
+  const { setup, action } = useGoWithDefaults(detected);
+  const checking = status.state === 'checking';
+  const testKey = {
+    label: checking ? ONBOARDING_CONFIG.setup.checking : ONBOARDING_CONFIG.actions.continue,
+    onClick: test,
+    disabled: checking || status.state === 'incomplete',
   };
 
   return (
-    <WelcomeStep
-      title={getProviderTitle(id)}
-      primary={{
-        label: state === 'checking' ? ONBOARDING_CONFIG.setup.checking : ACTIONS.continue,
-        onClick: proceed,
-        disabled: state === 'incomplete' || state === 'checking',
-      }}
-      secondary={{ label: ACTIONS.back, onClick: () => setStep('providers') }}
-    >
+    <WelcomeStep title={getProviderTitle(provider.provider)} primary={setup ? action : testKey} onBack={back}>
       <ProviderConnection provider={provider} connection={connection} />
+      {setup && <DefaultsList defaults={setup.defaults} />}
     </WelcomeStep>
   );
 };

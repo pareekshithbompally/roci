@@ -2,12 +2,14 @@
  *  steps. iPhone: full screen, the title at the top, the main button pinned above the home indicator. */
 
 import React from 'react';
+import { ChevronLeft } from 'lucide-react';
 import { useFormFactor } from '@platform/formFactor';
-import { Button } from './button';
+import { Button, IconButton } from './button';
 import { Card } from './card';
 import { IconTile } from './icon-tile';
 import { Surface } from './surface';
 import { Text } from './text';
+import { KIT_COPY } from '@config/kitCopy.config';
 import { TitlebarDragRegion } from './page-scroll';
 
 export interface WelcomeFrameProps {
@@ -48,15 +50,18 @@ export interface WelcomeStepProps {
   subtitle?: string;
   /** The step's main action (Continue). */
   primary?: WelcomeAction;
-  /** The way past it (Set up later, Back). */
+  /** The way past it (Set up later). */
   secondary?: WelcomeAction;
+  /** To the step before: a chevron at the top left, as iOS and macOS setup have it. */
+  onBack?: () => void;
   /** The step's content; a step whose title and line say it all has none. */
   children?: React.ReactNode;
 }
 
 /** One step: title (and a line under it), the content, then its actions. */
-export function WelcomeStep({ icon, title, subtitle, primary, secondary, children }: WelcomeStepProps) {
+export function WelcomeStep({ icon, title, subtitle, primary, secondary, onBack, children }: WelcomeStepProps) {
   const phone = useFormFactor() === 'phone';
+  const back = onBack && <IconButton icon={ChevronLeft} label={KIT_COPY.back} size="sm" onClick={onBack} className="self-start" />;
   const header = (
     <header className="flex flex-col items-center gap-2 text-center">
       {icon && <img src={icon} alt="" className="mb-2 h-welcome-icon w-welcome-icon" />}
@@ -81,6 +86,7 @@ export function WelcomeStep({ icon, title, subtitle, primary, secondary, childre
         {/* The title at the top (iOS setup screens); the step's card centred in the space below it (my-auto never clips
             the top, so it scrolls instead when it doesn't fit). */}
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-4 py-section">
+          {back}
           {header}
           {children && <div className="my-auto flex flex-col gap-section pt-section">{children}</div>}
         </div>
@@ -90,6 +96,7 @@ export function WelcomeStep({ icon, title, subtitle, primary, secondary, childre
   }
   return (
     <div className="flex flex-col gap-6">
+      {back}
       {header}
       {children}
       {actions}

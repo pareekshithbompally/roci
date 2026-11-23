@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { store } from '@services/db';
 import { queryKeys } from '@shared/query/queryKeys';
+import { reminderService } from '@services/reminder.service';
 import { remindersSync } from '@services/reminders';
 import type { TodoEntry, ActionItem } from '@shared/types';
 
@@ -101,12 +102,10 @@ export function useMeetingTodos(meetingId: string | null) {
       todoId: string;
       updates: { text?: string; dueDate?: string };
     }) => {
-      await store.todos.upsert({
-        id: todoId,
-        meetingId: meetingId!,
-        text: updates.text ?? '',
-        dueDate: updates.dueDate,
-      });
+      const [current] = await store.todos.get([todoId]);
+      if (!current) throw new Error('This to-do no longer exists');
+      // The whole row is written: what isn't changed is written back as it is.
+      await store.todos.upsert({ ...current, ...updates });
     },
     onMutate: async ({ todoId, updates }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.storeTodos(meetingId!) });
@@ -134,13 +133,10 @@ export function useMeetingTodos(meetingId: string | null) {
 
   const deleteTodoMutate = useMutation({
     mutationFn: async (todoId: string) => {
-      try {
-        await store.reminders.setStatus(todoId, 'cancelled');
-      } catch {
-        // reminder may not exist
-      }
+      await reminderService.cancel(todoId);
       await store.todos.delete(todoId);
     },
+    onSuccess: (_data, todoId) => { void remindersSync.removed([todoId]); },
     onMutate: async (todoId) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.storeTodos(meetingId!) });
       const previous = queryClient.getQueryData<MeetingTodosData>(queryKeys.storeTodos(meetingId!));
@@ -167,13 +163,7 @@ export function useMeetingTodos(meetingId: string | null) {
       if (!todo) throw new Error('Todo not found');
       const newCompleted = !todo.completed;
       await store.todos.setCompleted(todoId, newCompleted);
-      if (newCompleted) {
-        try {
-          await store.reminders.setStatus(todoId, 'cancelled');
-        } catch {
-          // reminder may not exist
-        }
-      }
+      if (newCompleted) await reminderService.cancel(todoId);
       return { completed: newCompleted };
     },
     onMutate: async (todoId) => {
@@ -203,6 +193,8 @@ export function useMeetingTodos(meetingId: string | null) {
       queryClient.invalidateQueries({ queryKey: queryKeys.storeTodos(meetingId!) });
     },
   });
+
+  const refresh = useCallback(() => void queryClient.invalidateQueries({ queryKey: queryKeys.storeTodosAll() }), [queryClient]);
 
   const addTodo = useCallback(
     async (text: string, dueDate?: string) => {
@@ -246,5 +238,6 @@ export function useMeetingTodos(meetingId: string | null) {
     updateTodo,
     deleteTodo,
     toggleTodo,
+    refresh,
   };
 }

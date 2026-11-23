@@ -2,7 +2,10 @@
 
 import React, { useState, useMemo } from 'react';
 import { Bell, BellRing, Clock } from 'lucide-react';
-import { Button, DatePicker, Icon, Popover, PopoverContent, PopoverTrigger, Row, Separator, Surface, Text, TimePicker } from '@shared/ui';
+import { Button, DatePicker, Icon, Popover, PopoverContent, PopoverTrigger, Row, Separator, Surface, Text, TimePicker, showToast } from '@shared/ui';
+import { openSettingsPane } from '@features/integrations/utils/openNative';
+import { failureLogger } from '@shared/utils/errors';
+import { TODOS_CONFIG } from '@config/todos.config';
 import { reminderService } from '@services/reminder.service';
 import type { ScheduleReminderParams } from '@services/reminder.service';
 import { parseDateLoose, localDateFromParts, formatReminderDate } from '@shared/utils/todo.utils';
@@ -20,6 +23,8 @@ interface ReminderPickerProps {
   dueDate?: string;
   onReminderSet: (dateTime: string | null) => void;
 }
+
+const openNotificationSettings = () => void openSettingsPane('notifications-settings').catch(failureLogger('ReminderPicker')('open settings'));
 
 interface QuickOption {
   label: string;
@@ -99,18 +104,22 @@ const ReminderPicker: React.FC<ReminderPickerProps> = ({
       const params: ScheduleReminderParams = {
         todoId,
         meetingId,
-        todoText: todoText.length > 80 ? todoText.slice(0, 77) + '…' : todoText,
+        todoText,
         meetingTitle,
         reminderDateTime: iso,
       };
-      const ok = await reminderService.schedule(params);
-      if (ok) {
+      const outcome = await reminderService.schedule(params);
+      if (outcome === 'scheduled') {
         onReminderSet(iso);
         setOpen(false);
         setShowCustom(false);
+      } else if (outcome === 'denied') {
+        setOpen(false);
+        showToast(TODOS_CONFIG.reminder.denied, 'warning', { label: TODOS_CONFIG.reminder.openSettings, onClick: openNotificationSettings });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[ReminderPicker] Failed to schedule:', error);
+      showToast(TODOS_CONFIG.reminder.failed, 'error');
     } finally {
       setIsScheduling(false);
     }
@@ -140,7 +149,7 @@ const ReminderPicker: React.FC<ReminderPickerProps> = ({
   };
 
   // Min date for custom picker: today
-  const minDate = new Date().toISOString().split('T')[0];
+  const minDate = localDayKey(new Date());
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

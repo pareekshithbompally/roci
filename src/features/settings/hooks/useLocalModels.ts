@@ -1,6 +1,6 @@
 /** Local models for every surface: list query, per-model download/delete controls, picker step, download events. */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { isTauriEnvironment } from '@services/tauri';
 import { platform } from '@platform/index';
@@ -13,6 +13,7 @@ import { failureLogger } from '@shared/utils/errors';
 import { formatFileSize } from '@shared/utils/formatters';
 import { useTauriEvent } from '@shared/hooks/useTauriEvent';
 import { useLocalModels } from '@shared/hooks/useLocalModels';
+import { modelKey } from '@services/ai/models';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import {
   cancelLocalModelDownload,
@@ -23,11 +24,14 @@ import {
 } from '@services/localModels.service';
 import type { LocalModel, LocalModelDownload } from '@services/localModels.service';
 import { confirmModelDelete, type OnDeviceModel } from '@shared/utils/onDeviceModel';
+import type { AppSettings } from '@shared/types';
 import type { ChoiceSetup } from '@shared/utils/modelResolver';
 
 const report = failureLogger('useLocalModels');
 const { activityId } = LOCAL_MODELS_CONFIG;
 const modelsKey = queryKeys.localModels();
+const ON_DEVICE = LOCAL_MODELS_CONFIG.provider.id;
+const onDeviceKey = (model: string): string => modelKey({ provider: ON_DEVICE, model });
 
 function nameOf(id: string): string {
   return queryClient.getQueryData<LocalModel[]>(modelsKey)?.find((m) => m.id === id)?.name ?? id;
@@ -160,13 +164,43 @@ export function useLocalModelIdle(): void {
   }, [minutes]);
 }
 
-/** The chat model on this device while it downloads (its name and progress), for home to say chat is on its way; null once
- *  it is ready, or when chat isn't an on-device model. */
-export function useChatModelDownload(): { name: string; percent: number | null } | null {
+/** The settings that name an on-device model, as each stores it. */
+function selectedOnDevice(settings: AppSettings): Set<string | undefined> {
+  const speech = settings.transcriptionProvider === ON_DEVICE ? settings.transcriptionModel : undefined;
+  return new Set([settings.chatModel, settings.analyzeModel, speech && onDeviceKey(speech)]);
+}
+
+/** Once per launch: a selected model whose download was interrupted (Roci quit) carries on where it stopped. */
+export function useLocalModelResume(): void {
+  const { settings, isLoading } = useSettings();
+  const { data: models } = useLocalModels();
+  const checked = useRef(false);
+  useEffect(() => {
+    if (checked.current || isLoading || !models) return;
+    checked.current = true;
+    const selected = selectedOnDevice(settings);
+    models
+      .filter((m) => m.partial && !m.downloading && selected.has(onDeviceKey(m.id)))
+      .forEach((m) => startDownload(m.id));
+  }, [isLoading, models, settings]);
+}
+
+export interface ChatModelDownload {
+  name: string;
+  percent: number | null;
+  /** Stopped before it finished: `retry` carries on. */
+  stopped: boolean;
+  retry: () => void;
+}
+
+/** The chat model on this device until it is ready, for home to say chat is on its way or offer to carry on; null once it
+ *  is ready, or when chat isn't an on-device model. */
+export function useChatModelDownload(): ChatModelDownload | null {
   const { settings } = useSettings();
   const { data: models = [] } = useLocalModels();
   const controls = useLocalModelControls();
-  const model = models.find((m) => m.kind === 'chat' && m.id === settings.chatModel);
+  const model = models.find((m) => m.kind === 'chat' && onDeviceKey(m.id) === settings.chatModel);
   const control = model && controls[model.id];
-  return model && control?.status === 'busy' ? { name: model.name, percent: control.percent } : null;
+  if (!model || !control || control.status === 'ready') return null;
+  return { name: model.name, percent: control.percent, stopped: control.status === 'idle', retry: control.download };
 }

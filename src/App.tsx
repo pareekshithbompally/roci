@@ -10,13 +10,13 @@ import { endSearch, startSearch, toggleSearch } from '@shared/stores/searchStore
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
 import { useAppUpdate, useUpdateRuntime } from '@features/settings';
-import { useMenubarSpeechModels, useMenubarReports, useStorageRetention, useLocalModelDownloads, useLocalModelIdle, freshSpeechSources } from '@features/settings';
+import { useMenubarSpeechModels, useMenubarReports, useStorageRetention, useLocalModelDownloads, useLocalModelResume, useLocalModelIdle, freshSpeechSources } from '@features/settings';
 import { useSpeechVocabulary } from '@features/personalization';
 import { RemindersView } from '@features/todos';
 import { GalleryView } from '@features/gallery';
 import { DictationsView } from '@features/dictations';
 import { CalendarView } from '@features/calendar';
-import { OnboardingView } from '@features/onboarding';
+import { LoadErrorView, OnboardingView, useIsSetupRerun } from '@features/onboarding';
 import { ConfirmHost, SearchIndexActivity } from '@shared/components';
 import { Toaster } from '@shared/ui';
 import { useDownloadToasts } from '@shared/hooks';
@@ -50,7 +50,8 @@ const App: React.FC = () => {
   const selectedHistoryId = useSelectedHistoryId();
   const { openSettings, leaveSettings, setInitialized } = useAppActions();
   
-  const { settings, setSettings, providers, isLoading: settingsLoading } = useSettings();
+  const { settings, setSettings, providers, isLoading: settingsLoading, loadError } = useSettings();
+  const setupRerun = useIsSetupRerun();
   const startRecording = useStartRecording();
   const startRecordingRef = useRef(startRecording);
   startRecordingRef.current = startRecording;
@@ -87,6 +88,7 @@ const App: React.FC = () => {
   useChatRuntime();
   useDownloadToasts();
   useLocalModelDownloads();
+  useLocalModelResume();
   useLocalModelIdle();
   useSpeechVocabulary();
   useStorageRetention();
@@ -269,14 +271,17 @@ const App: React.FC = () => {
   const showChatView = contentView === 'home' && status === AppStatus.CHAT;
   const showResultsView = contentView === 'home' && hasSelectedMeeting;
 
-  // First launch: permissions, then AI setup, in place of the app; waits for settings so a finished run never flashes.
-  if (!settingsLoading && !settings.onboarding?.completed) {
+  if (loadError) return <LoadErrorView />;
+
+  // First launch (or Run Setup Again): welcome, permissions on the Mac, then AI setup, in place of the app; waits for settings so a finished run never flashes.
+  if (!settingsLoading && (setupRerun || !settings.onboarding?.completed)) {
     return (
       <>
         <OnboardingView />
         <Toaster />
         {/* A recording started meanwhile (menu bar, URL action) that macOS refuses still asks here */}
         <PermissionChecklist />
+        <RecordingExitPrompt />
         <ConfirmHost />
       </>
     );

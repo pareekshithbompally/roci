@@ -168,7 +168,7 @@ function useTunableModels(localModels: LocalModel[]): ModelChoice[] {
   const { settings, providers } = useSettings();
   const catalogLoaded = useModelCatalog();
   return useMemo(
-    () => jobChoices(modelSources(providers, settings, localModels), 'chat').filter((c) => c.provider === LOCAL_MODELS_CONFIG.provider.id && c.ready),
+    () => jobChoices(modelSources(providers, settings, localModels), 'chat', (r) => r.id).filter((c) => c.provider === LOCAL_MODELS_CONFIG.provider.id && c.ready),
     // `catalogLoaded`: the catalog's arrival re-describes the choices (as in Default Models).
     [providers, settings, localModels, catalogLoaded],
   );

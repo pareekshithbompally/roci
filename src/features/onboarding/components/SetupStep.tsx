@@ -9,7 +9,7 @@ import { platform } from '@platform/index';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { ONBOARDING_CONFIG, ONBOARDING_ICONS } from '@config/onboarding.config';
 import { useFinishOnboarding } from '@features/onboarding/hooks/useFinishOnboarding';
-import { useSetOnboardingStep } from '@features/onboarding/stores/onboardingStore';
+import { useOnboardingBack, useSetOnboardingStep } from '@features/onboarding/stores/onboardingStore';
 import { OnboardingIcon } from './OnboardingIcon';
 
 const COPY = ONBOARDING_CONFIG.setup;
@@ -38,10 +38,11 @@ const AppleRow: React.FC = () => {
 
 export const SetupStep: React.FC = () => {
   const setStep = useSetOnboardingStep();
+  const back = useOnboardingBack();
   const finish = useFinishOnboarding();
 
   return (
-    <WelcomeStep title={COPY.heading} secondary={{ label: ONBOARDING_CONFIG.actions.later, onClick: finish }}>
+    <WelcomeStep title={COPY.heading} secondary={{ label: ONBOARDING_CONFIG.actions.later, onClick: finish }} onBack={back}>
       <Section footer={COPY.footer}>
         {platform.hasAppleIntelligence && <AppleRow />}
         {platform.hasLocalModels && (

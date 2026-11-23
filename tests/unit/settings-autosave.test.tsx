@@ -170,4 +170,14 @@ describe('settings retired providers', () => {
     expect(screen.getByTestId('ids').textContent).not.toContain('xai');
     expect(screen.getByTestId('ids').textContent).toContain('openai');
   });
+
+  it('a failed load never saves defaults over what is on disk', async () => {
+    vi.mocked(store.providers.list).mockRejectedValueOnce(new Error('disk'));
+    renderProvider();
+    await waitFor(() => expect(screen.getByTestId('loading')).toHaveTextContent('ready'));
+    settingsSet.mockClear();
+    fireEvent.click(screen.getByTestId('edit'));
+    await new Promise((done) => setTimeout(done, 700));
+    expect(settingsSet).not.toHaveBeenCalled();
+  });
 });

@@ -1,7 +1,7 @@
 /** On-device model row controls: a Ready status and one fixed-width action — Download, then ■ 26% (tap cancels), then Delete. */
 
 import React from 'react';
-import { Check, Download, Square, Trash2 } from 'lucide-react';
+import { Download, Square, Trash2 } from 'lucide-react';
 import { LAYOUT } from '@config/layout.config';
 import { Button, Icon, IconButton, ProgressRing, Status, Text, cn } from '@shared/ui';
 import type { OnDeviceModel } from '@shared/utils/onDeviceModel';
@@ -20,13 +20,10 @@ interface ModelDownloadButtonProps {
   model: OnDeviceModel;
   /** Offer Delete once ready (Settings); elsewhere a ready model shows no action. */
   removable?: boolean;
-  /** An icon beside a picker (onboarding): ⬇, then a ring with a stop square while it downloads, then a tick. */
-  compact?: boolean;
 }
 
 /** The compact form: one icon-sized control that keeps its place from Download to done. */
 const CompactDownload: React.FC<{ model: OnDeviceModel }> = ({ model }) => {
-  if (model.status === 'ready') return <Icon icon={Check} size="sm" tone="success" />;
   if (model.status === 'idle') return <IconButton icon={Download} label={KIT_COPY.download} size="sm" onClick={model.download} />;
   return (
     <Button variant="ghost" size="iconSm" onClick={model.cancel} aria-label={KIT_COPY.cancelDownload}>
@@ -37,10 +34,10 @@ const CompactDownload: React.FC<{ model: OnDeviceModel }> = ({ model }) => {
   );
 };
 
-export const ModelDownloadButton: React.FC<ModelDownloadButtonProps> = ({ model, removable, compact }) => {
+export const ModelDownloadButton: React.FC<ModelDownloadButtonProps> = ({ model, removable }) => {
   // A phone row has no room for labelled columns: the App Store's one icon control (⬇, ring with ■, ✓).
   const phone = useFormFactor() === 'phone';
-  if (compact || (phone && model.status !== 'ready')) return <CompactDownload model={model} />;
+  if (phone && model.status !== 'ready') return <CompactDownload model={model} />;
   if (model.status === 'ready') {
     if (!removable) return null;
     if (phone) return <IconButton icon={Trash2} label={KIT_COPY.delete} size="sm" variant="dangerGhost" onClick={model.remove} />;

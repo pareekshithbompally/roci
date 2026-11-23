@@ -8,6 +8,7 @@ import { readinessOf } from '@shared/utils/modelResolver';
 import type { ModelChoice } from '@shared/utils/modelResolver';
 import { getModelDisplayName, isLocalProviderId } from '@shared/utils/provider.utils';
 import type { Model, ModelProvider } from '@shared/types/modelProviders';
+import { modelKey } from './keys';
 import { profileOf, shownProfile } from './profile';
 import type { ModelProfile } from './profile';
 
@@ -52,8 +53,8 @@ export function jobRecords(sources: ModelProvider[], job: ModelJob): ModelRecord
   return modelsFor(modelRecords(sources), job);
 }
 
-/** A job's models as picker choices; `valueOf` is what the setting stores (a model id by default). */
-export function jobChoices(sources: ModelProvider[], job: ModelJob, valueOf: (r: ModelRecord) => string = (r) => r.id): ModelChoice[] {
+/** A job's models as picker choices; `valueOf` is what the setting stores (its key, `provider::model`). */
+export function jobChoices(sources: ModelProvider[], job: ModelJob, valueOf: (r: ModelRecord) => string = (r) => modelKey({ provider: r.provider, model: r.id })): ModelChoice[] {
   return jobRecords(sources, job).map((r) => ({
     value: valueOf(r),
     provider: r.provider,

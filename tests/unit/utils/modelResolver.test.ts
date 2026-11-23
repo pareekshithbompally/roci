@@ -12,7 +12,10 @@ vi.mock('@config/providers.config', async (importOriginal) => ({
 import {
   getProviderType,
   requiresApiKey,
+  keyedSelection,
+  modelSources,
   resolveModel,
+  selectableSources,
   resolveChatModel,
   getAllActiveModels,
 } from '@shared/utils/modelResolver';
@@ -69,7 +72,7 @@ describe('resolveModel', () => {
     const providers = [
       makeProvider('openai', true, [makeModel('gpt-4o', 'GPT-4o')]),
     ];
-    const resolved = resolveModel('gpt-4o', providers as any);
+    const resolved = resolveModel('openai::gpt-4o', providers as any);
 
     expect(resolved).not.toBeNull();
     expect(resolved!.modelId).toBe('gpt-4o');
@@ -78,20 +81,18 @@ describe('resolveModel', () => {
     expect(resolved!.model.id).toBe('gpt-4o');
   });
 
-  it('skips inactive providers', () => {
+  it('an inactive provider runs nothing, and another provider never stands in for it', () => {
     const providers = [
       makeProvider('openai', false, [makeModel('gpt-4o')]),
       makeProvider('anthropic', true, [makeModel('gpt-4o')]),
     ];
-    const resolved = resolveModel('gpt-4o', providers as any);
-
-    expect(resolved).not.toBeNull();
-    expect(resolved!.provider).toBe('anthropic');
+    expect(resolveModel('openai::gpt-4o', providers as any)).toBeNull();
+    expect(resolveModel('anthropic::gpt-4o', providers as any)?.provider).toBe('anthropic');
   });
 
   it('returns null for unknown model', () => {
     const providers = [makeProvider('openai', true, [makeModel('gpt-4o')])];
-    expect(resolveModel('nonexistent', providers as any)).toBeNull();
+    expect(resolveModel('openai::nonexistent', providers as any)).toBeNull();
   });
 
   it('returns null for empty modelId', () => {
@@ -100,13 +101,13 @@ describe('resolveModel', () => {
   });
 
   it('returns null for empty providers array', () => {
-    expect(resolveModel('gpt-4o', [])).toBeNull();
+    expect(resolveModel('openai::gpt-4o', [])).toBeNull();
   });
 
   it('uses api_key fallback when settings key is empty', () => {
     const provider = makeProvider('openai', true, [makeModel('gpt-4o')]);
     provider.settings[0].controller_props.value = '';
-    const resolved = resolveModel('gpt-4o', [provider] as any);
+    const resolved = resolveModel('openai::gpt-4o', [provider] as any);
 
     expect(resolved!.apiKey).toBe('test-key');
   });
@@ -116,7 +117,7 @@ describe('resolveModel', () => {
       makeProvider('openai', true, [makeModel('shared-model', 'From OpenAI')]),
       makeProvider('anthropic', true, [makeModel('shared-model', 'From Anthropic')]),
     ];
-    const resolved = resolveModel('shared-model', providers as any);
+    const resolved = resolveModel('openai::shared-model', providers as any);
 
     expect(resolved!.provider).toBe('openai');
   });
@@ -128,7 +129,7 @@ describe('resolveModel', () => {
 describe('resolveChatModel', () => {
   const appleSettings = (enabled: boolean) =>
     ({
-      chatModel: 'apple-intelligence',
+      chatModel: 'apple-intelligence::apple-intelligence',
       appleIntelligenceIntegration: { enabled },
     }) as any;
 
@@ -140,7 +141,7 @@ describe('resolveChatModel', () => {
   it('resolves user providers while the Apple switch is on', () => {
     const providers = [makeProvider('openai', true, [makeModel('gpt-4o')])];
     const settings = {
-      chatModel: 'gpt-4o',
+      chatModel: 'openai::gpt-4o',
       appleIntelligenceIntegration: { enabled: true },
     } as any;
     const resolved = resolveChatModel(settings, providers as any);
@@ -153,14 +154,14 @@ describe('resolveChatModel', () => {
       makeProvider('openai', true, [makeModel('shared-model')]),
       makeProvider('anthropic', true, [makeModel('shared-model'), makeModel('claude')]),
     ];
-    const settings = { chatModel: 'shared-model' } as any;
+    const settings = { chatModel: 'openai::shared-model' } as any;
     expect(resolveChatModel(settings, providers as any, { provider: 'anthropic', model: 'shared-model' }, [])?.provider).toBe('anthropic');
     expect(resolveChatModel(settings, providers as any, { provider: 'anthropic', model: 'deleted-model' }, [])).toBeNull();
   });
 
   it('keyed providers still require a key', () => {
     const providers = [makeProvider('openai', true, [makeModel('gpt-4o')])];
-    const resolved = resolveChatModel({ chatModel: 'gpt-4o' } as any, providers as any);
+    const resolved = resolveChatModel({ chatModel: 'openai::gpt-4o' } as any, providers as any);
 
     expect(requiresApiKey(resolved!)).toBe(true);
   });
@@ -226,8 +227,8 @@ describe('getAllActiveModels', () => {
 describe('models from integrations', () => {
   it('Apple Intelligence joins the model sources only while its integration is on', async () => {
     const { modelSources, resolveSummaryModel, requiresApiKey } = await import('@shared/utils/modelResolver');
-    const off = { analyzeModel: 'apple-intelligence' } as never;
-    const on = { analyzeModel: 'apple-intelligence', appleIntelligenceIntegration: { enabled: true } } as never;
+    const off = { analyzeModel: 'apple-intelligence::apple-intelligence' } as never;
+    const on = { analyzeModel: 'apple-intelligence::apple-intelligence', appleIntelligenceIntegration: { enabled: true } } as never;
     expect(modelSources([], off)).toEqual([]);
     expect(resolveSummaryModel(off, [])).toBeNull();
     const resolved = resolveSummaryModel(on, []);
@@ -239,10 +240,33 @@ describe('models from integrations', () => {
     const { modelSources } = await import('@shared/utils/modelResolver');
     const gemma = {
       id: 'gemma-4-e2b', name: 'Gemma 4', maker: 'google', kind: 'chat' as const, streams: false, bytes: 1,
-      installed: true, downloading: false, contextTokens: 131_072, tools: true, vision: true,
+      installed: true, downloading: false, partial: false, contextTokens: 131_072, tools: true, vision: true,
     };
     const [onDevice] = modelSources([], {} as never, [gemma]);
     const { profileOf } = await import('@services/ai/models');
     expect(profileOf(onDevice.provider, onDevice.models[0])).toMatchObject({ contextTokens: 131_072, tools: true, input: ['text', 'image'] });
+  });
+});
+
+describe('keyed selections', () => {
+  const both = [makeProvider('openrouter', true, [makeModel('openai/gpt-oss-20b')]), makeProvider('groq', true, [makeModel('openai/gpt-oss-20b')])] as any;
+
+  it('the same model id on two providers runs on the one chosen', () => {
+    expect(resolveModel('groq::openai/gpt-oss-20b', both)?.provider).toBe('groq');
+    expect(resolveModel('openrouter::openai/gpt-oss-20b', both)?.provider).toBe('openrouter');
+  });
+
+  it('a bare id saved before keys keeps the provider it ran on; a key is left alone', () => {
+    expect(keyedSelection('openai/gpt-oss-20b', both)).toBe('openrouter::openai/gpt-oss-20b');
+    expect(keyedSelection('groq::openai/gpt-oss-20b', both)).toBe('groq::openai/gpt-oss-20b');
+    expect(keyedSelection('gone', both)).toBe('gone');
+  });
+
+  it('an on-device chat model still downloading can be selected but not run', () => {
+    const model = (partial: boolean) => [{ id: 'minicpm5-2b', name: 'MiniCPM5', kind: 'chat', installed: false, downloading: false, partial }] as any;
+    const key = 'on-device::minicpm5-2b';
+    expect(resolveModel(key, selectableSources([], {} as any, model(true)))).not.toBeNull();
+    expect(resolveModel(key, selectableSources([], {} as any, model(false)))).toBeNull();
+    expect(resolveModel(key, modelSources([], {} as any, model(true)))).toBeNull();
   });
 });

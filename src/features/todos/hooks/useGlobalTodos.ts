@@ -8,7 +8,6 @@ import { store, type GlobalTodoEntry } from '@services/db';
 import { reminderService } from '@services/reminder.service';
 import { queryKeys } from '@shared/query/queryKeys';
 import { remindersSync } from '@services/reminders';
-import { hashToNotificationId } from '@shared/utils/todo.utils';
 
 /** @deprecated Use GlobalTodoEntry from @services/db */
 export type GlobalTodo = GlobalTodoEntry;
@@ -40,14 +39,12 @@ export interface UseGlobalTodosReturn {
   toggleTodo: (meetingId: string | null, todoId: string) => Promise<void>;
   /** Create a new todo linked to a meeting */
   addTodo: (meetingId: string, text: string, dueDate?: string) => Promise<void>;
-  /** Set or clear a reminder on a todo */
-  setReminder: (meetingId: string | null, todoId: string, todoText: string, meetingTitle: string | null, dateTime: string | null) => Promise<void>;
   /** Counts (based on search-filtered set, before filter tabs) */
   counts: { total: number; pending: number; completed: number };
   /** Loading state */
   isLoading: boolean;
-  /** Reload all data */
-  refresh: () => Promise<void>;
+  /** Reads every to-do list again */
+  refresh: () => void;
 }
 
 /** Tokenize a query and check if all tokens match the target string */
@@ -65,7 +62,6 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
   const {
     data: allTodos = [],
     isLoading,
-    refetch,
   } = useQuery({
     queryKey: queryKeys.storeGlobalTodos(),
     queryFn: async (): Promise<GlobalTodoEntry[]> => {
@@ -175,55 +171,7 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
     },
   });
 
-  const setReminderMutate = useMutation({
-    mutationFn: async ({
-      meetingId,
-      todoId,
-      todoText,
-      meetingTitle,
-      dateTime,
-    }: {
-      meetingId: string | null;
-      todoId: string;
-      todoText: string;
-      meetingTitle: string | null;
-      dateTime: string | null;
-    }) => {
-      if (dateTime) {
-        await reminderService.schedule({ todoId, meetingId, todoText, meetingTitle, reminderDateTime: dateTime });
-      } else {
-        await reminderService.cancel(todoId);
-      }
-    },
-    onMutate: async ({ meetingId, todoId, dateTime }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.storeGlobalTodos() });
-      const previous = queryClient.getQueryData<GlobalTodoEntry[]>(queryKeys.storeGlobalTodos());
-      queryClient.setQueryData<GlobalTodoEntry[]>(queryKeys.storeGlobalTodos(), (old) =>
-        (old || []).map((t) =>
-          t.id === todoId && t.meetingId === meetingId
-            ? {
-                ...t,
-                reminder: dateTime
-                  ? { dateTime, notificationId: hashToNotificationId(todoId) }
-                  : undefined,
-              }
-            : t
-        )
-      );
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous !== undefined) {
-        queryClient.setQueryData(queryKeys.storeGlobalTodos(), context.previous);
-      }
-    },
-    onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.storeGlobalTodos() });
-      if (variables?.meetingId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.storeTodos(variables.meetingId) });
-      }
-    },
-  });
+  const refresh = useCallback(() => void queryClient.invalidateQueries({ queryKey: queryKeys.storeTodosAll() }), [queryClient]);
 
   const toggleTodo = useCallback(
     async (meetingId: string | null, todoId: string) => {
@@ -238,25 +186,6 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
       await addTodoMutate.mutateAsync({ meetingId, text, dueDate, meetingTitle });
     },
     [addTodoMutate]
-  );
-
-  const setReminder = useCallback(
-    async (
-      meetingId: string | null,
-      todoId: string,
-      todoText: string,
-      meetingTitle: string | null,
-      dateTime: string | null
-    ) => {
-      await setReminderMutate.mutateAsync({
-        meetingId,
-        todoId,
-        todoText,
-        meetingTitle,
-        dateTime,
-      });
-    },
-    [setReminderMutate]
   );
 
   // Search-filtered set (before tab filters)
@@ -331,9 +260,8 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
     setSearchQuery,
     toggleTodo,
     addTodo,
-    setReminder,
     counts,
     isLoading,
-    refresh: async () => { await refetch(); },
+    refresh,
   };
 }

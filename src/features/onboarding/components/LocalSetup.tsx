@@ -1,45 +1,48 @@
-/** First-run server option: one found on this device (where servers run), or one by address; picking one finishes setup. */
+/** First-run server option: one found on this device (where servers run), or one by address; its defaults show once it answers. */
 
-import React, { useState } from 'react';
-import { Button, Callout, CardRow, ICON_SIZE_PX, Input, Section, WelcomeStep } from '@shared/ui';
+import React, { useMemo, useState } from 'react';
+import { Button, Callout, CardRow, ICON_SIZE_PX, Input, Section, Status, WelcomeStep } from '@shared/ui';
 import { ProvidersAvatar } from '@shared/components';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { errorMessage } from '@shared/utils/errors';
 import { useLocalServers } from '@features/settings';
+import type { DetectedProvider } from '@features/settings';
 import { ONBOARDING_CONFIG } from '@config/onboarding.config';
-import { useFinishOnboarding } from '@features/onboarding/hooks/useFinishOnboarding';
-import { useSetOnboardingStep } from '@features/onboarding/stores/onboardingStore';
-import { normalizeLocalUrl } from '@services/providers/localServers';
+import { useGoWithDefaults } from '@features/onboarding/hooks/useGoWithDefaults';
+import { useOnboardingBack } from '@features/onboarding/stores/onboardingStore';
+import { normalizeLocalUrl, toLocalProvider } from '@services/providers/localServers';
+import type { LocalServer } from '@services/providers/localServers';
 import { platform } from '@platform/index';
-import type { LocalRow } from '@services/providers/localServers';
+import { DefaultsList } from './DefaultsList';
 
 const COPY = ONBOARDING_CONFIG.setup.local;
 const ACTIONS = ONBOARDING_CONFIG.actions;
 
-export const LocalSetup: React.FC = () => {
-  const { rows, isScanning, enable, addUrl } = useLocalServers();
-  const finish = useFinishOnboarding();
-  const setStep = useSetOnboardingStep();
+const detectedServer = (server: LocalServer, serverApp?: string): DetectedProvider =>
+  ({ id: server.id, listed: server.models, provider: toLocalProvider(server, serverApp) });
+
+interface AddressProps {
+  connectedTo: string | null;
+  onConnected: (detected: DetectedProvider) => void;
+}
+
+/** A server by its address: Connect asks it for its models. */
+const AddressSection: React.FC<AddressProps> = ({ connectedTo, onConnected }) => {
+  const { probeUrl } = useLocalServers();
   const [address, setAddress] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
-  const running = rows.filter((row) => row.running);
   // Connect waits for a real address; a typed-in word says what one looks like.
   const valid = normalizeLocalUrl(address) !== null;
   const invalid = address.trim() !== '' && !valid;
-
-  const use = (row: LocalRow) => {
-    if (!row.saved) enable(row);
-    finish();
-  };
 
   const connect = async () => {
     setConnecting(true);
     setError(null);
     try {
-      const result = await addUrl(address.trim());
+      const result = await probeUrl(address.trim());
       if ('error' in result) setError(result.error);
-      else finish();
+      else onConnected(detectedServer(result.server, result.serverApp));
     } catch (e: unknown) {
       console.error('[LocalSetup] Connecting failed:', e);
       setError(errorMessage(e));
@@ -49,24 +52,8 @@ export const LocalSetup: React.FC = () => {
   };
 
   return (
-    <WelcomeStep title={COPY.heading} secondary={{ label: ACTIONS.back, onClick: () => setStep('setup') }}>
-      {/* Servers already running here, each one tap away (only a device that runs servers looks). */}
-      {platform.runsLocalServers && (
-        <Section title={COPY.found} footer={running.length === 0 ? (isScanning ? COPY.scanning : COPY.none) : undefined}>
-          {running.map((row) => (
-            <CardRow
-              key={row.id}
-              leading={<ProvidersAvatar provider={row.id} size={ICON_SIZE_PX.lg} />}
-              title={getProviderTitle(row.id)}
-              description={row.baseUrl}
-              action={{ label: ACTIONS.use, onPress: () => use(row) }}
-            />
-          ))}
-        </Section>
-      )}
-
-      {/* Or one by its address. */}
-      <Section title={COPY.address} footer={invalid ? COPY.addressInvalid : COPY.addressHint}>
+    <>
+      <Section title={COPY.address} footer={invalid ? COPY.addressInvalid : connectedTo ? COPY.connectedTo(connectedTo) : COPY.addressHint}>
         <form
           className="py-3"
           onSubmit={(e) => {
@@ -81,15 +68,45 @@ export const LocalSetup: React.FC = () => {
             onChange={(e) => setAddress(e.target.value)}
             placeholder={COPY.placeholder}
             aria-label={COPY.address}
-            trailing={
-              <Button type="submit" variant="outline" size="sm" disabled={connecting || !valid}>
-                {ACTIONS.connect}
-              </Button>
-            }
+            trailing={<Button type="submit" variant="outline" size="sm" disabled={connecting || !valid}>{ACTIONS.connect}</Button>}
           />
         </form>
       </Section>
       {error && <Callout variant="error">{error}</Callout>}
+    </>
+  );
+};
+
+export const LocalSetup: React.FC = () => {
+  const { rows, isScanning } = useLocalServers();
+  const back = useOnboardingBack();
+  const [chosen, setChosen] = useState<DetectedProvider | null>(null);
+  const running = useMemo(() => rows.filter((row) => row.running), [rows]);
+  // The only server here needs no choosing.
+  const only = useMemo(() => (platform.runsLocalServers && running.length === 1 ? detectedServer(running[0]) : null), [running]);
+  const detected = chosen ?? only;
+  const { setup, action } = useGoWithDefaults(detected);
+  const byAddress = chosen && !running.some((row) => row.id === chosen.id) ? chosen : null;
+
+  return (
+    <WelcomeStep title={COPY.heading} primary={action} onBack={back}>
+      {/* Servers already running here (only a device that runs servers looks). */}
+      {platform.runsLocalServers && (
+        <Section title={COPY.found} footer={running.length === 0 ? (isScanning ? COPY.scanning : COPY.none) : undefined}>
+          {running.map((row) => (
+            <CardRow
+              key={row.id}
+              leading={<ProvidersAvatar provider={row.id} size={ICON_SIZE_PX.lg} />}
+              title={getProviderTitle(row.id)}
+              description={row.baseUrl}
+              status={row.id === detected?.id && <Status tone="success">{COPY.connected}</Status>}
+              action={row.id === detected?.id ? undefined : { label: ACTIONS.use, onPress: () => setChosen(detectedServer(row)) }}
+            />
+          ))}
+        </Section>
+      )}
+      <AddressSection connectedTo={byAddress?.provider?.base_url ?? null} onConnected={setChosen} />
+      {setup && <DefaultsList defaults={setup.defaults} />}
     </WelcomeStep>
   );
 };

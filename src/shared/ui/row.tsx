@@ -68,9 +68,24 @@ export function RowTitle({ className, ...props }: React.HTMLAttributes<HTMLSpanE
   );
 }
 
+/** Touch screens have no hover: what a row reveals stays visible there. */
+const REVEAL = platform.hasTouchScreen ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 data-[state=open]:opacity-100';
+
 /** Shell for a row that hosts a `RowAction` (named group + highlight while its menu is open). */
 export function actionRowClasses(selected?: boolean): string {
   return cn(rowClasses(selected), 'group/row relative has-[[data-state=open]]:bg-pressed');
+}
+
+export interface HoverRevealProps {
+  /** Shown without hover (an active reminder). */
+  always?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}
+
+/** A row's controls (inside a `group/row`): shown on hover and focus; touch screens have no hover, so always there. */
+export function HoverReveal({ always, className, children }: HoverRevealProps) {
+  return <div className={cn('shrink-0 transition-opacity', !always && REVEAL, className)}>{children}</div>;
 }
 
 export interface RowActionProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -85,8 +100,7 @@ export function RowAction({ className, type = 'button', ref, ...props }: RowActi
       type={type}
       className={cn(
         'absolute right-1 top-1/2 -translate-y-1/2 flex h-control-xs w-control-xs items-center justify-center rounded-md text-muted outline-none transition-opacity',
-        // Touch screens have no hover: the action stays visible there.
-        platform.hasTouchScreen ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 data-[state=open]:opacity-100',
+        REVEAL,
         'hover:bg-pressed',
         platform.hasTouchScreen && 'active:opacity-60',
         className,

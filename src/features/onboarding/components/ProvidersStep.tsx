@@ -1,33 +1,33 @@
-/** First-run: the online providers that can chat, each with its state; a row opens its key step. Back returns to the choice. */
+/** First-run: the online providers Roci has chat defaults for; a row opens its key step. */
 
 import React from 'react';
 import { CardRow, ICON_SIZE_PX, Section, WelcomeStep } from '@shared/ui';
 import { ProvidersAvatar } from '@shared/components';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { canListModels } from '@shared/utils/modelResolver';
-import { getProviderTitle, isLocalProviderId } from '@shared/utils/provider.utils';
+import { getProviderTitle, providerSetting } from '@shared/utils/provider.utils';
 import { ProviderStatus, cloudRowState } from '@features/settings';
 import { ONBOARDING_CONFIG } from '@config/onboarding.config';
-import { useOpenOnboardingProvider, useSetOnboardingStep } from '@features/onboarding/stores/onboardingStore';
+import { PROVIDER_DEFAULTS } from '@config/providerDefaults.config';
+import { useOnboardingBack, useOpenOnboardingProvider } from '@features/onboarding/stores/onboardingStore';
 
 const COPY = ONBOARDING_CONFIG.setup;
 
 export const ProvidersStep: React.FC = () => {
   const { providers } = useSettings();
-  const setStep = useSetOnboardingStep();
+  const back = useOnboardingBack();
   const openProvider = useOpenOnboardingProvider();
-  // Chat needs a provider whose models can be listed (speech-only ones are set up in Settings).
-  const chatProviders = providers.filter((p) => !isLocalProviderId(p.provider) && canListModels(p));
+  const offered = providers.filter((p) => p.provider in PROVIDER_DEFAULTS);
 
   return (
-    <WelcomeStep title={COPY.remote.title} secondary={{ label: ONBOARDING_CONFIG.actions.back, onClick: () => setStep('setup') }}>
+    <WelcomeStep title={COPY.remote.title} onBack={back}>
       <Section footer={COPY.providers.footer}>
-        {chatProviders.map((p) => (
+        {offered.map((p) => (
           <CardRow
             key={p.provider}
             leading={<ProvidersAvatar provider={p.provider} size={ICON_SIZE_PX.lg} />}
             title={getProviderTitle(p.provider)}
-            status={<ProviderStatus state={cloudRowState(p)} />}
+            // A provider with no key yet is simply not set up: nothing to warn about.
+            status={providerSetting(p, 'api-key') ? <ProviderStatus state={cloudRowState(p)} /> : undefined}
             onOpen={() => openProvider(p.provider)}
           />
         ))}

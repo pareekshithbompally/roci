@@ -5,7 +5,7 @@ import { Github } from 'lucide-react';
 import { Button, CardRow, IconButton, Section, Text } from '@shared/ui';
 import { openUrl } from '@services/tauri';
 import { APP_CONFIG } from '@config/app.config';
-import { useSettings } from '@shared/contexts/SettingsContext';
+import { useRunSetupAgain } from '@features/onboarding/stores/onboardingStore';
 import { platform } from '@platform/index';
 import { ACKNOWLEDGEMENTS_COPY } from '@config/acknowledgements.config';
 import { useSystemInfo } from '@features/settings/hooks/useSystemInfo';
@@ -38,7 +38,7 @@ const Credit: React.FC = () => (
 );
 
 export const AboutPanel: React.FC = () => {
-  const { setSettings } = useSettings();
+  const runSetupAgain = useRunSetupAgain();
   const appUpdate = useAppUpdate();
   const { appVersion } = useSystemInfo();
   const drill = usePaneDrill();
@@ -51,7 +51,7 @@ export const AboutPanel: React.FC = () => {
           title={ACKNOWLEDGEMENTS_COPY.title}
           onOpen={() => drill.open({ title: ACKNOWLEDGEMENTS_COPY.title, render: (close) => <AcknowledgementsPage onBack={close} /> })}
         />
-        <CardRow title="Run Setup Again" tone="accent" onPress={() => setSettings({ onboarding: { completed: false } })} />
+        <CardRow title="Run Setup Again" tone="accent" onPress={runSetupAgain} />
       </Section>
     </SettingsPage>
   );

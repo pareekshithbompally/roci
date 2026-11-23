@@ -1,6 +1,7 @@
 /** All todo date logic; date-only strings parse as LOCAL midnight (not UTC) so today never shows overdue. */
 
 import type { TodoReminder } from '@shared/types';
+import { addDays } from '@shared/utils/localDate';
 import { formatDate, formatShortDateTime } from '@shared/utils/formatters';
 
 // ── Date parsing (single entry point) ───────────────────────────
@@ -60,11 +61,12 @@ export function normalizeDueDate(input: string): string {
 
 // ── Overdue detection ───────────────────────────────────────────
 
-/** Whether a due date has passed; date-only strings compare at local midnight. */
+/** Whether a due date has passed; a date without a time is due until that local day ends. */
 export function isOverdue(dueDate?: string): boolean {
   if (!dueDate) return false;
   const d = parseDateLoose(dueDate);
-  return d !== null && d.getTime() < Date.now();
+  if (!d) return false;
+  return (DATE_ONLY_RE.test(dueDate) ? addDays(d, 1) : d).getTime() <= Date.now();
 }
 
 /** Whether a reminder's scheduled time passed without it firing. */

@@ -1,13 +1,14 @@
 /** Todos view listing user-created todos and AI-generated action items; the tab bar's Add opens its create form. */
 
-import React, { useCallback } from 'react';
+import React from 'react';
 import { ListTodo } from 'lucide-react';
 import { useSelectedHistoryId } from '@shared/stores/appStore';
 import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { useMeetingTodos } from '@features/todos/hooks/useMeetingTodos';
 import { EmptyState, ScreenState } from '@shared/components';
 import { confirmDelete } from '@shared/stores/confirmStore';
-import { Progress, Separator, Text, cn } from '@shared/ui';
+import { TODOS_CONFIG } from '@config/todos.config';
+import { Progress, Separator, Text, cn, showToast } from '@shared/ui';
 import TodoItem from './TodoItem';
 import { NewTodoForm } from './NewTodoForm';
 
@@ -21,11 +22,14 @@ interface TodoListProps {
 const TodoList: React.FC<TodoListProps> = ({ creating, onCreatingChange, className = '' }) => {
   const selectedHistoryId = useSelectedHistoryId();
   const meeting = useMeetingBrief(selectedHistoryId);
-  const { userTodos, aiTodos, isLoading, addTodo, updateTodo, deleteTodo, toggleTodo } = useMeetingTodos(selectedHistoryId);
+  const { userTodos, aiTodos, isLoading, addTodo, updateTodo, deleteTodo, toggleTodo, refresh } = useMeetingTodos(selectedHistoryId);
 
   const handleDeleteTodo = async (todoId: string) => {
     if (!(await confirmDelete('to-do'))) return;
-    await deleteTodo(todoId).catch((err: unknown) => console.error('[TodoList] Delete failed:', err));
+    await deleteTodo(todoId).catch((err: unknown) => {
+      console.error('[TodoList] Delete failed:', err);
+      showToast(TODOS_CONFIG.deleteFailed, 'error');
+    });
   };
   
   // Combine user todos and AI action items
@@ -41,10 +45,6 @@ const TodoList: React.FC<TodoListProps> = ({ creating, onCreatingChange, classNa
 
   const meetingId = selectedHistoryId || '';
   const meetingTitle = meeting?.title || 'Meeting';
-
-  const handleReminderChange = useCallback((todoId: string, reminderDateTime: string | null) => {
-    updateTodo(todoId, {});
-  }, [updateTodo]);
 
   return (
     <ScreenState loading={isLoading} className={cn('flex flex-1 flex-col gap-y-5', className)}>
@@ -79,9 +79,9 @@ const TodoList: React.FC<TodoListProps> = ({ creating, onCreatingChange, classNa
                 meetingId={meetingId}
                 meetingTitle={meetingTitle}
                 onToggle={toggleTodo}
-                onDelete={todo.owner ? undefined : (todoId) => void handleDeleteTodo(todoId)}
-                onUpdate={todo.owner ? undefined : updateTodo}
-                onReminderChange={handleReminderChange}
+                onDelete={(todoId) => void handleDeleteTodo(todoId)}
+                onUpdate={updateTodo}
+                onReminderChange={refresh}
               />
             </React.Fragment>
           ))}

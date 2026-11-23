@@ -2,6 +2,8 @@ export { useSettings } from './useSettings';
 export { useAppUpdate, useUpdateRuntime } from './useAppUpdate';
 export { useLocalServers } from './useLocalServers';
 export { useLocalServerProbe } from './useLocalServerProbe';
+export { useProviderDefaults } from './useProviderDefaults';
+export type { DetectedProvider, ProviderDefaultsSetup } from './useProviderDefaults';
 export { useProviderConnection } from './useProviderConnection';
 export type { ConnectionStatus, ProviderConnection } from './useProviderConnection';
 export { useSpeechModelOptions, useSelectedSpeechOption, useSpeechInputReady, useLiveDictation, freshSpeechSources } from './useSpeechModels';
@@ -11,7 +13,7 @@ export type { AIReadiness, AISetupStep } from './useAIReadiness';
 export { useMenubarSpeechModels } from './useMenubarSpeechModels';
 export { useMenubarReports } from './useMenubarReports';
 export { useStorageRetention } from './useStorageRetention';
-export { useLocalModelIdle, useLocalModelControls, useLocalModelDownloads, downloadSetup } from './useLocalModels';
+export { useLocalModelIdle, useLocalModelControls, useLocalModelDownloads, useLocalModelResume, downloadSetup } from './useLocalModels';
 export {
   useMcpConfig,
   useMcpConnectedServers,

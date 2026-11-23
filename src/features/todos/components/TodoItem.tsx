@@ -1,11 +1,11 @@
-/** A single todo with toggle, delete, edit, and reminder controls. */
+/** The one to-do row (a meeting's list and the To-dos page), with toggle, delete, edit, and reminder controls. */
 
 import React, { useState, useCallback } from 'react';
 import { Check, X, Edit2, Clock, AlertTriangle } from 'lucide-react';
 import type { ActionItem } from '@shared/types';
 import { isOverdue, formatDueDate, formatReminderDate, isReminderOverdue } from '@shared/utils/todo.utils';
 import ReminderPicker from './ReminderPicker';
-import { Checkbox, Icon, IconButton, Input, Text, cn } from '@shared/ui';
+import { Checkbox, HoverReveal, Icon, IconButton, Input, Text, cn } from '@shared/ui';
 import { platform } from '@platform/index';
 
 interface TodoItemProps {
@@ -16,9 +16,11 @@ interface TodoItemProps {
   onDelete?: (todoId: string) => void;
   onUpdate?: (todoId: string, updates: { text?: string; dueDate?: string }) => void;
   onReminderChange?: (todoId: string, reminderDateTime: string | null) => void;
+  /** The list's gutter. */
+  className?: string;
 }
 
-const TodoItem: React.FC<TodoItemProps> = ({ todo, meetingId, meetingTitle, onToggle, onDelete, onUpdate, onReminderChange }) => {
+const TodoItem: React.FC<TodoItemProps> = ({ todo, meetingId, meetingTitle, onToggle, onDelete, onUpdate, onReminderChange, className = 'px-4' }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(todo.text);
 
@@ -51,7 +53,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, meetingId, meetingTitle, onTo
   const reminderOverdue = todo.reminder ? isReminderOverdue(todo.reminder) : false;
 
   return (
-    <div className="px-4 py-2 group">
+    <div className={cn('py-2 group/row', className)}>
       <div className="flex items-start gap-2.5">
         <Checkbox checked={todo.completed} onCheckedChange={() => onToggle(todo.id)} className="mt-1" />
 
@@ -88,6 +90,8 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, meetingId, meetingTitle, onTo
                 </Text>
               )}
 
+              {todo.owner && <Text as="p" variant="helper" tone="faint" className="mt-0.5">→ {todo.owner}</Text>}
+
               {/* Reminder indicator */}
               {todo.reminder && !todo.completed && (
                 <Text as="div" variant="helper" tone={reminderOverdue ? 'danger' : 'warning'} className="flex items-center gap-1.5 mt-0.5">
@@ -106,7 +110,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, meetingId, meetingTitle, onTo
         <div className="flex gap-1 shrink-0">
           {/* Reminder bell — always visible when active */}
           {platform.hasNotifications && !isEditing && !todo.completed && onReminderChange && (
-            <div className={todo.reminder ? '' : 'opacity-0 group-hover:opacity-100 transition-opacity'}>
+            <HoverReveal always={!!todo.reminder}>
               <ReminderPicker
                 todoId={todo.id}
                 meetingId={meetingId}
@@ -116,16 +120,16 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, meetingId, meetingTitle, onTo
                 dueDate={todo.dueDate}
                 onReminderSet={handleReminderSet}
               />
-            </div>
+            </HoverReveal>
           )}
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <HoverReveal className="flex gap-1">
             {!isEditing && onUpdate && !todo.completed && (
               <IconButton icon={Edit2} label="Edit todo" size="sm" onClick={() => setIsEditing(true)} />
             )}
             {onDelete && (
               <IconButton icon={X} label="Delete todo" size="sm" variant="dangerGhost" onClick={() => onDelete(todo.id)} />
             )}
-          </div>
+          </HoverReveal>
         </div>
       </div>
     </div>

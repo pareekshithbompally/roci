@@ -7,6 +7,8 @@ import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { normalizeDueDate } from '@shared/utils/todo.utils';
 import { remindersSync } from '@services/reminders';
+import { showToast } from '@shared/ui';
+import { TODOS_CONFIG } from '@config/todos.config';
 import { createProposalQueue, type Proposal } from '@features/chat/stores/proposalQueue';
 
 export interface TodoProposal extends Proposal {
@@ -82,17 +84,19 @@ async function update(p: TodoChange, todoId: string): Promise<void> {
 async function remove(todoId: string): Promise<void> {
   await reminderService.cancel(todoId);
   await store.todos.delete(todoId);
+  void remindersSync.removed([todoId]);
 }
 
 async function remind(todoId: string, p: TodoChange, at: string): Promise<void> {
-  const ok = await reminderService.schedule({
+  const outcome = await reminderService.schedule({
     todoId,
     meetingId: p.meetingId,
     todoText: p.text,
     meetingTitle: p.meetingTitle,
     reminderDateTime: at,
   });
-  if (!ok) console.warn('[TodoProposalStore] Reminder not scheduled for:', p.text);
+  // The to-do itself is saved; its card closes, so a reminder that won't fire is said here.
+  if (outcome !== 'scheduled') showToast(outcome === 'denied' ? TODOS_CONFIG.reminder.denied : TODOS_CONFIG.reminder.failed, 'warning');
 }
 
 async function commitSingle(p: TodoChange): Promise<void> {

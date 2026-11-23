@@ -1,15 +1,14 @@
 /** To-dos: every meeting's action items, grouped by meeting, filterable, with create support; opened from the sidebar row. */
 
 import React, { useCallback, useState } from 'react';
-import { AlertTriangle, Bell, CalendarDays, Inbox, Search, Plus, X } from 'lucide-react';
+import { Inbox, Search, Plus, X } from 'lucide-react';
 import { useGlobalTodos } from '@features/todos/hooks/useGlobalTodos';
 import type { TodoFilter, GlobalTodo } from '@features/todos/hooks/useGlobalTodos';
-import { Checkbox, Icon, IconButton, Input, Surface, Tabs, Text, ViewHeader, ViewScroll, cn } from '@shared/ui';
+import { IconButton, Input, Surface, Tabs, Text, ViewHeader, ViewScroll, cn } from '@shared/ui';
 import { ScreenState } from '@shared/components';
-import { isOverdue, formatDueDate, formatReminderDate, isReminderOverdue, formatMeetingDate } from '@shared/utils/todo.utils';
+import { formatMeetingDate } from '@shared/utils/todo.utils';
 import { NewTodoForm } from './NewTodoForm';
-import ReminderPicker from './ReminderPicker';
-import { platform } from '@platform/index';
+import TodoItem from './TodoItem';
 import { LAYOUT } from '@config/layout.config';
 import { TODOS_CONFIG } from '@config/todos.config';
 
@@ -26,80 +25,24 @@ const FILTERS: { key: TodoFilter; label: string; countKey: 'total' | 'pending' |
 interface TodoRowProps {
   todo: GlobalTodo;
   onToggle: (meetingId: string | null, todoId: string) => void;
-  onReminderSet: (meetingId: string | null, todoId: string, todoText: string, meetingTitle: string | null, dateTime: string | null) => void;
+  onReminderChanged: () => void;
 }
 
-const TodoRow: React.FC<TodoRowProps> = ({ todo, onToggle, onReminderSet }) => {
-  const overdue = !todo.completed && isOverdue(todo.dueDate);
-  const reminderOverdue = todo.reminder ? isReminderOverdue(todo.reminder) : false;
-
-  const handleReminderSet = useCallback((dateTime: string | null) => {
-    onReminderSet(todo.meetingId, todo.id, todo.text, todo.meetingTitle, dateTime);
-  }, [todo.meetingId, todo.id, todo.text, todo.meetingTitle, onReminderSet]);
-
-  return (
-    <div className={`w-full flex items-start gap-2.5 ${LAYOUT.listGutter} py-2 group`}>
-      <Checkbox
-        checked={todo.completed}
-        onCheckedChange={() => onToggle(todo.meetingId, todo.id)}
-        className="mt-1"
-      />
-
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <Text as="p" variant="reading" tone={todo.completed ? 'faint' : 'primary'} className={cn('break-words', todo.completed && 'line-through')}>
-          {todo.text}
-        </Text>
-
-        {/* Metadata row */}
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 mt-0.5">
-          {/* Due date */}
-          {todo.dueDate && (
-            <Text variant="helper" tone={overdue ? 'danger' : 'muted'} className="inline-flex items-center gap-1">
-              <Icon icon={overdue ? AlertTriangle : CalendarDays} size="xs" />
-              {overdue ? 'Overdue: ' : 'Due: '}{formatDueDate(todo.dueDate)}
-            </Text>
-          )}
-
-          {/* Reminder */}
-          {todo.reminder && !todo.completed && (
-            <Text variant="helper" tone={reminderOverdue ? 'danger' : 'warning'} className="inline-flex items-center gap-1">
-              <Icon icon={Bell} size="xs" />
-              {reminderOverdue ? 'Overdue: ' : ''}{formatReminderDate(todo.reminder.dateTime)}
-            </Text>
-          )}
-
-          {/* Owner */}
-          {todo.owner && (
-            <Text variant="helper" tone="faint">
-              → {todo.owner}
-            </Text>
-          )}
-        </div>
-      </div>
-
-      {/* Reminder bell — always visible when active, hover when not */}
-      {platform.hasNotifications && !todo.completed && (
-        <div className={cn('shrink-0 transition-opacity', !todo.reminder && 'opacity-0 group-hover:opacity-100')}>
-          <ReminderPicker
-            todoId={todo.id}
-            meetingId={todo.meetingId}
-            todoText={todo.text}
-            meetingTitle={todo.meetingTitle}
-            reminderDateTime={todo.reminder?.dateTime}
-            dueDate={todo.dueDate}
-            onReminderSet={handleReminderSet}
-          />
-        </div>
-      )}
-    </div>
-  );
-};
+const TodoRow: React.FC<TodoRowProps> = ({ todo, onToggle, onReminderChanged }) => (
+  <TodoItem
+    todo={todo}
+    meetingId={todo.meetingId}
+    meetingTitle={todo.meetingTitle}
+    onToggle={() => onToggle(todo.meetingId, todo.id)}
+    onReminderChange={onReminderChanged}
+    className={LAYOUT.listGutter}
+  />
+);
 
 // ── Main component ──────────────────────────────────────────────
 
 export const RemindersView: React.FC = () => {
-  const { groups, filter, setFilter, searchQuery, setSearchQuery, toggleTodo, addTodo, setReminder, counts, isLoading } = useGlobalTodos();
+  const { groups, filter, setFilter, searchQuery, setSearchQuery, toggleTodo, addTodo, refresh, counts, isLoading } = useGlobalTodos();
   const [isCreating, setIsCreating] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
@@ -206,7 +149,7 @@ export const RemindersView: React.FC = () => {
                     key={`${todo.meetingId}-${todo.id}`}
                     todo={todo}
                     onToggle={handleToggle}
-                    onReminderSet={setReminder}
+                    onReminderChanged={refresh}
                   />
                 ))}
               </div>
