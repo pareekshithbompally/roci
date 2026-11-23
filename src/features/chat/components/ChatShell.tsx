@@ -256,10 +256,14 @@ export const ChatShell: React.FC<ChatShellProps> = ({
         layoutDependency={ANIMATION_CONFIG.chat.composerLayoutDependency.chat}
         transition={ANIMATION_CONFIG.chat.composerGlide}
       >
-        <ToolApprovalBanner />
-        <TodoConfirmationBanner chatId={sessionId} />
-        <MemoryConfirmationBanner chatId={sessionId} />
         <ChatInput
+          above={(
+            <>
+              <ToolApprovalBanner />
+              <TodoConfirmationBanner chatId={sessionId} />
+              <MemoryConfirmationBanner chatId={sessionId} />
+            </>
+          )}
           value={chatInput}
           onChange={setInput}
           onSend={handleSend}

@@ -89,6 +89,8 @@ interface ChatInputProps {
   scopeMeetingId?: string;
   /** Starts a meeting recording (home): a red dot at the bar's end while the draft is empty and nothing records. */
   onRecord?: () => void;
+  /** Cards over the bar (a tool's permission, proposals to confirm), inside the composer's own inset so their edges are its. */
+  above?: React.ReactNode;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -118,6 +120,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   placeholder,
   scopeMeetingId,
   onRecord,
+  above,
 }) => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   // The composer's own width decides its toolbar: icons only when narrow (the meeting chat window, a narrow window).
@@ -335,6 +338,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div ref={frameRef} className={cn('relative px-4 py-2', LAYOUT.chatColumn)}>
+      {above && <div className="mb-2 flex flex-col gap-2 empty:hidden">{above}</div>}
       <Popover anchored open={popup !== null} onOpenChange={(open) => { if (!open) closeMentionPopup(); }}>
         <PopoverAnchor asChild>
           {/* Composer never unmounts (an exit flashes box chrome); the pill is an overlay that moves no layout. */}

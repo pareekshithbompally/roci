@@ -14,8 +14,7 @@ const ToolApprovalBanner: React.FC = () => {
   const queued = pending.length - 1;
 
   return (
-    <div className="pb-1.5">
-      <Surface
+    <Surface
         variant="field"
         radius="xl"
         className="px-4 py-3 space-y-2"
@@ -43,7 +42,8 @@ const ToolApprovalBanner: React.FC = () => {
           </Surface>
         )}
 
-        <div className="flex items-center justify-end gap-1.5">
+        {/* Wraps on a phone when the server's name makes "Always allow" long. */}
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
           <Button variant="secondary" onClick={() => resolveApproval(request.toolCallId, 'deny')}>
             Deny
           </Button>
@@ -54,8 +54,7 @@ const ToolApprovalBanner: React.FC = () => {
             Always allow {request.serverName}
           </Button>
         </div>
-      </Surface>
-    </div>
+    </Surface>
   );
 };
 

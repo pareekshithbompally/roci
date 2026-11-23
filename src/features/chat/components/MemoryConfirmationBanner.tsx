@@ -51,7 +51,7 @@ export const MemoryConfirmationBanner: React.FC<{ chatId: string | undefined }> 
   const saved = proposals.every((p) => p.status === 'committed');
 
   return (
-    <div className="pb-1.5">
+    <>
       <ProposalCard
         icon={Brain}
         heading={saved ? COPY.saved : COPY.toConfirm(proposals.length)}
@@ -62,6 +62,6 @@ export const MemoryConfirmationBanner: React.FC<{ chatId: string | undefined }> 
         onCancel={() => memoryProposalStore.cancelAll(chatId ?? null)}
       />
       {editing && <EditDialog proposal={editing} onClose={() => setEditing(null)} />}
-    </div>
+    </>
   );
 };

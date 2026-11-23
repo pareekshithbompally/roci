@@ -53,7 +53,7 @@ const TodoConfirmationBanner: React.FC<{ chatId: string | undefined }> = ({ chat
   const saved = proposals.every((p) => p.status === 'committed');
 
   return (
-    <div className="pb-1.5">
+    <>
       <ProposalCard
         icon={ListTodo}
         heading={saved ? COPY.saved(proposals.length) : COPY.toConfirm(pending)}
@@ -64,7 +64,7 @@ const TodoConfirmationBanner: React.FC<{ chatId: string | undefined }> = ({ chat
         onCancel={() => todoProposalStore.cancelAll(chatId ?? null)}
       />
       {editing && <TodoProposalDialog proposal={editing} onClose={() => setEditing(null)} />}
-    </div>
+    </>
   );
 };
 
