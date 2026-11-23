@@ -148,6 +148,12 @@ export const ACKNOWLEDGEMENTS: readonly AcknowledgementGroup[] = [
         notice: 'Licensed by NVIDIA Corporation under the NVIDIA Open Model License.',
       },
       { name: 'Whisper Large V3 Turbo', url: 'https://huggingface.co/openai/whisper-large-v3-turbo', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2022 OpenAI' },
+      {
+        name: 'Indic-Transcribe-Flex',
+        url: 'https://huggingface.co/bodhan-ai/indic-transcribe-flex',
+        license: 'Indic Open Model License v1.0',
+        notice: 'Built with Indic-Transcribe-Flex from Bodhan AI / AI4Bharat. Built on NVIDIA Canary 1B v2, CC-BY-4.0.',
+      },
       { name: 'Kokoro 82M', url: 'https://huggingface.co/hexgrad/Kokoro-82M', license: 'Apache-2.0', text: 'Apache-2.0' },
       { name: 'Kokoro English pronunciation data', url: 'https://huggingface.co/beshkenadze/kitten-tts-g2p', license: 'MIT', text: 'MIT' },
       { name: 'Phonon and voices', url: 'https://huggingface.co/gradium/phonon-31m-en', license: 'Apache-2.0', text: 'Apache-2.0' },

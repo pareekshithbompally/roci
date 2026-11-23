@@ -41,7 +41,7 @@
 
 | Where | What runs there |
 |---|---|
-| **On this device** | Chat and meeting-search embeddings on [MLX](https://github.com/ml-explore/mlx-swift). Speech recognition with [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) (Parakeet, Nemotron, Whisper). Read aloud with a voice model or the system voices. Apple Intelligence and Apple Speech. Nothing leaves the device and nothing is charged. |
+| **On this device** | Chat and meeting-search embeddings on [MLX](https://github.com/ml-explore/mlx-swift). Speech recognition with [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) (Parakeet, Nemotron, Whisper, Indic Transcribe Flex for 27 Indian languages). Read aloud with a voice model or the system voices. Apple Intelligence and Apple Speech. Nothing leaves the device and nothing is charged. |
 | **Your own server** | Any OpenAI-compatible server on your network: Ollama, LM Studio, Jan, llama.cpp. |
 | **Cloud** | OpenAI, Anthropic, Google Gemini, OpenRouter, Mistral, Groq, Deepgram and ElevenLabs, with your own API key. |
 

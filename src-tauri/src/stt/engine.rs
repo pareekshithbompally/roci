@@ -10,6 +10,7 @@ use serde::Serialize;
 use transcribe_cpp::{DeviceType, Model, RunOptions, Session, SessionOptions};
 
 use super::vocabulary::{drop_prompt_echo, VocabularySlot};
+use crate::models::catalog;
 use crate::models::gpu::{self, Priority};
 use crate::models::LocalError;
 use crate::sync::lock;
@@ -149,7 +150,7 @@ fn load(id: &'static str, path: &Path) -> Result<Loaded, LocalError> {
     init_logging();
     let model = Model::load(path).map_err(engine_error)?;
     let capabilities = model.capabilities().map_err(engine_error)?;
-    let max_ms = capabilities.max_audio_ms.max(0) as usize;
+    let max_ms = run_limit_ms(capabilities.max_audio_ms, catalog::find(id).ok().and_then(|m| m.max_run_ms));
     // On a GPU only the decoder runs on the CPU; extra ggml worker threads would spin and stall it.
     let on_gpu = model.device().is_ok_and(|d| matches!(d.device_type, DeviceType::Gpu | DeviceType::Igpu));
     let session_options = SessionOptions { n_threads: if on_gpu { 1 } else { 0 }, ..SessionOptions::default() };
@@ -164,6 +165,15 @@ fn load(id: &'static str, path: &Path) -> Result<Loaded, LocalError> {
         languages: capabilities.languages,
         vocabulary,
     })
+}
+
+/// The longest audio per run, ms: the model's own limit, lowered to the clip length the catalog says it was trained on; 0 = none.
+fn run_limit_ms(reported: i64, trained: Option<usize>) -> usize {
+    let reported = reported.max(0) as usize;
+    match trained {
+        Some(trained) if reported == 0 || trained < reported => trained,
+        _ => reported,
+    }
 }
 
 /// Routes transcribe.cpp's logging into the app log, once, before its first model loads.
@@ -259,6 +269,15 @@ mod tests {
         assert_eq!(hint_for(&["en".to_string()], "en"), Some("en".into()));
         assert_eq!(hint_for(&[], "en"), Some("en".into()));
         assert_eq!(hint_for(&locales, "ja"), None);
+    }
+
+    #[test]
+    fn a_trained_clip_length_lowers_the_run_limit() {
+        assert_eq!(run_limit_ms(400_000, Some(30_000)), 30_000);
+        assert_eq!(run_limit_ms(0, Some(30_000)), 30_000);
+        assert_eq!(run_limit_ms(20_000, Some(30_000)), 20_000);
+        assert_eq!(run_limit_ms(400_000, None), 400_000);
+        assert_eq!(run_limit_ms(-1, None), 0);
     }
 
     #[test]

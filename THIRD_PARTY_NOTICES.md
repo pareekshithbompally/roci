@@ -342,6 +342,12 @@ Roci downloads these from Hugging Face only when you choose to use them.
 - Source: <https://huggingface.co/openai/whisper-large-v3-turbo>
 - Copyright (c) 2022 OpenAI
 
+### Indic-Transcribe-Flex
+
+- Licence: Indic Open Model License v1.0
+- Source: <https://huggingface.co/bodhan-ai/indic-transcribe-flex>
+- Built with Indic-Transcribe-Flex from Bodhan AI / AI4Bharat. Built on NVIDIA Canary 1B v2, CC-BY-4.0.
+
 ### Kokoro 82M
 
 - Licence: Apache-2.0
