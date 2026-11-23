@@ -21,7 +21,7 @@ export { aiSetupStep, useAIReadiness, useOpenAISetup } from './hooks';
 export { preloadSystemInfo, useSystemInfo } from './hooks/useSystemInfo';
 
 // Re-export context for provider usage
-export { SettingsProvider, useSettings as useSettingsContext } from '@shared/contexts/SettingsContext';
+export { SettingsProvider } from '@shared/contexts/SettingsContext';
 export { SETTINGS_SECTIONS } from './components/SettingsNav';
 export { useProviderDefaults } from './hooks';
 export type { DetectedProvider, ProviderDefaultsSetup } from './hooks';

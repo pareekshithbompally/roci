@@ -2,6 +2,7 @@ import React from 'react';
 import { Check, X } from 'lucide-react';
 import { useFormFactor } from '@platform/formFactor';
 import { KIT_COPY } from '@config/kitCopy.config';
+import { confirm } from '@shared/stores/confirmStore';
 import {
   Button,
   CardRow,
@@ -17,7 +18,9 @@ import {
   DialogPortal,
   DialogTitle,
   IconButton,
+  PageBody,
   PushedScreen,
+  Spinner,
   Section,
   useOptionalNavStack,
   Text,
@@ -44,6 +47,8 @@ interface FormDialogProps {
   /** A view with nothing to save (a preview): Done alone closes it. */
   viewOnly?: boolean;
   size?: DialogContentProps['size'];
+  /** Something was edited: a pushed page asks before Back drops it. */
+  dirty?: boolean;
   children: React.ReactNode;
 }
 
@@ -82,14 +87,24 @@ const PhoneFormBody: React.FC<Pick<FormDialogProps, 'headerAction' | 'error' | '
   </>
 );
 
+const askDiscard = () => confirm({ title: KIT_COPY.discard.title, confirmLabel: KIT_COPY.discard.confirm, cancelLabel: KIT_COPY.discard.keep, tone: 'danger' });
+/** While saving, Back waits for the answer. */
+const stay = () => Promise.resolve(false);
+
 /** Inside a navigation stack (Settings) a form is a pushed page with ✓ in its bar (Settings › Wi-Fi › Other); anywhere
  *  else, the iOS edit sheet (✕ / title / ✓). */
-const PhoneForm: React.FC<FormDialogProps> = ({ open, onOpenChange, title, submit, ...body }) => {
+const PhoneForm: React.FC<FormDialogProps> = ({ open, onOpenChange, title, submit, dirty, ...body }) => {
   const stacked = useOptionalNavStack() !== null;
   const canSave = !submit.disabled && !submit.busy;
   if (!stacked) {
+    // ✕, the scrim and Escape ask before dropping edits; a drag down keeps the sheet (held).
+    const close = (next: boolean) => {
+      if (next || submit.busy) return;
+      if (!dirty) return onOpenChange(false);
+      askDiscard().then((yes) => yes && onOpenChange(false)).catch((error: unknown) => console.error('[FormDialog] ask failed:', error));
+    };
     return (
-      <EditSheet open={open} onOpenChange={onOpenChange} title={title} canSave={canSave} onSave={submit.onPress}>
+      <EditSheet open={open} onOpenChange={close} title={title} canSave={canSave} onSave={submit.onPress} saveLabel={submit.label} busy={submit.busy} held={dirty || submit.busy}>
         <PhoneFormBody {...body} />
       </EditSheet>
     );
@@ -99,11 +114,12 @@ const PhoneForm: React.FC<FormDialogProps> = ({ open, onOpenChange, title, submi
       open={open}
       title={title}
       onClose={() => onOpenChange(false)}
-      action={<IconButton icon={Check} label={submit.label} size="fab" variant="bar" disabled={!canSave} onClick={submit.onPress} />}
+      confirmBack={submit.busy ? stay : dirty ? askDiscard : undefined}
+      action={submit.busy ? <Spinner /> : <IconButton icon={Check} label={submit.label} size="fab" variant="bar" disabled={!canSave} onClick={submit.onPress} />}
     >
-      <div className="flex flex-col gap-section p-4">
+      <PageBody>
         <PhoneFormBody {...body} />
-      </div>
+      </PageBody>
     </PushedScreen>
   );
 };

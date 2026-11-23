@@ -14,6 +14,7 @@ import { useKeepPeriod, useStorageClear, useStorageUsage, type StorageTarget } f
 import { StorageLocationSection } from './StorageLocationSection';
 import { SearchIndexSection } from './SearchIndexSection';
 import { PENDING, SettingsPage } from './shared';
+import { STORAGE_COPY as COPY } from '@config/settingsCopy.config';
 
 const ACTIONS = StorageConfig.actions;
 
@@ -47,12 +48,12 @@ function useConfirmedClear(): (target: StorageTarget, title: string, description
   const clear = useStorageClear();
   const { showToast } = useToast();
   return async (target, title, description) => {
-    if (!(await confirm({ title, description, confirmLabel: 'Delete', tone: 'danger' }))) return;
+    if (!(await confirm({ title, description, confirmLabel: COPY.delete, tone: 'danger' }))) return;
     try {
       await clear.mutateAsync(target);
     } catch (error: unknown) {
       console.error('[StoragePanel] Clear failed:', target, error);
-      showToast('Couldn’t delete it. Nothing was removed.', 'error');
+      showToast(COPY.deleteFailed, 'error');
     }
   };
 }
@@ -61,9 +62,8 @@ function useConfirmedClear(): (target: StorageTarget, title: string, description
 async function confirmShorter(item: StorageClass, from: number | undefined, to: number): Promise<boolean> {
   if (from !== undefined && to >= from) return true;
   return confirm({
-    title: `Delete ${item.label.toLowerCase()} older than ${formatCount(to, 'day')}?`,
-    description: 'Older ones are removed now, and from now on as they reach that age. This can’t be undone.',
-    confirmLabel: 'Delete',
+    ...COPY.deleteOlder(item.label, formatCount(to, 'day')),
+    confirmLabel: COPY.delete,
     tone: 'danger',
   });
 }
@@ -73,7 +73,8 @@ const KeepRow: React.FC<{ item: StorageClass; usage: StorageUsage | undefined }>
   const clear = useConfirmedClear();
   const onChange = async (value: string) => {
     if (value === DELETE_ALL) {
-      await clear(item.id, `Delete all ${item.label.toLowerCase()}?`, `This removes ${item.deletes}. It can’t be undone.`);
+      const { title, description } = COPY.deleteAll(item.label, item.deletes);
+      await clear(item.id, title, description);
       return;
     }
     if (value === FOREVER) return setDays(undefined);
@@ -85,7 +86,7 @@ const KeepRow: React.FC<{ item: StorageClass; usage: StorageUsage | undefined }>
       description={describe(usage, item)}
       actions={
         <div className={LAYOUT.settingsSelect}>
-          <Picker label={`Keep ${item.label.toLowerCase()}`} value={days === undefined ? FOREVER : String(days)} onChange={(value) => void onChange(value)} placeholder="" groups={KEEP_GROUPS} />
+          <Picker label={COPY.keep(item.label)} value={days === undefined ? FOREVER : String(days)} onChange={(value) => void onChange(value)} placeholder="" groups={KEEP_GROUPS} />
         </div>
       }
     />
@@ -101,16 +102,16 @@ const SpaceSection: React.FC<{ usage: StorageUsage | undefined }> = ({ usage }) 
   const files = usage?.assets.reduce((sum, entry) => sum + entry.bytes, 0);
   const total = usage && files !== undefined ? files + usage.database_bytes + usage.cache_bytes + usage.models_bytes : undefined;
   return (
-    <Section title="Space">
-      <CardRow title="Database" actions={<Figure bytes={usage?.database_bytes} />} />
+    <Section title={COPY.space}>
+      <CardRow title={COPY.database} actions={<Figure bytes={usage?.database_bytes} />} />
       <CardRow
-        title="Cache"
-        description="Temporary audio and downloaded data; rebuilt when needed."
+        title={COPY.cache}
+        description={COPY.cacheDetail}
         actions={<Figure bytes={usage?.cache_bytes} />}
-        action={{ label: ACTIONS.clearCache, onPress: () => void clear('cache', 'Clear the cache?', 'Temporary files are removed and fetched again when needed.') }}
+        action={{ label: ACTIONS.clearCache, onPress: () => void clear('cache', COPY.clearCache.title, COPY.clearCache.description) }}
       />
-      <CardRow title="Downloaded Models" actions={<Figure bytes={usage?.models_bytes} />} />
-      <CardRow title="Total" actions={<Text variant="figure">{total === undefined ? PENDING : formatFileSize(total)}</Text>} />
+      <CardRow title={COPY.models} actions={<Figure bytes={usage?.models_bytes} />} />
+      <CardRow title={COPY.total} actions={<Text variant="figure">{total === undefined ? PENDING : formatFileSize(total)}</Text>} />
     </Section>
   );
 };
@@ -120,11 +121,11 @@ const CatalogSection: React.FC = () => {
   const { showToast } = useToast();
   const onRefresh = () =>
     refresh.mutate(undefined, {
-      onSuccess: () => showToast('Model catalog updated', 'success'),
-      onError: () => showToast('Couldn’t reach models.dev', 'error'),
+      onSuccess: () => showToast(COPY.catalogUpdated, 'success'),
+      onError: () => showToast(COPY.catalogFailed, 'error'),
     });
   return (
-    <Section title="Model Catalog" footer="Model abilities, context sizes and prices come from models.dev.">
+    <Section title={COPY.catalog} footer={COPY.catalogFooter}>
       <CardRow title="models.dev" action={{ label: ACTIONS.refreshCatalog, onPress: onRefresh, busy: refresh.isPending }} />
     </Section>
   );

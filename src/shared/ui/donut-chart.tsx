@@ -4,6 +4,8 @@
 
 import React, { useMemo, useState } from 'react';
 import { UI_CONFIG } from '@config/ui.config';
+import { useFormFactor } from '@platform/formFactor';
+import { KIT_COPY } from '@config/kitCopy.config';
 import { rowClasses } from './row';
 import { Chart, type ChartOption } from './chart';
 import { cssToken } from './utils';
@@ -43,22 +45,22 @@ const REST = '--text-faint';
 const colourOf = (row: Row): string => (row.members || !row.slot ? REST : `--viz-${row.slot}`);
 
 /** "42%", or "<1%" for a sliver that would round to nothing. */
-const shareText = (share: number) => (share > 0 && share < 0.01 ? '<1%' : PERCENT.format(share));
+const shareText = (share: number) => (share > 0 && share < 0.01 ? KIT_COPY.sliver : PERCENT.format(share));
 
 interface Row extends DonutSlice {
   /** The entries a "+N more" row stands for, one per line (its native tooltip). */
   members?: string;
 }
 
-/** The named rows, and past `C.maxSlices` one "+N more" row for the rest. */
-function rowsOf(slices: readonly DonutSlice[], formatValue: (v: number) => string): Row[] {
-  if (slices.length <= C.maxSlices) return [...slices];
+/** The named rows, and past `C.maxSlices` (unless `nameAll`) one "+N more" row for the rest. */
+function rowsOf(slices: readonly DonutSlice[], formatValue: (v: number) => string, nameAll: boolean): Row[] {
+  if (nameAll || slices.length <= C.maxSlices) return [...slices];
   const named = slices.slice(0, C.maxSlices - 1);
   const rest = slices.slice(C.maxSlices - 1);
   const value = rest.reduce((sum, s) => sum + s.value, 0);
   return [
     ...named,
-    { key: 'more', label: `+${rest.length} more`, value, valueText: formatValue(value), members: rest.map((s) => `${s.label} — ${s.valueText}`).join('\n') },
+    { key: 'more', label: KIT_COPY.moreCount(rest.length), value, valueText: formatValue(value), members: rest.map((s) => `${s.label} — ${s.valueText}`).join('\n') },
   ];
 }
 
@@ -88,8 +90,10 @@ const LegendRow: React.FC<LegendRowProps> = ({ row, swatch, share, active, onHov
 );
 
 export function DonutChart({ slices, total, formatValue, label }: DonutChartProps) {
+  // On touch every entry is named: a folded "+N more" lists its members only on hover.
+  const nameAll = useFormFactor() === 'phone';
   const [hovered, setHovered] = useState<number | null>(null);
-  const rows = useMemo(() => rowsOf(slices, formatValue), [slices, formatValue]);
+  const rows = useMemo(() => rowsOf(slices, formatValue, nameAll), [slices, formatValue, nameAll]);
   const sum = rows.reduce((s, r) => s + r.value, 0);
   const option = useMemo<ChartOption>(() => ({
     series: [{

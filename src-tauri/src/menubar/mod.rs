@@ -127,8 +127,6 @@ struct StateData {
     recording_active: bool,
     paused: bool,
     elapsed_secs: u64,
-    close_to_tray: bool,
-    hide_icon: bool,
     tooltip: String,
     /// Ready keyless speech models (this Mac, Apple Speech, Hex), newest report wins.
     speech_models: Vec<SpeechModelEntry>,
@@ -151,8 +149,6 @@ impl Default for StateData {
             recording_active: false,
             paused: false,
             elapsed_secs: 0,
-            close_to_tray: true,
-            hide_icon: false,
             tooltip: DEFAULT_TOOLTIP.to_string(),
             speech_models: Vec::new(),
             mcp: McpMenuStatus::default(),
@@ -224,7 +220,7 @@ impl MenubarShared {
         };
         let recording = state.recording_active;
         let menu_state = MenuState {
-            visible: icon_shown(state.hide_icon, recording),
+            visible: true,
             tooltip: &state.tooltip,
             icon: &self.images.idle,
             recording,
@@ -252,20 +248,10 @@ impl MenubarShared {
             log::error!("[Menubar] Failed to update the menu: {e}");
         }
     }
-
-    /// Whether closing the window should hide to the menu bar instead of quitting.
-    pub fn close_to_tray(&self) -> bool {
-        self.lock().close_to_tray
-    }
 }
 
 fn send_to_menu(json: &str) -> Result<(), String> {
     status_menu::update(json)
-}
-
-/// Preference hides the icon, recording forces it back.
-fn icon_shown(hide_icon: bool, recording_active: bool) -> bool {
-    !hide_icon || recording_active
 }
 
 // ── Actions out ──
@@ -462,55 +448,11 @@ pub fn set_mcp_status(app: &AppHandle, status: McpMenuStatus) {
     let _ = report(app, |state| std::mem::replace(&mut state.mcp, status.clone()) != status);
 }
 
-/// Set the status item's tooltip.
-#[tauri::command]
-pub async fn menubar_set_tooltip(app: AppHandle, tooltip: String) -> Result<(), String> {
-    report(&app, |state| std::mem::replace(&mut state.tooltip, tooltip.clone()) != tooltip)
-}
-
-/// Show or hide the status item, subject to the recording force-visible rule.
-#[tauri::command]
-pub async fn menubar_set_visible(app: AppHandle, visible: bool) -> Result<(), String> {
-    report(&app, |state| std::mem::replace(&mut state.hide_icon, !visible) == visible)
-}
-
-/// Behaviour preferences: hide the menu bar icon, close the window to the menu bar.
-#[tauri::command]
-pub async fn menubar_set_prefs(app: AppHandle, close_to_tray: Option<bool>, hide_icon: Option<bool>) -> Result<(), String> {
-    report(&app, |state| {
-        if let Some(value) = close_to_tray {
-            state.close_to_tray = value;
-        }
-        hide_icon.is_some_and(|value| std::mem::replace(&mut state.hide_icon, value) != value)
-    })
-}
-
-/// Current menu bar status for frontend sync.
-#[tauri::command]
-pub async fn menubar_get_state(app: AppHandle) -> Result<serde_json::Value, String> {
-    let shared = app
-        .try_state::<MenubarShared>()
-        .ok_or_else(|| "Menubar not installed".to_string())?;
-    let state = shared.lock();
-    Ok(serde_json::json!({
-        "recording": state.recording_active,
-        "paused": state.paused,
-        "elapsedSecs": state.elapsed_secs,
-        "closeToTray": state.close_to_tray,
-        "hideIcon": state.hide_icon,
-    }))
-}
-
 /// Quit through the single exit path (existing guards + cleanup run).
 #[tauri::command]
 pub async fn menubar_quit(app: AppHandle) -> Result<(), String> {
     app.exit(0);
     Ok(())
-}
-
-/// Read the close-to-tray preference for the window close handler; `true` when state is unavailable.
-pub fn close_to_tray(app: &AppHandle) -> bool {
-    app.try_state::<MenubarShared>().map(|shared| shared.close_to_tray()).unwrap_or(true)
 }
 
 #[cfg(test)]
@@ -522,15 +464,6 @@ mod tests {
         let images = Images::default();
         assert_eq!(agent_entry(&images, "opencode", "opencode").title, "OpenCode");
         assert_eq!(agent_entry(&images, "cursor", "Cursor").title, "Cursor");
-    }
-
-    #[test]
-    fn recording_forces_icon_visible() {
-        assert!(icon_shown(false, false));
-        assert!(icon_shown(false, true));
-        assert!(!icon_shown(true, false));
-        // The hide preference never hides an active recording.
-        assert!(icon_shown(true, true));
     }
 
     #[test]

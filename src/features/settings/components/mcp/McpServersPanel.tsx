@@ -1,10 +1,10 @@
 /** MCP servers settings; changes run one at a time through `useMcpReconfigure` so two saves never race. */
 
 import React, { useState } from 'react';
-import { MCP_APP_CONFIG, MCP_COPY, type McpConfig, type McpSettings } from '@config/mcp.config';
+import { MCP_COPY, type McpConfig, type McpSettings } from '@config/mcp.config';
 import { useToast } from '@shared/contexts/ToastContext';
 import { confirm } from '@shared/stores/confirmStore';
-import { Callout, CardRow, Section, Switch, Text } from '@shared/ui';
+import { Callout, CardRow, Section, Text } from '@shared/ui';
 import { SettingsPage } from '@features/settings/components/shared';
 import {
   useMcpConfig,
@@ -14,12 +14,11 @@ import {
   useMcpUpdateListener,
 } from '@features/settings/hooks';
 import type { McpReconfigureVars } from '@features/settings/hooks';
-import { MCP_LIMITS_FOOTER, MCP_PERMISSIONS_FOOTER, McpLimitsCard, McpPermissionsCard } from './McpSettingsRows';
+import { McpLimitsCard, McpPermissionsCard } from './McpSettingsRows';
 import { McpServerCard } from './McpServerCard';
 import { AddEditMcpServerDialog } from './AddEditMcpServerDialog';
 import { EditMcpJsonDialog } from './EditMcpJsonDialog';
-import { applyJson, deleteServer, toggleServer, updateSettings, upsertServers, withScreenCode, withTrust } from './mcpConfigEdits';
-import type { McpServerEntry } from './mcpServerForm';
+import { applyJson, deleteServer, setTrust, toggleServer, updateSettings, upsertServers } from './mcpConfigEdits';
 import { errorMessage } from '@shared/utils/errors';
 
 
@@ -49,34 +48,16 @@ export const McpServersPanel: React.FC = () => {
   };
 
   /** The row's status shows the connection; only a failure needs a toast. */
-  const handleToggle = (name: string, active: boolean) => {
-    apply((c) => toggleServer(c, name, active)).catch((error: unknown) => showToast(errorMessage(error), 'error'));
-  };
+  const handleToggle = (name: string, active: boolean) => applyAndToast((c) => toggleServer(c, name, active));
 
   const handleDelete = async (name: string) => {
     const confirmed = await confirm({
-      title: `Delete "${name}"?`,
-      description: 'The server is disconnected and its configuration removed.',
-      confirmLabel: 'Delete',
+      ...MCP_COPY.deleteConfirm(name),
       tone: 'danger',
     });
     if (!confirmed) return;
+    setEditing(null);
     apply((c) => deleteServer(c, name)).catch((error: unknown) => showToast(errorMessage(error), 'error'));
-  };
-
-  /** Turning advanced screens on warns first; turning them off needs no asking. */
-  const handleScreenCode = async (name: string, allowed: boolean) => {
-    if (allowed) {
-      const { copy } = MCP_APP_CONFIG;
-      const agreed = await confirm({
-        title: copy.advancedScreensTitle(name),
-        description: copy.advancedScreensWarning,
-        confirmLabel: copy.advancedScreensAllow,
-        tone: 'danger',
-      });
-      if (!agreed) return;
-    }
-    applyAndToast((c) => withScreenCode(c, name, allowed));
   };
 
   if (loadError) {
@@ -95,11 +76,11 @@ export const McpServersPanel: React.FC = () => {
 
   return (
     <PanelShell>
-      <Section title={MCP_COPY.permissions} footer={MCP_PERMISSIONS_FOOTER}>
+      <Section title={MCP_COPY.permissions} footer={MCP_COPY.permissionsFooter}>
         <McpPermissionsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
       </Section>
 
-      <Section title={MCP_COPY.limits} footer={MCP_LIMITS_FOOTER}>
+      <Section title={MCP_COPY.limits} footer={MCP_COPY.limitsFooter}>
         <McpLimitsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
       </Section>
 
@@ -132,45 +113,23 @@ export const McpServersPanel: React.FC = () => {
       <AddEditMcpServerDialog
         open={editing !== null}
         onOpenChange={(isOpen) => !isOpen && setEditing(null)}
-        editingName={editing?.name ?? null}
+        editingName={editingName}
         initial={editingConfig}
-        onSave={(entries: McpServerEntry[]) => apply((c) => upsertServers(c, editing?.name ?? null, entries))}
-        onDelete={editingName ? () => { setEditing(null); void handleDelete(editingName); } : undefined}
-      >
-        {editingName && editingConfig && (
-          <Section title={MCP_COPY.serverOptions}>
-            <CardRow
-              title={MCP_COPY.alwaysAllow}
-              disabled={busy || config.mcpSettings.allowAllTools}
-              actions={
-                <Switch
-                  checked={config.mcpSettings.allowAllTools || config.mcpSettings.trustedServers.includes(editingName)}
-                  onCheckedChange={(allowed) => changeSettings({ trustedServers: withTrust(config.mcpSettings.trustedServers, editingName, allowed) })}
-                  aria-label={MCP_COPY.alwaysAllow}
-                />
-              }
-            />
-            <CardRow
-              title={MCP_APP_CONFIG.copy.advancedScreens}
-              disabled={busy}
-              actions={
-                <Switch
-                  checked={!!editingConfig.allowScreenCode}
-                  onCheckedChange={(allowed) => void handleScreenCode(editingName, allowed)}
-                  aria-label={MCP_APP_CONFIG.copy.advancedScreens}
-                />
-              }
-            />
-          </Section>
-        )}
-      </AddEditMcpServerDialog>
+        trusted={editingName !== null && config.mcpSettings.trustedServers.includes(editingName)}
+        allowAll={config.mcpSettings.allowAllTools}
+        onSave={(entries, trusted) => apply((c) => {
+          const vars = upsertServers(c, editingName, entries);
+          return trusted === undefined ? vars : setTrust(vars, entries[0][0], trusted);
+        })}
+        onDelete={editingName ? () => void handleDelete(editingName) : undefined}
+      />
 
       <EditMcpJsonDialog
         open={jsonOpen}
         onOpenChange={setJsonOpen}
         title={MCP_COPY.editAllTitle}
         value={config}
-        onSave={(parsed) => apply((c) => applyJson(c, parsed))}
+        onSave={(text) => apply((c) => applyJson(c, JSON.parse(text)))}
       />
     </PanelShell>
   );

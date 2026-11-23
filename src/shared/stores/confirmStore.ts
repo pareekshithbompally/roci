@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import { dialogService, isTauriEnvironment } from '@services/tauri';
+import { KIT_COPY } from '@config/kitCopy.config';
 
 export interface ConfirmRequest {
   title: string;
@@ -52,9 +53,7 @@ export const useConfirmOpen = () => useConfirmStore((s) => s.resolve !== null);
 /** The standard delete prompt: `Delete this <noun>?` with a red Delete. */
 export function confirmDelete(noun: string): Promise<boolean> {
   return confirm({
-    title: `Delete this ${noun}?`,
-    description: "This can't be undone.",
-    confirmLabel: 'Delete',
+    ...KIT_COPY.deletePrompt(noun),
     tone: 'danger',
   });
 }

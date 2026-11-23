@@ -32,7 +32,7 @@ export const ActivityTray: React.FC = () => {
           <Surface variant="card" radius="lg" className="overflow-hidden">
             <div className="flex items-center gap-1 p-1">
               <Row onClick={() => setCollapsed((c) => !c)} aria-expanded={!collapsed} className="flex-1">
-                <Text variant="label" className="flex-1">Activity ({count})</Text>
+                <Text variant="label" className="flex-1">{KIT_COPY.activityCount(count)}</Text>
                 <Icon icon={collapsed ? ChevronUp : ChevronDown} size="sm" tone="faint" />
               </Row>
               {activity.canClear && <IconButton icon={X} label={KIT_COPY.clearFinished} size="sm" onClick={activity.clearSettled} />}

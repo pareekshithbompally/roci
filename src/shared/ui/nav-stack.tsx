@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft } from 'lucide-react';
 import { IconButton } from './button';
@@ -17,6 +17,18 @@ export interface NavScreen {
   content: React.ReactNode;
   /** Called when the user leaves the screen with Back. */
   onPop?: () => void;
+  /** Asked before Back or a swipe leaves the screen (unsaved edits): resolves whether to leave; undefined leaves at once. */
+  confirmBack?: () => Promise<boolean> | undefined;
+}
+
+/** Asks `screen` before leaving it; true when it asks (then `leave` runs on a yes), false when nothing is in the way. */
+function asksFirst(screen: NavScreen, leave: () => void): boolean {
+  const answer = screen.confirmBack?.();
+  if (!answer) return false;
+  answer
+    .then((yes) => { if (yes) leave(); })
+    .catch((error: unknown) => console.error('[NavStack] confirmBack failed:', error));
+  return true;
 }
 
 interface NavStackApi {
@@ -101,14 +113,17 @@ export function NavStack({ title, action, initial, children }: NavStackProps) {
   const pop = useCallback(() => {
     const top = topOf(stack);
     if (!top) return;
-    top.onPop?.();
-    remove(top.id);
+    const leave = () => {
+      top.onPop?.();
+      remove(top.id);
+    };
+    if (!asksFirst(top, leave)) leave();
   }, [stack, remove]);
   const drop = useCallback((id: number) => setStack((s) => s.filter((e) => e.id !== id)), []);
   const api = useMemo(() => ({ push, pop, remove }), [push, pop, remove]);
   const top = topOf(stack);
   const [topNode, setTopNode] = useState<HTMLDivElement | null>(null);
-  useSwipeBack(topNode, top, drop);
+  useSwipeBack(topNode, top, drop, remove);
 
   return (
     <NavStackContext.Provider value={api}>
@@ -132,7 +147,11 @@ export function NavStack({ title, action, initial, children }: NavStackProps) {
               'absolute inset-0 transition-[translate] duration-ios ease-ios data-[dragging]:transition-none',
               screen.leaving ? 'animate-push-out' : !screen.still && 'animate-push-in',
             )}
-            onAnimationEnd={(e) => { if (screen.leaving && e.target === e.currentTarget) drop(screen.id); }}
+            onAnimationEnd={(e) => {
+              if (e.target !== e.currentTarget) return;
+              if (screen.leaving) drop(screen.id);
+              else focusField(e.currentTarget);
+            }}
           >
             <PushedScreenFrame screen={screen} covered={screen !== top} onBack={pop} />
           </div>
@@ -142,18 +161,25 @@ export function NavStack({ title, action, initial, children }: NavStackProps) {
   );
 }
 
-/** Swipe from the left edge to go back (iOS): the top screen follows the finger; let go far or fast enough and it slides
- *  off and leaves the stack, otherwise it slides back. */
-function useSwipeBack(node: HTMLDivElement | null, top: StackEntry | undefined, drop: (id: number) => void): void {
-  useEdgeSwipeBack(node, () => {
-    if (!top) return;
-    top.onPop?.();
-    drop(top.id);
-  });
+/** A pushed page's field takes focus once the slide ends: focusing it earlier scrolls the page while it moves. */
+function focusField(page: HTMLElement): void {
+  page.querySelector<HTMLElement>('[data-autofocus]')?.focus({ preventScroll: true });
 }
 
-/** The page follows a swipe from the left edge; let go far or fast enough and it slides off, then `back` runs. */
-function useEdgeSwipeBack(node: HTMLDivElement | null, back: () => void): void {
+/** Swipe from the left edge to go back (iOS): the top screen follows the finger; let go far or fast enough and it slides
+ *  off and leaves the stack, otherwise (or when it asks first) it slides back. */
+function useSwipeBack(node: HTMLDivElement | null, top: StackEntry | undefined, drop: (id: number) => void, remove: (id: number) => void): void {
+  const leave = (take: (id: number) => void) => () => {
+    if (!top) return;
+    top.onPop?.();
+    take(top.id);
+  };
+  useEdgeSwipeBack(node, leave(drop), () => !!top && asksFirst(top, leave(remove)));
+}
+
+/** The page follows a swipe from the left edge; let go far or fast enough and it slides off, then `back` runs. `stays`:
+ *  asked at that point; true slides it back instead. */
+function useEdgeSwipeBack(node: HTMLDivElement | null, back: () => void, stays?: () => boolean): void {
   useTouchDrag(node, {
     axis: 'x',
     edgeOnly: true,
@@ -165,7 +191,7 @@ function useEdgeSwipeBack(node: HTMLDivElement | null, back: () => void): void {
     onEnd: (dx, speed) => {
       if (!node) return;
       delete node.dataset.dragging;
-      if (!commits(dx, speed, node.offsetWidth, UI_CONFIG.gesture.edgeShare)) {
+      if (!commits(dx, speed, node.offsetWidth, UI_CONFIG.gesture.edgeShare) || stays?.()) {
         node.style.translate = '';
         return;
       }
@@ -224,16 +250,36 @@ interface PushedScreenProps {
   action?: React.ReactNode;
   /** The user went Back. */
   onClose: () => void;
+  /** Asked before Back leaves (unsaved edits); none leaves at once. */
+  confirmBack?: () => Promise<boolean>;
   children: React.ReactNode;
 }
 
+/** A pushed page's groups, spaced like a settings list. */
+export function PageBody({ children }: { children: React.ReactNode }) {
+  return <div className="flex flex-col gap-section p-4">{children}</div>;
+}
+
+type SetTarget = React.Dispatch<React.SetStateAction<HTMLDivElement | null>>;
+
+/** A portal target that clears only itself, so a page still sliding out never clears the next one's. */
+const targetRef = (set: SetTarget) => (node: HTMLDivElement | null) => {
+  set(node);
+  return () => set((current) => (current === node ? null : current));
+};
+
 /** Declarative push: while `open`, a screen titled `title` is on the enclosing stack, showing `children` live (state stays with the owner). */
-export function PushedScreen({ open, title, action, onClose, children }: PushedScreenProps) {
+export function PushedScreen({ open, title, action, onClose, confirmBack, children }: PushedScreenProps) {
   const { push, remove } = useNavStack();
   const [target, setTarget] = useState<HTMLDivElement | null>(null);
   const [actionTarget, setActionTarget] = useState<HTMLDivElement | null>(null);
   const close = useRef(onClose);
   close.current = onClose;
+  const ask = useRef(confirmBack);
+  ask.current = confirmBack;
+  // What it last showed while open: a page sliding out keeps its content, whatever its owner shows by then.
+  const shown = useRef({ children, action });
+  if (open) shown.current = { children, action };
   const hasAction = action !== undefined;
 
   // The screen is pushed once per opening; its content and bar control render live into it (portals), so typing in a
@@ -242,21 +288,23 @@ export function PushedScreen({ open, title, action, onClose, children }: PushedS
     if (!open) return;
     const id = push({
       title,
-      action: hasAction ? <div ref={setActionTarget} /> : undefined,
-      content: <div ref={setTarget} />,
+      action: hasAction ? <div ref={targetRef(setActionTarget)} /> : undefined,
+      content: <div ref={targetRef(setTarget)} />,
       onPop: () => close.current(),
+      confirmBack: () => ask.current?.(),
     });
-    return () => {
-      remove(id);
-      setTarget(null);
-      setActionTarget(null);
-    };
+    return () => remove(id);
   }, [open, title, hasAction, push, remove]);
+
+  // An owner that unmounts on close takes its content with it: the page slides out showing a copy.
+  useLayoutEffect(() => () => {
+    if (target) target.parentNode?.appendChild(target.cloneNode(true));
+  }, [target]);
 
   return (
     <>
-      {target && createPortal(children, target)}
-      {actionTarget && createPortal(action, actionTarget)}
+      {target && createPortal(shown.current.children, target)}
+      {actionTarget && createPortal(shown.current.action, actionTarget)}
     </>
   );
 }

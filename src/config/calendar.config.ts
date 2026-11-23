@@ -1,5 +1,7 @@
 /** Calendar integration: native events, record labels and the Upcoming grid. */
 
+import { platform } from '@platform/index';
+
 export const CALENDAR_CONFIG = {
   /** A meeting recorded from an occurrence is made within this long of its start (either side), in ms. */
   occurrenceWindowMs: 24 * 60 * 60 * 1000,
@@ -24,6 +26,15 @@ export const CALENDAR_CONFIG = {
   recordFailed: "Couldn't start recording",
   inviteesLabel: 'Invitees',
   calendarLabel: 'Calendar',
+  /** Upcoming when it has no events to show: the integration off, access refused, or the read failed. */
+  states: {
+    off: { message: 'Calendar integration is not enabled', description: 'Enable calendar integration in Settings to see your upcoming events.' },
+    noAccess: { message: 'Calendar access is off', description: 'Allow Roci to read your calendars to see your events here.' },
+    readFailed: {
+      message: 'Couldn’t read your calendar',
+      description: `${platform.systemName} did not return your events. Try again, or check Calendar access in ${platform.settingsAppName}.`,
+    },
+  },
 
   /** All-day events: the grid's row label and the popover's time line. */
   allDayLabel: 'all-day',

@@ -16,7 +16,6 @@ mod window;
 #[cfg(desktop)]
 mod menubar;
 #[cfg(desktop)]
-mod autostart;
 mod audio;
 #[cfg(target_os = "ios")]
 mod audio_session;

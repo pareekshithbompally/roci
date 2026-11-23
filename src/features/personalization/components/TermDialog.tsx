@@ -42,6 +42,7 @@ export const TermDialog: React.FC<TermDialogProps> = ({ entry, vocabulary, onSav
       title={entry ? COPY.edit : COPY.add}
       size="md"
       error={error}
+      dirty={term !== (entry?.term ?? '') || soundsLike !== (entry?.soundsLike.join(', ') ?? '')}
       submit={{ label: entry ? COPY.save : COPY.confirmAdd, onPress: save, disabled: !term.trim() }}
       aside={entry ? { label: COPY.delete, onPress: remove, tone: 'danger' } : undefined}
     >

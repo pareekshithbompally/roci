@@ -24,6 +24,7 @@ export const TodoProposalDialog: React.FC<{ proposal: TodoProposal; onClose: () 
       onOpenChange={(open) => !open && onClose()}
       title={COPY.edit}
       size="md"
+      dirty={text !== proposal.text}
       submit={{ label: COPY.done, onPress: save, disabled: !text.trim() }}
     >
       <form id="todo-proposal" className="space-y-4" onSubmit={(e) => { e.preventDefault(); save(); }}>

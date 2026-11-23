@@ -93,3 +93,11 @@ export function splitEntries(summary: UsageSummary, split: UsageSplit, measure: 
     .sort((a, b) => measureOf(measure, b) - measureOf(measure, a) || measureOf(other, b) - measureOf(other, a))
     .map((e) => ({ ...e, slot: slotOf.get(e.key) }));
 }
+
+/** A split's largest entry and its share of the whole: by cost, or by requests when nothing cost anything. */
+export function topEntry(summary: UsageSummary, split: UsageSplit): { name: string; share: number } | null {
+  const measure: UsageMeasure = summary.total_cost > 0 ? 'cost' : 'requests';
+  const total = measure === 'cost' ? summary.total_cost : summary.total_calls;
+  const [top] = splitEntries(summary, split, measure);
+  return top && total > 0 ? { name: top.name, share: measureOf(measure, top) / total } : null;
+}

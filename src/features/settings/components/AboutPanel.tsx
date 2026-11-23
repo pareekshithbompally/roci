@@ -12,19 +12,16 @@ import { useSystemInfo } from '@features/settings/hooks/useSystemInfo';
 import { useAppUpdate } from '@features/settings/hooks/useAppUpdate';
 import { AcknowledgementsPage } from './AcknowledgementsPage';
 import { SettingsPage, usePaneDrill } from './shared';
+import { ABOUT_COPY } from '@config/settingsCopy.config';
 
-const COPY = {
-  version: (version: string) => `Version ${version}`,
-  github: 'Roci on GitHub',
-  setupFooter: 'Run Setup Again shows the first-run steps, including choosing your AI.',
-} as const;
+const COPY = ABOUT_COPY;
 
 /** The version number and Check for Updates; the result is a toast. */
 const VersionStatus: React.FC<{ appVersion: string; checking: boolean; onCheck: () => void }> = ({ appVersion, checking, onCheck }) => (
   <>
     <Text variant="figure" tone="muted">{appVersion || '…'}</Text>
     {platform.hasUpdater && (
-      <Button variant="outline" size="sm" onClick={onCheck} loading={checking}>Check for Updates</Button>
+      <Button variant="outline" size="sm" onClick={onCheck} loading={checking}>{COPY.checkForUpdates}</Button>
     )}
   </>
 );
@@ -44,14 +41,14 @@ export const AboutPanel: React.FC = () => {
   const drill = usePaneDrill();
   if (drill.view) return drill.view;
   return (
-    <SettingsPage pane="about" hero={{ caption: appVersion ? COPY.version(appVersion) : undefined, footer: <Credit /> }} onForward={drill.forward}>
+    <SettingsPage pane="about" hero={{ caption: appVersion ? COPY.versionNumber(appVersion) : undefined, footer: <Credit /> }} onForward={drill.forward}>
       <Section footer={COPY.setupFooter}>
-        <CardRow title="Version" actions={<VersionStatus appVersion={appVersion} checking={appUpdate.checking} onCheck={() => void appUpdate.checkNow()} />} />
+        <CardRow title={COPY.version} actions={<VersionStatus appVersion={appVersion} checking={appUpdate.checking} onCheck={() => void appUpdate.checkNow()} />} />
         <CardRow
           title={ACKNOWLEDGEMENTS_COPY.title}
           onOpen={() => drill.open({ title: ACKNOWLEDGEMENTS_COPY.title, render: (close) => <AcknowledgementsPage onBack={close} /> })}
         />
-        <CardRow title="Run Setup Again" tone="accent" onPress={runSetupAgain} />
+        <CardRow title={COPY.runSetupAgain} tone="accent" onPress={runSetupAgain} />
       </Section>
     </SettingsPage>
   );

@@ -59,6 +59,21 @@ export const MEETING_HEADER_COPY = {
   actions: 'Meeting actions',
   rename: 'Rename…',
   details: 'Details',
+  retranscribe: 'Re-transcribe',
+  copy: 'Copy',
+  summary: 'Summary',
+  transcript: 'Transcript',
+  download: 'Download',
+  copied: (what: string) => `${what} copied`,
+  copyFailed: (what: string) => `Couldn’t copy the ${what.toLowerCase()}`,
+  saveFailed: 'Couldn’t save the file',
+  downloads: {
+    currentTxt: 'Current View as Text',
+    currentMd: 'Current View as Markdown',
+    currentHtml: 'Current View as HTML',
+    allMd: 'Full Session as Markdown',
+    allJson: 'Full Session as JSON',
+  },
 } as const;
 
 const plural = (count: number, word: string): string => `${count.toLocaleString()} ${word}${count === 1 ? '' : 's'}`;

@@ -5,6 +5,7 @@ import { NO_TOP_INSET, SCRIM } from './recipes';
 import { Check, X } from 'lucide-react';
 import { IconButton } from './button';
 import { Text } from './text';
+import { Spinner } from './spinner';
 import { UI_CONFIG } from '@config/ui.config';
 import { commits, slideOff, useTouchDrag } from './touch-drag';
 import { KIT_COPY } from '@config/kitCopy.config';
@@ -35,7 +36,7 @@ function ignoresDrag(target: Element, sheet: HTMLElement): boolean {
 
 /** Swipe down to close: the sheet follows the finger; let go far or fast enough and it slides off, then closes with no
  *  second (rise-hide) animation; otherwise it springs back. */
-function useSwipeDown(sheet: HTMLElement | null, close: () => void): void {
+function useSwipeDown(sheet: HTMLElement | null, close: () => void, held?: boolean): void {
   useTouchDrag(sheet, {
     axis: 'down',
     ignores: (target) => !sheet || ignoresDrag(target, sheet),
@@ -47,7 +48,8 @@ function useSwipeDown(sheet: HTMLElement | null, close: () => void): void {
     onEnd: (dy, speed) => {
       if (!sheet) return;
       delete sheet.dataset.dragging;
-      if (!commits(dy, speed, sheet.offsetHeight, UI_CONFIG.gesture.sheetShare)) {
+      // A held sheet (unsaved edits) springs back, as iOS keeps a sheet that would lose them.
+      if (!commits(dy, speed, sheet.offsetHeight, UI_CONFIG.gesture.sheetShare) || held) {
         sheet.style.translate = '';
         return;
       }
@@ -67,17 +69,19 @@ export interface SheetContentProps extends ComponentProps<typeof DialogPrimitive
   size?: keyof typeof SIZE;
   /** Keeps the height it opened at as its content shrinks (a list being searched). */
   steady?: boolean;
+  /** A drag down doesn't close it (unsaved edits); ✕ or the scrim ask through `onOpenChange`. */
+  held?: boolean;
 }
 
 const PADDED = 'overflow-y-auto overflow-x-hidden px-4 pt-6 pb-sheet-end';
 
 /** A Radix Dialog's content as the iOS sheet; its height is always the kit's (`size`). */
-export function SheetContent({ className, ref, padded, size = 'fit', steady, children, ...props }: SheetContentProps) {
+export function SheetContent({ className, ref, padded, size = 'fit', steady, held, children, ...props }: SheetContentProps) {
   const [node, setNode] = useState<HTMLDivElement | null>(null);
   const [tall, setTall] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => closeRef.current?.click(), []);
-  useSwipeDown(node, close);
+  useSwipeDown(node, close, held);
   const setRefs = useCallback((el: HTMLDivElement | null) => {
     setNode(el);
     if (typeof ref === 'function') ref(el);
@@ -112,11 +116,13 @@ export interface BottomSheetProps {
   steady?: boolean;
   /** Focus lands in the first field instead of on the sheet (an edit sheet: the caret is already where you type). */
   focusField?: boolean;
+  /** A drag down doesn't close it (unsaved edits). */
+  held?: boolean;
   children: React.ReactNode;
 }
 
 /** iOS sheet over a scrim, portalled above the whole app; a swipe down, the scrim or Escape closes it. */
-export function BottomSheet({ open, onOpenChange, title, size, steady, focusField, children }: BottomSheetProps) {
+export function BottomSheet({ open, onOpenChange, title, size, steady, focusField, held, children }: BottomSheetProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   // Before the first frame of the rise: the field behind lets go (its own search field may keep focus).
   useLayoutEffect(() => {
@@ -127,6 +133,7 @@ export function BottomSheet({ open, onOpenChange, title, size, steady, focusFiel
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className={SCRIM} />
         <SheetContent
+          held={held}
           ref={contentRef}
           aria-describedby={undefined}
           // Focus lands on the sheet itself, without scrolling it to a control further down (it opens at its top).
@@ -160,6 +167,12 @@ export interface EditSheetProps {
   /** ✓ is greyed until there is something to save. */
   canSave: boolean;
   onSave: () => void;
+  /** What ✓ does (Save, Add, Done), for VoiceOver. */
+  saveLabel?: string;
+  /** Saving: a spinner stands in for ✓. */
+  busy?: boolean;
+  /** Edited: a drag down keeps it open, so only ✕ (which asks) or ✓ leave. */
+  held?: boolean;
   children: React.ReactNode;
 }
 
@@ -176,14 +189,14 @@ function SheetHeader({ title, closeLabel, onClose, trailing }: { title: string; 
 
 /** An iOS edit sheet (Settings › Name): ✕ cancels at the leading edge, ✓ saves at the trailing edge, the title between;
  *  the fields below in their own card, no buttons in the content. */
-export function EditSheet({ open, onOpenChange, title, canSave, onSave, children }: EditSheetProps) {
+export function EditSheet({ open, onOpenChange, title, canSave, onSave, saveLabel = KIT_COPY.save, busy, held, children }: EditSheetProps) {
   return (
-    <BottomSheet open={open} onOpenChange={onOpenChange} title={title} focusField>
+    <BottomSheet open={open} onOpenChange={onOpenChange} title={title} focusField held={held}>
       <SheetHeader
         title={title}
         closeLabel={KIT_COPY.cancel}
         onClose={() => onOpenChange(false)}
-        trailing={<IconButton icon={Check} label={KIT_COPY.save} size="fab" variant="bar" disabled={!canSave} onClick={onSave} />}
+        trailing={busy ? <Spinner /> : <IconButton icon={Check} label={saveLabel} size="fab" variant="bar" disabled={!canSave} onClick={onSave} />}
       />
       <SheetBody>{children}</SheetBody>
     </BottomSheet>

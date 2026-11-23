@@ -243,7 +243,7 @@ export const PERSONALIZATION_CONFIG = {
     /** Advanced token limits; unset is the model's own. */
     limits: [
       { key: 'maxOutputTokens', label: 'Longest Reply', help: 'The longest a single reply can be, in tokens (about ¾ of a word each). Leave it empty to let the model finish when it’s done.' },
-      { key: 'contextTokens', label: 'Context Size', help: 'How much of the conversation the model can remember at once, in tokens. Smaller uses less of your Mac’s memory, but older messages get forgotten. Leave it empty to remember as much as the model can.' },
+      { key: 'contextTokens', label: 'Context Size', help: 'How much of the conversation the model can remember at once, in tokens. Smaller uses less memory, but older messages get forgotten. Leave it empty to remember as much as the model can.' },
     ],
     /** The simple controls: each sets the values it owns; one matching none of its choices reads Custom. */
     presets: {
@@ -276,7 +276,7 @@ export const PERSONALIZATION_CONFIG = {
       },
       memory: {
         label: 'Memory',
-        help: 'How much of the conversation the model remembers, which is also how much of your Mac’s memory it uses. Light remembers the last few pages and keeps your Mac free for other things; Full remembers as much as the model can.',
+        help: 'How much of the conversation the model remembers, which is also how much memory it uses. Light remembers the last few pages and leaves memory free for other things; Full remembers as much as the model can.',
         options: [
           { value: 'light', label: 'Light', tuning: { contextTokens: 4096, kvBits: 8 } },
           { value: 'balanced', label: 'Balanced', tuning: { contextTokens: 16384 } },
@@ -286,7 +286,7 @@ export const PERSONALIZATION_CONFIG = {
     },
     compression: {
       label: 'KV Cache Management',
-      help: 'Compresses the KV cache, the model’s memory of the conversation so far, so it uses less of your Mac’s memory. Some halves it with no difference you’d notice; Most saves about three quarters but may lose track of small details in long chats.',
+      help: 'Compresses the KV cache, the model’s memory of the conversation so far, so it uses less memory. Some halves it with no difference you’d notice; Most saves about three quarters but may lose track of small details in long chats.',
       options: [
         { value: 'off', label: 'Off' },
         { value: '8', label: 'Some' },

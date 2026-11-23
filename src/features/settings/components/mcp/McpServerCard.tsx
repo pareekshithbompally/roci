@@ -2,7 +2,7 @@
  *  switch; tapping the row opens the server's page (its settings, Always Allow, Advanced Screens, Delete). */
 
 import React from 'react';
-import { MCP_APP_CONFIG, MCP_CONFIG } from '@config/mcp.config';
+import { MCP_APP_CONFIG, MCP_CONFIG, MCP_COPY } from '@config/mcp.config';
 import type { McpServerConfig } from '@config/mcp.config';
 import { META_SEPARATOR } from '@config/ui.config';
 import { CardRow, Switch } from '@shared/ui';
@@ -30,24 +30,16 @@ interface McpServerCardProps {
 
 const COPY = MCP_APP_CONFIG.copy;
 
-const STATUS_LABEL: Record<ReturnType<typeof serverStatus>, string> = {
-  connected: 'Connected',
-  connecting: 'Connecting…',
-  stopping: 'Stopping…',
-  offline: 'Not connected',
-  off: 'Off',
-};
-
 const transportLabel = (config: McpServerConfig) =>
-  MCP_CONFIG.transports.find((t) => t.value === (config.type ?? 'stdio'))?.label ?? 'STDIO';
+  MCP_CONFIG.transports.find((t) => t.value === (config.type ?? 'stdio'))?.label ?? '';
 
 /** "2 env vars" / "1 header": secrets stay out of the row, only their count shows. */
-const countOf = (record: Record<string, string> | undefined, noun: string) => {
+const countOf = (record: Record<string, string> | undefined, noun: 'env var' | 'header') => {
   const n = Object.keys(record ?? {}).length;
-  return n === 0 ? undefined : `${n} ${noun}${n === 1 ? '' : 's'}`;
+  return n === 0 ? undefined : MCP_COPY.count(n, noun);
 };
 
-/** The command a STDIO server runs, or a remote server's transport and masked URL. */
+/** The command a launched server runs, or a remote server's transport and masked URL. */
 function serverLine(config: McpServerConfig): string[] {
   const isStdio = (config.type ?? 'stdio') === 'stdio';
   const parts = isStdio
@@ -61,8 +53,8 @@ export const McpServerCard: React.FC<McpServerCardProps> = (props) => {
   const status = serverStatus(!!config.active, connected, pending);
   const line = [
     ...serverLine(config),
-    STATUS_LABEL[status],
-    ...(alwaysAllowed && !allowAll ? ['Always allowed'] : []),
+    MCP_COPY.status[status],
+    ...(alwaysAllowed && !allowAll ? [MCP_COPY.alwaysAllowed] : []),
     ...(config.allowScreenCode ? [COPY.advancedScreensOn] : []),
   ].join(META_SEPARATOR);
   return (
@@ -71,7 +63,7 @@ export const McpServerCard: React.FC<McpServerCardProps> = (props) => {
       title={name}
       description={<span title={line}>{line}</span>}
       onPress={disabled ? undefined : onEdit}
-      actions={<Switch checked={!!config.active} onCheckedChange={onToggle} disabled={disabled} aria-label={`Enable ${name}`} />}
+      actions={<Switch checked={!!config.active} onCheckedChange={onToggle} disabled={disabled} aria-label={MCP_COPY.enable(name)} />}
     />
   );
 };

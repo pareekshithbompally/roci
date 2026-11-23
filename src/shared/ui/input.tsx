@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react';
 import { cn } from './utils';
 import { FIELD, LITERAL_TEXT } from './recipes';
 import { Icon } from './icon';
+import { useOptionalNavStack } from './nav-stack';
 
 /** Field heights from the control scale: `md` a form field, `sm` a field inside a row or table cell (macOS inline field). */
 const HEIGHT = { sm: 'h-control-sm', md: 'h-control-md' } as const;
@@ -20,8 +21,15 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
   ref?: React.Ref<HTMLInputElement>;
 }
 
+/** Focus on opening; on a pushed page the stack gives it once the slide ends (`data-autofocus`). */
+function useOpeningFocus(autoFocus: boolean | undefined) {
+  const pushed = useOptionalNavStack() !== null;
+  return pushed ? { 'data-autofocus': autoFocus ? '' : undefined } : { autoFocus };
+}
+
 /** Canonical single-line text field. */
-export function Input({ icon, trailing, size = 'md', variant = 'field', className, ref, ...fieldProps }: InputProps) {
+export function Input({ icon, trailing, size = 'md', variant = 'field', className, ref, autoFocus, ...rest }: InputProps) {
+  const fieldProps = { ...rest, ...useOpeningFocus(autoFocus) };
   // Addresses are typed as-is: no auto-capital, no autocorrect.
   const props = fieldProps.type === 'url' || fieldProps.type === 'email' ? { ...LITERAL_TEXT, ...fieldProps } : fieldProps;
   if (trailing) {
@@ -59,7 +67,8 @@ export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextArea
 }
 
 /** Canonical multi-line text field (same recipe as Input). */
-export function Textarea({ variant = 'text', className, ref, ...props }: TextareaProps) {
+export function Textarea({ variant = 'text', className, ref, autoFocus, ...props }: TextareaProps) {
+  const focus = useOpeningFocus(autoFocus);
   // `block`: an inline textarea sits on a text baseline and leaves a gap under it, so rows around it don't align.
-  return <textarea ref={ref} className={cn('block', TEXTAREA_VARIANT[variant], className)} {...props} />;
+  return <textarea ref={ref} className={cn('block', TEXTAREA_VARIANT[variant], className)} {...focus} {...props} />;
 }

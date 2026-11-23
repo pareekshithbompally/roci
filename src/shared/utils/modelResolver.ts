@@ -5,7 +5,7 @@ import type { ProviderType } from '@services/ai/types';
 import { MANAGED_SDK_PROVIDERS, MANAGED_DEFAULT_URLS, APPLE_INTELLIGENCE } from '@config/providers.config';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
 import type { AppSettings } from '@shared/types';
-import { getModelDisplayName, getProviderTitle } from '@shared/utils/provider.utils';
+import { getProviderTitle } from '@shared/utils/provider.utils';
 import type { LucideIcon } from 'lucide-react';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
@@ -82,35 +82,6 @@ export function getProviderType(provider: string): ProviderType {
   if (provider === 'mistral') return 'mistral';
   if (provider === 'groq') return 'groq';
   return 'openai-compat';
-}
-
-export function getAllActiveModels(providers: ModelProvider[]): Array<{
-  id: string;
-  name: string;
-  provider: string;
-  providerName: string;
-}> {
-  const models: Array<{
-    id: string;
-    name: string;
-    provider: string;
-    providerName: string;
-  }> = [];
-
-  for (const provider of providers) {
-    if (!provider.active) continue;
-    
-    for (const model of provider.models || []) {
-      models.push({
-        id: model.id,
-        name: getModelDisplayName(model),
-        provider: provider.provider,
-        providerName: getProviderTitle(provider.provider),
-      });
-    }
-  }
-
-  return models;
 }
 
 /** Whether a provider uses a native SDK (no user-configurable base URL) */

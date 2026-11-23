@@ -34,9 +34,3 @@ export const APP_CONFIG = {
   },
 } as const;
 
-export const AVAILABLE_MODELS = [
-  { id: 'gemini-flash-latest', name: 'Gemini 2.5 Flash' },
-  { id: 'gemini-flash-lite-latest', name: 'Gemini 2.5 Flash Lite' },
-  { id: 'gemini-3-pro-preview', name: 'Gemini 3.0 Pro' },
-  { id: 'gemini-3-flash-preview', name: 'Gemini 3.0 Flash' },
-];

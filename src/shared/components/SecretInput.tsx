@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { Eye, EyeOff, Copy, Check } from 'lucide-react';
 import { useCopiedFlag } from '@shared/hooks';
 import { IconButton, Input } from '@shared/ui';
+import { KIT_COPY } from '@config/kitCopy.config';
 
 interface SecretInputProps {
   value: string;
@@ -37,8 +38,8 @@ export const SecretInput: React.FC<SecretInputProps> = ({ value, onChange, place
       aria-label={label}
       trailing={
         <>
-          <IconButton icon={showSecret ? EyeOff : Eye} label={showSecret ? 'Hide' : 'Show'} size="xs" onClick={() => setShowSecret(!showSecret)} />
-          <IconButton icon={copied ? Check : Copy} label="Copy to clipboard" size="xs" onClick={() => void handleCopy()} />
+          <IconButton icon={showSecret ? EyeOff : Eye} label={showSecret ? KIT_COPY.hide : KIT_COPY.show} size="xs" onClick={() => setShowSecret(!showSecret)} />
+          <IconButton icon={copied ? Check : Copy} label={KIT_COPY.copy} size="xs" onClick={() => void handleCopy()} />
         </>
       }
     />

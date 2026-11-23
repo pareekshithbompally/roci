@@ -2,15 +2,7 @@
 
 // Hooks
 export { useGlobalTodos } from './hooks';
-export type { GlobalTodo, TodoFilter } from './hooks';
+export type { TodoFilter } from './hooks';
 
 // Components
 export { TodoList, TodoItem, RemindersView } from './components';
-
-// Types
-export type {
-  Todo,
-  TodoInput,
-  TodoPriority,
-  TodoStats,
-} from './types';

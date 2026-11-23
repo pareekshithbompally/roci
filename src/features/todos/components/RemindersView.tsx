@@ -3,7 +3,8 @@
 import React, { useCallback, useState } from 'react';
 import { Inbox, Search, Plus, X } from 'lucide-react';
 import { useGlobalTodos } from '@features/todos/hooks/useGlobalTodos';
-import type { TodoFilter, GlobalTodo } from '@features/todos/hooks/useGlobalTodos';
+import type { TodoFilter } from '@features/todos/hooks/useGlobalTodos';
+import type { GlobalTodoEntry } from '@services/db';
 import { IconButton, Input, Surface, Tabs, Text, ViewHeader, ViewScroll, cn } from '@shared/ui';
 import { ScreenState } from '@shared/components';
 import { formatMeetingDate } from '@shared/utils/todo.utils';
@@ -23,7 +24,7 @@ const FILTERS: { key: TodoFilter; label: string; countKey: 'total' | 'pending' |
 // ── Todo row ────────────────────────────────────────────────────
 
 interface TodoRowProps {
-  todo: GlobalTodo;
+  todo: GlobalTodoEntry;
   onToggle: (meetingId: string | null, todoId: string) => void;
   onReminderChanged: () => void;
 }

@@ -151,8 +151,6 @@ export function useMeetingNotes(meetingId: string | null) {
     isLoading,
     error: queryError,
     meetingId,
-    notesCount: notes.length,
-    hasNotes: notes.length > 0,
     addNote,
     updateNote,
     deleteNote,

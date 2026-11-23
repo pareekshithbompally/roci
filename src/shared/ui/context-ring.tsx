@@ -24,7 +24,7 @@ const LEVEL_PROGRESS_TONE = {
 } as const;
 
 function formatTokens(n: number): string {
-  return `${n.toLocaleString()} tok`;
+  return KIT_COPY.context.tokens(n.toLocaleString());
 }
 
 const BreakdownRow: React.FC<{ label: string; value: string; sub?: string }> = ({
@@ -65,9 +65,7 @@ export interface ContextRingTools {
 const Breakdown: React.FC<{ usage: ContextUsage; tools?: ContextRingTools; cost?: ContextRingCost }> = ({ usage, tools, cost }) => (
   <div className="flex flex-col gap-1.5 px-1 py-1">
     <div className="flex items-baseline justify-between">
-      <Text variant="label" tone="primary">
-        Context
-      </Text>
+      <Text variant="label" tone="primary">{KIT_COPY.context.title}</Text>
       <Text variant="figureSmall" tone="muted">
         {usage.used.toLocaleString()} / {usage.total.toLocaleString()}
       </Text>
@@ -77,10 +75,10 @@ const Breakdown: React.FC<{ usage: ContextUsage; tools?: ContextRingTools; cost?
       <BreakdownRow
         label={KIT_COPY.context.conversation}
         value={formatTokens(usage.prompt)}
-        sub={usage.cached > 0 ? `${usage.cached.toLocaleString()} from cache` : undefined}
+        sub={usage.cached > 0 ? KIT_COPY.context.fromCache(usage.cached.toLocaleString()) : undefined}
       />
       <BreakdownRow label={KIT_COPY.context.lastReply} value={formatTokens(usage.reply)} />
-      {tools && <BreakdownRow label="Tools, each message" value={tools.total} sub={tools.note} />}
+      {tools && <BreakdownRow label={KIT_COPY.context.tools} value={tools.total} sub={tools.note} />}
       <BreakdownRow label={KIT_COPY.context.roomLeft} value={formatTokens(usage.left)} />
       {cost && <BreakdownRow label={KIT_COPY.context.cost} value={cost.total} sub={cost.note} />}
     </div>

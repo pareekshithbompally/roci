@@ -9,14 +9,9 @@ import { useIndexStats } from '@features/settings/hooks/useIndexStats';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { PENDING } from './shared';
+import { SEARCH_INDEX_COPY } from '@config/settingsCopy.config';
 
-const FOOTER = 'Rebuild All wipes and re-indexes every meeting and chat.';
-
-const REINDEX_FAILED: Record<RebuildScope, string> = {
-  meetings: 'Couldn’t re-index meetings',
-  chats: 'Couldn’t re-index chats',
-  all: 'Couldn’t rebuild the index',
-};
+const COPY = SEARCH_INDEX_COPY;
 
 /** Index row: status badge, counts, and a re-index button */
 const IndexActionRow: React.FC<{
@@ -31,18 +26,18 @@ const IndexActionRow: React.FC<{
 }> = ({ label, indexed, total, detail, onReindex, busy, disabled }) => (
   <CardRow
     title={label}
-    description={total != null && indexed !== undefined ? `${indexed} of ${total} indexed · ${detail}` : detail}
+    description={total != null && indexed !== undefined ? COPY.counts(indexed, total, detail ?? '') : detail}
     status={indexed === undefined ? <Status>{PENDING}</Status> : <IndexStatus indexed={indexed} total={total} />}
-    action={{ label: busy ? 'Indexing…' : `Re-index ${label}`, onPress: onReindex, busy, disabled }}
+    action={{ label: busy ? COPY.indexing : COPY.reindex(label), onPress: onReindex, busy, disabled }}
   />
 );
 
 /** Synced / Stale against a total; Active / Empty without one. Counts live in the description. */
 const IndexStatus: React.FC<{ indexed: number; total?: number }> = ({ indexed, total }) => {
   if (total == null) {
-    return indexed > 0 ? <Status tone="success">Active</Status> : <Status>Empty</Status>;
+    return indexed > 0 ? <Status tone="success">{COPY.status.active}</Status> : <Status>{COPY.status.empty}</Status>;
   }
-  return indexed >= total ? <Status tone="success">Synced</Status> : <Status tone="warning">Stale</Status>;
+  return indexed >= total ? <Status tone="success">{COPY.status.synced}</Status> : <Status tone="warning">{COPY.status.stale}</Status>;
 };
 
 export const SearchIndexSection: React.FC = () => {
@@ -57,7 +52,7 @@ export const SearchIndexSection: React.FC = () => {
       await rebuildSearchIndex(scope);
     } catch (error: unknown) {
       console.error('[SearchIndexSection] Re-index failed:', scope, error);
-      showToast(REINDEX_FAILED[scope], 'error');
+      showToast(COPY.failed[scope], 'error');
     } finally {
       setRunning(null);
       void queryClient.invalidateQueries({ queryKey: queryKeys.indexStats() });
@@ -66,9 +61,7 @@ export const SearchIndexSection: React.FC = () => {
 
   const handleRebuildIndex = useCallback(async () => {
     const confirmed = await confirm({
-      title: 'Rebuild the search index?',
-      description: 'Clears and re-indexes every meeting and chat. This can take a while.',
-      confirmLabel: 'Rebuild',
+      ...COPY.rebuildConfirm,
       tone: 'danger',
     });
     if (confirmed) await reindex('all');
@@ -77,27 +70,27 @@ export const SearchIndexSection: React.FC = () => {
   const indexBusy = running !== null;
 
   return (
-    <Section title="Search Index" footer={FOOTER}>
+    <Section title={COPY.title} footer={COPY.footer}>
       <IndexActionRow
-        label="Meetings"
+        label={COPY.meetings}
         indexed={indexStats?.meetings.indexed}
         total={indexStats?.meetings.onDisk}
-        detail={indexStats ? `${indexStats.pieces.transcript} transcript pieces` : PENDING}
+        detail={indexStats ? COPY.transcriptPieces(indexStats.pieces.transcript) : PENDING}
         onReindex={() => void reindex('meetings')}
         busy={running === 'meetings'}
         disabled={indexBusy}
       />
       <IndexActionRow
-        label="Chats"
+        label={COPY.chats}
         indexed={indexStats?.chats.indexed}
         total={indexStats?.chats.onDisk}
-        detail={indexStats ? `${indexStats.pieces.chat} chat pieces` : PENDING}
+        detail={indexStats ? COPY.chatPieces(indexStats.pieces.chat) : PENDING}
         onReindex={() => void reindex('chats')}
         busy={running === 'chats'}
         disabled={indexBusy}
       />
       <CardRow
-        title={running === 'all' ? 'Rebuilding…' : 'Rebuild All'}
+        title={running === 'all' ? COPY.rebuilding : COPY.rebuild}
         tone={indexBusy ? undefined : 'accent'}
         onPress={indexBusy ? undefined : () => void handleRebuildIndex()}
       />

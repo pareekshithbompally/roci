@@ -24,6 +24,9 @@ interface ReminderPickerProps {
   onReminderSet: (dateTime: string | null) => void;
 }
 
+const COPY = TODOS_CONFIG.reminder;
+const HOUR_MS = 60 * 60 * 1000;
+
 const openNotificationSettings = () => void openSettingsPane('notifications-settings').catch(failureLogger('ReminderPicker')('open settings'));
 
 interface QuickOption {
@@ -34,15 +37,15 @@ interface QuickOption {
 function buildQuickOptions(dueDate?: string): QuickOption[] {
   const options: QuickOption[] = [
     {
-      label: 'In 1 hour',
-      getDate: () => new Date(Date.now() + 60 * 60 * 1000),
+      label: COPY.inOneHour,
+      getDate: () => new Date(Date.now() + HOUR_MS),
     },
     {
-      label: 'In 3 hours',
-      getDate: () => new Date(Date.now() + 3 * 60 * 60 * 1000),
+      label: COPY.inThreeHours,
+      getDate: () => new Date(Date.now() + 3 * HOUR_MS),
     },
     {
-      label: 'Tomorrow at 9:00 AM',
+      label: COPY.tomorrowMorning,
       getDate: () => {
         const d = new Date();
         d.setDate(d.getDate() + 1);
@@ -57,7 +60,7 @@ function buildQuickOptions(dueDate?: string): QuickOption[] {
     const parsed = parseDateLoose(dueDate);
     if (parsed && parsed.getTime() > Date.now()) {
       options.push({
-        label: `On due date (${formatShortDateTime(new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 9))})`,
+        label: COPY.onDueDate(formatShortDateTime(new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 9))),
         getDate: () => {
           const d = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 9, 0, 0, 0);
           return d;
@@ -157,10 +160,10 @@ const ReminderPicker: React.FC<ReminderPickerProps> = ({
         <Button
           variant="ghost"
           size="iconXs"
-          aria-label={hasReminder ? 'Edit reminder' : 'Set reminder'}
+          aria-label={hasReminder ? COPY.edit : COPY.set}
           title={hasReminder
-            ? `Reminder: ${formatReminderDate(reminderDateTime!)}`
-            : 'Set reminder'
+            ? COPY.at(formatReminderDate(reminderDateTime!))
+            : COPY.set
           }
         >
           <Icon icon={hasReminder ? BellRing : Bell} size="sm" tone={hasReminder ? 'warning' : 'inherit'} />
@@ -171,11 +174,11 @@ const ReminderPicker: React.FC<ReminderPickerProps> = ({
         <div className="p-3 space-y-1">
           <div className="flex items-center justify-between mb-2">
             <Text variant="label" tone="muted">
-              {hasReminder ? 'Reminder Set' : 'Set Reminder'}
+              {hasReminder ? COPY.title.active : COPY.title.set}
             </Text>
             {hasReminder && (
               <Button variant="dangerGhost" size="inline" onClick={handleClearReminder} disabled={isScheduling}>
-                Remove
+                {COPY.remove}
               </Button>
             )}
           </div>

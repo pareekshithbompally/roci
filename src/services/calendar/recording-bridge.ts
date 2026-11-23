@@ -38,8 +38,3 @@ export function consumePendingCalendarMeta(): CalendarRecordingMeta | null {
   pendingEvent = null;
   return meta;
 }
-
-/** Check if there's a pending calendar event (non-destructive). */
-export function hasPendingCalendarEvent(): boolean {
-  return pendingEvent !== null;
-}

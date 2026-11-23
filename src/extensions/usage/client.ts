@@ -1,6 +1,5 @@
 /** Usage logging and queries via Tauri; logging is fire-and-forget. */
 
-import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';
 import type { TokenUsage } from '@services/ai/types';
 import type { ModelPrice } from '@shared/types/modelProviders';
@@ -10,18 +9,6 @@ import { modalitiesService } from '@services/modalities';
 import { costOf, priceOf } from './pricing';
 import { store } from '@services/db';
 import type { UsageRecord, UsageCategory, UsageQuery, UsageSummary } from './types';
-
-/** Ensure the store plugin is initialized before any usage operation. */
-let initPromise: Promise<void> | null = null;
-function ensureInitialized(): Promise<void> {
-  if (!initPromise) {
-    initPromise = invoke('plugin:store|initialize').then(
-      () => {},
-      (err) => { initPromise = null; throw err; },
-    );
-  }
-  return initPromise;
-}
 
 /** Logs a usage record, mapping TokenUsage and audio length to the flat UsageRecord Rust expects; priced by the one price rule. */
 export async function logUsage(params: {
@@ -55,8 +42,7 @@ export async function logUsage(params: {
   };
 
   try {
-    await ensureInitialized();
-    await invoke('plugin:store|insert_usage', { record });
+    await store.usage.insert(record);
     // Only what this call changes reads again: the usage totals and its own session's calls.
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.usageSummaries() }),
@@ -87,14 +73,13 @@ function tokenUsageOf(row: UnpricedUsage): TokenUsage | undefined {
  *  logged with; a call the price can't bill (audio without a per-minute rate) stays unknown. Open usage pages update. */
 export async function priceUnpricedUsage(provider: string, model: string, price: ModelPrice): Promise<void> {
   if (!isTauriEnvironment()) return;
-  await ensureInitialized();
-  const rows = await invoke<UnpricedUsage[]>('plugin:store|unpriced_usage', { provider, model });
+  const rows = await store.usage.unpriced<UnpricedUsage>(provider, model);
   const costs = rows.flatMap((row) => {
     const cost = costOf(price, tokenUsageOf(row), row.audio_seconds);
     return cost === undefined ? [] : [{ id: row.id, cost }];
   });
   if (costs.length === 0) return;
-  await invoke('plugin:store|set_usage_costs', { costs });
+  await store.usage.setCosts(costs);
   await queryClient.invalidateQueries({ queryKey: queryKeys.usageAll() });
 }
 
@@ -128,8 +113,7 @@ export async function getUsageSummary(query: UsageQuery): Promise<UsageSummary> 
     };
   }
 
-  await ensureInitialized();
-  return invoke<UsageSummary>('plugin:store|get_usage_summary', { query });
+  return store.usage.summary<UsageSummary>(query);
 }
 
 /** One AI call made for a session, a meeting or a dictation (Rust `SessionUsageRow`), newest first. */
@@ -149,8 +133,7 @@ export interface SessionUsage {
 /** The AI calls made for one session (its usage rows carry the meeting or dictation id). */
 export async function getSessionUsage(sessionId: string): Promise<SessionUsage[]> {
   if (!isTauriEnvironment()) return [];
-  await ensureInitialized();
-  return invoke<SessionUsage[]>('plugin:store|get_session_usage', { sessionId });
+  return store.usage.sessionCalls<SessionUsage>(sessionId);
 }
 
 /** What some calls cost, as each was priced when logged (a price set later fills the unpriced ones): the USD total of the

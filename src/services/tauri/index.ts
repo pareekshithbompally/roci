@@ -6,7 +6,7 @@ export * from './saveFile.service';
 export * from './screenshot.service';
 export * from './opener.service';
 export { menubarService, MENUBAR_ACTION_EVENT } from './menubar.service';
-export type { MenubarState, MenubarSpeechModel, MenubarActivity, MenubarRecentMeeting } from './menubar.service';
+export type { MenubarSpeechModel, MenubarActivity, MenubarRecentMeeting } from './menubar.service';
 export { nativeMenu } from './nativeMenu.service';
 export type { NativeMenuEntry, NativeMenuResult } from './nativeMenu.service';
 export { forwardConsoleToLog, logFromScreen } from './log.service';

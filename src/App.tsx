@@ -8,6 +8,7 @@ import { PermissionChecklist, RecordingExitPrompt, recording, useRecordingStore,
 import { MainLayout } from '@features/layout';
 import { endSearch, startSearch, toggleSearch } from '@shared/stores/searchStore';
 import { HomeView } from '@features/home';
+import { useOpenMeeting } from '@features/history';
 import { SettingsPanel } from '@features/settings';
 import { useAppUpdate, useUpdateRuntime } from '@features/settings';
 import { useMenubarSpeechModels, useMenubarReports, useStorageRetention, useLocalModelDownloads, useLocalModelResume, useLocalModelIdle, freshSpeechSources } from '@features/settings';
@@ -48,7 +49,7 @@ const App: React.FC = () => {
   const formFactor = useFormFactor();
   const status = useAppStatus();
   const selectedHistoryId = useSelectedHistoryId();
-  const { openSettings, leaveSettings, setInitialized } = useAppActions();
+  const { openSettings, leaveSettings } = useAppActions();
   
   const { settings, setSettings, providers, isLoading: settingsLoading, loadError } = useSettings();
   const setupRerun = useIsSetupRerun();
@@ -105,6 +106,12 @@ const App: React.FC = () => {
   // App updates: Rust checks and installs; the tray row follows its state
   useUpdateRuntime();
 
+  // A to-do reminder's View Meeting opens its meeting, the way the sidebar does
+  const openMeeting = useOpenMeeting();
+  useEffect(() => reminderService.onViewMeeting((id) => {
+    windowService.show().then(() => openMeeting({ id })).catch((error: unknown) => console.error('[App] Opening meeting failed:', error));
+  }), [openMeeting]);
+
   // Fade the startup splash once the first screen renders with real settings
   useEffect(() => {
     if (!settingsLoading) dismissSplash();
@@ -131,29 +138,25 @@ const App: React.FC = () => {
     return () => { cancelled = true; unlisten?.(); };
   }, []);
 
-  // Initialize app on mount (guard completion after unmount)
+  // Initialize app on mount
   useEffect(() => {
-    let cancelled = false;
     const initializeApp = async () => {
       try {
         if (isTauriEnvironment()) {
           await initializeTauriServices();
         }
-        if (!cancelled) setInitialized(true);
       } catch (e) {
         console.error('[App] Initialization error:', e);
       }
     };
 
     initializeApp();
-    return () => { cancelled = true; };
   }, []);
 
   const initializeTauriServices = async () => {
     try {
       await initializeStorage();
       if (platform.hasNotifications) await reminderService.initialize();
-      if (platform.hasWindowChrome) await windowService.initialize();
       if (platform.hasGlobalShortcuts) await initializeShortcuts();
       if (platform.hasMenuBar) await initializeMenubar();
       console.log('Tauri services initialized');

@@ -10,6 +10,7 @@ import { CardRow, ChoiceControl, Icon, Picker, Section, Switch } from '@shared/u
 import { useLiveModeLine } from '@features/settings/hooks/useSpeechModels';
 import { AUDIO_CONFIG, IMPORT_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { LAYOUT } from '@config/layout.config';
+import { GENERAL_COPY as COPY } from '@config/settingsCopy.config';
 import { platform } from '@platform/index';
 
 /** Recording sources offered in General › Capture, and what each needs from macOS. */
@@ -17,34 +18,11 @@ const CAPTURE_SOURCES = ['systemAndMicrophone', 'system', 'microphone'] as const
 const { defaultMaxConcurrent, maxConcurrentLimit } = IMPORT_CONFIG.jobProcessing;
 /** Imported audio processed one at a time, or several at once up to the limit (one menu, as Apple would write it). */
 const IMPORT_CONCURRENCY = [
-  { value: '1', label: 'One at a time' },
-  ...Array.from({ length: maxConcurrentLimit - 1 }, (_, i) => ({ value: String(i + 2), label: `${i + 2} at once` })),
+  { value: '1', label: COPY.oneAtATime },
+  ...Array.from({ length: maxConcurrentLimit - 1 }, (_, i) => ({ value: String(i + 2), label: COPY.atOnce(i + 2) })),
 ];
 
-/** Section footers: what each group's rows do. */
-const FOOTER = {
-  toolActivity: 'Tool Activity shows the tools used in each answer.',
-  modelIcons: 'Model icons load from huggingface.co.',
-  imports: 'How many imported audio files Roci processes at the same time.',
-  /** With Live Transcript on, Stop always finishes the transcript and summary, so the switch has nothing to decide. */
-} as const;
-
-/** When a recording is transcribed: one choice over the two saved settings (live transcript, transcribe after recording). */
-const TRANSCRIBE_WHEN = {
-  label: 'Transcribe',
-  options: [
-    { value: 'live', label: 'While Recording' },
-    { value: 'after', label: 'After Recording' },
-    { value: 'manual', label: 'Only When I Ask' },
-  ],
-  footer: {
-    live: 'The transcript and notes build as you talk; Stop finishes them and writes the summary.',
-    after: 'Stop transcribes the recording and writes the summary.',
-    manual: 'Recordings are kept; transcribe one from its page when you want it.',
-  },
-} as const;
-
-type TranscribeWhen = keyof typeof TRANSCRIBE_WHEN.footer;
+type TranscribeWhen = keyof typeof COPY.transcribe.footer;
 
 const SETTINGS_FOR: Record<TranscribeWhen, { liveTranscription: boolean; autoTranscribe: boolean }> = {
   live: { liveTranscription: true, autoTranscribe: true },
@@ -61,9 +39,9 @@ export const GeneralPanel: React.FC = () => {
   const captureSource = (settings.defaultAudioSource || 'systemAndMicrophone') as (typeof CAPTURE_SOURCES)[number];
 
   const themeOptions = [
-    { value: 'light', icon: Sun, label: 'Light' },
-    { value: 'dark', icon: Moon, label: 'Dark' },
-    { value: 'system', icon: Monitor, label: 'System' },
+    { value: 'light', icon: Sun, label: COPY.themes.light },
+    { value: 'dark', icon: Moon, label: COPY.themes.dark },
+    { value: 'system', icon: Monitor, label: COPY.themes.system },
   ] as const;
   const themeTabs = themeOptions.map(({ value, icon, label }) => ({
     value,
@@ -80,42 +58,42 @@ export const GeneralPanel: React.FC = () => {
     <SettingsPage pane="general">
       {/* Appearance — theme + import processing */}
       <Section
-        title="Appearance"
-        footer={`${FOOTER.toolActivity} ${FOOTER.modelIcons}`}
+        title={COPY.appearance}
+        footer={COPY.appearanceFooter}
       >
-        <CardRow title="Theme" actions={<ChoiceControl label="Theme" items={themeTabs} value={theme} onValueChange={setTheme} />} />
+        <CardRow title={COPY.theme} actions={<ChoiceControl label={COPY.theme} items={themeTabs} value={theme} onValueChange={setTheme} />} />
 
         {/* Model icons — opt-in: loads org avatars from huggingface.co for servers' models, on every platform */}
         <CardRow
-          title="Model Icons"
+          title={COPY.modelIcons}
           actions={
             <Switch
               checked={!!settings.showModelAvatars}
               onCheckedChange={(checked) => setSettings({ showModelAvatars: checked })}
-              aria-label="Show model icons"
+              aria-label={COPY.showModelIcons}
             />
           }
         />
 
         <CardRow
-          title="Tool Activity"
+          title={COPY.toolActivity}
           actions={
             <Switch
               checked={!settings.hideToolCalls}
               onCheckedChange={(checked) => setSettings({ hideToolCalls: !checked })}
-              aria-label="Show tool activity"
+              aria-label={COPY.showToolActivity}
             />
           }
         />
 
       </Section>
 
-      <Section title="Imports" footer={FOOTER.imports}>
+      <Section title={COPY.imports} footer={COPY.importsFooter}>
         <CardRow
-          title="Audio Processing"
+          title={COPY.audioProcessing}
           actions={
             <Picker
-              label="Audio processing"
+              label={COPY.audioProcessing}
               value={settings.jobProcessing?.mode === 'parallel' ? String(settings.jobProcessing.maxConcurrent ?? defaultMaxConcurrent) : '1'}
               onChange={(n) => setSettings({
                 jobProcessing: n === '1' ? { mode: 'sequential', maxConcurrent: defaultMaxConcurrent } : { mode: 'parallel', maxConcurrent: Number(n) },
@@ -128,13 +106,13 @@ export const GeneralPanel: React.FC = () => {
       </Section>
 
       {platform.canCaptureSystemAudio && (
-        <Section title="Capture" footer={AUDIO_CONFIG.captureSources[captureSource].requires}>
+        <Section title={COPY.capture} footer={AUDIO_CONFIG.captureSources[captureSource].requires}>
           <CardRow
-            title="Input Source"
+            title={COPY.inputSource}
             actions={
               <div className={LAYOUT.settingsSelect}>
                 <Picker
-                  label="Input source"
+                  label={COPY.inputSource}
                   value={captureSource}
                   onChange={(source) => setSettings({ defaultAudioSource: source as AudioCaptureSource })}
                   placeholder=""
@@ -148,19 +126,19 @@ export const GeneralPanel: React.FC = () => {
 
       {platform.canRecord && (
         <Section
-          title="Transcription"
-          footer={[TRANSCRIBE_WHEN.footer[when], when === 'live' ? liveLine : null].filter(Boolean).join(' ')}
+          title={COPY.transcription}
+          footer={[COPY.transcribe.footer[when], when === 'live' ? liveLine : null].filter(Boolean).join(' ')}
         >
           <CardRow
-            title={TRANSCRIBE_WHEN.label}
+            title={COPY.transcribe.label}
             actions={
               <div className={LAYOUT.settingsSelect}>
                 <Picker
-                  label={TRANSCRIBE_WHEN.label}
+                  label={COPY.transcribe.label}
                   value={when}
                   onChange={(next) => setSettings(SETTINGS_FOR[next as TranscribeWhen])}
                   placeholder=""
-                  groups={[{ options: [...TRANSCRIBE_WHEN.options] }]}
+                  groups={[{ options: [...COPY.transcribe.options] }]}
                 />
               </div>
             }

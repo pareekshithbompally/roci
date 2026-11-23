@@ -1177,72 +1177,6 @@ pub async fn categories_list(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-#[tauri::command]
-pub async fn categories_rename(
-    state: State<'_, StoreState>,
-    id: String,
-    name: String,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        let affected = db.execute(
-            "UPDATE categories SET name = ?2 WHERE id = ?1",
-            rusqlite::params![id, name],
-        )?;
-        if affected == 0 {
-            return Err(StoreError::from("Category not found"));
-        }
-        Ok(())
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn categories_create(
-    state: State<'_, StoreState>,
-    name: String,
-) -> Result<CategoryRow, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        let now = now_millis();
-        let id = generate_id();
-        db.execute(
-            "INSERT INTO categories (id, name, created_at) VALUES (?1, ?2, ?3)",
-            rusqlite::params![id, name, now],
-        )?;
-        Ok(CategoryRow { id, name, created_at: now })
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn categories_delete(
-    state: State<'_, StoreState>,
-    id: String,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        let tx = db.unchecked_transaction()?;
-        let affected = tx.execute("DELETE FROM categories WHERE id = ?1", [&id])?;
-        if affected == 0 {
-            return Err(StoreError::from("Category not found"));
-        }
-        tx.commit()?;
-        Ok(())
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
 // ── Notes Commands ──
 
 #[tauri::command]
@@ -1831,31 +1765,6 @@ pub async fn providers_upsert(
             ],
         )?;
         tx.commit()?;
-        Ok(())
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn providers_set_active(
-    state: State<'_, StoreState>,
-    provider: String,
-    active: bool,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        let now = now_millis();
-        let affected = db.execute(
-            "UPDATE providers SET active = ?2, updated_at = ?3 WHERE provider = ?1",
-            rusqlite::params![provider, active as i32, now],
-        )?;
-        if affected == 0 {
-            return Err(StoreError::from("Provider not found"));
-        }
         Ok(())
     })
     .await

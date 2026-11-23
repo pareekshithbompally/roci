@@ -92,9 +92,6 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             knowledge::knowledge_graph,
             // Categories
             commands::categories_list,
-            commands::categories_rename,
-            commands::categories_create,
-            commands::categories_delete,
             // Chat domain (Phase 2)
             commands::items_page,
             commands::items_by_id,
@@ -126,7 +123,6 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::settings_set,
             commands::providers_list,
             commands::providers_upsert,
-            commands::providers_set_active,
             commands::providers_delete,
             // RAG indexing
             // Chat indexing

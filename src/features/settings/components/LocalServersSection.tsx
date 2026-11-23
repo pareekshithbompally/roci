@@ -13,6 +13,7 @@ import { serverHost } from '@services/providers/localServers';
 import type { LocalRow } from '@services/providers/localServers';
 import { Button, CardRow, ICON_TILE_PX, Input, Section } from '@shared/ui';
 import { FormDialog } from '@shared/components';
+import { PROVIDER_COPY } from '@config/settingsCopy.config';
 
 
 function rowState(row: LocalRow): ProviderRowState {
@@ -21,7 +22,7 @@ function rowState(row: LocalRow): ProviderRowState {
 }
 
 function modelCount(row: LocalRow): string {
-  if (!row.running) return 'Not running';
+  if (!row.running) return PROVIDER_COPY.notRunning;
   return row.models.length === 1 ? '1 model' : `${row.models.length} models`;
 }
 
@@ -74,6 +75,7 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ open, onOpenChange
       onOpenChange={(next) => !isAdding && onOpenChange(next)}
       title={ADD_SERVER.title}
       error={error}
+      dirty={address !== LOCAL_URL_DRAFT}
       submit={{ label: isAdding ? ADD_SERVER.adding : ADD_SERVER.add, onPress: () => void add(), disabled: !ready, busy: isAdding }}
     >
       <Section footer={ADD_SERVER.footer}>
@@ -120,7 +122,7 @@ export const ServersSection: React.FC<ServersSectionProps> = ({ onOpen, onAdd })
   const handleRescan = () => {
     rescan().catch((error: unknown) => {
       console.error('[ServersSection] Rescan failed:', error);
-      showToast('Could not rescan servers', 'error');
+      showToast(PROVIDER_COPY.rescanFailed, 'error');
     });
   };
 

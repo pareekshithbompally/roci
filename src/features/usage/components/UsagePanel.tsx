@@ -1,4 +1,5 @@
-/** Settings › Usage: two tabs in the page header — Activity (what was used and what it cost) and Prices (what each model costs). */
+/** Settings › Usage: Activity (what was used and what it cost) and Prices (what each model costs): a Mac's toolbar switches
+ *  them; iPhone stays on Activity, which pushes Prices. */
 
 import React from 'react';
 import { Tabs } from '@shared/ui';
@@ -14,7 +15,7 @@ export const UsagePanel: React.FC = () => {
   return (
     <SettingsPage
       pane="usage"
-      accessory={<Tabs items={USAGE_CONFIG.tabs} value={tab} onValueChange={setTab} label="Usage view" />}
+      views={<Tabs items={USAGE_CONFIG.tabs} value={tab} onValueChange={setTab} label="Usage view" />}
     >
       {tab === 'activity' ? <ActivityTab /> : <PricesTab />}
     </SettingsPage>

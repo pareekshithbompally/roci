@@ -6,13 +6,9 @@ import { platform } from '@platform/index';
 import { APP_SHORTCUTS, GLOBAL_SHORTCUTS, type ShortcutDefinition } from '@config/shortcuts.config';
 import { acceleratorKeys } from '@features/shortcuts';
 import { SettingsPage } from './shared';
+import { SHORTCUTS_COPY } from '@config/settingsCopy.config';
 
-const COPY = {
-  inApp: 'In Roci',
-  inAppFooter: 'These work while a Roci window is in front.',
-  global: 'Anywhere on Your Mac',
-  globalFooter: 'These work from any app. Changing shortcuts comes in a later version.',
-} as const;
+const COPY = SHORTCUTS_COPY;
 
 const ShortcutRows: React.FC<{ shortcuts: Record<string, ShortcutDefinition> }> = ({ shortcuts }) => (
   <>

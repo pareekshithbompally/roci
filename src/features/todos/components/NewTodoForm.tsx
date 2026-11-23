@@ -117,6 +117,7 @@ export const NewTodoForm: React.FC<NewTodoFormProps> = ({ open, onClose, onSubmi
       open={open}
       onOpenChange={(next) => !next && close()}
       title={FORM.title}
+      dirty={text.trim() !== ''}
       submit={{ label: FORM.submit, onPress: () => void submit(), disabled: !canSubmit, busy: saving }}
     >
       <Textarea

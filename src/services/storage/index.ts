@@ -10,7 +10,7 @@ export { assetsService } from './assets.service';
 export type { AssetKind, SavedAsset } from './assets.service';
 export { cacheService } from './cache.service';
 
-export type { CacheEntry, CacheStats, StorageResult } from './types';
+export type { CacheEntry, StorageResult } from './types';
 
 /** Creates the cache directories and clears expired cache entries. */
 export async function initializeStorage(): Promise<void> {

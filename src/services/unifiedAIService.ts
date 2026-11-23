@@ -5,7 +5,9 @@ import { getProviderTitle } from '@shared/utils/provider.utils';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { AppSettings } from '@shared/types';
-import { MAX_AUDIO_SIZE_BYTES, MAX_AUDIO_SIZE_MB, MIN_AUDIO_SIZE_BYTES, WAV_HEADER_SIZE_BYTES } from '@shared/utils/audio.utils';
+import { AUDIO_CONFIG } from '@config/audio.config';
+
+const { maxSizeBytes: MAX_AUDIO_SIZE_BYTES, maxSizeMB: MAX_AUDIO_SIZE_MB, minAudioSizeBytes: MIN_AUDIO_SIZE_BYTES, wavHeaderSizeBytes: WAV_HEADER_SIZE_BYTES } = AUDIO_CONFIG.recording;
 import { recordUsage } from '@extensions/usage';
 import { modalitiesService } from '@services/modalities';
 import { requireSummaryModel } from '@services/ai/jobModel';

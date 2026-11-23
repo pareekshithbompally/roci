@@ -32,9 +32,6 @@ Allows all store plugin commands
 - `allow-knowledge-entity`
 - `allow-knowledge-graph`
 - `allow-categories-list`
-- `allow-categories-rename`
-- `allow-categories-create`
-- `allow-categories-delete`
 - `allow-items-page`
 - `allow-items-by-id`
 - `allow-items-count`
@@ -62,7 +59,6 @@ Allows all store plugin commands
 - `allow-settings-set`
 - `allow-providers-list`
 - `allow-providers-upsert`
-- `allow-providers-set-active`
 - `allow-providers-delete`
 - `allow-search-sessions`
 - `allow-insert-usage`
@@ -187,58 +183,6 @@ Denies the assets_page command without any pre-configured scope.
 <tr>
 <td>
 
-`store:allow-categories-create`
-
-</td>
-<td>
-
-Enables the categories_create command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-categories-create`
-
-</td>
-<td>
-
-Denies the categories_create command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-categories-delete`
-
-</td>
-<td>
-
-Enables the categories_delete command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-categories-delete`
-
-</td>
-<td>
-
-Denies the categories_delete command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
 `store:allow-categories-list`
 
 </td>
@@ -258,32 +202,6 @@ Enables the categories_list command without any pre-configured scope.
 <td>
 
 Denies the categories_list command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-categories-rename`
-
-</td>
-<td>
-
-Enables the categories_rename command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-categories-rename`
-
-</td>
-<td>
-
-Denies the categories_rename command without any pre-configured scope.
 
 </td>
 </tr>
@@ -1246,32 +1164,6 @@ Enables the providers_list command without any pre-configured scope.
 <td>
 
 Denies the providers_list command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-providers-set-active`
-
-</td>
-<td>
-
-Enables the providers_set_active command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-providers-set-active`
-
-</td>
-<td>
-
-Denies the providers_set_active command without any pre-configured scope.
 
 </td>
 </tr>

@@ -26,7 +26,7 @@ interface ImportServiceOptions {
 class ImportService {
   private queue: JobQueue<void>;
   private jobs = new Map<string, ImportJob>();
-  private onMeetingSaved?: () => void;
+  private readonly onMeetingSaved?: () => void;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(options: ImportServiceOptions) {
@@ -34,28 +34,32 @@ class ImportService {
     this.queue = new JobQueue<void>({
       concurrency: options.concurrency,
       onJobUpdate: this.handleJobUpdate,
-      onComplete: () => {},
     });
   }
 
-  async importTranscripts(): Promise<void> {
-    const paths = await dialogService.open({
-      title: IMPORT_CONFIG.transcript.dialogTitle,
-      multiple: true,
-      filters: [{ name: 'Subtitles', extensions: [...IMPORT_CONFIG.transcript.extensions] }],
-    });
+  importTranscripts(): Promise<void> {
+    const { dialogTitle, extensions } = IMPORT_CONFIG.transcript;
+    return this.importFiles('transcript', { title: dialogTitle, name: 'Subtitles', extensions }, (job, signal) => this.processTranscript(job, signal));
+  }
 
+  importAudio(): Promise<void> {
+    const { dialogTitle, extensions } = IMPORT_CONFIG.audio;
+    return this.importFiles('audio', { title: dialogTitle, name: 'Audio', extensions }, (job, signal) => this.processAudio(job, signal));
+  }
+
+  /** Asks for files, then queues one job per file, each shown in Activity with Cancel. */
+  private async importFiles(
+    source: ImportJob['source'],
+    dialog: { title: string; name: string; extensions: readonly string[] },
+    process: (job: ImportJob, signal: AbortSignal) => Promise<void>,
+  ): Promise<void> {
+    const paths = await dialogService.open({ title: dialog.title, multiple: true, filters: [{ name: dialog.name, extensions: [...dialog.extensions] }] });
     if (!paths) return;
-    const filePaths = Array.isArray(paths) ? paths : [paths];
-
-    for (const filePath of filePaths) {
+    for (const filePath of Array.isArray(paths) ? paths : [paths]) {
       const fileName = filePath.split('/').pop() || filePath;
       const id = crypto.randomUUID();
-      const meetingId = crypto.randomUUID();
-
-      const job: ImportJob = { id, filePath, fileName, source: 'transcript', meetingId, status: 'queued' };
+      const job: ImportJob = { id, filePath, fileName, source, meetingId: crypto.randomUUID(), status: 'queued' };
       this.jobs.set(id, job);
-
       activityStore.add({
         id,
         type: 'import',
@@ -67,50 +71,7 @@ class ImportService {
         error: null,
         actions: [{ icon: 'x', label: 'Cancel', onClick: () => this.cancelJob(id) }],
       });
-
-      this.queue.enqueue({
-        id,
-        label: fileName,
-        execute: (signal) => this.processTranscript(job, signal),
-      });
-    }
-  }
-
-  async importAudio(): Promise<void> {
-    const paths = await dialogService.open({
-      title: IMPORT_CONFIG.audio.dialogTitle,
-      multiple: true,
-      filters: [{ name: 'Audio', extensions: [...IMPORT_CONFIG.audio.extensions] }],
-    });
-
-    if (!paths) return;
-    const filePaths = Array.isArray(paths) ? paths : [paths];
-
-    for (const filePath of filePaths) {
-      const fileName = filePath.split('/').pop() || filePath;
-      const id = crypto.randomUUID();
-      const meetingId = crypto.randomUUID();
-
-      const job: ImportJob = { id, filePath, fileName, source: 'audio', meetingId, status: 'queued' };
-      this.jobs.set(id, job);
-
-      activityStore.add({
-        id,
-        type: 'import',
-        label: fileName,
-        status: 'active',
-        percent: null,
-        step: null,
-        detail: 'Queued',
-        error: null,
-        actions: [{ icon: 'x', label: 'Cancel', onClick: () => this.cancelJob(id) }],
-      });
-
-      this.queue.enqueue({
-        id,
-        label: fileName,
-        execute: (signal) => this.processAudio(job, signal),
-      });
+      this.queue.enqueue({ id, label: fileName, execute: (signal) => process(job, signal) });
     }
   }
 
@@ -120,20 +81,12 @@ class ImportService {
     this.queue.updateConcurrency(concurrency);
   }
 
-  setOnMeetingSaved(cb: () => void): void {
-    this.onMeetingSaved = cb;
-  }
-
   cancelJob(jobId: string): void {
     this.queue.abort(jobId);
   }
 
   cancelAll(): void {
     this.queue.abortAll();
-  }
-
-  get isImporting(): boolean {
-    return this.queue.pendingCount > 0;
   }
 
   // ── Private ────────────────────────────────────────────────────

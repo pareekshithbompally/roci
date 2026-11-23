@@ -9,6 +9,7 @@ import { useNotificationControls } from '@features/notifications';
 import type { NotificationControls } from '@features/notifications';
 import { SettingsPage } from './shared';
 import { platform } from '@platform/index';
+import { NOTIFICATIONS_COPY as COPY } from '@config/settingsCopy.config';
 
 const KINDS = NOTIFICATION_KINDS.filter(({ requires }) => !requires || platform[requires]);
 
@@ -16,7 +17,7 @@ const PermissionRow: React.FC<{ controls: NotificationControls }> = ({ controls 
   const { access, request, openSettings } = controls;
   return (
     <CardRow
-      title="Allow notifications"
+      title={COPY.allow}
       actions={access !== 'unknown' && access !== 'unavailable' && (
         <PermissionAction state={access} onRequest={request} onOpenSettings={openSettings} />
       )}
@@ -48,11 +49,11 @@ export const NotificationsPanel: React.FC = () => {
 
   return (
     <SettingsPage pane="notifications">
-      <Section title={`${platform.systemName} notifications`} footer="Roci notifies you while it is in the background.">
+      <Section title={COPY.system(platform.systemName)} footer={COPY.systemFooter}>
         <PermissionRow controls={controls} />
       </Section>
 
-      <Section title="Notify me about">
+      <Section title={COPY.notifyAbout}>
         {KINDS.map(({ kind, label }) => (
           <React.Fragment key={kind}>
             <CardRow

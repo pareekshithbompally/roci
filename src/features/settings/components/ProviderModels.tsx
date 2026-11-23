@@ -15,6 +15,7 @@ import { CardRow, CommandGroup, CommandPopover, CommandRow, ICON_TILE_PX, Icon, 
 import type { Model, ModelOverrides, ModelProvider } from '@shared/types/modelProviders';
 import type { ConnectionStatus, ProviderConnection } from '@features/settings/hooks/useProviderConnection';
 import { ModelRowMenu } from './ModelRowMenu';
+import { PROVIDER_COPY as COPY } from '@config/settingsCopy.config';
 
 interface ProviderModelsProps {
   provider: ModelProvider;
@@ -34,10 +35,10 @@ interface AddModelPickerProps {
 
 /** What the list says while it has no rows to show. */
 function emptyText(status: ConnectionStatus | undefined): string {
-  if (!status) return 'Type the model’s name, as Browse Models lists it';
-  if (status.state === 'checking') return 'Loading models…';
+  if (!status) return COPY.typeName;
+  if (status.state === 'checking') return COPY.loadingModels;
   if (status.state === 'failed') return status.message;
-  return 'No models found';
+  return COPY.noModels;
 }
 
 /**
@@ -72,17 +73,17 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
       onOpenChange={changeOpen}
       search={search}
       onSearchChange={setSearch}
-      title="Add Model"
-      searchPlaceholder="Search models…"
+      title={COPY.addModel}
+      searchPlaceholder={COPY.searchModels}
       emptyText={emptyText(status)}
       side="bottom"
       align="end"
       avoidCollisions={false}
-      trigger={<CardRow role="button" tabIndex={0} title="Add Model" tone="accent" className="cursor-pointer" />}
+      trigger={<CardRow role="button" tabIndex={0} title={COPY.addModel} tone="accent" className="cursor-pointer" />}
     >
       {unlisted && (
-        <CommandGroup heading={connection ? "Not in the provider's list" : undefined}>
-          <CommandRow value={typed} onSelect={() => add({ id: typed, report: {} })} leading={<Icon icon={Plus} size="sm" tone="faint" />} label={`Add “${typed}”`} />
+        <CommandGroup heading={connection ? COPY.notInList : undefined}>
+          <CommandRow value={typed} onSelect={() => add({ id: typed, report: {} })} leading={<Icon icon={Plus} size="sm" tone="faint" />} label={COPY.addTyped(typed)} />
         </CommandGroup>
       )}
       {available.filter((model) => !added.has(model.id)).map((model) => (
@@ -118,9 +119,7 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
 
   const handleRemove = async (model: Model) => {
     const confirmed = await confirm({
-      title: `Remove ${getModelDisplayName(model)}?`,
-      description: 'It leaves your model pickers. You can add it again any time.',
-      confirmLabel: 'Remove',
+      ...COPY.removeConfirm(getModelDisplayName(model)),
       tone: 'danger',
     });
     if (confirmed) setModels(models.filter((m) => m.id !== model.id));
@@ -139,8 +138,8 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
   return (
     <>
       <Section
-        title="Models"
-        footer="Models you add here appear in Roci’s model pickers."
+        title={COPY.models}
+        footer={COPY.modelsFooter}
       >
         {models.map((model) => (
           <CardRow
@@ -160,7 +159,7 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
         {/* Actions end the list as tinted rows (iOS), not links on the header. */}
         {canAdd && <AddModelPicker provider={id} connection={connection} added={new Set(models.map((m) => m.id))} onAdd={handleAdd} />}
         {exploreUrl && (
-          <CardRow title="Browse Models" tone="accent" onPress={() => void openUrl(exploreUrl)} actions={<Icon icon={ExternalLink} size="sm" tone="accent" />} />
+          <CardRow title={COPY.browseModels} tone="accent" onPress={() => void openUrl(exploreUrl)} actions={<Icon icon={ExternalLink} size="sm" tone="accent" />} />
         )}
       </Section>
       <RenameModal

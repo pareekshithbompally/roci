@@ -11,6 +11,7 @@ import {
   type ColumnDef, type Row, type SortingState,
 } from '@tanstack/react-table';
 import { UI_CONFIG } from '@config/ui.config';
+import { KIT_COPY } from '@config/kitCopy.config';
 import { cn } from './utils';
 import { Text } from './text';
 import { Icon } from './icon';
@@ -69,7 +70,7 @@ function HeaderLabel({ header, sorted, onSort }: { header: string; sorted: false
   const label = <Text variant="caption" tone={sorted ? 'primary' : 'muted'}>{header}</Text>;
   if (!onSort) return label;
   return (
-    <button type="button" onClick={onSort} className="inline-flex items-center gap-1" aria-label={`Sort by ${header}`}>
+    <button type="button" onClick={onSort} className="inline-flex items-center gap-1" aria-label={KIT_COPY.sortBy(header)}>
       {label}
       {sorted && <Icon icon={sorted === 'asc' ? ChevronUp : ChevronDown} size="xs" tone="muted" />}
     </button>

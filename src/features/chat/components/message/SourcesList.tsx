@@ -2,7 +2,9 @@ import React from 'react';
 import { formatShortDate } from '@shared/utils/formatters';
 import { AudioWaveform } from 'lucide-react';
 import { getFaviconUrl, describeCitation } from '@shared/utils/citationUtils';
-import { Row, rowClasses, Text, Icon, Button } from '@shared/ui';
+import { Row, Text, Icon, Button } from '@shared/ui';
+import { openUrl } from '@services/tauri';
+import { KIT_COPY } from '@config/kitCopy.config';
 import type { MeetingCitation, WebCitation } from '@shared/types';
 
 interface SourcesListProps {
@@ -46,19 +48,14 @@ const SourcesList: React.FC<SourcesListProps> = ({
       ))}
       {hasMeetingCitations && moreMeetingCount > 0 && (
         <Button variant="ghost" size="inline" className="self-start mx-2.5 my-1" onClick={() => onShowAllMeetingCitations?.(meetingCitations!)}>
-          +{moreMeetingCount} more
+          {KIT_COPY.moreCount(moreMeetingCount)}
         </Button>
       )}
       {hasWebCitations && visibleWebCitations!.map((citation, i) => {
         const label = describeCitation(citation);
         return (
-        <a
-          key={`web-${i}-${citation.url}`}
-          href={citation.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={rowClasses()}
-        >
+        // Opened in the default browser: a web view doesn't follow a new-window link.
+        <Row key={`web-${i}-${citation.url}`} onClick={() => void openUrl(citation.url)}>
           <img
             src={getFaviconUrl(label.site)}
             alt=""
@@ -72,12 +69,12 @@ const SourcesList: React.FC<SourcesListProps> = ({
               {label.detail}
             </Text>
           )}
-        </a>
+        </Row>
         );
       })}
       {hasWebCitations && moreWebCount > 0 && (
         <Button variant="ghost" size="inline" className="self-start mx-2.5 my-1" onClick={() => onShowAllWebCitations?.(webCitations!)}>
-          +{moreWebCount} more
+          {KIT_COPY.moreCount(moreWebCount)}
         </Button>
       )}
     </>

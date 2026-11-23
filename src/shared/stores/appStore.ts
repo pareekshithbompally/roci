@@ -28,8 +28,6 @@ interface AppStoreState {
   permissionChecklistOpen: boolean;
   /** Quit or window close asked while recording: which one, or none. */
   recordingExitPrompt: ExitPromptKind | null;
-  isInitialized: boolean;
-  error: string | null;
 
   /** Switch between app views; Settings opens only through `openSettings`. */
   setCurrentView: (v: Exclude<ViewType, 'settings'>) => void;
@@ -44,10 +42,6 @@ interface AppStoreState {
   setMeetingChatOpen: (open: boolean) => void;
   setPermissionChecklistOpen: (open: boolean) => void;
   setRecordingExitPrompt: (prompt: ExitPromptKind | null) => void;
-  setInitialized: (v: boolean) => void;
-  setError: (e: string | null) => void;
-  clearError: () => void;
-  resetToIdle: () => void;
 }
 
 export const useAppStore = create<AppStoreState>((set) => ({
@@ -63,8 +57,6 @@ export const useAppStore = create<AppStoreState>((set) => ({
   meetingChatOpen: false,
   permissionChecklistOpen: false,
   recordingExitPrompt: null,
-  isInitialized: false,
-  error: null,
 
   setCurrentView: (v) => set({ currentView: v }),
 
@@ -103,19 +95,6 @@ export const useAppStore = create<AppStoreState>((set) => ({
   setPermissionChecklistOpen: (open) => set({ permissionChecklistOpen: open }),
 
   setRecordingExitPrompt: (prompt) => set({ recordingExitPrompt: prompt }),
-
-  setInitialized: (v) => set({ isInitialized: v }),
-
-  setError: (e) => set({ error: e }),
-
-  clearError: () => set({ error: null }),
-
-  resetToIdle: () =>
-    set({
-      status: AppStatus.IDLE,
-      selectedHistoryId: null,
-      meetingChatOpen: false,
-    }),
 }));
 
 // State selectors (each re-renders ONLY when that slice changes)
@@ -123,13 +102,11 @@ export const useCurrentView = () => useAppStore((s) => s.currentView);
 export const useAppStatus = () => useAppStore((s) => s.status);
 export const useSelectedHistoryId = () => useAppStore((s) => s.selectedHistoryId);
 export const useActiveResultTab = () => useAppStore((s) => s.activeResultTab);
-export const useActiveSettingsPanel = () => useAppStore((s) => s.activeSettingsPanel);
 export const useSettingsPage = () => useAppStore((s) => s.settingsPage);
 export const useSettingsVisit = () => useAppStore((s) => s.settingsVisit);
 export const useMeetingChatOpen = () => useAppStore((s) => s.meetingChatOpen);
 export const usePermissionChecklistOpen = () => useAppStore((s) => s.permissionChecklistOpen);
 export const useRecordingExitPrompt = () => useAppStore((s) => s.recordingExitPrompt);
-export const useAppError = () => useAppStore((s) => s.error);
 
 // Actions — stable references, never trigger re-render
 export const useAppActions = () => {
@@ -141,10 +118,6 @@ export const useAppActions = () => {
   const setActiveResultTab = useAppStore((s) => s.setActiveResultTab);
   const setActiveSettingsPanel = useAppStore((s) => s.setActiveSettingsPanel);
   const setMeetingChatOpen = useAppStore((s) => s.setMeetingChatOpen);
-  const setInitialized = useAppStore((s) => s.setInitialized);
-  const setError = useAppStore((s) => s.setError);
-  const clearError = useAppStore((s) => s.clearError);
-  const resetToIdle = useAppStore((s) => s.resetToIdle);
 
   return {
     setCurrentView,
@@ -155,9 +128,5 @@ export const useAppActions = () => {
     setActiveResultTab,
     setActiveSettingsPanel,
     setMeetingChatOpen,
-    setInitialized,
-    setError,
-    clearError,
-    resetToIdle,
   };
 };

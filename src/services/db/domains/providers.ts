@@ -15,11 +15,6 @@ export const providers = {
     await call<void>('providers_upsert', { input: modelProviderToRust(provider) });
   },
 
-  /** Toggle provider active state. */
-  async setActive(provider: string, active: boolean): Promise<void> {
-    await call<void>('providers_set_active', { provider, active });
-  },
-
   /** Delete a provider. */
   async delete(provider: string): Promise<void> {
     await call<void>('providers_delete', { provider });

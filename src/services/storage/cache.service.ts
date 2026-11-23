@@ -3,7 +3,7 @@
 import { writeFile, readFile, remove, exists, readDir } from '@tauri-apps/plugin-fs';
 import { StorageConfig, generateCacheFilename } from '@config/storage.config';
 import { pathsService } from './paths.service';
-import type { CacheEntry, CacheStats, StorageResult } from './types';
+import type { CacheEntry, StorageResult } from './types';
 
 class CacheService {
   async set<T>(
@@ -182,31 +182,6 @@ class CacheService {
       return {
         success: false,
         error: `Failed to clear all cache: ${error}`,
-      };
-    }
-  }
-
-  async getStats(): Promise<StorageResult<CacheStats>> {
-    try {
-      const audioPath = await pathsService.getAudioCachePath();
-      const apiPath = await pathsService.getApiCachePath();
-
-      const audioStats = await this.getDirectoryStats(audioPath);
-      const apiStats = await this.getDirectoryStats(apiPath);
-
-      const stats: CacheStats = {
-        totalSize: audioStats.size + apiStats.size,
-        entryCount: audioStats.count + apiStats.count,
-        audioCache: audioStats,
-        apiCache: apiStats,
-      };
-
-      return { success: true, data: stats };
-    } catch (error) {
-      console.error('[CacheService] Failed to get cache stats:', error);
-      return {
-        success: false,
-        error: `Failed to get cache stats: ${error}`,
       };
     }
   }

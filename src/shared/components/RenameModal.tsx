@@ -43,7 +43,7 @@ export const RenameModal: React.FC<RenameModalProps> = ({
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={KIT_COPY.rename} size="sm" submit={{ label: KIT_COPY.save, onPress: handleSubmit, disabled: !canSave }}>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={KIT_COPY.rename} size="sm" dirty={value !== currentTitle} submit={{ label: KIT_COPY.save, onPress: handleSubmit, disabled: !canSave }}>
       <Input
         ref={inputRef}
         type="text"

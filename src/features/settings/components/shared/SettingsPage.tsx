@@ -48,6 +48,8 @@ const SettingsToolbar: React.FC<SettingsToolbarProps> = ({ title, accessory, onB
 };
 
 type SettingsPageProps = Omit<SettingsToolbarProps, 'title'> & {
+  /** Switches the pane's views in a Mac's toolbar; on iPhone those views are pushed rows in the page instead. */
+  views?: React.ReactNode;
   children?: React.ReactNode;
 } & (
   /** A pane's top level: its sidebar entry sets the title and the header (icon, name, what it covers) that leads the page;
@@ -83,10 +85,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) =>
   useFormFactor() === 'phone' ? <PhonePage {...props} /> : <DesktopPage {...props} />;
 
 /** Mac, iPad: the toolbar, then the header and rows in one column, at the same place on every pane and page. */
-const DesktopPage: React.FC<SettingsPageProps> = ({ pane, title, hero, children, ...toolbar }) => (
+const DesktopPage: React.FC<SettingsPageProps> = ({ pane, title, hero, views, children, ...toolbar }) => (
   <div className="flex h-full flex-col">
     <div className={LAYOUT.pageGutter}>
-      <SettingsToolbar title={title ?? paneItem(pane)?.label} {...toolbar} />
+      <SettingsToolbar title={title ?? paneItem(pane)?.label} {...toolbar} accessory={views ?? toolbar.accessory} />
     </div>
     <PageScroll steady underTitlebar={false} fadeTop className={`min-h-0 flex-1 ${LAYOUT.pageGutter} pb-6`}>
       {/* A full-height column, so an empty state fills what's left and centres there, as on every screen. */}

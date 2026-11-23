@@ -24,21 +24,23 @@ interface MeetingActionsMenuProps {
   onDetails: () => void;
 }
 
+const COPY = MEETING_HEADER_COPY;
+
 const DOWNLOADS: ReadonlyArray<{ label: string; format: ExportFormat; scope: ExportScope }> = [
-  { label: 'Current View as Text', format: 'txt', scope: 'current' },
-  { label: 'Current View as Markdown', format: 'md', scope: 'current' },
-  { label: 'Current View as HTML', format: 'html', scope: 'current' },
-  { label: 'Full Session as Markdown', format: 'md', scope: 'all' },
-  { label: 'Full Session as JSON', format: 'json', scope: 'all' },
+  { label: COPY.downloads.currentTxt, format: 'txt', scope: 'current' },
+  { label: COPY.downloads.currentMd, format: 'md', scope: 'current' },
+  { label: COPY.downloads.currentHtml, format: 'html', scope: 'current' },
+  { label: COPY.downloads.allMd, format: 'md', scope: 'all' },
+  { label: COPY.downloads.allJson, format: 'json', scope: 'all' },
 ];
 
 async function copy(text: string, what: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(text);
-    showToast(`${what} copied`, 'success');
+    showToast(COPY.copied(what), 'success');
   } catch (error: unknown) {
     console.error('[MeetingActionsMenu] Copy failed:', error);
-    showToast(`Couldn't copy the ${what.toLowerCase()}`, 'error');
+    showToast(COPY.copyFailed(what), 'error');
   }
 }
 
@@ -49,7 +51,7 @@ async function download(result: ProcessedResult, format: ExportFormat, scope: Ex
     if (path) toastSavedFile(path);
   } catch (error: unknown) {
     console.error('[MeetingActionsMenu] Save failed:', error);
-    showToast('Failed to save file', 'error');
+    showToast(COPY.saveFailed, 'error');
   }
 }
 
@@ -59,12 +61,12 @@ function menuItems({ result, part, recordingPath, onRetranscribe, onRename, onDe
     { type: 'item', label: MEETING_HEADER_COPY.rename, onSelect: onRename },
     { type: 'item', label: MEETING_HEADER_COPY.details, onSelect: onDetails },
     { type: 'separator' },
-    ...(onRetranscribe ? [{ type: 'item' as const, label: 'Re-transcribe', symbol: MEETING_PHASE_ACTION_SYMBOL['Re-transcribe'], onSelect: onRetranscribe }, { type: 'separator' as const }] : []),
-    { type: 'label', label: 'Copy' },
-    { type: 'item', label: 'Summary', onSelect: () => void copy(result.summary, 'Summary') },
-    { type: 'item', label: 'Transcript', onSelect: () => void copy(result.transcript, 'Transcript') },
+    ...(onRetranscribe ? [{ type: 'item' as const, label: COPY.retranscribe, symbol: MEETING_PHASE_ACTION_SYMBOL['Re-transcribe'], onSelect: onRetranscribe }, { type: 'separator' as const }] : []),
+    { type: 'label', label: COPY.copy },
+    { type: 'item', label: COPY.summary, onSelect: () => void copy(result.summary, COPY.summary) },
+    { type: 'item', label: COPY.transcript, onSelect: () => void copy(result.transcript, COPY.transcript) },
     { type: 'separator' },
-    { type: 'label', label: 'Download' },
+    { type: 'label', label: COPY.download },
     ...DOWNLOADS.map(({ label, format, scope }) => ({ type: 'item' as const, label, onSelect: () => void download(result, format, scope, part) })),
     ...(platform.hasFileManager && recordingPath
       ? [{ type: 'separator' as const }, { type: 'item' as const, label: SHOW_IN_FINDER, onSelect: () => showInFinder(recordingPath) }]

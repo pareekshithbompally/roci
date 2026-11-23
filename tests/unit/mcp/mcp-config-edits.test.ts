@@ -7,7 +7,7 @@ import {
   toggleServer,
   updateSettings,
   upsertServers,
-  withScreenCode,
+  setTrust,
 } from '@features/settings/components/mcp/mcpConfigEdits';
 import {
   configFromForm,
@@ -15,7 +15,7 @@ import {
   maskUrl,
   parseServerEntries,
   serverStatus,
-  validateForm,
+  isComplete,
   EMPTY_FORM,
 } from '@features/settings/components/mcp/mcpServerForm';
 
@@ -75,6 +75,23 @@ describe('mcpConfigEdits', () => {
     expect(applyJson(current, current).affected).toEqual([]);
     const edited = { ...current.mcpServers, b: stdio({ active: false, command: 'uvx' }) };
     expect(applyJson(current, { mcpServers: edited }).affected).toEqual(['b']);
+    const newKey = { ...current.mcpServers, a: stdio({ active: true, env: { KEY: 'v' } }) };
+    expect(applyJson(current, { mcpServers: newKey }).affected).toEqual(['a']);
+  });
+
+  it('settings alone keep every server', () => {
+    const { next, affected } = applyJson(config(), { mcpSettings: { allowAllTools: true } });
+    expect(Object.keys(next.mcpServers)).toEqual(['a', 'b']);
+    expect(affected).toEqual([]);
+  });
+
+  it('checks each server, as a pasted one is', () => {
+    expect(() => applyJson(config(), { x: 'oops' })).toThrow(/must be an object/);
+  });
+
+  it('a new server starts on even when a failed first try saved it off', () => {
+    const failed = { ...config(), mcpServers: { ...config().mcpServers, c: stdio({ active: false }) } };
+    expect(upsertServers(failed, null, [['c', stdio()]]).next.mcpServers.c.active).toBe(true);
   });
 
   it('rejects non-object JSON', () => {
@@ -85,7 +102,7 @@ describe('mcpConfigEdits', () => {
 describe('mcpServerForm', () => {
   it('round-trips stdio config through the form', () => {
     const original = stdio({ env: { KEY: 'v' }, active: true });
-    const back = configFromForm(formFromConfig('s', original), original);
+    const back = configFromForm(formFromConfig('s', original, false), original);
     expect(back).toMatchObject({ type: 'stdio', command: 'npx', args: ['-y', 'x'], env: { KEY: 'v' }, active: true });
   });
 
@@ -94,17 +111,17 @@ describe('mcpServerForm', () => {
     expect(cfg).toMatchObject({ type: 'http', url: 'https://x/mcp', headers: { Authorization: 'Bearer t' }, timeout: 10, command: '' });
   });
 
-  it('validates required fields per transport', () => {
-    expect(validateForm(EMPTY_FORM)).toBe('Enter a server name.');
-    expect(validateForm({ ...EMPTY_FORM, name: 'x' })).toMatch(/command/);
-    expect(validateForm({ ...EMPTY_FORM, name: 'x', transport: 'sse' })).toMatch(/URL/);
-    expect(validateForm({ ...EMPTY_FORM, name: 'x', command: 'npx' })).toBeNull();
+  it('is complete with a name and the command or address its transport needs', () => {
+    expect(isComplete({ ...EMPTY_FORM, transport: 'stdio', name: 'x' })).toBe(false);
+    expect(isComplete({ ...EMPTY_FORM, transport: 'stdio', name: 'x', command: 'npx' })).toBe(true);
+    expect(isComplete({ ...EMPTY_FORM, transport: 'http', name: 'x', url: 'https://x/mcp' })).toBe(true);
   });
 
   it('parses README-style JSON and rejects unnamed configs', () => {
     const entries = parseServerEntries('{"mcpServers":{"fs":{"command":"npx","args":["a"]}}}');
     expect(entries).toEqual([['fs', { command: 'npx', args: ['a'], env: {} }]]);
     expect(() => parseServerEntries('{"command":"npx"}')).toThrow(/server name/);
+    expect(parseServerEntries('{"docs":{"url":"https://x/mcp"}}')[0][1].type).toBe('http');
     expect(() => parseServerEntries('{"x":{"type":"ws","url":"u"}}')).toThrow(/unknown type/);
   });
 
@@ -121,12 +138,11 @@ describe('mcpServerForm', () => {
   });
 });
 
-describe('withScreenCode', () => {
-  it('turns advanced screens on or off for one server only, and reconnects nothing', () => {
-    const { next, affected } = withScreenCode(config(), 'a', true);
-    expect(next.mcpServers.a.allowScreenCode).toBe(true);
-    expect(next.mcpServers.b.allowScreenCode).toBeUndefined();
-    expect(affected).toEqual([]);
-    expect(withScreenCode(next, 'a', false).next.mcpServers.a.allowScreenCode).toBe(false);
+describe('setTrust', () => {
+  it('sets one server\'s always allow on top of another edit', () => {
+    const vars = setTrust({ next: config(), affected: ['a'] }, 'b', true);
+    expect(vars.next.mcpSettings.trustedServers).toContain('b');
+    expect(vars.affected).toEqual(['a']);
+    expect(setTrust(vars, 'b', false).next.mcpSettings.trustedServers).not.toContain('b');
   });
 });

@@ -29,11 +29,6 @@ export const ImportProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     });
   }
 
-  // Keep onMeetingSaved callback fresh
-  useEffect(() => {
-    serviceRef.current?.setOnMeetingSaved(refreshItems);
-  }, []);
-
   // Update concurrency when settings change
   useEffect(() => {
     serviceRef.current?.updateConcurrency(settings);

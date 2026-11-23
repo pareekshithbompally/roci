@@ -2,6 +2,7 @@ import { Loader2, Search } from 'lucide-react';
 import { cn } from './utils';
 import { Icon } from './icon';
 import { LITERAL_TEXT, SEARCH_FIELD } from './recipes';
+import { KIT_COPY } from '@config/kitCopy.config';
 
 export interface SearchFieldProps {
   value: string;
@@ -17,7 +18,7 @@ export interface SearchFieldProps {
 
 /** The system search field (UISearchBar / NSSearchField look): a filled rounded bar with a magnifier; `type="search"`
  *  gives the platform's own clear button and Search key. */
-export function SearchField({ value, onChange, onCancel, placeholder = 'Search', autoFocus, busy, className }: SearchFieldProps) {
+export function SearchField({ value, onChange, onCancel, placeholder = KIT_COPY.search, autoFocus, busy, className }: SearchFieldProps) {
   return (
     <div className={cn(SEARCH_FIELD, 'min-w-0', className)}>
       <Icon icon={Search} size="sm" />

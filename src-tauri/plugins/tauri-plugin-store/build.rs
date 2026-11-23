@@ -32,9 +32,6 @@ const COMMANDS: &[&str] = &[
     "knowledge_graph",
     // Categories
     "categories_list",
-    "categories_rename",
-    "categories_create",
-    "categories_delete",
     // Chat domain
     "items_page",
     "items_by_id",
@@ -66,7 +63,6 @@ const COMMANDS: &[&str] = &[
     "settings_set",
     "providers_list",
     "providers_upsert",
-    "providers_set_active",
     "providers_delete",
     // RAG indexing (meeting)
     // RAG indexing (chat)

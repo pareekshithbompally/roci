@@ -39,6 +39,10 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   /** Row state, always right-aligned just before `actions` so states line up down a card. */
   status?: React.ReactNode;
   actions?: React.ReactNode;
+  /** What the row is set to, at its end (iOS): part of the row, so tapping it opens the row; a long one truncates. */
+  value?: string;
+  /** Stands in, fainter, while there is no `value`. */
+  valuePlaceholder?: string;
   /** Control below the copy instead of beside it (wide editors, lists). */
   stacked?: boolean;
   /** The description wraps in full instead of truncating to one line (attributions, notices). */
@@ -86,12 +90,13 @@ export function CardRow({ action, ...props }: CardRowProps) {
   );
 }
 
-function RowBody({ title, description, leading, status, actions, stacked, wrap, align = 'center', onOpen, onPress, tone, disabled, phone, className, children, ...props }: Omit<CardRowProps, 'action'> & { phone: boolean }) {
+function RowBody({ title, description, leading, status, actions, value, valuePlaceholder, stacked, wrap, align = 'center', onOpen, onPress, tone, disabled, phone, className, children, ...props }: Omit<CardRowProps, 'action'> & { phone: boolean }) {
   const press = disabled ? undefined : onOpen ?? onPress;
   // A phone row holds one trailing thing: with controls at the side, its state reads under the title instead.
   const statusBeside = status && !(phone && actions);
   const chevron = onOpen && <Icon icon={ChevronRight} size="sm" className="shrink-0 text-faint" />;
-  const trailing = statusBeside || actions || chevron;
+  const shownValue = value || valuePlaceholder;
+  const trailing = statusBeside || actions || shownValue || chevron;
   return (
     <div
       {...(press && { role: 'button', tabIndex: 0, onClick: press, onKeyDown: activateOnKey(press) })}
@@ -121,7 +126,7 @@ function RowBody({ title, description, leading, status, actions, stacked, wrap, 
       >
       {/* Title first (iOS / macOS lists): beside controls it keeps its space and the controls truncate; beside a status
           only, the status keeps its one line and the title side truncates instead. */}
-      <div className={cn('flex min-w-0', trailing && !stacked ? cn('max-w-[70%]', actions ? 'shrink-0' : 'shrink') : 'flex-1')}>
+      <div className={cn('flex min-w-0', trailing && !stacked ? cn('max-w-[70%]', actions || shownValue ? 'shrink-0' : 'shrink') : 'flex-1')}>
         <div className="min-w-0">
           <Text as="p" variant="body" tone={tone} truncate>{title}</Text>
           {description && <Text as="p" variant="helper" tone="muted" truncate={!wrap} className="mt-0.5">{description}</Text>}
@@ -129,8 +134,9 @@ function RowBody({ title, description, leading, status, actions, stacked, wrap, 
         </div>
       </div>
       {trailing && (
-        <div className={cn('flex items-center gap-3', actions && 'min-w-0', !stacked && 'flex-1 justify-end')}>
+        <div className={cn('flex items-center gap-3', (actions || shownValue) && 'min-w-0', !stacked && 'flex-1 justify-end')}>
           {statusBeside && <div className="flex shrink-0 items-center gap-2">{status}</div>}
+          {shownValue && <Text variant="figure" tone={value ? 'muted' : 'faint'} truncate>{shownValue}</Text>}
           {/* Controls shrink to the row (a long value truncates) instead of spilling past the card; using one never presses
               the row itself. */}
           {actions && (
@@ -162,7 +168,7 @@ export function Section({ title, accessory, layout = 'card', footer, className, 
     <section className={cn('flex flex-col gap-2', className)} {...props}>
       {(title || accessory) && (
         <div className="flex items-center justify-between gap-2 min-h-4 mx-4">
-          {title && <Text as="h2" variant="section" tone="muted">{title}</Text>}
+          {title && <Text as="h2" variant="section" tone="muted" className="shrink-0">{title}</Text>}
           {accessory}
         </div>
       )}

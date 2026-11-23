@@ -17,21 +17,10 @@ import { TimeGrid } from './TimeGrid';
 import { EventPopover } from './EventPopover';
 import { calendarService, type CalendarEvent } from '@services/calendar';
 
-const OFF = {
-  icon: CalendarDays,
-  message: 'Calendar integration is not enabled',
-  description: 'Enable calendar integration in Settings to see your upcoming events.',
-};
-const READ_FAILED = {
-  icon: CircleAlert,
-  message: "Couldn't read your calendar",
-  description: 'macOS did not return your events. Try again, or check Calendar access in System Settings.',
-};
-const NO_ACCESS = {
-  icon: Lock,
-  message: 'Calendar access is off',
-  description: 'Allow Roci to read your calendars to see your events here.',
-};
+const { states } = CALENDAR_CONFIG;
+const OFF = { icon: CalendarDays, ...states.off };
+const READ_FAILED = { icon: CircleAlert, ...states.readFailed };
+const NO_ACCESS = { icon: Lock, ...states.noAccess };
 
 export const CalendarView: React.FC = () => {
   const { openSettings } = useAppActions();

@@ -11,7 +11,6 @@ export interface Job<T> {
 export interface JobQueueOptions {
   concurrency: number;
   onJobUpdate: (jobId: string, status: JobStatus, detail?: string) => void;
-  onComplete: () => void;
 }
 
 interface InternalJob<T> extends Job<T> {
@@ -24,12 +23,10 @@ export class JobQueue<T> {
   private active = new Map<string, InternalJob<T>>();
   private concurrency: number;
   private onJobUpdate: JobQueueOptions['onJobUpdate'];
-  private onComplete: JobQueueOptions['onComplete'];
 
   constructor(options: JobQueueOptions) {
     this.concurrency = options.concurrency;
     this.onJobUpdate = options.onJobUpdate;
-    this.onComplete = options.onComplete;
   }
 
   enqueue(job: Job<T>): void {
@@ -88,18 +85,10 @@ export class JobQueue<T> {
     this.drain();
   }
 
-  get pendingCount(): number {
-    return this.queue.length + this.active.size;
-  }
-
   private drain(): void {
     while (this.active.size < this.concurrency && this.queue.length > 0) {
       const job = this.queue.shift()!;
       this.runJob(job);
-    }
-
-    if (this.active.size === 0 && this.queue.length === 0) {
-      this.onComplete();
     }
   }
 

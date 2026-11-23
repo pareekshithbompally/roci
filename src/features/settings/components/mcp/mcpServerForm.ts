@@ -1,6 +1,6 @@
 /** Pure MCP form helpers: config ⇄ form state, validation, JSON entry parsing, and secret masking. */
 
-import { MCP_CONFIG } from '@config/mcp.config';
+import { MCP_CONFIG, MCP_COPY } from '@config/mcp.config';
 import { isRecord } from '@shared/utils/validators';
 import type { McpServerConfig, McpTransport } from '@config/mcp.config';
 import { pairsToRecord } from '@features/settings/components/shared';
@@ -15,7 +15,12 @@ export interface McpServerForm {
   env: KeyValuePair[];
   url: string;
   headers: KeyValuePair[];
+  /** Seconds; empty leaves it to Roci. */
   timeout: string;
+  /** Its tools run without asking. */
+  alwaysAllow: boolean;
+  /** Its screens may run advanced code. */
+  allowScreenCode: boolean;
 }
 
 export type McpServerEntry = [name: string, config: McpServerConfig];
@@ -32,9 +37,11 @@ export const EMPTY_FORM: McpServerForm = {
   url: '',
   headers: [],
   timeout: '',
+  alwaysAllow: false,
+  allowScreenCode: false,
 };
 
-export function formFromConfig(name: string, config: McpServerConfig): McpServerForm {
+export function formFromConfig(name: string, config: McpServerConfig, alwaysAllow: boolean): McpServerForm {
   return {
     name,
     transport: config.type ?? 'stdio',
@@ -44,14 +51,17 @@ export function formFromConfig(name: string, config: McpServerConfig): McpServer
     url: config.url ?? '',
     headers: Object.entries(config.headers ?? {}),
     timeout: config.timeout ? String(config.timeout) : '',
+    alwaysAllow,
+    allowScreenCode: !!config.allowScreenCode,
   };
 }
 
 /** Build the config, keeping unknown fields (and `active`) of the edited entry. */
 export function configFromForm(form: McpServerForm, base?: McpServerConfig): McpServerConfig {
+  const kept = { ...base, allowScreenCode: form.allowScreenCode || undefined };
   if (form.transport === 'stdio') {
     return {
-      ...base,
+      ...kept,
       type: 'stdio',
       command: form.command.trim(),
       args: form.args.map((a) => a.trim()).filter(Boolean),
@@ -64,7 +74,7 @@ export function configFromForm(form: McpServerForm, base?: McpServerConfig): Mcp
   const headers = pairsToRecord(form.headers);
   const timeout = Number.parseInt(form.timeout, 10);
   return {
-    ...base,
+    ...kept,
     type: form.transport,
     command: '',
     args: [],
@@ -75,12 +85,20 @@ export function configFromForm(form: McpServerForm, base?: McpServerConfig): Mcp
   };
 }
 
-/** First problem with the form, or null when it can be saved. */
-export function validateForm(form: McpServerForm): string | null {
-  if (!form.name.trim()) return 'Enter a server name.';
-  if (form.transport === 'stdio' && !form.command.trim()) return 'Enter the command that starts the server.';
-  if (form.transport !== 'stdio' && !form.url.trim()) return 'Enter the server URL.';
-  return null;
+/** The form has what a server needs: a name, and its command or address. */
+export function isComplete(form: McpServerForm): boolean {
+  const reach = form.transport === 'stdio' ? form.command : form.url;
+  return form.name.trim() !== '' && reach.trim() !== '';
+}
+
+/** The connect timeout's choices, with the saved one in order when it isn't one of them. */
+export function connectTimeoutOptions(current: string) {
+  const { defaultValue, defaultLabel, values } = MCP_CONFIG.connectTimeout;
+  const seconds = [...new Set<number>([...values, ...(current ? [Number(current)] : [])])].sort((a, b) => a - b);
+  return [
+    { value: defaultValue, label: defaultLabel },
+    ...seconds.map((s) => ({ value: String(s), label: MCP_CONFIG.limitChoices.toolCallTimeoutSeconds.label(s) })),
+  ];
 }
 
 const TRANSPORTS: readonly string[] = MCP_CONFIG.transports.map((t) => t.value);
@@ -88,20 +106,25 @@ const TRANSPORTS: readonly string[] = MCP_CONFIG.transports.map((t) => t.value);
 /** Parse `{ "<name>": { command|url, ... } }` (optionally wrapped in `mcpServers`); throws a readable Error. */
 export function parseServerEntries(text: string): McpServerEntry[] {
   const parsed: unknown = JSON.parse(text);
-  if (!isRecord(parsed)) throw new Error('Expected a JSON object of servers.');
-  const servers = isRecord(parsed.mcpServers) ? parsed.mcpServers : parsed;
+  if (!isRecord(parsed)) throw new Error(MCP_COPY.json.notObject);
+  return serverEntries(isRecord(parsed.mcpServers) ? parsed.mcpServers : parsed);
+}
+
+/** Checks each server of a `{ "<name>": {…} }` object; one given by its address alone is a remote (HTTP) server. */
+export function serverEntries(servers: Record<string, unknown>): McpServerEntry[] {
   if ('command' in servers || 'url' in servers) {
-    throw new Error('Wrap the config in its server name: { "my-server": { "command": … } }');
+    throw new Error(MCP_COPY.json.unwrapped);
   }
   return Object.entries(servers).map(([rawName, value]) => {
     const name = rawName.trim();
-    if (!name) throw new Error('Every server needs a non-empty name.');
-    if (!isRecord(value)) throw new Error(`"${name}" must be an object.`);
+    if (!name) throw new Error(MCP_COPY.json.noName);
+    if (!isRecord(value)) throw new Error(MCP_COPY.json.notServer(name));
     const type = value.type;
     if (type !== undefined && !TRANSPORTS.includes(String(type))) {
-      throw new Error(`"${name}" has unknown type "${String(type)}" (use stdio, http, or sse).`);
+      throw new Error(MCP_COPY.json.unknownType(name, String(type)));
     }
-    return [name, { args: [], env: {}, command: '', ...value } as McpServerConfig];
+    const remote = type === undefined && typeof value.url === 'string' && !value.command;
+    return [name, { args: [], env: {}, command: '', ...(remote && { type: 'http' }), ...value } as McpServerConfig];
   });
 }
 

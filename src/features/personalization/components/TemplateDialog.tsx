@@ -34,6 +34,7 @@ export const TemplateDialog: React.FC<TemplateDialogProps> = ({ id, label, onClo
       onOpenChange={(open) => !open && onClose()}
       title={COPY.edit(label)}
       error={tooLong ? COPY.tooLong(limits.template) : null}
+      dirty={text !== (templates[id] ?? fallback)}
       submit={{ label: COPY.save, onPress: save, disabled: tooLong || !text.trim() }}
       aside={{ label: COPY.reset, onPress: () => setText(fallback), disabled: text === fallback }}
     >

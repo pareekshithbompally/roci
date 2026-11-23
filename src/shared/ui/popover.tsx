@@ -5,6 +5,7 @@ import { cn } from './utils';
 import { FLOATING_SURFACE, NO_INSETS, SCRIM } from './recipes';
 import { useFormFactor } from '@platform/formFactor';
 import { SheetContent } from './bottom-sheet';
+import { KIT_COPY } from '@config/kitCopy.config';
 
 /**
  * A popover on a Mac (NSPopover-like, beside its trigger); on a phone a bottom sheet, as iOS presents detail.
@@ -50,7 +51,7 @@ export interface PopoverContentProps extends ComponentProps<typeof PopoverPrimit
 }
 
 
-export function PopoverContent({ className, sideOffset = 4, width = 'lg', label = 'Details', children, ...props }: PopoverContentProps) {
+export function PopoverContent({ className, sideOffset = 4, width = 'lg', label = KIT_COPY.details, children, ...props }: PopoverContentProps) {
   if (useContext(AsSheet)) {
     return (
       <DialogPrimitive.Portal>

@@ -1,12 +1,10 @@
 //! macOS: the full app (menu bar, shortcuts, audio capture, MCP, coding agents …).
 
 use crate::{
-  app_icon, app_intents, audio, autostart, call_detection, choice_menu, downloads, hex, mcp, mcp_server, meeting_reminders, meeting_spotlight, search_index,
+  app_icon, app_intents, audio, call_detection, choice_menu, downloads, hex, mcp, mcp_server, meeting_reminders, meeting_spotlight, search_index,
   menubar, mlx, models, native_alert, open_native, permissions, screenshot, shortcuts, stt, system_format, tts, updates, url_actions, window,
 };
-use std::sync::Mutex;
-use tauri::{App, AppHandle, Builder, Emitter, Manager, RunEvent, WebviewWindowBuilder, Wry};
-use tauri_plugin_autostart::MacosLauncher;
+use tauri::{App, AppHandle, Builder, Emitter, RunEvent, WebviewWindowBuilder, Wry};
 
 /// The main window's webview takes web downloads.
 pub fn extend_window(window: WebviewWindowBuilder<'_, Wry, AppHandle>) -> WebviewWindowBuilder<'_, Wry, AppHandle> {
@@ -20,16 +18,9 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
     .plugin(tauri_plugin_apple_notes::init())
     .plugin(tauri_plugin_core_spotlight::init())
     .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-    .plugin(tauri_plugin_autostart::init(
-      MacosLauncher::LaunchAgent,
-      Some(vec!["--minimized"]),
-    ))
     .plugin(tauri_plugin_window_state::Builder::new().build())
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_deep_link::init())
-    .manage(shortcuts::ShortcutState {
-      registered: Mutex::new(Vec::new()),
-    })
     .manage(mcp::McpState::default())
     .manage(mcp::AppScreens::default())
     .manage(mcp_server::McpHostState::default())
@@ -42,29 +33,11 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
     .invoke_handler(tauri::generate_handler![
       // Shortcut commands
       shortcuts::register_shortcut,
-      shortcuts::unregister_shortcut,
-      shortcuts::unregister_all_shortcuts,
-      shortcuts::is_shortcut_registered,
-      // Window commands
-      window::get_window_state,
-      window::save_window_state,
-      window::show_window,
-      window::hide_window,
-      window::toggle_window,
-      window::set_always_on_top,
-      // Autostart commands
-      autostart::enable_autostart,
-      autostart::disable_autostart,
-      autostart::is_autostart_enabled,
       // Menubar commands (backend owns tray icon, menu, visibility)
       menubar::menubar_set_recording_state,
       menubar::menubar_set_speech_models,
       menubar::menubar_set_activity,
       menubar::menubar_set_recent_meetings,
-      menubar::menubar_set_tooltip,
-      menubar::menubar_set_visible,
-      menubar::menubar_set_prefs,
-      menubar::menubar_get_state,
       menubar::menubar_quit,
       // Audio capture commands (macOS)
       audio::commands::start_audio_capture,
@@ -189,13 +162,6 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
   meeting_spotlight::start(app.handle().clone());
   // Search: meetings and chats are indexed in Rust as they're saved.
   search_index::start(app.handle().clone());
-
-  // Login-item / autostart launches pass --minimized: start hidden.
-  if std::env::args().any(|arg| arg == "--minimized")
-    && let Some(window) = app.handle().get_webview_window("main")
-  {
-    let _ = window.hide();
-  }
 
   Ok(())
 }

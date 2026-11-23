@@ -46,6 +46,7 @@ export const MemoryDialog: React.FC<MemoryDialogProps> = ({ memory, entities, on
       onOpenChange={(open) => !open && onClose()}
       title={memory ? COPY.edit : COPY.add}
       size="md"
+      dirty={text !== (memory?.text ?? '')}
       submit={{ label: COPY.save, onPress: save, disabled: !ready }}
     >
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (ready) save(); }}>

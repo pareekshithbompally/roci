@@ -2,6 +2,9 @@
 
 import React, { Component, type ReactNode } from 'react';
 import { Button, Callout, Surface, Text } from '@shared/ui';
+import { PROVIDER_COPY } from '@config/settingsCopy.config';
+
+const COPY = PROVIDER_COPY.crashed;
 
 interface Props {
   children: ReactNode;
@@ -26,14 +29,9 @@ export class ProvidersPanelErrorBoundary extends Component<Props, State> {
     console.error('[ProvidersPanelErrorBoundary] Caught error:', error, errorInfo);
   }
 
-  handleReset = (): void => {
+  /** Shows the panel again; the providers in roci.db are left as they are. */
+  handleRetry = (): void => {
     this.setState({ hasError: false, error: null });
-    try {
-      localStorage.removeItem('roci_model_providers');
-      window.location.reload();
-    } catch (error) {
-      console.error('[ProvidersPanelErrorBoundary] Failed to reset:', error);
-    }
   };
 
   render(): ReactNode {
@@ -45,29 +43,20 @@ export class ProvidersPanelErrorBoundary extends Component<Props, State> {
           <Callout variant="error">
             <div className="space-y-4">
               <div>
-                <Text as="h3" variant="title" tone="inherit" className="mb-2">Provider Settings Error</Text>
-                <Text as="p" tone="inherit">
-                  An error occurred while loading the provider settings. This might be due to corrupted data.
-                </Text>
+                <Text as="h3" variant="title" tone="inherit" className="mb-2">{COPY.title}</Text>
+                <Text as="p" tone="inherit">{COPY.description}</Text>
               </div>
               {this.state.error && (
                 <details>
                   <summary className="cursor-pointer hover:underline">
-                    <Text variant="helper" tone="inherit">Error details</Text>
+                    <Text variant="helper" tone="inherit">{COPY.details}</Text>
                   </summary>
                   <Surface variant="subtle" radius="md" className="mt-2 p-2 overflow-auto">
                     <Text as="p" variant="mono" tone="inherit" className="whitespace-pre-wrap">{this.state.error.message}</Text>
                   </Surface>
                 </details>
               )}
-              <div className="space-y-2">
-                <Button variant="danger" size="md" className="w-full" onClick={this.handleReset}>
-                  Reset Provider Settings
-                </Button>
-                <Text as="p" variant="helper" tone="inherit">
-                  This will clear all provider configurations and reload the page.
-                </Text>
-              </div>
+              <Button variant="outline" size="md" className="w-full" onClick={this.handleRetry}>{COPY.retry}</Button>
             </div>
           </Callout>
         </div>

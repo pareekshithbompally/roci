@@ -26,6 +26,7 @@ export const SavedPromptDialog: React.FC<SavedPromptDialogProps> = ({ saved, onS
       open
       onOpenChange={(open) => !open && onClose()}
       title={saved ? COPY.edit : COPY.add}
+      dirty={name !== (saved?.name ?? '') || prompt !== (saved?.prompt ?? '')}
       submit={{ label: COPY.save, onPress: save, disabled: !ready }}
     >
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (ready) save(); }}>

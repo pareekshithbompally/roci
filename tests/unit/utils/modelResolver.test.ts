@@ -17,7 +17,6 @@ import {
   resolveModel,
   selectableSources,
   resolveChatModel,
-  getAllActiveModels,
 } from '@shared/utils/modelResolver';
 
 // ── Helpers ─────────────────────────────────────────────────────
@@ -164,63 +163,6 @@ describe('resolveChatModel', () => {
     const resolved = resolveChatModel({ chatModel: 'openai::gpt-4o' } as any, providers as any);
 
     expect(requiresApiKey(resolved!)).toBe(true);
-  });
-});
-
-// ── getAllActiveModels ───────────────────────────────────────────
-
-describe('getAllActiveModels', () => {
-  it('collects models from active providers', () => {
-    const providers = [
-      makeProvider('openai', true, [makeModel('gpt-4o', 'GPT-4o')]),
-      makeProvider('anthropic', true, [makeModel('claude-3', 'Claude 3')]),
-    ];
-    const models = getAllActiveModels(providers as any);
-
-    expect(models).toHaveLength(2);
-    expect(models[0]).toEqual({
-      id: 'gpt-4o',
-      name: 'GPT-4o',
-      provider: 'openai',
-      providerName: 'OpenAI',
-    });
-    expect(models[1]).toEqual({
-      id: 'claude-3',
-      name: 'Claude 3',
-      provider: 'anthropic',
-      providerName: 'Anthropic',
-    });
-  });
-
-  it('skips inactive providers', () => {
-    const providers = [
-      makeProvider('openai', false, [makeModel('gpt-4o')]),
-      makeProvider('anthropic', true, [makeModel('claude-3')]),
-    ];
-    const models = getAllActiveModels(providers as any);
-
-    expect(models).toHaveLength(1);
-    expect(models[0].provider).toBe('anthropic');
-  });
-
-  it('returns empty array when no active providers', () => {
-    const providers = [makeProvider('openai', false, [makeModel('gpt-4o')])];
-    expect(getAllActiveModels(providers as any)).toEqual([]);
-  });
-
-  it('returns empty array for empty providers list', () => {
-    expect(getAllActiveModels([])).toEqual([]);
-  });
-
-  it('handles providers with no models', () => {
-    const providers = [makeProvider('openai', true, [])];
-    expect(getAllActiveModels(providers as any)).toEqual([]);
-  });
-
-  it('handles provider with undefined models array', () => {
-    const provider = makeProvider('openai', true);
-    (provider as any).models = undefined;
-    expect(getAllActiveModels([provider] as any)).toEqual([]);
   });
 });
 

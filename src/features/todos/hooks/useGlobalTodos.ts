@@ -9,9 +9,6 @@ import { reminderService } from '@services/reminder.service';
 import { queryKeys } from '@shared/query/queryKeys';
 import { remindersSync } from '@services/reminders';
 
-/** @deprecated Use GlobalTodoEntry from @services/db */
-export type GlobalTodo = GlobalTodoEntry;
-
 export type TodoFilter = 'all' | 'pending' | 'completed';
 
 interface MeetingGroup {
@@ -23,8 +20,6 @@ interface MeetingGroup {
 }
 
 export interface UseGlobalTodosReturn {
-  /** Flat list of all todos (filtered) */
-  todos: GlobalTodoEntry[];
   /** Todos grouped by meeting */
   groups: MeetingGroup[];
   /** Active filter */
@@ -252,7 +247,6 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
   }, [filtered]);
 
   return {
-    todos: filtered,
     groups,
     filter,
     setFilter,

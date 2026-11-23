@@ -20,4 +20,3 @@ export * from './file.utils';
 export * from './provider.utils';
 
 // VTT parser utilities
-export * from './vtt.utils';

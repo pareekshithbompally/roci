@@ -17,20 +17,3 @@ export function useSmallScreen() {
 
   return isSmallScreen;
 }
-
-export function useMobileScreen() {
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined' ? window.innerWidth <= BREAKPOINTS.sm : false
-  );
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= BREAKPOINTS.sm);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  return isMobile;
-}

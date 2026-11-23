@@ -1,7 +1,7 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import type { ComponentProps, HTMLAttributes } from 'react';
 import { cn } from './utils';
-import { SCRIM, SHEET, SHEET_TITLE, SHEET_DESCRIPTION } from './recipes';
+import { SCRIM, SHEET, SHEET_TITLE } from './recipes';
 import { ScrollArea } from './scroll-area';
 import { SheetContent } from './bottom-sheet';
 import { useFormFactor } from '@platform/formFactor';
@@ -42,10 +42,6 @@ export function DialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElem
 
 export function DialogTitle({ className, ...props }: ComponentProps<typeof DialogPrimitive.Title>) {
   return <DialogPrimitive.Title className={cn(SHEET_TITLE, className)} {...props} />;
-}
-
-export function DialogDescription({ className, ...props }: ComponentProps<typeof DialogPrimitive.Description>) {
-  return <DialogPrimitive.Description className={cn(SHEET_DESCRIPTION, className)} {...props} />;
 }
 
 /** The scrolling middle of a `scrollable` sheet, between header and footer. */

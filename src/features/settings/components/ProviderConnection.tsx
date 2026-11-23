@@ -11,6 +11,8 @@ import type { ConnectionStatus, ProviderConnection as Connection } from '@featur
 import { renderWithLinks } from '@shared/components';
 import { formatRelativeTime } from '@shared/utils/formatters';
 import { FieldRow } from '@shared/components';
+import { PROVIDER_COPY } from '@config/settingsCopy.config';
+import { META_SEPARATOR } from '@config/ui.config';
 
 interface ProviderConnectionProps {
   provider: ModelProvider;
@@ -24,27 +26,29 @@ interface StatusView {
   pulse?: boolean;
 }
 
-const modelCount = (n: number) => `${n} ${n === 1 ? 'model' : 'models'}`;
+const COPY = PROVIDER_COPY;
+const { modelCount } = COPY;
+const STATE = COPY.state;
 
 function statusView(status: ConnectionStatus): StatusView {
   switch (status.state) {
     case 'incomplete':
-      return { label: 'Not set up', tone: 'muted' };
+      return { label: STATE.notSetUp, tone: 'muted' };
     case 'untested':
-      return { label: 'Not tested', tone: 'muted' };
+      return { label: STATE.notTested, tone: 'muted' };
     case 'checking':
-      return { label: 'Checking…', tone: 'info', pulse: true };
+      return { label: STATE.checking, tone: 'info', pulse: true };
     case 'connected':
-      return { label: `Connected · ${modelCount(status.models.length)}`, tone: 'success' };
+      return { label: [STATE.connected, modelCount(status.models.length)].join(META_SEPARATOR), tone: 'success' };
     case 'failed':
-      return { label: 'Failed', tone: 'danger' };
+      return { label: STATE.failed, tone: 'danger' };
     case 'checked': {
       // a test from an earlier session, said with when it ran
       const { ok, at, models } = status.check;
-      const when = `tested ${formatRelativeTime(at)}`;
+      const when = COPY.tested(formatRelativeTime(at));
       return ok
-        ? { label: ['Connected', models === undefined ? null : modelCount(models), when].filter(Boolean).join(' · '), tone: 'success' }
-        : { label: `Failed · ${when}`, tone: 'danger' };
+        ? { label: [STATE.connected, models === undefined ? null : modelCount(models), when].filter(Boolean).join(META_SEPARATOR), tone: 'success' }
+        : { label: [STATE.failed, when].join(META_SEPARATOR), tone: 'danger' };
     }
   }
 }
@@ -52,8 +56,8 @@ function statusView(status: ConnectionStatus): StatusView {
 function testDescription(status: ConnectionStatus, title: string, needsUrl: boolean): string {
   if (status.state === 'failed') return status.message;
   if (status.state === 'checked' && !status.check.ok && status.check.message) return status.check.message;
-  if (status.state === 'incomplete') return needsUrl ? 'Add the base URL and API key, then Test.' : 'Add your API key, then Test.';
-  return `Checks your key by listing ${title}'s models.`;
+  if (status.state === 'incomplete') return needsUrl ? COPY.needsUrlAndKey : COPY.needsKey;
+  return COPY.testExplains(title);
 }
 
 /** The key's state as a value, then Test Connection as a tinted action row (iOS). */
@@ -62,8 +66,8 @@ const TestRows: React.FC<{ connection: Connection }> = ({ connection: { status, 
   const canTest = status.state !== 'incomplete' && status.state !== 'checking';
   return (
     <>
-      <CardRow title="Status" actions={<Status tone={tone} pulse={pulse}>{label}</Status>} />
-      <CardRow title="Test Connection" tone={canTest ? 'accent' : undefined} onPress={canTest ? test : undefined} />
+      <CardRow title={COPY.status} actions={<Status tone={tone} pulse={pulse}>{label}</Status>} />
+      <CardRow title={COPY.testConnection} tone={canTest ? 'accent' : undefined} onPress={canTest ? test : undefined} />
     </>
   );
 };
@@ -79,7 +83,7 @@ export const ProviderConnection: React.FC<ProviderConnectionProps> = ({ provider
 
   return (
     <Section
-      title="Connection"
+      title={COPY.connection}
       footer={(
         <>
           {fieldHelp.map((help, i) => <React.Fragment key={i}>{renderWithLinks(help)} </React.Fragment>)}

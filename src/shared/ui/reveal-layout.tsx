@@ -3,6 +3,7 @@ import { cn, dismissKeyboard } from './utils';
 import { Surface } from './surface';
 import { UI_CONFIG } from '@config/ui.config';
 import { commits, useTouchDrag } from './touch-drag';
+import { KIT_COPY } from '@config/kitCopy.config';
 
 export interface RevealLayoutProps {
   open: boolean;
@@ -93,7 +94,7 @@ export function RevealLayout({ open, onOpen, onClose, pane, paneLabel, children 
         )}
       >
         {children}
-        {open && <button type="button" aria-label={`Close ${paneLabel}`} className="absolute inset-0 z-50 cursor-default" onClick={onClose} />}
+        {open && <button type="button" aria-label={KIT_COPY.closeNamed(paneLabel)} className="absolute inset-0 z-50 cursor-default" onClick={onClose} />}
       </div>
     </Surface>
   );

@@ -234,7 +234,3 @@ export const BREAKPOINTS = {
   '2xl': 1536,
 } as const;
 
-export function isAboveBreakpoint(width: number, breakpoint: keyof typeof BREAKPOINTS): boolean {
-  return width >= BREAKPOINTS[breakpoint];
-}
-

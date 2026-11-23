@@ -25,14 +25,3 @@ export async function getTauriEnvironment(): Promise<TauriEnvironment> {
     return { isTauri: true };
   }
 }
-
-/** Runs `fn` only in Tauri, else the optional fallback. */
-export async function whenTauri<T>(
-  fn: () => T | Promise<T>,
-  fallback?: () => T | Promise<T>
-): Promise<T | undefined> {
-  if (isTauriEnvironment()) {
-    return await fn();
-  }
-  return fallback ? await fallback() : undefined;
-}

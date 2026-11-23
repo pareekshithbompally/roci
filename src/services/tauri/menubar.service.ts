@@ -1,7 +1,7 @@
 /** Frontend sync for the Rust-owned tray: menu actions in; what only the webview knows out (recording, models, jobs, recent meetings). */
 
 import { invoke } from '@tauri-apps/api/core';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { listen } from '@tauri-apps/api/event';
 import { isTauriEnvironment } from './environment.service';
 import { platform } from '@platform/index';
 import type { TrayAction } from './types';
@@ -20,14 +20,6 @@ export interface MenubarRecentMeeting {
   title: string;
 }
 
-export interface MenubarState {
-  recording: boolean;
-  paused: boolean;
-  elapsedSecs: number;
-  closeToTray: boolean;
-  hideIcon: boolean;
-}
-
 /** One row of the tray's Speech Model submenu (a downloaded Hex model). */
 export interface MenubarSpeechModel {
   id: string;
@@ -41,7 +33,6 @@ type MenubarAction = TrayAction | string;
 type MenubarEventCallback = (action: MenubarAction) => void;
 
 class MenubarService {
-  private unlisten: UnlistenFn | null = null;
   private initialized = false;
   private initPromise: Promise<void> | null = null;
   private markListening: () => void = () => {};
@@ -52,11 +43,6 @@ class MenubarService {
     return this.listening;
   }
 
-  /** Whether the menubar event listener is attached. */
-  get isInitialized(): boolean {
-    return this.initialized;
-  }
-
   /** Attaches the listener once; concurrent calls share the attempt, and a failure resets so a later call can retry. */
   initialize(onEvent: MenubarEventCallback): Promise<void> {
     if (!isTauriEnvironment()) return Promise.resolve();
@@ -65,8 +51,7 @@ class MenubarService {
 
     this.initPromise = listen<string>(MENUBAR_ACTION_EVENT, (event) => {
       onEvent(event.payload);
-    }).then((unlisten) => {
-      this.unlisten = unlisten;
+    }).then(() => {
       this.initialized = true;
       this.markListening();
     }).catch((error) => {
@@ -107,27 +92,6 @@ class MenubarService {
     }
   }
 
-  /** Set the tray tooltip. */
-  async setTooltip(tooltip: string): Promise<void> {
-    await this.report('menubar_set_tooltip', { tooltip }, 'tooltip');
-  }
-
-  /** Show or hide the icon (recording still forces it visible). */
-  async setVisible(visible: boolean): Promise<void> {
-    await this.report('menubar_set_visible', { visible }, 'visibility');
-  }
-
-  /** Read backend menubar status for settings sync. */
-  async getState(): Promise<MenubarState | null> {
-    if (!platform.hasMenuBar || !isTauriEnvironment()) return null;
-    try {
-      return await invoke<MenubarState>('menubar_get_state');
-    } catch (error) {
-      console.error('[Menubar] Failed to read menubar state:', error);
-      return null;
-    }
-  }
-
   /** Quits through the single backend exit path, which runs its guard and cleanup. */
   async quit(): Promise<void> {
     if (!isTauriEnvironment()) return;
@@ -136,14 +100,6 @@ class MenubarService {
     } catch (error) {
       console.error('[Menubar] Failed to quit:', error);
     }
-  }
-
-  /** Detach the listener (test teardown / HMR). */
-  destroy(): void {
-    this.unlisten?.();
-    this.unlisten = null;
-    this.initialized = false;
-    this.initPromise = null;
   }
 }
 

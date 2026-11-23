@@ -3,7 +3,7 @@
 import React from 'react';
 import { Download, Square, Trash2 } from 'lucide-react';
 import { LAYOUT } from '@config/layout.config';
-import { Button, Icon, IconButton, ProgressRing, Status, Text, cn } from '@shared/ui';
+import { Button, Icon, IconButton, ProgressRing, Text, cn } from '@shared/ui';
 import type { OnDeviceModel } from '@shared/utils/onDeviceModel';
 import { useFormFactor } from '@platform/formFactor';
 import { KIT_COPY } from '@config/kitCopy.config';
@@ -12,9 +12,6 @@ import { KIT_COPY } from '@config/kitCopy.config';
 export const ModelSize: React.FC<{ size: string }> = ({ size }) => (
   <Text variant="figure" tone="muted" className={cn(useFormFactor() !== 'phone' && LAYOUT.modelSize, 'shrink-0')}>{size}</Text>
 );
-
-export const ModelReadyStatus: React.FC<{ model: OnDeviceModel }> = ({ model }) =>
-  model.status === 'ready' ? <Status tone="success">Ready</Status> : null;
 
 interface ModelDownloadButtonProps {
   model: OnDeviceModel;
@@ -54,7 +51,7 @@ export const ModelDownloadButton: React.FC<ModelDownloadButtonProps> = ({ model,
     return (
       <Button variant="outline" size="sm" onClick={model.cancel} aria-label={KIT_COPY.cancelDownload} className={cn(LAYOUT.modelAction, 'shrink-0 tabular-nums')}>
         <Icon icon={Square} size="xs" className="fill-current" />
-        {model.percent != null ? `${model.percent}%` : 'Preparing…'}
+        {model.percent != null ? `${model.percent}%` : KIT_COPY.preparing}
       </Button>
     );
   }

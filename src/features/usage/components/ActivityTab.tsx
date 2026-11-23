@@ -1,27 +1,30 @@
-/** Usage › Activity, top down, one page with nothing to drill into:
+/** Usage › Activity, top down:
  *  0 the range · 1 how much (KPIs) · 2 when (cost over requests, one timeline) · 3 where it went (by model, provider, use case)
- *  · 4 what exactly (models, tools the AI used, each day). */
+ *  · 4 what exactly (models, tools the AI used, each day). A Mac shows it all on one page; iPhone pushes 3, 4 and Prices. */
 
 import React, { useCallback, useMemo, useState } from 'react';
 import { ChartPie, Lightbulb, NotebookPen, Sparkles, type LucideIcon } from 'lucide-react';
 import {
-  Chart, DataTable, DonutChart, Icon, Section, StatCard, Tabs, Text, axisChart,
-  type ChartOption, type DataColumn, type DonutSlice,
+  Chart, DonutChart, DrillGroup, Icon, Section, StatGroup, Tabs, Text, axisChart,
+  type ChartOption, type DataColumn, type DonutSlice, type DrillGroupPage,
 } from '@shared/ui';
-import { JOB_GLYPH, ModelIcon, ScreenState } from '@shared/components';
+import { JOB_GLYPH, ModelIcon, RecordList, ScreenState } from '@shared/components';
 import { UI_CONFIG } from '@config/ui.config';
 import { USAGE_CONFIG, type UsageMeasure } from '@config/usage.config';
 import type { ProviderModelBreakdown, ToolBreakdown, UsageBucket, UsageSummary } from '@extensions/usage';
 import { formatDuration, formatRelativeTime } from '@shared/utils/formatters';
 import { toolCallIcon } from '@features/chat';
 import { bucketKeys, type UsageWindow } from '@features/usage/model/period';
-import { fillSeries, measureOf, modelName, providerName, splitEntries, toolName, type SplitEntry, type SplitMark, type UsageSplit, type UsageTotals } from '@features/usage/model/series';
+import { fillSeries, measureOf, modelName, providerName, splitEntries, toolName, topEntry, type SplitEntry, type SplitMark, type UsageSplit, type UsageTotals } from '@features/usage/model/series';
 import { bucketLabel, formatMeasure, formatMs, formatTick, formatTokens } from '@features/usage/model/format';
 import { useUsageWindow } from '@features/usage/hooks/useUsageQueries';
 import { useSetUsageRange, useUsageRange } from '@features/usage/stores/usageStore';
+import { usePriceRows } from '@features/usage/hooks/useModelPrices';
 import { ModelCell } from './ModelCell';
+import { PricesTab } from './PricesTab';
 
 const COPY = USAGE_CONFIG.copy;
+const PHONE = COPY.phone;
 const COL = COPY.columns;
 const C = UI_CONFIG.chart;
 const PERCENT = new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 0, signDisplay: 'exceptZero' });
@@ -57,16 +60,19 @@ const Kpis: React.FC<{ summary: UsageSummary; previous: UsageSummary | undefined
   const tokensDetail = [COPY.tokensIn(formatTokens(input)), COPY.tokensOut(formatTokens(summary.total_output_tokens)), cached].filter(Boolean).join(' · ');
   const perRequest = summary.total_calls > 0 ? summary.total_cost / summary.total_calls : 0;
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      <StatCard
-        label={K.cost}
-        value={formatMeasure('cost', summary.total_cost)}
-        detail={summary.unpriced_calls > 0 ? COPY.unpriced(summary.unpriced_calls) : changeLine(summary.total_cost, previous?.total_cost, rangeLabel)}
-      />
-      <StatCard label={K.requests} value={formatMeasure('requests', summary.total_calls)} detail={changeLine(summary.total_calls, previous?.total_calls, rangeLabel)} />
-      <StatCard label={K.tokens} value={formatTokens(input + summary.total_output_tokens)} detail={tokensDetail} />
-      <StatCard label={K.perRequest} value={formatMeasure('cost', perRequest)} detail={K.average} />
-    </div>
+    <StatGroup
+      title={PHONE.summary}
+      stats={[
+        {
+          label: K.cost,
+          value: formatMeasure('cost', summary.total_cost),
+          detail: summary.unpriced_calls > 0 ? COPY.unpriced(summary.unpriced_calls) : changeLine(summary.total_cost, previous?.total_cost, rangeLabel),
+        },
+        { label: K.requests, value: formatMeasure('requests', summary.total_calls), detail: changeLine(summary.total_calls, previous?.total_calls, rangeLabel) },
+        { label: K.tokens, value: formatTokens(input + summary.total_output_tokens), detail: tokensDetail },
+        { label: K.perRequest, value: formatMeasure('cost', perRequest), detail: K.average },
+      ]}
+    />
   );
 };
 
@@ -190,38 +196,68 @@ const dayColumns = (period: UsageWindow): ReadonlyArray<DataColumn<UsageBucket>>
   { key: 'cost', header: COL.cost, align: 'end', sortValue: (b) => b.estimated_cost, cell: (b) => figure(formatMeasure('cost', b.estimated_cost)) },
 ];
 
-const Tables: React.FC<{ summary: UsageSummary; series: UsageBucket[]; period: UsageWindow }> = ({ summary, series, period }) => {
-  const T = COPY.tables;
-  const days = useMemo(() => series.filter((b) => b.calls > 0), [series]);
+const ModelsTable: React.FC<{ summary: UsageSummary; title?: string }> = ({ summary, title }) => (
+  <Section title={title} layout="stack">
+    <RecordList
+      columns={MODEL_COLUMNS}
+      rows={summary.by_provider_model}
+      rowKey={(m) => `${m.provider}/${m.model}`}
+      label={COPY.tables.models}
+      search={{ placeholder: COPY.search.models, text: (m) => `${m.model} ${providerName(m.provider)}` }}
+      sort={{ key: 'cost', desc: true }}
+      empty={COPY.noMatches}
+      phoneRow={(m) => ({
+        title: modelName(m.model),
+        description: providerName(m.provider),
+        leading: <ModelIcon provider={m.provider} modelId={m.model} size={C.rowIcon} />,
+        value: costText(m.estimated_cost, m.unpriced_calls),
+      })}
+    />
+  </Section>
+);
+
+const ToolsTable: React.FC<{ summary: UsageSummary; title?: string }> = ({ summary, title }) => (
+  <Section title={title} layout="stack">
+    <RecordList
+      columns={TOOL_COLUMNS}
+      rows={summary.by_tool}
+      rowKey={(t) => t.tool}
+      label={COPY.tables.tools}
+      search={{ placeholder: COPY.search.tools, text: (t) => toolName(t.tool) }}
+      sort={{ key: 'calls', desc: true }}
+      empty={summary.by_tool.length === 0 ? COPY.noTools : COPY.noMatches}
+      phoneRow={(t) => ({
+        title: toolName(t.tool),
+        description: formatRelativeTime(t.last_used),
+        leading: <Icon icon={toolCallIcon(t.tool)} size="sm" />,
+        value: PHONE.calls(formatMeasure('requests', t.calls), t.calls),
+      })}
+    />
+  </Section>
+);
+
+/** The days (or months) with any requests. */
+const usedBuckets = (series: UsageBucket[]) => series.filter((b) => b.calls > 0);
+
+const DaysTable: React.FC<{ series: UsageBucket[]; period: UsageWindow; title?: string }> = ({ series, period, title }) => {
+  const days = useMemo(() => usedBuckets(series), [series]);
   const columns = useMemo(() => dayColumns(period), [period]);
   return (
-    <>
-      <Section title={T.models} layout="stack">
-        <DataTable
-          columns={MODEL_COLUMNS}
-          rows={summary.by_provider_model}
-          rowKey={(m) => `${m.provider}/${m.model}`}
-          label={T.models}
-          search={{ placeholder: COPY.search.models, text: (m) => `${m.model} ${providerName(m.provider)}` }}
-          sort={{ key: 'cost', desc: true }}
-          empty={COPY.noMatches}
-        />
-      </Section>
-      <Section title={T.tools} layout="stack">
-        <DataTable
-          columns={TOOL_COLUMNS}
-          rows={summary.by_tool}
-          rowKey={(t) => t.tool}
-          label={T.tools}
-          search={{ placeholder: COPY.search.tools, text: (t) => toolName(t.tool) }}
-          sort={{ key: 'calls', desc: true }}
-          empty={summary.by_tool.length === 0 ? COPY.noTools : COPY.noMatches}
-        />
-      </Section>
-      <Section title={T.days} layout="stack">
-        <DataTable columns={columns} rows={days} rowKey={(b) => b.key} label={T.days} sort={{ key: 'date', desc: true }} empty={COPY.emptyPeriod} />
-      </Section>
-    </>
+    <Section title={title} layout="stack">
+      <RecordList
+        columns={columns}
+        rows={days}
+        rowKey={(b) => b.key}
+        label={COPY.tables.days}
+        sort={{ key: 'date', desc: true }}
+        empty={COPY.emptyPeriod}
+        phoneRow={(b) => ({
+          title: bucketLabel(b.key, period.bucket, 'long'),
+          description: COPY.requests(formatMeasure('requests', b.calls), b.calls),
+          value: formatMeasure('cost', b.estimated_cost),
+        })}
+      />
+    </Section>
   );
 };
 
@@ -237,18 +273,56 @@ interface StoryProps {
   periodLabel: string;
 }
 
+/** A split's row: its largest entry and that entry's share. */
+function topText(summary: UsageSummary, split: UsageSplit): string | undefined {
+  const top = topEntry(summary, split);
+  return top ? PHONE.top(top.name, SHARE.format(top.share)) : undefined;
+}
+
+const breakdownPages = (summary: UsageSummary): DrillGroupPage[] => [
+  {
+    key: 'model',
+    title: PHONE.models,
+    value: topText(summary, 'model'),
+    render: (title) => <><SplitDonut summary={summary} split="model" /><ModelsTable summary={summary} title={title} /></>,
+  },
+  { key: 'provider', title: PHONE.providers, value: topText(summary, 'provider'), render: () => <SplitDonut summary={summary} split="provider" /> },
+  { key: 'useCase', title: PHONE.useCases, value: topText(summary, 'useCase'), render: () => <SplitDonut summary={summary} split="useCase" /> },
+];
+
+const detailPages = (summary: UsageSummary, series: UsageBucket[], period: UsageWindow): DrillGroupPage[] => [
+  { key: 'tools', title: COPY.tables.tools, value: String(summary.by_tool.length), render: (title) => <ToolsTable summary={summary} title={title} /> },
+  { key: 'days', title: COPY.tables.days, value: String(usedBuckets(series).length), render: (title) => <DaysTable series={series} period={period} title={title} /> },
+];
+
 const Story: React.FC<StoryProps> = ({ summary, previous, period, rangeLabel, periodLabel }) => {
   const series = useMemo(() => fillSeries(bucketKeys(period, summary.first_timestamp, new Date()), summary.trend), [period, summary]);
   return (
     <>
       <Kpis summary={summary} previous={previous} rangeLabel={rangeLabel} />
       <Trend series={series} period={period} summary={summary} periodLabel={periodLabel} />
-      <SplitDonut summary={summary} split="model" />
-      <SplitDonut summary={summary} split="provider" />
-      <SplitDonut summary={summary} split="useCase" />
-      <Tables summary={summary} series={series} period={period} />
+      <DrillGroup
+        title={PHONE.breakdown}
+        pages={breakdownPages(summary)}
+        inPlace={(
+          <>
+            <SplitDonut summary={summary} split="model" />
+            <SplitDonut summary={summary} split="provider" />
+            <SplitDonut summary={summary} split="useCase" />
+            <ModelsTable summary={summary} title={COPY.tables.models} />
+          </>
+        )}
+      />
+      <DrillGroup title={PHONE.details} pages={detailPages(summary, series, period)} />
     </>
   );
+};
+
+/** Prices: a pushed page on iPhone; a Mac has its tab. Always there, whatever the range holds. */
+const PricesGroup: React.FC = () => {
+  const { rows } = usePriceRows();
+  const unpriced = rows.filter((row) => row.source === 'unknown').length;
+  return <DrillGroup pages={[{ key: 'prices', title: PHONE.prices, value: PHONE.noPrice(unpriced), render: () => <PricesTab /> }]} inPlace={false} />;
 };
 
 export const ActivityTab: React.FC = () => {
@@ -268,6 +342,7 @@ export const ActivityTab: React.FC = () => {
       >
         {summary && <Story summary={summary} previous={previous ?? undefined} period={period} rangeLabel={current.label.toLowerCase()} periodLabel={current.period} />}
       </ScreenState>
+      <PricesGroup />
     </>
   );
 };

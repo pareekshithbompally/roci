@@ -16,6 +16,7 @@ import { dictations } from './domains/dictations';
 import { items } from './domains/items';
 import { memories } from './domains/memories';
 import { knowledge } from './domains/knowledge';
+import { usage } from './domains/usage';
 
 export const store = {
   /** Initialize the database — must be called once before any other operation. */
@@ -47,4 +48,5 @@ export const store = {
   categories,
   chats,
   dictations,
+  usage,
 };

@@ -63,6 +63,24 @@ export const MCP_COPY = {
   editAllTitle: 'Edit all MCP servers as JSON',
   servers: 'Servers',
   serversFooter: 'Model Context Protocol servers give chat new tools.',
+  permissionsFooter: 'When off, each tool asks before it runs. To trust one server, turn on Always Allow on its page.',
+  limitsFooter: 'A tool call stops at the timeout. After the max tool calls, chat stops using tools and answers. Longer tool output is cut.',
+  runWithoutAsking: 'Run tools without asking',
+  limitTitles: { toolCallTimeoutSeconds: 'Tool timeout', maxToolCalls: 'Max tool calls per turn', maxToolOutputChars: 'Max output' },
+  /** A server row's state, under its name. */
+  status: { connected: 'Connected', connecting: 'Connecting…', stopping: 'Stopping…', offline: 'Not connected', off: 'Off' },
+  alwaysAllowed: 'Always allowed',
+  /** "2 env vars", "1 header": how many secrets a row holds, never the secrets. */
+  count: (n: number, noun: 'env var' | 'header') => `${n} ${noun}${n === 1 ? '' : 's'}`,
+  enable: (name: string) => `Enable ${name}`,
+  deleteConfirm: (name: string) => ({ title: `Delete "${name}"?`, description: 'The server is disconnected and its configuration removed.', confirmLabel: 'Delete' }),
+  json: {
+    notObject: 'Expected a JSON object of servers.',
+    unwrapped: 'Wrap the config in its server name: { "my-server": { "command": … } }',
+    noName: 'Every server needs a non-empty name.',
+    notServer: (name: string) => `"${name}" must be an object.`,
+    unknownType: (name: string, type: string) => `"${name}" has unknown type "${type}" (use stdio, http, or sse).`,
+  },
   empty: 'No servers yet',
   permissions: 'Permissions',
   limits: 'Limits',
@@ -71,10 +89,36 @@ export const MCP_COPY = {
   saving: 'Saving…',
   editServer: 'Edit MCP Server',
   addServerTitle: 'Add MCP Server',
-  pasteJson: 'Paste server JSON',
+  pasteJson: 'Paste JSON',
+  editJson: 'Edit as JSON',
+  invalidJson: 'Invalid JSON:',
   alwaysAllow: 'Always Allow',
   deleteServer: 'Delete Server…',
-  serverOptions: 'Tools',
+  /** The server form's rows. */
+  form: {
+    server: 'Server',
+    name: 'Name',
+    required: 'Required',
+    none: 'None',
+    transport: 'Transport',
+    connection: 'Connection',
+    url: 'URL',
+    command: 'Command',
+    headers: 'Headers',
+    arguments: 'Arguments',
+    environment: 'Environment',
+    header: { add: 'Add Header', edit: 'Header', remove: 'Delete Header', empty: 'No headers', name: 'Name', value: 'Value' },
+    variable: { add: 'Add Variable', edit: 'Variable', remove: 'Delete Variable', empty: 'No variables', name: 'Name', value: 'Value' },
+    argument: { add: 'Add Argument', edit: 'Argument', remove: 'Delete Argument', empty: 'No arguments', value: 'Argument' },
+    options: 'Options',
+    timeout: 'Connect Timeout',
+    jsonPlaceholder: `{
+  "server-name": {
+    "type": "http",
+    "url": "https://…"
+  }
+}`,
+  },
 } as const;
 
 export const MCP_CONFIG = {
@@ -82,10 +126,12 @@ export const MCP_CONFIG = {
   updateEvent: 'mcp-update',
   /** `requires`: the device capability a transport needs (launched programs run only on the Mac). */
   transports: [
-    { value: 'stdio', label: 'STDIO', requires: 'canLaunchMcpServers' },
+    { value: 'stdio', label: 'Command', requires: 'canLaunchMcpServers' },
     { value: 'http', label: 'HTTP' },
     { value: 'sse', label: 'SSE' },
   ] as const satisfies ReadonlyArray<{ value: McpTransport; label: string; requires?: PlatformCapability }>,
+  /** A remote server's connect timeout, in seconds; `defaultValue` leaves it to Roci. */
+  connectTimeout: { defaultValue: 'default', defaultLabel: 'Default', values: [5, 10, 30, 60] },
   /** Fewest tool calls a turn may allow, however `mcp_config.json` was edited. */
   minToolCalls: 1,
   /** Choices in Settings › MCP › Limits; a saved value that isn't one shows as its own choice. */

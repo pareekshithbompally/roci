@@ -1,110 +1,5 @@
 use tauri::{AppHandle, Emitter, Manager, WindowEvent};
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct WindowState {
-    pub x: i32,
-    pub y: i32,
-    pub width: u32,
-    pub height: u32,
-    pub maximized: bool,
-    pub fullscreen: bool,
-}
-
-/// Save window state (called from frontend)
-#[tauri::command]
-pub async fn save_window_state(
-    _app: AppHandle,
-    state: WindowState,
-) -> Result<(), String> {
-    log::info!("Window state update: {:?}", state);
-    Ok(())
-}
-
-/// Get current window state
-#[tauri::command]
-pub async fn get_window_state(app: AppHandle) -> Result<WindowState, String> {
-    let window = app.get_webview_window("main")
-        .ok_or_else(|| "Main window not found".to_string())?;
-    
-    let position = window.outer_position()
-        .map_err(|e| format!("Failed to get window position: {}", e))?;
-    
-    let size = window.outer_size()
-        .map_err(|e| format!("Failed to get window size: {}", e))?;
-    
-    let maximized = window.is_maximized()
-        .map_err(|e| format!("Failed to check if window is maximized: {}", e))?;
-    
-    let fullscreen = window.is_fullscreen()
-        .map_err(|e| format!("Failed to check if window is fullscreen: {}", e))?;
-    
-    Ok(WindowState {
-        x: position.x,
-        y: position.y,
-        width: size.width,
-        height: size.height,
-        maximized,
-        fullscreen,
-    })
-}
-
-/// Show and focus the main window
-#[tauri::command]
-pub async fn show_window(app: AppHandle) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("main") {
-        window.show()
-            .map_err(|e| format!("Failed to show window: {}", e))?;
-        window.set_focus()
-            .map_err(|e| format!("Failed to focus window: {}", e))?;
-        
-        Ok(())
-    } else {
-        Err("Main window not found".to_string())
-    }
-}
-
-/// Hide the main window
-#[tauri::command]
-pub async fn hide_window(app: AppHandle) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("main") {
-        window.hide()
-            .map_err(|e| format!("Failed to hide window: {}", e))?;
-        Ok(())
-    } else {
-        Err("Main window not found".to_string())
-    }
-}
-
-/// Toggle window visibility
-#[tauri::command]
-pub async fn toggle_window(app: AppHandle) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("main") {
-        let is_visible = window.is_visible()
-            .map_err(|e| format!("Failed to check window visibility: {}", e))?;
-        
-        if is_visible {
-            hide_window(app).await
-        } else {
-            show_window(app).await
-        }
-    } else {
-        Err("Main window not found".to_string())
-    }
-}
-
-/// Set window to always on top
-#[tauri::command]
-pub async fn set_always_on_top(app: AppHandle, always_on_top: bool) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("main") {
-        window.set_always_on_top(always_on_top)
-            .map_err(|e| format!("Failed to set always on top: {}", e))?;
-        Ok(())
-    } else {
-        Err("Main window not found".to_string())
-    }
-}
 
 /// Emitted when the user quits (Cmd+Q) while a recording is capturing.
 pub const QUIT_REQUESTED_EVENT: &str = "quit-requested";
@@ -119,7 +14,7 @@ pub fn show_main(app: &AppHandle) {
     }
 }
 
-/// Handle window close: hide to tray instead, and ask first while recording.
+/// Handle window close: hide to the menu bar instead, and ask first while recording.
 pub fn setup_window_handlers(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let window_clone = window.clone();
@@ -136,11 +31,9 @@ pub fn setup_window_handlers(app: &AppHandle) {
                         return;
                     }
 
-                    // Close hides to tray when the preference is on; otherwise Quit comes from the menubar.
-                    if crate::menubar::close_to_tray(&app_handle) {
-                        api.prevent_close();
-                        let _ = window_clone.hide();
-                    }
+                    // Close hides to the menu bar; Quit comes from the menu bar or ⌘Q.
+                    api.prevent_close();
+                    let _ = window_clone.hide();
                 }
                 WindowEvent::Focused(true) => {
                     let _ = app_handle.emit("window-focused", ());
