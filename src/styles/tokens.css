@@ -119,9 +119,6 @@
   /* Card and sheet corners, list row height (macOS); iOS sets its own below. */
   --radius-card: 12px;
   --radius-sheet: 16px;
-  /* A bottom sheet's two heights (iOS detents): half (`rest`) as it opens, tall (`max`) once dragged up, scrolled or typed in. */
-  --sheet-rest: 56dvh;
-  --sheet-max: 92dvh;
   --row-min-h: 44px;
   /* List rhythm: icon-to-text gap in a row, space between groups (macOS System Settings). */
   --row-icon-gap: 10px;

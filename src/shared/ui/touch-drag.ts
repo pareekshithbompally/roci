@@ -1,5 +1,5 @@
-/** The one touch-drag primitive (iOS): a sheet swiped down, a pushed screen swiped back, the sidebar dragged open and
- *  closed. Touch events, not pointer events: the first move is claimed with `preventDefault`, so the drag wins over a
+/** The one sideways touch-drag primitive (iOS): a pushed screen swiped back, the sidebar dragged open and closed (sheets
+ *  move through react-modal-sheet, bottom-sheet.tsx). Touch events, not pointer events: the first move is claimed with `preventDefault`, so the drag wins over a
  *  scroll (and the scroll's bounce) instead of being cancelled by it. */
 
 import { useEffect, useRef } from 'react';
@@ -7,9 +7,8 @@ import { UI_CONFIG } from '@config/ui.config';
 
 const { edgePx, commitSpeed } = UI_CONFIG.gesture;
 
-/** `down`: only a downward first move takes it. `y`: up or down, a mostly-vertical first move takes it (a half-height sheet,
- *  which a drag up grows). `x`: sideways, a mostly-horizontal first move takes it. */
-export type DragAxis = 'down' | 'y' | 'x';
+/** `x`: sideways — a mostly-horizontal first move takes it. */
+export type DragAxis = 'x';
 
 export interface TouchDrag {
   axis: DragAxis;
@@ -56,14 +55,12 @@ export function slideOff(node: HTMLElement, translate: string, done: () => void)
   node.style.translate = translate;
 }
 
-const along = (axis: DragAxis, touch: Touch) => (axis === 'x' ? touch.clientX : touch.clientY);
+const along = (_axis: DragAxis, touch: Touch) => touch.clientX;
 
 function takes(axis: DragAxis, track: Track, touch: Touch): boolean {
   const dx = touch.clientX - track.x0;
   const dy = touch.clientY - track.y0;
-  if (axis === 'x') return Math.abs(dx) > Math.abs(dy);
-  if (axis === 'y') return dy !== 0 && Math.abs(dy) >= Math.abs(dx);
-  return dy > 0 && dy >= Math.abs(dx);
+  return axis === 'x' && Math.abs(dx) > Math.abs(dy);
 }
 
 function starts(drag: TouchDrag, e: TouchEvent): boolean {

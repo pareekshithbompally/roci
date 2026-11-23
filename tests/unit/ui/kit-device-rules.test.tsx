@@ -14,17 +14,17 @@ import { IconTile } from '@shared/ui/icon-tile';
 import { Video } from 'lucide-react';
 import { FieldRow } from '@shared/components/FieldRow';
 
-const { commitSpeed, sheetShare } = UI_CONFIG.gesture;
+const { commitSpeed, edgeShare } = UI_CONFIG.gesture;
 
 describe('touch drag: a move completes past its share or on a flick, else springs back', () => {
   it('completes past the share of the travel', () => {
-    expect(commits(300 * sheetShare + 1, 0, 300, sheetShare)).toBe(true);
+    expect(commits(300 * edgeShare + 1, 0, 300, edgeShare)).toBe(true);
   });
   it('completes on a flick even when short', () => {
-    expect(commits(10, commitSpeed + 0.1, 300, sheetShare)).toBe(true);
+    expect(commits(10, commitSpeed + 0.1, 300, edgeShare)).toBe(true);
   });
   it('springs back when short and slow', () => {
-    expect(commits(10, commitSpeed / 2, 300, sheetShare)).toBe(false);
+    expect(commits(10, commitSpeed / 2, 300, edgeShare)).toBe(false);
   });
 });
 

@@ -10,8 +10,10 @@ export const Dialog = DialogPrimitive.Root;
 export const DialogPortal = DialogPrimitive.Portal;
 export const DialogClose = DialogPrimitive.Close;
 
+/** The dimmed page under a dialog; on a phone the dialog is the sheet, which draws its own backdrop. */
 export function DialogOverlay({ className, ...props }: ComponentProps<typeof DialogPrimitive.Overlay>) {
-  return <DialogPrimitive.Overlay className={cn(SCRIM, className)} {...props} />;
+  const phone = useFormFactor() === 'phone';
+  return phone ? null : <DialogPrimitive.Overlay className={cn(SCRIM, className)} {...props} />;
 }
 
 /** `full` = wide content viewers (expanded tables) — nearly the window, still a sheet. */

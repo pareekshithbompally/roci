@@ -104,7 +104,7 @@ export default {
       borderRadius: { composer: 'calc(var(--control-md) / 2 + 0.25rem)', card: 'var(--radius-card)', block: 'var(--radius-block)', sheet: 'var(--radius-sheet)', bubble: 'var(--radius-bubble)', field: 'calc(var(--control-md) / 2)' },
       minHeight: { row: 'var(--row-min-h)' },
       // A table cell takes its row's height as a minimum (tables ignore min-height on cells).
-      height: { row: 'var(--row-min-h)', sheet: 'var(--sheet-max)', 'sheet-rest': 'var(--sheet-rest)' },
+      height: { row: 'var(--row-min-h)' },
       transitionTimingFunction: { ios: IOS_EASE },
       transitionDuration: { ios: IOS_DURATION },
       // ─── macOS text styles (SF Pro). `reading` is the one exception: long-form chat/transcript ───
@@ -127,8 +127,6 @@ export default {
         greeting: ['var(--fs-greeting)', { lineHeight: 'var(--lh-greeting)', letterSpacing: 'var(--tr-greeting)' }],
       },
       // 5.5 = a 14px icon + 8px gap (text indented under an icon); 15 = 60px described row
-      /** A bottom sheet's heights (tokens.css), its top still showing what it covers (iOS page sheet). */
-      maxHeight: { sheet: 'var(--sheet-max)', 'sheet-rest': 'var(--sheet-rest)' },
       spacing: { 5.5: '1.375rem', 15: '3.75rem', 'safe-top': 'var(--safe-top)', 'safe-bottom': 'var(--safe-bottom)', 'sheet-end': 'calc(var(--safe-bottom) + 1rem)', 'control-xs': 'var(--control-xs)', 'control-sm': 'var(--control-sm)', 'control-md': 'var(--control-md)', 'control-lg': 'var(--control-lg)', 'welcome-top': '14vh', 'welcome-icon': '4.5rem', 'choice-icon': '4rem', 'row-icon': 'var(--row-icon-gap)', section: 'var(--section-gap)' },
       keyframes: {
         'overlay-show': {

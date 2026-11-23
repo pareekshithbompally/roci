@@ -9,8 +9,19 @@ import { Search } from 'lucide-react';
 import { Icon } from './icon';
 import { LIST_COMMAND, SEARCH_FIELD } from './recipes';
 import { PushedScreen, useOptionalNavStack } from './nav-stack';
-import { BottomSheet } from './bottom-sheet';
+import { BottomSheet, useSheetScrolls } from './bottom-sheet';
 import { useFormFactor } from '@platform/formFactor';
+
+/** A phone picker's list as an inset grouped card; it scrolls once its sheet is at full height (a push below lifts the sheet). */
+function SheetList({ emptyText, children }: { emptyText: string; children: React.ReactNode }) {
+  const scrolls = useSheetScrolls();
+  return (
+    <CommandList className={cn('min-h-0 max-h-none p-0', scrolls ? 'overflow-y-auto' : 'overflow-y-clip', LIST_COMMAND)}>
+      <CommandEmpty>{emptyText}</CommandEmpty>
+      {children}
+    </CommandList>
+  );
+}
 
 /** A picker's search: the app's one search capsule (SearchField's look) around cmdk's input, on a Mac and a phone alike. */
 function CommandSearch({ placeholder, value, onValueChange }: { placeholder: string; value?: string; onValueChange?: (value: string) => void }) {
@@ -134,10 +145,7 @@ export function CommandPopover({
     const body = (
       <Command className="min-h-0 gap-3 rounded-none px-4 pb-sheet-end pt-2">
         <CommandSearch placeholder={searchPlaceholder} value={search} onValueChange={onSearchChange} />
-        <CommandList className={cn('min-h-0 max-h-none overflow-y-auto p-0', LIST_COMMAND)}>
-          <CommandEmpty>{emptyText}</CommandEmpty>
-          {children}
-        </CommandList>
+        <SheetList emptyText={emptyText}>{children}</SheetList>
       </Command>
     );
     const sheetTitle = title ?? searchPlaceholder;
@@ -146,7 +154,7 @@ export function CommandPopover({
         {React.cloneElement(trigger, { onClick: () => onOpenChange(true) })}
         {stack
           ? <PushedScreen open={open} title={sheetTitle} onClose={() => onOpenChange(false)}>{body}</PushedScreen>
-          : <BottomSheet open={open} onOpenChange={onOpenChange} title={sheetTitle} steady>{body}</BottomSheet>}
+          : <BottomSheet open={open} onOpenChange={onOpenChange} title={sheetTitle}>{body}</BottomSheet>}
       </>
     );
   }

@@ -85,6 +85,12 @@ Controls, icons, animation, chat formatting, charts, the knowledge graph and aud
 - Source: <https://github.com/motiondivision/motion>
 - Copyright (c) 2018 Framer B.V.
 
+### react-modal-sheet
+
+- Licence: MIT
+- Source: <https://github.com/Temzasse/react-modal-sheet>
+- Copyright (c) 2020 Teemu Taskula
+
 ### cmdk
 
 - Licence: MIT

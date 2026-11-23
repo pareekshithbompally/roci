@@ -69,6 +69,7 @@ export const ACKNOWLEDGEMENTS: readonly AcknowledgementGroup[] = [
       { name: 'Radix UI Primitives', url: 'https://github.com/radix-ui/primitives', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2022 WorkOS' },
       { name: 'Lucide', url: 'https://github.com/lucide-icons/lucide', license: 'ISC', text: 'ISC', copyright: 'Copyright (c) Lucide Contributors 2025; portions Copyright (c) 2013-2023 Cole Bemis' },
       { name: 'Motion (Framer Motion)', url: 'https://github.com/motiondivision/motion', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2018 Framer B.V.' },
+      { name: 'react-modal-sheet', url: 'https://github.com/Temzasse/react-modal-sheet', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2020 Teemu Taskula' },
       { name: 'cmdk', url: 'https://github.com/pacocoursey/cmdk', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2022 Paco Coursey' },
       { name: 'Sonner', url: 'https://github.com/emilkowalski/sonner', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2023 Emil Kowalski' },
       { name: 'React Resizable Panels', url: 'https://github.com/bvaughn/react-resizable-panels', license: 'MIT', text: 'MIT' },

@@ -4,6 +4,7 @@ import { UI_CONFIG } from '@config/ui.config';
 import { LAYOUT } from '@config/layout.config';
 import { edgeFade } from './fade';
 import { cn } from './utils';
+import { useSheetScrolls } from './bottom-sheet';
 
 const { safeArea } = UI_CONFIG.layout.titlebar;
 /** The titlebar band where there is one (Mac); none on iPhone, whose bar sits above the scroller, so nothing rests in a fade. */
@@ -43,6 +44,7 @@ export const PageScroll = forwardRef<HTMLDivElement, PageScrollProps>(
   ({ underTitlebar = true, fadeTop = false, fadeBottom = false, steady = false, className, style, children, onScroll, ...props }, ref) => {
     // No titlebar (iPhone): the top edge fades only once content has scrolled under the bar, never at rest.
     const [scrolled, setScrolled] = useState(false);
+    const scrolls = useSheetScrolls();
     const band = fadeTop === true ? edgeFadePx : fadeTop || 0;
     const barFade = titlebarBand || (scrolled ? edgeFadePx : 0);
     const top = underTitlebar ? barFade : band;
@@ -54,7 +56,8 @@ export const PageScroll = forwardRef<HTMLDivElement, PageScrollProps>(
     return (
       <div
         ref={ref}
-        className={cn('min-h-0 overflow-x-hidden custom-scrollbar', steady ? 'overflow-y-scroll' : 'overflow-y-auto', className)}
+        // In a sheet below full height the page holds still, so a push moves the sheet (bottom-sheet.tsx).
+        className={cn('min-h-0 overflow-x-hidden custom-scrollbar', !scrolls ? 'overflow-y-clip' : steady ? 'overflow-y-scroll' : 'overflow-y-auto', className)}
         style={{ ...fade, ...style }}
         onScroll={handleScroll}
         {...props}

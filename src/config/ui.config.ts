@@ -126,9 +126,13 @@ export const UI_CONFIG = {
   },
 
   /** Touch drags (iOS, kit `useTouchDrag`): let go past a share of the travel, or faster than `commitSpeed` (px per ms),
-   *  and the move completes, otherwise it springs back. A sheet closes past `sheetShare` of its height; swipe back and the
-   *  sidebar start within `edgePx` of the left edge and complete past `edgeShare` of the width. */
-  gesture: { commitSpeed: 0.5, sheetShare: 0.25, edgePx: 24, edgeShare: 0.35 },
+   *  and the move completes, otherwise it springs back. Swipe back and the sidebar start within `edgePx` of the left edge and
+   *  complete past `edgeShare` of the width. */
+  gesture: { commitSpeed: 0.5, edgePx: 24, edgeShare: 0.35 },
+
+  /** A bottom sheet (iPhone, react-modal-sheet): it opens at `restShare` of the screen's height, and opens, closes and
+   *  settles on the iOS presentation curve. */
+  sheet: { restShare: 0.56, tween: { ease: [0.32, 0.72, 0, 1] as [number, number, number, number], duration: 0.35 } },
 
   // Command popovers (composer pickers) and their hover flyouts
   picker: {

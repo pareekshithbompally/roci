@@ -2,7 +2,7 @@ import * as PopoverPrimitive from '@radix-ui/react-popover';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { createContext, useContext, type ComponentProps } from 'react';
 import { cn } from './utils';
-import { FLOATING_SURFACE, NO_INSETS, SCRIM } from './recipes';
+import { FLOATING_SURFACE, NO_INSETS } from './recipes';
 import { useFormFactor } from '@platform/formFactor';
 import { SheetContent } from './bottom-sheet';
 import { KIT_COPY } from '@config/kitCopy.config';
@@ -54,13 +54,11 @@ export interface PopoverContentProps extends ComponentProps<typeof PopoverPrimit
 export function PopoverContent({ className, sideOffset = 4, width = 'lg', label = KIT_COPY.details, children, ...props }: PopoverContentProps) {
   if (useContext(AsSheet)) {
     return (
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className={SCRIM} />
-        <SheetContent padded aria-describedby={undefined}>
-          <DialogPrimitive.Title className="sr-only">{label}</DialogPrimitive.Title>
-          <div className={cn('flex min-h-0 flex-col', NO_INSETS)}>{children}</div>
-        </SheetContent>
-      </DialogPrimitive.Portal>
+      // The sheet draws its own backdrop and portals itself.
+      <SheetContent padded aria-describedby={undefined}>
+        <DialogPrimitive.Title className="sr-only">{label}</DialogPrimitive.Title>
+        <div className={cn('flex min-h-0 flex-col', NO_INSETS)}>{children}</div>
+      </SheetContent>
     );
   }
   return (

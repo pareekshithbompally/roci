@@ -15,24 +15,25 @@ describe('iPhone activity button', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('names one task with its percent, counts several, and opens the sheet with every row', () => {
+  it('names one task with its percent, counts several, and opens the sheet with every row', async () => {
     render(<ActivityButton />);
     act(() => activityStore.add(item({})));
     expect(screen.getByRole('button', { name: /Importing call\.m4a · 40%/ })).toBeInTheDocument();
 
     act(() => activityStore.add(item({ id: 'mlx-model:chat', type: 'processing', label: 'Loading Gemma…', percent: null })));
     fireEvent.click(screen.getByRole('button', { name: /2 tasks/ }));
-    expect(screen.getByRole('dialog', { name: 'Activity' })).toBeInTheDocument();
+    // The sheet rises before it is shown to assistive tech.
+    expect(await screen.findByRole('dialog', { name: 'Activity' })).toBeInTheDocument();
     expect(screen.getByText('Loading Gemma…')).toBeInTheDocument();
     expect(screen.getAllByText('Importing call.m4a').length).toBeGreaterThan(0);
   });
 
-  it('runs a row action from the sheet', () => {
+  it('runs a row action from the sheet', async () => {
     let cancelled = false;
     render(<ActivityButton />);
     act(() => activityStore.add(item({ actions: [{ icon: 'x', label: 'Cancel import', onClick: () => { cancelled = true; } }] })));
     fireEvent.click(screen.getByRole('button', { name: /Importing/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel import' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel import' }));
     expect(cancelled).toBe(true);
   });
 });
