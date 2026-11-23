@@ -107,7 +107,7 @@ export const DictationsView: React.FC = () => {
   // Search, then the matching rows; a quiet line only when there are dictations and the search matches none.
   const searchAndList = (
     <>
-      <SearchField value={query} onChange={setQuery} onCancel={() => setQuery('')} placeholder={DICTATIONS_CONFIG.searchPlaceholder} />
+      {hasAny && <SearchField value={query} onChange={setQuery} onCancel={() => setQuery('')} placeholder={DICTATIONS_CONFIG.searchPlaceholder} />}
       <PageScroll underTitlebar={false} className="min-h-0 flex-1 pb-2">
         {dictations.length > 0
           ? <DictationList dictations={dictations} selectedId={selected?.id ?? null} onSelect={setSelectedId} />

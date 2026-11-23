@@ -30,23 +30,25 @@ export interface EditableListProps<T> {
 export function EditableList<T>({ title, footer, rows, rowKey, columns, phoneRow, text, copy, onAdd, onOpen, onRemove }: EditableListProps<T>) {
   const [query, setQuery] = useState('');
   const phone = useFormFactor() === 'phone';
-  const field = copy.search !== undefined && (
+  // Nothing to search until there is something in the list (as iOS and macOS lists do).
+  const field = copy.search !== undefined && rows.length > 0 && (
     <SearchField value={query} onChange={setQuery} onCancel={() => setQuery('')} placeholder={copy.search} className={phone ? undefined : UI_CONFIG.table.searchWidth} />
   );
   if (phone) {
     const shown = query.trim() ? rows.filter((row) => matchesAllWords(text(row), query)) : rows;
     return (
-      <Section title={title} footer={footer} layout="stack">
+      // The search bar leads, under the page's title; the group's label sits on its card (iOS Settings).
+      <div className="flex flex-col gap-4">
         {field}
-        <Section>
+        <Section title={title} footer={footer}>
           <CardRow title={copy.add} tone="accent" onPress={onAdd} />
           {shown.map((row) => <CardRow key={rowKey(row)} {...phoneRow(row)} onOpen={() => onOpen(row)} />)}
         </Section>
-      </Section>
+      </div>
     );
   }
   return (
-    <Section title={title} footer={footer} accessory={rows.length > 0 && field} layout="stack">
+    <Section title={title} footer={footer} accessory={field} layout="stack">
       <DataTable
         columns={columns}
         rows={rows}

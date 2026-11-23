@@ -37,7 +37,8 @@ export const LIST_COMMAND = cn(
 );
 
 /** iOS search field: a rounded filled bar with a magnifier (UISearchBar). */
-export const SEARCH_FIELD = 'flex h-control-sm items-center gap-2 rounded-lg bg-control px-2.5 text-muted';
+/** The system search field: a filled capsule (iOS 26 and macOS 26 alike). */
+export const SEARCH_FIELD = 'flex h-control-sm items-center gap-2 rounded-full bg-control px-3 text-muted';
 
 export const MENU_LABEL = 'px-2 py-1.5 text-callout font-medium text-faint';
 export const MENU_SEPARATOR = 'h-px my-1 bg-separator';

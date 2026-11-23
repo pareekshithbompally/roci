@@ -52,7 +52,7 @@ function PhoneRecords<T>({ columns, rows, rowKey, label, search, sort, accessory
   return (
     <>
       <div className="flex flex-col gap-4">
-        {search?.placeholder && <SearchField value={ownQuery} onChange={setQuery} onCancel={() => setQuery('')} placeholder={search.placeholder} />}
+        {search?.placeholder && rows.length > 0 && <SearchField value={ownQuery} onChange={setQuery} onCancel={() => setQuery('')} placeholder={search.placeholder} />}
         {accessory}
         <Section aria-label={label}>
           {shown.length === 0 && <CardRow title={<Text tone="muted">{empty}</Text>} />}
