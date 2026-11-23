@@ -42,24 +42,24 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  /** No box — sits in a line of text; on touch screens an invisible overlay widens the tap area without moving the text */
-  inline: cn('text-callout gap-1', platform.hasTouchScreen && "relative after:absolute after:-inset-2 after:content-['']"),
+  /** No box — sits in a line of text and wraps with it (a long source, a link); on touch screens an invisible overlay widens the tap area without moving the text */
+  inline: cn('text-callout gap-1 text-left', platform.hasTouchScreen && "relative after:absolute after:-inset-2 after:content-['']"),
   /** Dense control in a toolbar row (composer): tight padding, at least square (control-sm) so an icon alone fits */
-  toolbar: 'h-control-sm min-w-control-sm shrink-0 px-1.5 text-callout rounded-md',
-  sm: 'h-control-sm px-3 text-callout rounded-full',
-  md: 'h-control-md px-4 text-body rounded-full',
+  toolbar: 'whitespace-nowrap h-control-sm min-w-control-sm shrink-0 px-1.5 text-callout rounded-md',
+  sm: 'whitespace-nowrap h-control-sm px-3 text-callout rounded-full',
+  md: 'whitespace-nowrap h-control-md px-4 text-body rounded-full',
   /** A screen's main action (first-run Continue): iOS prominent button height. */
-  lg: 'h-control-lg px-6 text-body rounded-full',
-  icon: 'h-control-md w-control-md shrink-0 rounded-full',
-  iconSm: 'h-control-sm w-control-sm shrink-0 rounded-full',
+  lg: 'whitespace-nowrap h-control-lg px-6 text-body rounded-full',
+  icon: 'whitespace-nowrap h-control-md w-control-md shrink-0 rounded-full',
+  iconSm: 'whitespace-nowrap h-control-sm w-control-sm shrink-0 rounded-full',
   /** Inline row actions (tray rows, list rows) */
-  iconXs: 'h-control-xs w-control-xs shrink-0 rounded-md',
+  iconXs: 'whitespace-nowrap h-control-xs w-control-xs shrink-0 rounded-md',
   /** Round 44 pt action: the meeting chat's floating button, the iOS sheet's Back and Close */
-  fab: 'h-11 w-11 shrink-0 rounded-full',
+  fab: 'whitespace-nowrap h-11 w-11 shrink-0 rounded-full',
 };
 
 const BASE_CLASSES = cn(
-  'inline-flex items-center justify-center gap-1.5 whitespace-nowrap font-medium transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed',
+  'inline-flex items-center justify-center gap-1.5 font-medium transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed',
   // Touch: an iOS button dims the moment a finger lands, not on release.
   platform.hasTouchScreen && 'active:opacity-60',
 );
