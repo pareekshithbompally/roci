@@ -18,6 +18,8 @@ const VARIANT = {
   brand: 'bg-accent-wash',
   /** Floating widget over content */
   floating: 'bg-raised-glass backdrop-blur-xl shadow-floating',
+  /** Glass control (the composer, beside round bar buttons) */
+  bar: 'bg-bar backdrop-blur-xl shadow-bar',
   /** AI-written result (a meeting's overview): a copper wash fading across, with a soft copper hairline */
   ai: 'bg-ai-card border border-ai-soft',
   /** A copper leading bar marking AI-highlighted content (a summary's decisions) */

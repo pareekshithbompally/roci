@@ -108,6 +108,9 @@
   /* Card and sheet corners, list row height (macOS); iOS sets its own below. */
   --radius-card: 12px;
   --radius-sheet: 16px;
+  /* A bottom sheet is as tall as its content: up to `rest` as it opens, up to `max` once scrolled or typed in. */
+  --sheet-rest: 56dvh;
+  --sheet-max: 92dvh;
   --row-min-h: 44px;
   /* List rhythm: icon-to-text gap in a row, space between groups (macOS System Settings). */
   --row-icon-gap: 10px;
@@ -135,6 +138,8 @@
   --bg-base-glass: var(--bg-base);
   --bg-deep-glass: var(--bg-deep);
   --bg-raised-glass: var(--bg-base);
+  /* Glass controls over the page (round bar buttons, the composer): neutral on every device, so a glyph or text reads as on the plain page. */
+  --bg-bar: color-mix(in srgb, var(--grey-50) 82%, transparent);
 
   --text-primary: var(--grey-1100);
   --text-muted: var(--grey-700);
@@ -179,6 +184,7 @@
   --shadow-raised: #0000000a 0 2px 4px 0, #00000014 0 1px 2px -1px, #0000001f 0 0 0 0.5px;
   --shadow-floating: #0000000a 0 8px 16px 0, #00000014 0 4px 8px 0, #0000001f 0 0 0 0.5px;
   --shadow-overlay: #0000000a 0 16px 32px 0, #00000014 0 8px 16px 0, #0000001f 0 0 0 0.5px;
+  --shadow-bar: #0000000f 0 0 0 0.5px, #0000000d 0 2px 10px 0;
 
   /* AI moments only */
   --ai-gradient: linear-gradient(to right, var(--copper-600), var(--copper-400));
@@ -206,10 +212,10 @@
   /* A badge tinted by its logo (useLogoTint): the neutral pill with the logo's colour mixed in, strongest at the logo, fading across the label */
   --badge-tint-from: 28%;
   --badge-tint-to: 8%;
-  /* Landing glow (LandingGlow): copper core, amber companion, copper wash */
-  --bg-glow-core: color-mix(in srgb, var(--copper-500) 30%, transparent);
-  --bg-glow-companion: color-mix(in srgb, var(--copper-400) 26%, transparent);
-  --bg-glow-wash: color-mix(in srgb, var(--copper-400) 20%, transparent);
+  /* Landing glow (LandingGlow): copper core, amber companion, copper wash — light enough that text on it stays on white */
+  --bg-glow-core: color-mix(in srgb, var(--copper-500) 20%, transparent);
+  --bg-glow-companion: color-mix(in srgb, var(--copper-400) 18%, transparent);
+  --bg-glow-wash: color-mix(in srgb, var(--copper-400) 14%, transparent);
   /* Recording pill (DotScope canvas, read live): voice in copper, processing in sand, failure in danger red. */
   --scope-you: var(--copper-600);
   --scope-you-core: var(--copper-400);
@@ -297,6 +303,7 @@ html.platform-ios.dark {
   --bg-base-glass: color-mix(in srgb, var(--grey-1100) 90%, transparent);
   --bg-deep-glass: color-mix(in srgb, var(--grey-1200) 85%, transparent);
   --bg-raised-glass: color-mix(in srgb, var(--grey-1000) 92%, transparent);
+  --bg-bar: color-mix(in srgb, var(--grey-1000) 82%, transparent);
 
   --text-primary: var(--grey-100);
   --text-muted: var(--grey-500);
@@ -334,11 +341,12 @@ html.platform-ios.dark {
   --shadow-raised: #0000004d 0 2px 4px 0, #0000004d 0 1px 2px 0, #ffffff29 0 0 0 0.5px, #ffffff0f 0 -0.5px 0 0;
   --shadow-floating: #0000004d 0 8px 16px 0, #0000004d 0 4px 8px 0, #ffffff29 0 0 0 0.5px, #ffffff0f 0 -0.5px 0 0;
   --shadow-overlay: #0000004d 0 16px 32px 0, #0000004d 0 8px 16px 0, #ffffff29 0 0 0 0.5px, #ffffff0f 0 -0.5px 0 0;
+  --shadow-bar: #ffffff1f 0 0 0 0.5px, #00000040 0 2px 10px 0;
 
   --ai-accent: var(--copper-400);
-  --bg-glow-core: color-mix(in srgb, var(--copper-500) 30%, transparent);
-  --bg-glow-companion: color-mix(in srgb, var(--copper-400) 26%, transparent);
-  --bg-glow-wash: color-mix(in srgb, var(--copper-600) 22%, transparent);
+  --bg-glow-core: color-mix(in srgb, var(--copper-500) 20%, transparent);
+  --bg-glow-companion: color-mix(in srgb, var(--copper-400) 16%, transparent);
+  --bg-glow-wash: color-mix(in srgb, var(--copper-600) 16%, transparent);
   --scope-you: var(--copper-400);
   --scope-you-core: var(--copper-200);
   --scope-agent: var(--sand-300);

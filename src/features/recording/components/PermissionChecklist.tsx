@@ -1,9 +1,9 @@
 /** Opens when a recording start is refused for a missing permission; rows re-check after a request and on returning to Roci. */
 
 import React from 'react';
-import { X } from 'lucide-react';
-import { Card, CardRow, Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, IconButton, Text } from '@shared/ui';
-import { PermissionAction } from '@shared/components';
+import { CardRow, Section, Text } from '@shared/ui';
+import { KIT_COPY } from '@config/kitCopy.config';
+import { FormDialog, PermissionAction } from '@shared/components';
 import { useAppStore, usePermissionChecklistOpen } from '@shared/stores/appStore';
 import { permissionsService, type PermissionKind, type PermissionRow } from '@services/permissions.service';
 import { usePermissions } from '@features/recording/hooks/usePermissions';
@@ -44,38 +44,19 @@ export const PermissionChecklist: React.FC = () => {
   const allReady = rows.length > 0 && rows.every((row) => row.state === 'ready');
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogPortal>
-        <DialogOverlay />
-        <DialogContent size="sm">
-          <DialogHeader>
-            <DialogTitle>Allow recording</DialogTitle>
-            <DialogClose asChild>
-              <IconButton icon={X} label="Close" size="sm" className="-mr-1" />
-            </DialogClose>
-          </DialogHeader>
-          <DialogDescription>
-            {platform.systemName} needs these before Roci can record.
-          </DialogDescription>
-
-          <Card className="mt-4">
-            {rows.map((row) => (
-              <CardRow
-                key={row.kind}
-                title={COPY[row.kind].title}
-                description={COPY[row.kind].detail}
-                actions={<RowAction row={row} request={request} />}
-              />
-            ))}
-          </Card>
-
-          {allReady && (
-            <Text as="p" variant="helper" tone="success" className="mt-4">
-              All set. Start the recording again.
-            </Text>
-          )}
-        </DialogContent>
-      </DialogPortal>
-    </Dialog>
+    <FormDialog open={open} onOpenChange={setOpen} title="Allow Recording" size="sm" viewOnly submit={{ label: KIT_COPY.done, onPress: () => setOpen(false) }}>
+      <Section footer={`${platform.systemName} needs these before Roci can record.`}>
+        {rows.map((row) => (
+          <CardRow
+            key={row.kind}
+            title={COPY[row.kind].title}
+            description={COPY[row.kind].detail}
+            wrap
+            actions={<RowAction row={row} request={request} />}
+          />
+        ))}
+      </Section>
+      {allReady && <Text as="p" variant="helper" tone="success">All set. Start the recording again.</Text>}
+    </FormDialog>
   );
 };

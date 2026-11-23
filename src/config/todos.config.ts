@@ -7,6 +7,23 @@ export const TODOS_CONFIG = {
   title: 'To-dos',
   /** The action that creates one (page and meeting tab). */
   add: 'Add to-do',
+  /** The new to-do form. */
+  form: {
+    title: 'New To-do',
+    submit: 'Add',
+    text: 'What do you need to do?',
+    meeting: 'Meeting',
+    due: 'Due',
+    dueDate: 'Due date',
+    /** The time a due date starts at until one is picked. */
+    defaultTime: '09:00',
+  },
+  deleteFailed: 'Couldn’t delete the to-do',
+  reminder: {
+    denied: 'Notifications are off for Roci',
+    openSettings: 'Open Settings',
+    failed: 'Couldn’t set the reminder',
+  },
   /** To-dos that aren't from a meeting: their group in the list, and their reminder's title. */
   general: 'General',
   /** The card above the chat box for to-dos the AI proposed, and its edit sheet. */

@@ -87,7 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   // The app's own places above Recents, the same on both platforms: To-dos always, Upcoming while the calendar is on.
-  const destinations = useDestinations().map(({ view, icon, label }) => <DestinationRow key={view} view={view} icon={icon} label={label} />);
+  const destinations = useDestinations().map(({ view, icon, label }) => <DestinationRow key={view} view={view} icon={icon} label={label} prominent={sheet} />);
 
   // One list: the recents, or (iPhone, while searching) the matches with their words highlighted.
   const list = (
@@ -125,6 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </>
           ) : (
             <>
+              <AppMark size="md" />
               <Text as="h1" variant="title" className="flex-1">{APP_CONFIG.name}</Text>
               <IconButton icon={Search} size="fab" variant="bar" onClick={startSearch} label="Search" />
               <IconButton icon={SquarePen} size="fab" variant="bar" onClick={handleHomeClick} label="New chat" />

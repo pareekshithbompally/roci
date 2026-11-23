@@ -335,7 +335,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           {/* Composer never unmounts (an exit flashes box chrome); the pill is an overlay that moves no layout. */}
           <Surface
             data-testid="composer-frame"
-            variant={voiceActive ? 'plain' : 'field'}
+            variant={voiceActive ? 'plain' : 'bar'}
             radius={phone ? 'field' : 'xl'}
             className={cn('relative transition-[background-color,box-shadow] duration-300 ease-out', phone && 'min-w-0 flex-1')}
           >

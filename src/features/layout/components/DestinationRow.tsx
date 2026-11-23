@@ -12,9 +12,11 @@ interface DestinationRowProps {
   view: Exclude<ViewType, 'home' | 'settings'>;
   icon: LucideIcon;
   label: string;
+  /** The phone's sidebar: a larger glyph with more room. */
+  prominent?: boolean;
 }
 
-export const DestinationRow: React.FC<DestinationRowProps> = ({ view, icon, label }) => {
+export const DestinationRow: React.FC<DestinationRowProps> = ({ view, icon, label, prominent = false }) => {
   const current = useCurrentView() === view;
   const { setCurrentView } = useAppActions();
   const setLeftPanel = useLeftPanel((s) => s.setLeftPanel);
@@ -27,8 +29,8 @@ export const DestinationRow: React.FC<DestinationRowProps> = ({ view, icon, labe
   };
 
   return (
-    <Row selected={current} aria-current={current ? 'page' : undefined} onClick={open}>
-      <Icon icon={icon} size="xs" className="shrink-0" />
+    <Row selected={current} aria-current={current ? 'page' : undefined} onClick={open} className={prominent ? 'gap-3' : undefined}>
+      <Icon icon={icon} size={prominent ? 'sm' : 'xs'} className="shrink-0" />
       <span className="flex-1 truncate">{label}</span>
     </Row>
   );

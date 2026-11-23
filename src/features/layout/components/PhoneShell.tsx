@@ -25,7 +25,7 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children }) => {
       <Surface as="main" variant="page" className="relative flex h-full flex-col overflow-hidden">
         <TopBar
           leading={<IconButton icon={PanelLeft} size="fab" variant="bar" label="Open sidebar" onClick={() => setLeftPanel(true)} />}
-          title={<ModelPicker compact />}
+          title={<ModelPicker compact bar />}
           trailing={<IconButton icon={SquarePen} size="fab" variant="bar" label="New chat" onClick={startNewChat} />}
         />
         {/* Clear of the home indicator once, for every screen (idle, chat, meeting). */}

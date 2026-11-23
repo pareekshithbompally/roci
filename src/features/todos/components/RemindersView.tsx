@@ -4,13 +4,12 @@ import React, { useCallback, useState } from 'react';
 import { AlertTriangle, Bell, CalendarDays, Inbox, Search, Plus, X } from 'lucide-react';
 import { useGlobalTodos } from '@features/todos/hooks/useGlobalTodos';
 import type { TodoFilter, GlobalTodo } from '@features/todos/hooks/useGlobalTodos';
-import { Button, Checkbox, Icon, IconButton, Input, Surface, Tabs, Text, ViewHeader, ViewScroll, cn } from '@shared/ui';
+import { Checkbox, Icon, IconButton, Input, Surface, Tabs, Text, ViewHeader, ViewScroll, cn } from '@shared/ui';
 import { ScreenState } from '@shared/components';
 import { isOverdue, formatDueDate, formatReminderDate, isReminderOverdue, formatMeetingDate } from '@shared/utils/todo.utils';
 import { NewTodoForm } from './NewTodoForm';
 import ReminderPicker from './ReminderPicker';
 import { platform } from '@platform/index';
-import { useFormFactor } from '@platform/formFactor';
 import { LAYOUT } from '@config/layout.config';
 import { TODOS_CONFIG } from '@config/todos.config';
 
@@ -100,7 +99,6 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, onToggle, onReminderSet }) => {
 // ── Main component ──────────────────────────────────────────────
 
 export const RemindersView: React.FC = () => {
-  const phone = useFormFactor() === 'phone';
   const { groups, filter, setFilter, searchQuery, setSearchQuery, toggleTodo, addTodo, setReminder, counts, isLoading } = useGlobalTodos();
   const [isCreating, setIsCreating] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -120,7 +118,7 @@ export const RemindersView: React.FC = () => {
     }
   }, [isSearchOpen, setSearchQuery]);
 
-  const hasContent = groups.length > 0 || isCreating;
+  const hasContent = groups.length > 0;
 
   const filterTabs = FILTERS.map(({ key, label, countKey }) => {
     const count = counts[countKey];
@@ -158,31 +156,16 @@ export const RemindersView: React.FC = () => {
         accessory={
           <>
             {!isSearchOpen && <IconButton icon={Search} label="Search to-dos" size="sm" onClick={handleSearchToggle} />}
-            {phone ? (
-              <IconButton icon={Plus} label={TODOS_CONFIG.add} size="sm" onClick={() => setIsCreating(true)} disabled={isCreating} />
-            ) : (
-              <Button variant="primary" size="sm" className="shrink-0" onClick={() => setIsCreating(true)} disabled={isCreating}>
-                <Icon icon={Plus} size="xs" />
-                {TODOS_CONFIG.add}
-              </Button>
-            )}
+            <IconButton icon={Plus} label={TODOS_CONFIG.add} size="sm" onClick={() => setIsCreating(true)} disabled={isCreating} />
           </>
         }
       >
-        <Tabs items={filterTabs} value={filter} onValueChange={setFilter} fill={phone} />
+        <Tabs items={filterTabs} value={filter} onValueChange={setFilter} />
       </ViewHeader>
 
       {/* The list in the page column; no fade, as each meeting's heading pins to the top. */}
       <ViewScroll fade={false}>
-        {/* Create form */}
-        {/* New to-do: a sheet on iPhone, a card here on Mac. */}
-        {phone
-          ? <NewTodoForm open={isCreating} onClose={() => setIsCreating(false)} onSubmit={addTodo} />
-          : isCreating && (
-            <div className={`${LAYOUT.listGutter} pt-4`}>
-              <NewTodoForm open onClose={() => setIsCreating(false)} onSubmit={addTodo} />
-            </div>
-          )}
+        <NewTodoForm open={isCreating} onClose={() => setIsCreating(false)} onSubmit={addTodo} />
 
         <ScreenState
           loading={isLoading}

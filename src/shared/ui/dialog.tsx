@@ -31,7 +31,7 @@ const BARE = 'fixed z-modal focus:outline-none';
 export function DialogContent({ size = 'md', scrollable, bare, className, ...props }: DialogContentProps) {
   const phone = useFormFactor() === 'phone';
   // iOS: a dialog is the kit sheet (UIKit page sheet).
-  if (phone && !bare) return <SheetContent padded className={className} {...props} />;
+  if (phone && !bare) return <SheetContent padded size={size === 'full' ? 'full' : 'fit'} className={className} {...props} />;
   const frame = bare ? cn(BARE, DIALOG_SIZE[size]) : cn(SHEET, DIALOG_SIZE[size], scrollable && 'max-h-[85vh] flex flex-col');
   return <DialogPrimitive.Content className={cn(frame, className)} {...props} />;
 }

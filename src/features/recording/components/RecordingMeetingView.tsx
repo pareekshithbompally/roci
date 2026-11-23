@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { Clock, Pause, Play, Square } from 'lucide-react';
 import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { CommandBar, Dot, IconButton, Text, TitlebarSpacer, cn, useCommandBarSize } from '@shared/ui';
+import { CommandBar, Dot, IconButton, Text, TitleBlock, cn, useCommandBarSize } from '@shared/ui';
 import { MeetingStatus, ModelCreditLine } from '@shared/components';
 import type { MeetingPhase } from '@shared/types/meetingPhase';
 import { LAYOUT } from '@config/layout.config';
@@ -121,29 +121,25 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
 
   return (
     <motion.div className="h-full flex flex-col overflow-hidden" initial={VIEW.hidden} animate={VIEW.shown} transition={VIEW.enter}>
-      <TitlebarSpacer />
-      <div className={`${LAYOUT.pageGutter} pt-3 pb-3`}>
-        <div className={`${LAYOUT.pageColumn} space-y-2`}>
-          {/* One line, cut short (the full name is in the sidebar and Details). */}
-          <Text as="h1" variant="pageTitle" truncate>{title}</Text>
-          {/* A Mac's header bar: status, clock and the models at work, then the controls. A phone has none: its toolbar
-              below holds the clock and controls, and the models are in Details. */}
-          <CommandBar placement="header">
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
-                <RecordingClock paused={paused} clock={clock} />
-                <ModelCreditLine
-                  credits={[
-                    { label: LIVE.copy.transcribing, credit: speech?.model ? { provider: speech.provider, model: speech.model } : null },
-                    { label: LIVE.copy.summarizing, credit: model ? { provider: model.provider, model: model.modelId } : null },
-                  ]}
-                />
-              </div>
-              <Controls paused={paused} busy={busy} beforeStop={flush} />
+      {/* One line, cut short (the full name is in the sidebar and Details). */}
+      <TitleBlock title={<Text as="h1" variant="pageTitle" truncate>{title}</Text>}>
+        {/* A Mac's header bar: status, clock and the models at work, then the controls. A phone has none: its toolbar
+            below holds the clock and controls, and the models are in Details. */}
+        <CommandBar placement="header">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+              <RecordingClock paused={paused} clock={clock} />
+              <ModelCreditLine
+                credits={[
+                  { label: LIVE.copy.transcribing, credit: speech?.model ? { provider: speech.provider, model: speech.model } : null },
+                  { label: LIVE.copy.summarizing, credit: model ? { provider: model.provider, model: model.modelId } : null },
+                ]}
+              />
             </div>
-          </CommandBar>
-        </div>
-      </div>
+            <Controls paused={paused} busy={busy} beforeStop={flush} />
+          </div>
+        </CommandBar>
+      </TitleBlock>
       <div className={`${LAYOUT.pageGutter} flex-1 overflow-hidden`}>
         <div className={`${LAYOUT.pageColumn} h-full flex flex-col min-h-0`}>
           <MeetingWorkspace

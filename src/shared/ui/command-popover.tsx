@@ -137,7 +137,7 @@ export function CommandPopover({
         {React.cloneElement(trigger, { onClick: () => onOpenChange(true) })}
         {stack
           ? <PushedScreen open={open} title={sheetTitle} onClose={() => onOpenChange(false)}>{body}</PushedScreen>
-          : <BottomSheet open={open} onOpenChange={onOpenChange} title={sheetTitle}>{body}</BottomSheet>}
+          : <BottomSheet open={open} onOpenChange={onOpenChange} title={sheetTitle} steady>{body}</BottomSheet>}
       </>
     );
   }

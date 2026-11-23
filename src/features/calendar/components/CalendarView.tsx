@@ -4,10 +4,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, CircleAlert, Lock, RotateCw, Settings } from 'lucide-react';
 import { useAppActions } from '@shared/stores/appStore';
 import { useSystemFormatStore } from '@shared/stores/systemFormatStore';
-import { DatePicker, Button, Icon, IconButton, ViewHeader } from '@shared/ui';
+import { DatePicker, Button, Icon, IconButton, useListBesideDetail, ViewHeader } from '@shared/ui';
 import { EmptyState } from '@shared/components';
 import { useCalendarControls } from '@features/integrations';
-import { useFormFactor } from '@platform/formFactor';
 import { LAYOUT } from '@config/layout.config';
 import { CALENDAR_CONFIG } from '@config/calendar.config';
 import { formatMonth } from '@shared/utils/formatters';
@@ -37,7 +36,7 @@ const NO_ACCESS = {
 export const CalendarView: React.FC = () => {
   const { openSettings } = useAppActions();
   const calendar = useCalendarControls();
-  const span: CalendarSpan = useFormFactor() === 'phone' ? 'day' : 'week';
+  const span: CalendarSpan = useListBesideDetail() ? 'week' : 'day';
   // The day on screen: `null` follows today (a new day or wake moves it, via `calendar://changed`); a picked day stays.
   const [today, setToday] = useState(() => localDayKey(new Date()));
   const [picked, setPicked] = useState<Date | null>(null);

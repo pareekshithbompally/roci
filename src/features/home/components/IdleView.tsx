@@ -13,7 +13,7 @@ import { aiSetupStep, useAIReadiness, useChatModelDownload, useOpenAISetup } fro
 import { ONBOARDING_CONFIG } from '@config/onboarding.config';
 import { LAYOUT } from '@config/layout.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
-import { Button, cn, Icon, ProgressRing, Text, TitlebarSpacer } from '@shared/ui';
+import { AppMark, Button, cn, Icon, ProgressRing, Text, TitlebarSpacer } from '@shared/ui';
 import { LoadingPane } from '@shared/components';
 import { motion } from 'framer-motion';
 import { platform } from '@platform/index';
@@ -92,12 +92,13 @@ export const IdleView: React.FC<IdleViewProps> = () => {
         <div className={phone ? 'flex flex-1 flex-col gap-4' : `${LAYOUT.chatColumn} space-y-6 overflow-visible`}>
               {/* Stays mounted and only fades, so the column never reflows under the voice pill. */}
               <motion.div
-                className={cn('text-center', phone && 'flex flex-1 items-center justify-center')}
+                className={cn('flex flex-col items-center gap-4 text-center', phone && 'flex-1 justify-center')}
                 initial={false}
                 animate={voice.isVoiceActive ? { opacity: 0, y: -8 } : { opacity: 1, y: 0 }}
                 transition={voice.isVoiceActive ? { duration: 0.2 } : voice.chromeEnter}
                 aria-hidden={voice.isVoiceActive || undefined}
               >
+                <AppMark size="xl" />
                 <Text as="h1" variant="greeting">{greeting}</Text>
               </motion.div>
               {/* Shared ChatInput — glides to the bottom of the chat on first send */}

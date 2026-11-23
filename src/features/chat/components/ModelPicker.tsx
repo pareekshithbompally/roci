@@ -22,9 +22,11 @@ interface ModelPickerProps {
   compact?: boolean;
   /** The model's logo alone (a narrow composer); its name on hover and in the menu. */
   iconOnly?: boolean;
+  /** In a phone's top bar: a glass capsule beside the round bar buttons. */
+  bar?: boolean;
 }
 
-export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false, iconOnly = false }) => {
+export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false, iconOnly = false, bar = false }) => {
   const { providers, settings, setSettings, saveSettings } = useSettings();
   const [open, setOpen] = useState(false);
   const catalogLoaded = useModelCatalog();
@@ -55,8 +57,8 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false, iconO
   const hasModels = groups.length > 0;
   const trigger = (onClick?: React.MouseEventHandler<HTMLButtonElement>) => (
     <Button
-      variant="ghost"
-      size="toolbar"
+      variant={bar ? 'bar' : 'ghost'}
+      size={bar ? 'md' : 'toolbar'}
       disabled={!hasModels || !!locked}
       title={locked ? undefined : iconOnly && selected ? selected.label : hasModels ? MODEL_PICKER_COPY.select : MODEL_PICKER_COPY.noModels}
       onClick={onClick}

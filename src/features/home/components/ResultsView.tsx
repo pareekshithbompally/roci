@@ -16,7 +16,7 @@ import { openUrl } from '@services/tauri';
 import { formatDuration, calendarDayOffset, formatDayLabel, formatClockTime, formatShortDate, formatDateTime } from '@shared/utils/formatters';
 import { MeetingWorkspace, meetingPipeline, useAiBullets, useDraftSegments, useLiveNotes, type WorkspaceTranscript } from '@features/recording';
 import { useMeetingPhase } from '@shared/stores/meetingProgressStore';
-import { FormDialog, LoadingPane, MeetingStatus, RemovedNotice, SettingsInput } from '@shared/components';
+import { LoadingPane, MeetingStatus, RemovedNotice, RenameModal } from '@shared/components';
 import { StorageConfig } from '@config/storage.config';
 import { MeetingPhaseNotice } from './MeetingPhaseNotice';
 import { MeetingActionsMenu } from './MeetingActionsMenu';
@@ -31,7 +31,7 @@ import type { HistoryItem, ProcessedResult } from '@shared/types';
 import { isMeetingBusy, type MeetingPhase } from '@shared/types/meetingPhase';
 import { meetingPhaseDetail } from '@config/meetingPhase.config';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
-import { MEETING_HEADER_COPY, MEETING_LIVE_CONFIG as LIVE, MEETING_TABS } from '@config/meetingLive.config';
+import { MEETING_LIVE_CONFIG as LIVE, MEETING_TABS } from '@config/meetingLive.config';
 import {
   Badge,
   Button,
@@ -41,7 +41,6 @@ import {
   Tabs,
   TitleBlock,
   Text,
-  TitlebarSpacer,
   Tooltip,
 } from '@shared/ui';
 import type { TabItem } from '@shared/ui';
@@ -75,7 +74,7 @@ const CalendarMetaRow: React.FC<{ item: HistoryItem }> = ({ item }) => {
   };
 
   return (
-    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+    <div className="flex items-center gap-3 flex-wrap">
       {item.scheduledStart && (
         <Text variant="helper" tone="muted" className="flex items-center gap-1">
           <Icon icon={Clock} size="xs" />
@@ -175,7 +174,6 @@ export const ResultsView: React.FC = () => {
 
   /** The ⋯ menu's sheets: rename the meeting, or see its details. */
   const [sheet, setSheet] = useState<'rename' | 'details' | null>(null);
-  const [draftTitle, setDraftTitle] = useState('');
   /** The To-dos tab's new-item form is open; closed when the meeting changes. */
   const [addingTodo, setAddingTodo] = useState(false);
 
@@ -187,14 +185,8 @@ export const ResultsView: React.FC = () => {
   // the list's title is the one renames update at once (optimistically); the meeting's own follows from disk
   const shownTitle = currentHistoryItem?.title || result.title;
 
-  const openRename = () => {
-    setDraftTitle(shownTitle);
-    setSheet('rename');
-  };
-  const saveTitle = () => {
-    const title = draftTitle.trim();
-    setSheet(null);
-    if (title && title !== shownTitle && currentHistoryItem) {
+  const saveTitle = (title: string) => {
+    if (currentHistoryItem) {
       renameMeeting(currentHistoryItem.id, title).catch((error: unknown) => console.error('[ResultsView] Rename failed:', error));
     }
   };
@@ -208,7 +200,7 @@ export const ResultsView: React.FC = () => {
         part={exportPart}
         recordingPath={stats?.recording?.path ?? null}
         onRetranscribe={recordingFileName && phase.kind === 'ready' ? handleTranscribe : undefined}
-        onRename={openRename}
+        onRename={() => setSheet('rename')}
         onDetails={() => setSheet('details')}
       />
     </>
@@ -221,42 +213,23 @@ export const ResultsView: React.FC = () => {
       animate={VIEW.shown}
       transition={VIEW.enter}
     >
-      <TitlebarSpacer />
-      {/* Meeting title — same page column as Settings */}
-      <div className={`${LAYOUT.pageGutter} pt-3 pb-3`}>
-      <div className={LAYOUT.pageColumn}>
-        <>
-            <TitleBlock
-              title={
-                <>
-                  <MeetingSourceIcon inputSource={currentHistoryItem?.inputSource} />
-                  <MeetingTitle title={shownTitle} />
-                </>
-              }
-              meta={currentHistoryItem && <MeetingMetaLine categories={result.categories ?? []} meetingId={currentHistoryItem.id} />}
-              accessory={statusAndMenu}
-            />
-            {currentHistoryItem?.scheduledStart && (
-              <CalendarMetaRow item={currentHistoryItem} />
-            )}
-            <div className="mt-3 empty:hidden">
-              <MeetingPhaseNotice
-                phase={phase}
-                onAction={currentHistoryItem ? handleTranscribe : undefined}
-              />
-            </div>
+      <TitleBlock
+        title={
+          <>
+            <MeetingSourceIcon inputSource={currentHistoryItem?.inputSource} />
+            <MeetingTitle title={shownTitle} />
           </>
-      </div>
-      </div>
-
-      <FormDialog
-        open={sheet === 'rename'}
-        onOpenChange={(open) => !open && setSheet(null)}
-        title={MEETING_HEADER_COPY.renameTitle}
-        submit={{ label: MEETING_HEADER_COPY.save, onPress: saveTitle, disabled: !draftTitle.trim() || draftTitle.trim() === shownTitle }}
+        }
+        meta={currentHistoryItem && <MeetingMetaLine categories={result.categories ?? []} meetingId={currentHistoryItem.id} />}
+        accessory={statusAndMenu}
       >
-        <SettingsInput label={MEETING_HEADER_COPY.name} value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} autoFocus />
-      </FormDialog>
+        {currentHistoryItem?.scheduledStart && <CalendarMetaRow item={currentHistoryItem} />}
+        <div className="empty:hidden">
+          <MeetingPhaseNotice phase={phase} onAction={currentHistoryItem ? handleTranscribe : undefined} />
+        </div>
+      </TitleBlock>
+
+      <RenameModal open={sheet === 'rename'} onOpenChange={(open) => !open && setSheet(null)} currentTitle={shownTitle} onConfirm={saveTitle} />
       {currentHistoryItem && (
         <MeetingDetailsDialog meetingId={currentHistoryItem.id} open={sheet === 'details'} onOpenChange={(open) => !open && setSheet(null)} />
       )}

@@ -14,8 +14,15 @@ import { KIT_COPY } from '@config/kitCopy.config';
 const SHEET_SURFACE = cn(
   'fixed inset-x-0 bottom-0 z-modal flex flex-col rounded-t-sheet bg-grouped shadow-overlay focus:outline-none',
   'data-[state=open]:animate-rise-show data-[state=closed]:animate-rise-hide',
-  'transition-[translate] duration-ios ease-ios data-[dragging]:transition-none',
+  'transition-[translate,max-height] duration-ios ease-ios data-[dragging]:transition-none',
 );
+
+/** `fit`: as tall as its content, growing past its resting height once scrolled or typed in. `full`: the whole screen
+ *  below the status bar, for a stack of screens (Settings) or a wide viewer. */
+const SIZE = {
+  fit: 'max-h-sheet-rest data-[tall]:max-h-sheet',
+  full: 'top-safe-top mt-2',
+} as const;
 
 /** A touch inside something already scrolled down, or on a slider (it drags itself), never moves the sheet. */
 function ignoresDrag(target: Element, sheet: HTMLElement): boolean {
@@ -57,13 +64,17 @@ export interface SheetContentProps extends ComponentProps<typeof DialogPrimitive
   /** Content laid straight into the sheet (a dialog's form, a popover's detail): it scrolls inside the sheet's height
    *  with iOS insets, clear of the grabber above and the home indicator below. */
   padded?: boolean;
+  size?: keyof typeof SIZE;
+  /** Keeps the height it opened at as its content shrinks (a list being searched). */
+  steady?: boolean;
 }
 
-const PADDED = 'max-h-sheet overflow-y-auto overflow-x-hidden px-4 pt-6 pb-sheet-end';
+const PADDED = 'overflow-y-auto overflow-x-hidden px-4 pt-6 pb-sheet-end';
 
-/** A Radix Dialog's content as the iOS sheet; `className` adds its height, padding and scrolling. */
-export function SheetContent({ className, ref, padded, children, ...props }: SheetContentProps) {
+/** A Radix Dialog's content as the iOS sheet; its height is always the kit's (`size`). */
+export function SheetContent({ className, ref, padded, size = 'fit', steady, children, ...props }: SheetContentProps) {
   const [node, setNode] = useState<HTMLDivElement | null>(null);
+  const [tall, setTall] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => closeRef.current?.click(), []);
   useSwipeDown(node, close);
@@ -73,7 +84,17 @@ export function SheetContent({ className, ref, padded, children, ...props }: She
     else if (ref) ref.current = el;
   }, [ref]);
   return (
-    <DialogPrimitive.Content ref={setRefs} className={cn(SHEET_SURFACE, padded && PADDED, className)} {...props}>
+    <DialogPrimitive.Content
+      ref={setRefs}
+      data-tall={tall || undefined}
+      onScrollCapture={(e) => { if (e.target instanceof Element && e.target.scrollTop > 0) setTall(true); }}
+      onFocusCapture={(e) => { if (e.target.matches('input, textarea')) setTall(true); }}
+      onAnimationEnd={(e) => {
+        if (steady && node && e.target === node) node.style.minHeight = `min(${node.offsetHeight}px, var(--sheet-max))`;
+      }}
+      className={cn(SHEET_SURFACE, SIZE[size], padded && PADDED, className)}
+      {...props}
+    >
       <div aria-hidden className="pointer-events-none absolute left-1/2 top-1.5 h-1 w-9 -translate-x-1/2 rounded-full bg-layer-4" />
       {children}
       <DialogPrimitive.Close ref={closeRef} className="sr-only">{KIT_COPY.close}</DialogPrimitive.Close>
@@ -81,25 +102,21 @@ export function SheetContent({ className, ref, padded, children, ...props }: She
   );
 }
 
-/** `auto`: as tall as its content (action sheets). `full`: the whole screen below the status bar (Settings). */
-const SIZE = {
-  auto: 'max-h-sheet',
-  full: 'top-safe-top mt-2',
-} as const;
-
 export interface BottomSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** The sheet's accessible name (read by VoiceOver, not shown). */
   title: string;
   size?: keyof typeof SIZE;
+  /** Keeps the height it opened at as its content shrinks (a list being searched). */
+  steady?: boolean;
   /** Focus lands in the first field instead of on the sheet (an edit sheet: the caret is already where you type). */
   focusField?: boolean;
   children: React.ReactNode;
 }
 
 /** iOS sheet over a scrim, portalled above the whole app; a swipe down, the scrim or Escape closes it. */
-export function BottomSheet({ open, onOpenChange, title, size = 'auto', focusField, children }: BottomSheetProps) {
+export function BottomSheet({ open, onOpenChange, title, size, steady, focusField, children }: BottomSheetProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   // Before the first frame of the rise: the field behind lets go (its own search field may keep focus).
   useLayoutEffect(() => {
@@ -118,7 +135,9 @@ export function BottomSheet({ open, onOpenChange, title, size = 'auto', focusFie
             const field = focusField ? contentRef.current?.querySelector<HTMLElement>('input, textarea') : null;
             (field ?? contentRef.current)?.focus({ preventScroll: true });
           }}
-          className={cn('overflow-hidden pt-3', SIZE[size])}
+          size={size}
+          steady={steady}
+          className="overflow-hidden pt-3"
         >
           <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
           <div className={cn('flex min-h-0 flex-1 flex-col', NO_TOP_INSET)}>{children}</div>
@@ -159,7 +178,7 @@ function SheetHeader({ title, closeLabel, onClose, trailing }: { title: string; 
  *  the fields below in their own card, no buttons in the content. */
 export function EditSheet({ open, onOpenChange, title, canSave, onSave, children }: EditSheetProps) {
   return (
-    <BottomSheet open={open} onOpenChange={onOpenChange} title={title} size="full" focusField>
+    <BottomSheet open={open} onOpenChange={onOpenChange} title={title} focusField>
       <SheetHeader
         title={title}
         closeLabel={KIT_COPY.cancel}

@@ -3,8 +3,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import { Callout, Surface, Tabs, Text } from '@shared/ui';
-import { useFormFactor } from '@platform/formFactor';
+import { Callout, Surface, Tabs, Text, useListBesideDetail } from '@shared/ui';
 import { LIVE_NOTES_CONFIG as NOTES, type PhoneSection } from '@config/liveNotes.config';
 import { ParsedTranscript } from '@features/transcription';
 import type { StoredTranscriptSegment } from '@shared/types';
@@ -111,8 +110,8 @@ const Sections: React.FC<MeetingWorkspaceProps> = ({ transcript, notes }) => {
 };
 
 export const MeetingWorkspace: React.FC<MeetingWorkspaceProps> = (props) => {
-  const phone = useFormFactor() === 'phone';
-  if (phone && props.only) return <OnePart {...props} only={props.only} />;
-  const Body = phone ? Sections : Columns;
+  const beside = useListBesideDetail();
+  if (!beside && props.only) return <OnePart {...props} only={props.only} />;
+  const Body = beside ? Columns : Sections;
   return <Body {...props} />;
 };

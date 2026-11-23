@@ -1,7 +1,9 @@
-/** Compact rename dialog (sidebar items, models); `clearable` lets an empty name clear the rename. */
+/** The one rename form (sidebar items, meetings, models); `clearable` lets an empty name clear the rename. */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Button, Dialog, DialogContent, DialogOverlay, DialogPortal, DialogTitle, Input } from '@shared/ui';
+import { Input } from '@shared/ui';
+import { KIT_COPY } from '@config/kitCopy.config';
+import { FormDialog } from './FormDialog';
 
 interface RenameModalProps {
   open: boolean;
@@ -20,7 +22,7 @@ export const RenameModal: React.FC<RenameModalProps> = ({
   currentTitle,
   onConfirm,
   clearable = false,
-  placeholder = 'Enter a title',
+  placeholder = KIT_COPY.renamePlaceholder,
 }) => {
   const [value, setValue] = useState(currentTitle);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -41,41 +43,20 @@ export const RenameModal: React.FC<RenameModalProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPortal>
-        <DialogOverlay />
-        <DialogContent
-          size="sm"
-          onOpenAutoFocus={(e) => {
-            e.preventDefault();
-            inputRef.current?.focus();
-          }}
-        >
-          <DialogTitle className="mb-4">Rename</DialogTitle>
-
-          <Input
-            ref={inputRef}
-            type="text"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && canSave) handleSubmit();
-            }}
-            placeholder={placeholder}
-          />
-
-          <div className="flex justify-end gap-2.5 mt-5">
-            <Button variant="outline" size="md" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" onClick={handleSubmit}
-              disabled={!canSave}>
-              Save
-            </Button>
-          </div>
-        </DialogContent>
-      </DialogPortal>
-    </Dialog>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={KIT_COPY.rename} size="sm" submit={{ label: KIT_COPY.save, onPress: handleSubmit, disabled: !canSave }}>
+      <Input
+        ref={inputRef}
+        type="text"
+        aria-label={KIT_COPY.rename}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && canSave) handleSubmit();
+        }}
+        placeholder={placeholder}
+        autoFocus
+      />
+    </FormDialog>
   );
 };
 

@@ -57,6 +57,7 @@ report() {
   echo "style_config_importers    $({ grep -rlE '@config/(theme|typography)\.config' "$SCOPE" "${CODE[@]}" 2>/dev/null || true; } | { grep -E '^src/(features|shared/components)/' || true; } | wc -l | tr -d ' ')"
   echo "deep_shared_ui_imports    $(hits "$SCOPE" "from '@shared/ui/")"
   echo "role_classes_in_features  $( [ "${SCOPE#src/features}" != "$SCOPE" ] || [ "$SCOPE" = src ] && hits_except "$SCOPE" "$ROLE_RE" "src/[^f]" || echo 0)"
+  echo "form_factor_in_features   $(hits_except "$SCOPE" 'useFormFactor\(\)' 'src/[^f]')"
   if [ "$SCOPE" = src ]; then
     echo "colour_literal_files      $(colour_files | wc -l | tr -d ' ')   ($(colour_files | tr '\n' ' '))"
     echo "total_lines               $(loc)"

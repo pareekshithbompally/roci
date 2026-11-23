@@ -1,19 +1,19 @@
-/** The one New to-do form, for the To-dos page and a meeting's tab: a bottom sheet on iPhone (Cancel · New to-do · Add),
- *  an inline card on Mac. Text, the meeting (when not already fixed) and an optional due date; time once a date is set. */
+/** The one New to-do form, for the To-dos page and a meeting's tab: the shared form
+ *  (a dialog on a Mac, a sheet on iPhone). Text, the meeting (when not already fixed) and an optional due date; time once a date is set. */
 
 import React, { useState } from 'react';
-import { CalendarDays, ChevronDown, ListTodo, Plus } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useMeetingBrief, useMeetingsFound } from '@shared/hooks/useMeetings';
 import {
-  BottomSheet, Button, DatePicker, Icon, Input, Popover, PopoverContent, PopoverTrigger, Row, Surface, Text, Textarea,
+  Button, CardRow, DatePicker, Icon, Input, Popover, PopoverContent, PopoverTrigger, Row, Section, Surface, Text, Textarea,
   TimePicker,
 } from '@shared/ui';
 import { buildISOFromDateInput, formatMeetingDate } from '@shared/utils/todo.utils';
-import { useFormFactor } from '@platform/formFactor';
+import { FormDialog } from '@shared/components';
+import { localDayKey } from '@shared/utils/localDate';
 import { TODOS_CONFIG } from '@config/todos.config';
 
-
-
+const FORM = TODOS_CONFIG.form;
 
 interface MeetingSelectorProps {
   selectedId: string;
@@ -30,7 +30,7 @@ const MeetingSelector: React.FC<MeetingSelectorProps> = ({ selectedId, onSelect 
   const filtered = useMeetingsFound(words.length > 0 ? { words } : {}, TODOS_CONFIG.meetingPicker, open);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover modal open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" size="md" className="w-full">
           <Text variant="helper" tone={selected ? 'primary' : 'faint'} truncate className="flex-1 text-left">
@@ -83,7 +83,6 @@ interface NewTodoFormProps {
 }
 
 export const NewTodoForm: React.FC<NewTodoFormProps> = ({ open, onClose, onSubmit, meetingId: fixedMeetingId }) => {
-  const phone = useFormFactor() === 'phone';
   const [text, setText] = useState('');
   const [pickedMeetingId, setPickedMeetingId] = useState('');
   const [date, setDate] = useState('');
@@ -113,60 +112,39 @@ export const NewTodoForm: React.FC<NewTodoFormProps> = ({ open, onClose, onSubmi
     }
   };
 
-  const fields = (
-    <div className="space-y-3">
+  return (
+    <FormDialog
+      open={open}
+      onOpenChange={(next) => !next && close()}
+      title={FORM.title}
+      submit={{ label: FORM.submit, onPress: () => void submit(), disabled: !canSubmit, busy: saving }}
+    >
       <Textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="What do you need to do?"
+        placeholder={FORM.text}
         spellCheck
         autoCorrect="on"
         autoCapitalize="sentences"
         className="h-16"
         autoFocus
       />
-      {fixedMeetingId === undefined && (
-        <div className="space-y-1.5">
-          <Text as="label" variant="label" tone="muted" className="flex items-center gap-1.5">
-            <Icon icon={ListTodo} size="xs" />
-            Meeting
-          </Text>
-          <MeetingSelector selectedId={pickedMeetingId} onSelect={setPickedMeetingId} />
-        </div>
-      )}
-      <div className="flex min-h-10 items-center gap-2">
-        <Icon icon={CalendarDays} size="xs" tone="muted" />
-        <Text as="label" variant="label" tone="muted" className="flex-1">Due</Text>
-        <DatePicker value={date} onChange={setDate} min={new Date().toISOString().split('T')[0]} placeholder="Due date" />
-        {date && <TimePicker value={time || '09:00'} onChange={setTime} />}
-      </div>
-    </div>
-  );
-
-  if (phone) {
-    return (
-      <BottomSheet open={open} onOpenChange={(next) => !next && close()} title={TODOS_CONFIG.add}>
-        <div className="flex items-center justify-between gap-2 px-4 pb-3">
-          <Button variant="ghost" size="sm" onClick={close}>Cancel</Button>
-          <Text as="h2" variant="bodyStrong">New to-do</Text>
-          <Button variant="primary" size="sm" onClick={() => void submit()} disabled={!canSubmit}>Add</Button>
-        </div>
-        <div className="px-4 pb-6">{fields}</div>
-      </BottomSheet>
-    );
-  }
-
-  if (!open) return null;
-  return (
-    <Surface variant="subtle" radius="xl" edge="all" className="p-4 space-y-3 animate-fade-in">
-      {fields}
-      <div className="flex gap-2 justify-end pt-1">
-        <Button variant="outline" size="sm" onClick={close}>Cancel</Button>
-        <Button variant="primary" size="sm" onClick={() => void submit()} disabled={!canSubmit}>
-          <Icon icon={Plus} size="xs" />
-          Create
-        </Button>
-      </div>
-    </Surface>
+      <Section>
+        {fixedMeetingId === undefined && (
+          <CardRow title={FORM.meeting} stacked>
+            <MeetingSelector selectedId={pickedMeetingId} onSelect={setPickedMeetingId} />
+          </CardRow>
+        )}
+        <CardRow
+          title={FORM.due}
+          actions={
+            <>
+              <DatePicker value={date} onChange={setDate} min={localDayKey(new Date())} placeholder={FORM.dueDate} />
+              {date && <TimePicker value={time || FORM.defaultTime} onChange={setTime} />}
+            </>
+          }
+        />
+      </Section>
+    </FormDialog>
   );
 };

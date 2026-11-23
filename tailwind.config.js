@@ -56,7 +56,7 @@ export default {
       // ─── Semantic roles (tokens.css). Alpha lives in the token: no `/NN` modifiers. ───
       backgroundColor: {
         ...roles('bg', ['base', 'deep', 'layer-1', 'layer-2', 'layer-3', 'layer-4', 'inverse', 'accent', 'accent-wash', 'knob',
-          'hover', 'pressed', 'control', 'control-hover', 'scrim', 'base-glass', 'deep-glass', 'raised-glass', 'glow-core', 'glow-companion', 'glow-wash',
+          'hover', 'pressed', 'control', 'control-hover', 'scrim', 'base-glass', 'deep-glass', 'raised-glass', 'bar', 'glow-core', 'glow-companion', 'glow-wash',
           'grouped', 'grouped-card']),
         ...stateRoles('bg', '-subtle'),
         ...stateRoles('solid'),
@@ -84,7 +84,7 @@ export default {
       },
       divideColor: roles('border', ['muted', 'base', 'strong']),
       ringColor: { focus: 'var(--border-focus)' },
-      boxShadow: roles('shadow', ['input', 'raised', 'floating', 'overlay']),
+      boxShadow: roles('shadow', ['input', 'raised', 'floating', 'overlay', 'bar']),
       zIndex: roles('z', ['floating', 'modal', 'popover', 'tooltip', 'splash']),
       // State tints as an image layer, so they shade a surface's fill instead of replacing it.
       backgroundImage: {
@@ -127,8 +127,8 @@ export default {
         greeting: ['var(--fs-greeting)', { lineHeight: 'var(--lh-greeting)', letterSpacing: 'var(--tr-greeting)' }],
       },
       // 5.5 = a 14px icon + 8px gap (text indented under an icon); 15 = 60px described row
-      /** A sheet rises to this share of the screen, its top still showing what it covers (iOS page sheet). */
-      maxHeight: { sheet: '92dvh' },
+      /** A bottom sheet's heights (tokens.css), its top still showing what it covers (iOS page sheet). */
+      maxHeight: { sheet: 'var(--sheet-max)', 'sheet-rest': 'var(--sheet-rest)' },
       spacing: { 5.5: '1.375rem', 15: '3.75rem', 'safe-top': 'var(--safe-top)', 'safe-bottom': 'var(--safe-bottom)', 'sheet-end': 'calc(var(--safe-bottom) + 1rem)', 'control-xs': 'var(--control-xs)', 'control-sm': 'var(--control-sm)', 'control-md': 'var(--control-md)', 'control-lg': 'var(--control-lg)', 'welcome-top': '14vh', 'welcome-icon': '4.5rem', 'choice-icon': '4rem', 'row-icon': 'var(--row-icon-gap)', section: 'var(--section-gap)' },
       keyframes: {
         'overlay-show': {

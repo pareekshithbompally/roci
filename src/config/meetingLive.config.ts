@@ -58,10 +58,7 @@ export const MEETING_TABS = { summary: 'Summary', transcript: 'Transcript' } as 
 export const MEETING_HEADER_COPY = {
   actions: 'Meeting actions',
   rename: 'Rename…',
-  renameTitle: 'Rename Meeting',
-  name: 'Name',
   details: 'Details',
-  save: 'Save',
 } as const;
 
 const plural = (count: number, word: string): string => `${count.toLocaleString()} ${word}${count === 1 ? '' : 's'}`;

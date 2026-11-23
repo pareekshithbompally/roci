@@ -3,6 +3,8 @@
 export const KIT_COPY = {
   cancel: 'Cancel',
   save: 'Save',
+  rename: 'Rename',
+  renamePlaceholder: 'Enter a title',
   done: 'Done',
   close: 'Close',
   back: 'Back',

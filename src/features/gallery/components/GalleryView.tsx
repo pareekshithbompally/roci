@@ -19,7 +19,7 @@ const ImageCaption: React.FC<{ image: GalleryImage; onOpenChat: (chatId: string)
   const { meta, chatId } = image;
   const facts = [meta?.aspectRatio, formatDateTime(image.createdAt)].filter(Boolean).join(' · ');
   return (
-    <Surface variant="card" radius="xl" edge="all" className="space-y-2 p-4">
+    <Surface variant="card" radius="xl" className="space-y-2 p-4">
       {meta && <Text as="p" variant="body" className="line-clamp-3">{meta.prompt}</Text>}
       <div className="flex items-center gap-3">
         {meta && <ModelBadge provider={meta.provider} model={meta.model} />}

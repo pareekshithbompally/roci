@@ -64,7 +64,6 @@ export const MeetingChatPopout: React.FC<MeetingChatPopoutProps> = ({ meetingId,
     <Surface
       variant="floating"
       radius="xl"
-      edge="all"
       className="fixed z-floating flex flex-col overflow-hidden animate-content-show"
       style={POPOUT_GEOMETRY}
       role="dialog"

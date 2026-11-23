@@ -36,7 +36,7 @@ export const ConfirmHost: React.FC = () => {
               <Button variant="outline" size="md">{cancelLabel}</Button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
-              <Button variant={tone === 'danger' ? 'danger' : 'accent'} size="md" onClick={() => settleConfirm(true)}>
+              <Button variant={tone === 'danger' ? 'danger' : 'primary'} size="md" onClick={() => settleConfirm(true)}>
                 {confirmLabel}
               </Button>
             </AlertDialogAction>

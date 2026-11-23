@@ -58,7 +58,7 @@ const TodoList: React.FC<TodoListProps> = ({ creating, onCreatingChange, classNa
         </div>
       )}
 
-      {/* New to-do: the shared form (a sheet on iPhone), fixed to this meeting. */}
+      {/* New to-do: the shared form, fixed to this meeting. */}
       <NewTodoForm
         open={creating}
         onClose={() => onCreatingChange(false)}
@@ -67,9 +67,9 @@ const TodoList: React.FC<TodoListProps> = ({ creating, onCreatingChange, classNa
       />
 
       {/* Content: empty state or item list */}
-      {totalCount === 0 && !creating ? (
+      {totalCount === 0 ? (
         <EmptyState icon={ListTodo} message="No to-do items yet" />
-      ) : totalCount > 0 ? (
+      ) : (
         <div>
           {allTodos.map((todo, i) => (
             <React.Fragment key={todo.id}>
@@ -86,7 +86,7 @@ const TodoList: React.FC<TodoListProps> = ({ creating, onCreatingChange, classNa
             </React.Fragment>
           ))}
         </div>
-      ) : null}
+      )}
     </ScreenState>
   );
 };

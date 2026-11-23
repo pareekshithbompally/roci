@@ -70,7 +70,7 @@ export function RevealLayout({ open, onOpen, onClose, pane, paneLabel, children 
   }, [open, onClose]);
 
   return (
-    <Surface variant="grouped" className="relative h-dvh w-full overflow-hidden">
+    <Surface variant="sidebar" className="relative h-dvh w-full overflow-hidden">
       <nav
         ref={paneRef}
         tabIndex={-1}

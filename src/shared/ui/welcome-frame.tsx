@@ -67,7 +67,7 @@ export function WelcomeStep({ icon, title, subtitle, primary, secondary, childre
   const actions = (primary || secondary) && (
     <div className="flex w-full flex-col items-center gap-3">
       {primary && (
-        <Button variant="accent" size={phone ? 'lg' : 'md'} onClick={primary.onClick} disabled={primary.disabled} className={phone ? 'w-full' : undefined}>
+        <Button variant="primary" size={phone ? 'lg' : 'md'} onClick={primary.onClick} disabled={primary.disabled} className={phone ? 'w-full' : undefined}>
           {primary.label}
         </Button>
       )}
