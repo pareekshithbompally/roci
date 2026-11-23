@@ -21,7 +21,7 @@ interface AccessSource {
 
 export interface SystemAccess {
   access: IntegrationAccess;
-  /** Ask the system; resolves whether access is now granted. */
+  /** Ask the system; resolves whether access is now granted (never rejects). One it won't ask about opens Settings. */
   requestAccess: () => Promise<boolean>;
   openSettings: () => void;
 }
@@ -35,24 +35,29 @@ export function useSystemAccess({ id, check, request, settingsPane }: AccessSour
     refetchOnWindowFocus: 'always',
   });
 
-  const requestAccess = useCallback(async () => {
-    const granted = await request();
-    // The system's answer is the truth (the bridge keeps a grant for the run); a check started before it answered
-    // (focus returns when the prompt closes) is cancelled before the answer is written.
-    const key = queryKeys.integrationAccess(id);
-    if (granted) {
-      await queryClient.cancelQueries({ queryKey: key });
-      queryClient.setQueryData<CalendarAccessStatus>(key, 'authorized');
-    } else {
-      await queryClient.invalidateQueries({ queryKey: key });
-    }
-    return granted;
-  }, [id, request, queryClient]);
-
   const openSettings = useCallback(() => {
     openSettingsPane(settingsPane).catch((error: unknown) =>
       console.error(`[useSystemAccess] Opening ${id} settings failed:`, error));
   }, [id, settingsPane]);
+
+  const requestAccess = useCallback(async () => {
+    const report = (action: string) => (error: unknown) => console.error(`[useSystemAccess] ${id} ${action} failed:`, error);
+    const granted = await request().catch((error: unknown) => {
+      report('request')(error);
+      return false;
+    });
+    // The system's answer is the truth (the bridge keeps a grant for the run); a check started before it answered
+    // (focus returns when the prompt closes) is cancelled before the answer is written.
+    const key = queryKeys.integrationAccess(id);
+    await queryClient.cancelQueries({ queryKey: key });
+    if (granted) {
+      queryClient.setQueryData<CalendarAccessStatus>(key, 'authorized');
+      return true;
+    }
+    const answer = await queryClient.fetchQuery({ queryKey: key, queryFn: check, staleTime: 0 }).catch(report('check'));
+    if (answer === 'not_determined') openSettings();
+    return false;
+  }, [id, request, check, openSettings, queryClient]);
 
   const access: IntegrationAccess = status === 'unavailable' ? 'unavailable' : status ? eventKitAccess(status) : 'unknown';
   return { access, requestAccess, openSettings };

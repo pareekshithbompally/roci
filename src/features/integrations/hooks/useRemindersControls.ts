@@ -51,7 +51,7 @@ export function useRemindersControls(): RemindersControls {
     access,
     enabled: current.enabled,
     setEnabled: (on) => { setEnabled(on).catch((e: unknown) => console.error('[useRemindersControls] toggle failed:', e)); },
-    request: () => { requestAccess().catch((e: unknown) => console.error('[useRemindersControls] request failed:', e)); },
+    request: () => { void requestAccess(); },
     openSettings,
     lists,
     listId: current.listId,

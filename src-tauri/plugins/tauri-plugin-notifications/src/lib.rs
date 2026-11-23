@@ -135,13 +135,17 @@ pub fn status() -> Status {
 }
 
 /// Raises the macOS prompt when undecided; blocks until answered, so never call it on the main thread.
-/// `Err` is macOS's reason when it refused to ask at all (e.g. a bundle without a sealed signature).
+/// "Don't Allow" also comes with an error, so the status is the answer and the error is only logged.
 pub fn request() -> Result<Status, String> {
     let reply = bridge::request()?;
-    match reply.error {
-        Some(error) => Err(error),
-        None => Ok(Status::parse(&reply.status)),
+    if let Some(error) = reply.error {
+        log::warn!("[notifications] request: {error}");
     }
+    let status = Status::parse(&reply.status);
+    if status == Status::Authorized {
+        requeue_timed();
+    }
+    Ok(status)
 }
 
 // ── Posting ──
@@ -189,7 +193,7 @@ pub fn is_muted(kind: &str) -> bool {
     state().muted.contains(kind)
 }
 
-/// Show `notice` now: skipped when its kind is muted, permission asked when undecided.
+/// Show `notice` now: skipped when its kind is muted or notifications aren't allowed (posting never asks).
 pub fn post(notice: &Notice) {
     deliver(notice, None);
 }
@@ -228,28 +232,18 @@ struct Delivery<'a> {
     at_ms: Option<i64>,
 }
 
-/// One path for every notice: skipped when its kind is muted, permission asked when undecided.
+/// One path for every notice: skipped when its kind is muted or notifications aren't allowed (posting never asks).
 fn deliver(notice: &Notice, at_ms: Option<i64>) {
     if notice.kind.as_deref().is_some_and(is_muted) {
         return;
     }
-    match permitted() {
+    match status() {
         Status::Authorized => {
             if let Err(error) = bridge::show(&Delivery { notice, at_ms }) {
                 log::warn!("[notifications] {} not shown: {error}", notice.id);
             }
         }
         status => log::info!("[notifications] {} not shown: {status:?}", notice.id),
-    }
-}
-
-fn permitted() -> Status {
-    match status() {
-        Status::NotDetermined => request().unwrap_or_else(|error| {
-            log::warn!("[notifications] permission request refused: {error}");
-            Status::NotDetermined
-        }),
-        status => status,
     }
 }
 

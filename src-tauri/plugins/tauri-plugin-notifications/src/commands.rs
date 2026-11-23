@@ -9,7 +9,7 @@ pub async fn status() -> Status {
     crate::status()
 }
 
-/// Raise the macOS prompt when undecided (Settings › Notifications › Allow); rejects with macOS's reason if it refused.
+/// Raise the macOS prompt when undecided (Settings › Notifications › Allow); resolves the status after it.
 #[command]
 pub async fn request() -> Result<Status, String> {
     crate::request()

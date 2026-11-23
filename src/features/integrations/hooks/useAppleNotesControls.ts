@@ -31,7 +31,7 @@ export function useAppleNotesControls(): IntegrationControls {
     access,
     enabled,
     setEnabled: (on) => { setEnabled(on).catch((e: unknown) => console.error('[useAppleNotesControls] toggle failed:', e)); },
-    request: () => { requestAccess().catch((e: unknown) => console.error('[useAppleNotesControls] request failed:', e)); },
+    request: () => { void requestAccess(); },
     openSettings,
   };
 }

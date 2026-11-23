@@ -33,7 +33,7 @@ export function useCalendarControls(): IntegrationControls {
     access,
     enabled: current.enabled,
     setEnabled: (on) => { setEnabled(on).catch((e: unknown) => console.error('[useCalendarControls] toggle failed:', e)); },
-    request: () => { requestAccess().catch((e: unknown) => console.error('[useCalendarControls] request failed:', e)); },
+    request: () => { void requestAccess(); },
     openSettings,
   };
 }

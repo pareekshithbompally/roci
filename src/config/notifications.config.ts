@@ -1,7 +1,7 @@
 /** Notification kinds, copy and defaults, plus the native bridge's event names and buttons. */
 
 import type { NotificationKind, NotificationSettings } from '@shared/types';
-import { platform, type PlatformCapability } from '@platform/index';
+import type { PlatformCapability } from '@platform/index';
 
 /** `requires`: the capability the kind depends on; devices without it don't list the kind. */
 export const NOTIFICATION_KINDS: ReadonlyArray<{ kind: NotificationKind; label: string; requires?: PlatformCapability }> = [
@@ -13,11 +13,6 @@ export const NOTIFICATION_KINDS: ReadonlyArray<{ kind: NotificationKind; label: 
   { kind: 'chatReplies', label: 'Chat replies' },
   { kind: 'todoReminders', label: 'To-do reminders' },
 ];
-
-/** Settings › Notifications › Allow failing, shown as an error toast with the system's reason after it. */
-export const NOTIFICATION_PERMISSION_COPY = {
-  requestFailed: `${platform.systemName} didn’t ask for notification access`,
-} as const;
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   meetingReminders: true,

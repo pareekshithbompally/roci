@@ -35,7 +35,7 @@ export async function notificationStatus(): Promise<NotificationStatus> {
   return call<NotificationStatus>('status');
 }
 
-/** Raise the macOS prompt (only while undecided); resolves the new status, rejects with macOS's reason if it refused to ask. */
+/** Raise the macOS prompt (only while undecided); resolves the status after it (a denial is an answer, not an error). */
 export async function requestNotifications(): Promise<NotificationStatus> {
   if (!isTauriEnvironment()) return 'unsupported';
   return call<NotificationStatus>('request');
