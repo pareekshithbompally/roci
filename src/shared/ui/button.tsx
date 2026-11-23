@@ -14,8 +14,8 @@ export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'da
 export type ButtonSize = 'inline' | 'toolbar' | 'sm' | 'md' | 'lg' | 'icon' | 'iconSm' | 'iconXs' | 'fab';
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  /** The main action, in the brand colour on every device. */
-  primary: 'bg-accent text-on-accent hover:opacity-90',
+  /** The main action, in the brand colour on every device; plain grey while it can't be used (Messages' send). */
+  primary: 'bg-accent text-on-accent hover:opacity-90 disabled:bg-control disabled:text-faint disabled:opacity-100',
   secondary: 'bg-layer-2 text-primary hover:bg-layer-3',
   /** The system push button (macOS 26 / iOS 26): a filled control-grey capsule, no outline. */
   outline: 'bg-control text-primary hover:bg-control-hover',

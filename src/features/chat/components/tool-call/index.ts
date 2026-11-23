@@ -1,3 +1,4 @@
+export { ActivityHeader } from './ActivityHeader';
 export { ToolCallBlock } from './ToolCallBlock';
 export type { ToolCallBlockProps } from './ToolCallBlock';
 export { ToolCallBody, toolBodyFor } from './ToolCallBody';

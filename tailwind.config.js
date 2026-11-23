@@ -104,7 +104,7 @@ export default {
       borderRadius: { card: 'var(--radius-card)', sheet: 'var(--radius-sheet)', bubble: 'var(--radius-bubble)', field: 'calc(var(--control-md) / 2)' },
       minHeight: { row: 'var(--row-min-h)' },
       // A table cell takes its row's height as a minimum (tables ignore min-height on cells).
-      height: { row: 'var(--row-min-h)' },
+      height: { row: 'var(--row-min-h)', sheet: 'var(--sheet-max)', 'sheet-rest': 'var(--sheet-rest)' },
       transitionTimingFunction: { ios: IOS_EASE },
       transitionDuration: { ios: IOS_DURATION },
       // ─── macOS text styles (SF Pro). `reading` is the one exception: long-form chat/transcript ───

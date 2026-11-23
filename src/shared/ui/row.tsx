@@ -4,15 +4,20 @@ import { Text } from './text';
 import { platform } from '@platform/index';
 
 /** Canonical list/sidebar row (control-md: 32 px on macOS, 44 pt on iOS) (Row, rowClasses, RowAction, RowGroupLabel) so every list shares one shape. */
-/** `md`: one-line rows (sidebar, menus); `lg`: a title over a detail line with room around it (Mail / Notes lists). */
-export type RowSize = 'md' | 'lg';
+/** `sm`: secondary lines inside content (a reply's suggestions, its thinking and tool rows), callout type; `md`: one-line
+ *  rows (sidebar, menus); `lg`: a title over a detail line with room around it (Mail / Notes lists). */
+export type RowSize = 'sm' | 'md' | 'lg';
 
-const ROW_PADDING: Record<RowSize, string> = { md: 'py-1', lg: 'py-2' };
+const ROW_SIZE: Record<RowSize, string> = {
+  sm: 'min-h-control-sm py-0.5 text-callout',
+  md: 'min-h-control-md py-1 text-body',
+  lg: 'min-h-control-md py-2 text-body',
+};
 
 export function rowClasses(selected?: boolean, size: RowSize = 'md'): string {
   return cn(
-    'flex w-full min-h-control-md items-center gap-2 rounded-md px-2.5 text-left text-body text-primary transition-colors cursor-pointer min-w-0',
-    ROW_PADDING[size],
+    'flex w-full items-center gap-2 rounded-md px-2.5 text-left text-primary transition-colors cursor-pointer min-w-0',
+    ROW_SIZE[size],
     selected ? 'bg-pressed' : 'hover:bg-hover',
     // Touch: a list row shades while the finger is on it (UITableView highlight).
     platform.hasTouchScreen && 'active:bg-pressed',

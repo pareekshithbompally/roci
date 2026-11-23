@@ -7,12 +7,13 @@ interface SuggestionsListProps {
   onSuggestionClick: (suggestion: string) => void;
 }
 
-/** Suggestion rows, each with an arrow prefix; up to two lines, so a follow-up reads whole on a phone. */
+/** Suggestion rows, secondary lines (callout type) each with an arrow prefix; up to two lines, so a follow-up reads whole on a phone. */
 const SuggestionsList: React.FC<SuggestionsListProps> = ({ suggestions, onSuggestionClick }) => (
   <>
     {suggestions.map((suggestion, i) => (
       <Row
         key={i}
+        size="sm"
         onClick={() => onSuggestionClick(suggestion)}
         leading={<Icon icon={ArrowRight} size="xs" tone="faint" />}
       >

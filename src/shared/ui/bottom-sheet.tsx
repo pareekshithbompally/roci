@@ -10,19 +10,21 @@ import { UI_CONFIG } from '@config/ui.config';
 import { commits, slideOff, useTouchDrag } from './touch-drag';
 import { KIT_COPY } from '@config/kitCopy.config';
 
-/** The one iOS sheet surface (BottomSheet, and Dialog / Popover on a phone): rises from the bottom on the iOS curve, has a
- *  grabber, and follows a finger dragging it down, closing past a distance or a flick, springing back otherwise. */
+/** The one iOS sheet surface (BottomSheet, and Dialog / Popover on a phone): rises from the bottom on the iOS curve to half
+ *  height, has a grabber, and follows a finger: up grows it tall, down from tall returns it to half, down from half closes
+ *  it (each past a distance or a flick, springing back otherwise). */
 const SHEET_SURFACE = cn(
   'fixed inset-x-0 bottom-0 z-modal flex flex-col rounded-t-sheet bg-grouped shadow-overlay focus:outline-none',
   'data-[state=open]:animate-rise-show data-[state=closed]:animate-rise-hide',
-  'transition-[translate,max-height] duration-ios ease-ios data-[dragging]:transition-none',
+  'transition-[translate,height,max-height] duration-ios ease-ios data-[dragging]:transition-none',
 );
 
-/** `fit`: as tall as its content, growing past its resting height once scrolled or typed in. `full`: the whole screen
- *  below the status bar, for a stack of screens (Settings) or a wide viewer. */
+/** Every sheet opens at half height (iOS medium detent) and grows tall (large detent) when dragged up, scrolled or typed in.
+ *  `fit`: as tall as its content, up to that height. `full`: exactly that height, for a stack of screens (Settings, so a
+ *  pushed page never changes it) or a wide viewer. */
 const SIZE = {
   fit: 'max-h-sheet-rest data-[tall]:max-h-sheet',
-  full: 'top-safe-top mt-2',
+  full: 'h-sheet-rest data-[tall]:h-sheet',
 } as const;
 
 /** A touch inside something already scrolled down, or on a slider (it drags itself), never moves the sheet. */
@@ -34,22 +36,36 @@ function ignoresDrag(target: Element, sheet: HTMLElement): boolean {
   return false;
 }
 
-/** Swipe down to close: the sheet follows the finger; let go far or fast enough and it slides off, then closes with no
- *  second (rise-hide) animation; otherwise it springs back. */
-function useSwipeDown(sheet: HTMLElement | null, close: () => void, held?: boolean): void {
+/** The sheet follows a vertical drag. At half height a drag up grows it (it rises with the finger) and becomes tall past a
+ *  distance or a flick; a drag down from tall returns it to half; a drag down from half slides it off and closes it with no
+ *  second (rise-hide) animation. Short of that, it springs back. */
+function useSheetDrag(sheet: HTMLElement | null, tall: boolean, setTall: (tall: boolean) => void, close: () => void, held?: boolean): void {
+  const { sheetShare } = UI_CONFIG.gesture;
+  const start = useRef(0);
   useTouchDrag(sheet, {
-    axis: 'down',
+    // Tall, an upward move is the content's scroll; at half height it grows the sheet.
+    axis: tall ? 'down' : 'y',
     ignores: (target) => !sheet || ignoresDrag(target, sheet),
     onMove: (dy) => {
       if (!sheet) return;
+      if (!sheet.dataset.dragging) start.current = sheet.offsetHeight;
       sheet.dataset.dragging = '';
-      sheet.style.translate = `0 ${Math.max(0, dy)}px`;
+      if (dy < 0) sheet.style.height = `${start.current - dy}px`;
+      else sheet.style.translate = `0 ${dy}px`;
     },
     onEnd: (dy, speed) => {
       if (!sheet) return;
       delete sheet.dataset.dragging;
-      // A held sheet (unsaved edits) springs back, as iOS keeps a sheet that would lose them.
-      if (!commits(dy, speed, sheet.offsetHeight, UI_CONFIG.gesture.sheetShare) || held) {
+      sheet.style.height = '';
+      const grows = dy < 0 && commits(-dy, -speed, start.current, sheetShare);
+      const shrinks = dy > 0 && commits(dy, speed, start.current, sheetShare);
+      if (grows || (shrinks && tall)) {
+        sheet.style.translate = '';
+        setTall(grows);
+        return;
+      }
+      // A held sheet (unsaved edits) springs back from a drag down, as iOS keeps a sheet that would lose them.
+      if (!shrinks || held) {
         sheet.style.translate = '';
         return;
       }
@@ -81,7 +97,7 @@ export function SheetContent({ className, ref, padded, size = 'fit', steady, hel
   const [tall, setTall] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => closeRef.current?.click(), []);
-  useSwipeDown(node, close, held);
+  useSheetDrag(node, tall, setTall, close, held);
   const setRefs = useCallback((el: HTMLDivElement | null) => {
     setNode(el);
     if (typeof ref === 'function') ref(el);
@@ -133,8 +149,8 @@ export function BottomSheet({ open, onOpenChange, title, size, steady, focusFiel
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className={SCRIM} />
         <SheetContent
-          held={held}
           ref={contentRef}
+          held={held}
           aria-describedby={undefined}
           // Focus lands on the sheet itself, without scrolling it to a control further down (it opens at its top).
           onOpenAutoFocus={(e) => {
@@ -176,13 +192,15 @@ export interface EditSheetProps {
   children: React.ReactNode;
 }
 
-/** A sheet's bar (iOS): ✕ at the leading edge, the title centred, an optional control at the trailing edge. */
+/** A sheet's bar (iOS), the title centred. One rule for every sheet: one that edits has ✕ (cancel) at the leading edge and
+ *  its save (`trailing`) at the trailing edge; one that only shows or picks has ✕ alone at the trailing edge, as Settings does. */
 function SheetHeader({ title, closeLabel, onClose, trailing }: { title: string; closeLabel: string; onClose: () => void; trailing?: React.ReactNode }) {
+  const close = <IconButton icon={X} label={closeLabel} size="fab" variant="bar" onClick={onClose} />;
   return (
     <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pt-2">
-      <IconButton icon={X} label={closeLabel} size="fab" variant="bar" onClick={onClose} className="justify-self-start" />
+      <div className="justify-self-start">{trailing && close}</div>
       <Text as="h2" variant="headline">{title}</Text>
-      <div className="justify-self-end">{trailing}</div>
+      <div className="justify-self-end">{trailing ?? close}</div>
     </header>
   );
 }

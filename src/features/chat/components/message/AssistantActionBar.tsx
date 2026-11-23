@@ -74,7 +74,10 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
         {hasTabs && (
           <div className="flex items-center gap-2">
             {hasSuggestions ? (
-              <Tabs items={tabItems} value={activeTab} onValueChange={setActiveTab} fill={false} />
+              // One section is a label, not a lone segment; Sources beside it makes it a choice.
+              tabItems.length > 1
+                ? <Tabs items={tabItems} value={activeTab} onValueChange={setActiveTab} fill={false} />
+                : <Text variant="label" tone="faint">{tabItems[0].label}</Text>
             ) : (
               <div className="flex items-center gap-2">
                 {hasMeetingCitations && (
@@ -130,7 +133,7 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
 
       {/* Tab content: suggestions, or sources when expanded via the tab */}
       {hasTabs && hasSuggestions && (
-        <div className="flex flex-col gap-1 mt-2.5">
+        <div className="flex flex-col mt-2">
           {activeTab === 'suggestions' && (
             <SuggestionsList suggestions={suggestions!} onSuggestionClick={onSuggestionClick!} />
           )}

@@ -21,10 +21,10 @@ export interface DisclosureProps {
   className?: string;
 }
 
-/** The summary's shape and the content's indent for each variant. */
+/** The summary's shape and the content's indent for each variant; a summary is a secondary line (callout type). */
 const VARIANTS = {
-  row: { summary: rowClasses(), content: 'pt-1 pb-2 pl-5.5' },
-  inline: { summary: 'flex w-full h-8 items-center gap-2 text-left text-body cursor-pointer min-w-0 transition-opacity hover:opacity-80', content: 'pt-1 pb-2' },
+  row: { summary: rowClasses(false, 'sm'), content: 'pt-1 pb-2 pl-5.5' },
+  inline: { summary: 'flex w-full min-h-control-sm items-center gap-2 text-left text-callout cursor-pointer min-w-0 transition-opacity hover:opacity-80', content: 'pt-1 pb-2' },
 } as const;
 
 const COLLAPSED = { height: 0, opacity: 0 };

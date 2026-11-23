@@ -3,7 +3,7 @@ import { Layers } from 'lucide-react';
 import { Badge, Disclosure, Icon, Text } from '@shared/ui';
 import { CHAT_ACTIVITY_COPY, CHAT_REASONING_COPY } from '@config/chat.config';
 import { META_SEPARATOR } from '@config/ui.config';
-import { ToolCallBlock, formatExecutionMs, toolCallTitle, type ToolCallView } from '@features/chat/components/tool-call';
+import { ActivityHeader, ToolCallBlock, formatExecutionMs, toolCallTitle, type ToolCallView } from '@features/chat/components/tool-call';
 import type { GenerationStats } from '@services/ai/types';
 import { ReasoningBlock } from './ReasoningBlock';
 import type { ActivityPart, IndexedPart } from './groupActivity';
@@ -41,8 +41,9 @@ function RunMeta({ items }: { items: IndexedPart<ActivityPart>[] }) {
   const tools = toolParts(items);
   const failed = tools.filter((part) => part.status === 'error').length;
   if (failed > 0) return <Badge variant="error" className="shrink-0">{CHAT_ACTIVITY_COPY.failed(failed)}</Badge>;
-  if (tools.length === 0) return null;
   const totalMs = tools.reduce((sum, part) => sum + (part.result?.executionMs ?? 0), 0);
+  // No time recorded (none of the calls reported one): nothing to show.
+  if (totalMs === 0) return null;
   return <Text variant="caption" tone="faint" className="shrink-0">{formatExecutionMs(totalMs)}</Text>;
 }
 
@@ -70,11 +71,12 @@ function ActivityRows({ items, liveIndex, generation, nested }: ActivityRunProps
 function RunSummary({ items, liveIndex }: Pick<ActivityRunProps, 'items' | 'liveIndex'>) {
   const live = liveStep(items, liveIndex);
   return (
-    <>
-      <Icon icon={Layers} size="xs" tone="faint" className="shrink-0" />
-      <Text tone="muted" shimmer={!!live} truncate className="min-w-0 mr-auto">{headerTitle(items, live)}</Text>
-      <RunMeta items={items} />
-    </>
+    <ActivityHeader
+      glyph={<Icon icon={Layers} size="xs" tone="faint" className="shrink-0" />}
+      title={headerTitle(items, live)}
+      running={!!live}
+      meta={<RunMeta items={items} />}
+    />
   );
 }
 

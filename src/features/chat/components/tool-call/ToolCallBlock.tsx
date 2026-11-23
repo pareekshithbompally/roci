@@ -7,6 +7,7 @@ import { toolKey, type ToolCallView } from './toolCallView';
 import { formatExecutionMs, toolCallTitle } from './toolCallTitle';
 import { toolCallIcon } from './toolCallIcons';
 import { ToolCallBody } from './ToolCallBody';
+import { ActivityHeader } from './ActivityHeader';
 
 /** The MCP server's own icon, looked up from the connected servers. */
 function McpToolGlyph({ source }: { source: string }) {
@@ -39,11 +40,7 @@ export const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ part, variant }) =
   <Disclosure
     variant={variant}
     summary={
-      <>
-        <ToolCallGlyph part={part} />
-        <Text tone="muted" shimmer={part.status === 'calling'} truncate className="min-w-0 mr-auto">{toolCallTitle(part)}</Text>
-        <ToolCallMeta part={part} />
-      </>
+      <ActivityHeader glyph={<ToolCallGlyph part={part} />} title={toolCallTitle(part)} running={part.status === 'calling'} meta={<ToolCallMeta part={part} />} />
     }
   >
     <ToolCallBody part={part} />

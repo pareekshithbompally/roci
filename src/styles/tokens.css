@@ -108,7 +108,7 @@
   /* Card and sheet corners, list row height (macOS); iOS sets its own below. */
   --radius-card: 12px;
   --radius-sheet: 16px;
-  /* A bottom sheet is as tall as its content: up to `rest` as it opens, up to `max` once scrolled or typed in. */
+  /* A bottom sheet's two heights (iOS detents): half (`rest`) as it opens, tall (`max`) once dragged up, scrolled or typed in. */
   --sheet-rest: 56dvh;
   --sheet-max: 92dvh;
   --row-min-h: 44px;
@@ -137,8 +137,9 @@
   --bg-base-glass: var(--bg-base);
   --bg-deep-glass: var(--bg-deep);
   --bg-raised-glass: var(--bg-base);
-  /* Glass controls over the page (round bar buttons, the composer): neutral on every device, so a glyph or text reads as on the plain page. */
-  --bg-bar: color-mix(in srgb, var(--grey-50) 82%, transparent);
+  /* Glass controls over the page (round bar buttons, the composer): a soft grey tint, so they show on white and on the copper
+     wash alike without a heavy shadow; dark is a lifted grey. */
+  --bg-bar: color-mix(in srgb, var(--grey-1100) 6%, transparent);
 
   --text-primary: var(--grey-1100);
   --text-muted: var(--grey-700);
@@ -183,7 +184,7 @@
   --shadow-raised: #0000000a 0 2px 4px 0, #00000014 0 1px 2px -1px, #0000001f 0 0 0 0.5px;
   --shadow-floating: #0000000a 0 8px 16px 0, #00000014 0 4px 8px 0, #0000001f 0 0 0 0.5px;
   --shadow-overlay: #0000000a 0 16px 32px 0, #00000014 0 8px 16px 0, #0000001f 0 0 0 0.5px;
-  --shadow-bar: #0000000f 0 0 0 0.5px, #0000000d 0 2px 10px 0;
+  --shadow-bar: inset 0 0.5px 0 0 #ffffffb3, #0000000f 0 0 0 0.5px;
 
   /* AI moments only */
   --ai-gradient: linear-gradient(to right, var(--copper-600), var(--copper-400));
@@ -208,7 +209,7 @@
   /* A badge tinted by its logo (useLogoTint): the neutral pill with the logo's colour mixed in, strongest at the logo, fading across the label */
   --badge-tint-from: 28%;
   --badge-tint-to: 8%;
-  /* Landing glow (LandingGlow): copper core, amber companion, copper wash — light enough that text on it stays on white */
+  /* Landing glow (LandingGlow): copper core, amber companion, copper wash, behind the greeting — light enough that text on it stays on white */
   --bg-glow-core: color-mix(in srgb, var(--copper-500) 20%, transparent);
   --bg-glow-companion: color-mix(in srgb, var(--copper-400) 18%, transparent);
   --bg-glow-wash: color-mix(in srgb, var(--copper-400) 14%, transparent);

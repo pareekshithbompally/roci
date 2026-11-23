@@ -7,8 +7,9 @@ import { UI_CONFIG } from '@config/ui.config';
 
 const { edgePx, commitSpeed } = UI_CONFIG.gesture;
 
-/** `down`: a sheet, only a downward first move takes it. `x`: sideways, a mostly-horizontal first move takes it. */
-export type DragAxis = 'down' | 'x';
+/** `down`: only a downward first move takes it. `y`: up or down, a mostly-vertical first move takes it (a half-height sheet,
+ *  which a drag up grows). `x`: sideways, a mostly-horizontal first move takes it. */
+export type DragAxis = 'down' | 'y' | 'x';
 
 export interface TouchDrag {
   axis: DragAxis;
@@ -50,7 +51,9 @@ const along = (axis: DragAxis, touch: Touch) => (axis === 'x' ? touch.clientX : 
 function takes(axis: DragAxis, track: Track, touch: Touch): boolean {
   const dx = touch.clientX - track.x0;
   const dy = touch.clientY - track.y0;
-  return axis === 'x' ? Math.abs(dx) > Math.abs(dy) : dy > 0 && dy >= Math.abs(dx);
+  if (axis === 'x') return Math.abs(dx) > Math.abs(dy);
+  if (axis === 'y') return dy !== 0 && Math.abs(dy) >= Math.abs(dx);
+  return dy > 0 && dy >= Math.abs(dx);
 }
 
 function starts(drag: TouchDrag, e: TouchEvent): boolean {

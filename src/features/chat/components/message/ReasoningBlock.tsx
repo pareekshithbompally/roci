@@ -5,7 +5,7 @@ import type { DisclosureVariant } from '@shared/ui';
 import { Markdown } from '@shared/components';
 import { CHAT_REASONING_COPY } from '@config/chat.config';
 import { META_SEPARATOR } from '@config/ui.config';
-import { formatExecutionMs } from '@features/chat/components/tool-call';
+import { ActivityHeader, formatExecutionMs } from '@features/chat/components/tool-call';
 import { useFollowBottom } from '@features/chat/hooks/useFollowBottom';
 import type { GenerationStats } from '@services/ai/types';
 
@@ -41,17 +41,12 @@ export const ReasoningBlock: React.FC<ReasoningBlockProps> = ({ text, thinking, 
     <Disclosure
       variant={variant}
       summary={
-        <>
-          <Icon icon={Lightbulb} size="xs" tone="faint" className="shrink-0" />
-          <Text tone="muted" shimmer={thinking} truncate className="min-w-0 mr-auto">
-            {thinking ? CHAT_REASONING_COPY.thinking : CHAT_REASONING_COPY.done}
-          </Text>
-          {thinking && generation && (
-            <Text variant="caption" tone="faint" className="shrink-0">
-              {statsLine(generation)}
-            </Text>
-          )}
-        </>
+        <ActivityHeader
+          glyph={<Icon icon={Lightbulb} size="xs" tone="faint" className="shrink-0" />}
+          title={thinking ? CHAT_REASONING_COPY.thinking : CHAT_REASONING_COPY.done}
+          running={thinking}
+          meta={thinking && generation && <Text variant="caption" tone="faint" className="shrink-0">{statsLine(generation)}</Text>}
+        />
       }
     >
       <ReasoningText text={text} thinking={thinking} />
