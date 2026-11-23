@@ -9,7 +9,7 @@ import { UI_CONFIG } from '@config/ui.config';
 
 /** Canonical button: colour lives in `variant`, shape in `size`; call sites never pass colour or padding classes. Square
  *  sizes never shrink: a crowded row can't squeeze a round button into a pill. */
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'dangerTint' | 'success' | 'accentTint' | 'ghost' | 'dangerGhost' | 'link' | 'ai' | 'bar';
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'record' | 'dangerTint' | 'success' | 'accentTint' | 'ghost' | 'dangerGhost' | 'link' | 'ai' | 'bar';
 
 export type ButtonSize = 'inline' | 'toolbar' | 'sm' | 'md' | 'lg' | 'icon' | 'iconSm' | 'iconXs' | 'fab';
 
@@ -20,6 +20,8 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   /** The system push button (macOS 26 / iOS 26): a filled control-grey capsule, no outline. */
   outline: 'bg-control text-primary hover:bg-control-hover',
   danger: 'bg-danger text-on-accent hover:opacity-90',
+  /** Start recording: the system red glyph on no fill (the composer's record dot). */
+  record: 'text-danger hover:bg-hover',
   /** A screen's one red action, as a tint (Stop a recording, beside the Recording badge in the same red). */
   dangerTint: 'bg-danger-subtle text-danger hover:opacity-80',
   success: 'bg-success text-on-accent hover:opacity-90',

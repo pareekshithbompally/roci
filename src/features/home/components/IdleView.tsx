@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { ChevronRight } from 'lucide-react';
-import { RecordPill } from '@features/recording';
+import { RecordPill, useRecordingMeetingId, useStartRecording } from '@features/recording';
 import { askInNewChat, canSendDraft, useChatStore } from '@features/chat';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ChatInput } from '@features/chat';
@@ -71,15 +71,17 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   // Phone: the greeting fills the screen and the composer sits at the bottom, above the keyboard.
   const phone = useFormFactor() === 'phone';
 
+  const recordingMeetingId = useRecordingMeetingId();
+  const startRecording = useStartRecording();
+  const record = () => void startRecording().catch((error: unknown) => console.error('[IdleView] Record failed:', error));
+
   const handleSendMessage = () => {
     if (!canSendDraft(chatInput, pendingAttachments) || isGenerating) return;
     askInNewChat();
   };
 
   return (
-    // Full-bleed so LandingGlow paints under the titlebar; the spacer keeps content below it.
-    <div className="flex-1 w-full flex flex-col animate-fade-in relative">
-      <LandingGlow paused={voice.isVoiceActive} />
+    <div className="relative flex w-full flex-1 flex-col overflow-hidden animate-fade-in">
       <TitlebarSpacer />
 
       {/* Settings load async; until then the app's loader (above the glow), so an empty provider list is not read as zero-state. */}
@@ -92,12 +94,13 @@ export const IdleView: React.FC<IdleViewProps> = () => {
         <div className={phone ? 'flex flex-1 flex-col gap-4' : `${LAYOUT.chatColumn} space-y-6 overflow-visible`}>
               {/* Stays mounted and only fades, so the column never reflows under the voice pill. */}
               <motion.div
-                className={cn('flex flex-col items-center gap-4 text-center', phone && 'flex-1 justify-center')}
+                className={cn('relative isolate flex flex-col items-center gap-4 text-center', phone && 'flex-1 justify-center')}
                 initial={false}
                 animate={voice.isVoiceActive ? { opacity: 0, y: -8 } : { opacity: 1, y: 0 }}
                 transition={voice.isVoiceActive ? { duration: 0.2 } : voice.chromeEnter}
                 aria-hidden={voice.isVoiceActive || undefined}
               >
+                <LandingGlow paused={voice.isVoiceActive} />
                 <AppMark size="xl" />
                 <Text as="h1" variant="greeting">{greeting}</Text>
               </motion.div>
@@ -130,20 +133,24 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                   onSpeechStop={voice.handleSpeechStop}
                   onSpeechTogglePause={voice.speech.togglePause}
                   onSpeechCancel={voice.speech.cancel}
+                  onRecord={platform.canRecord ? record : undefined}
                 />
               </motion.div>
 
-              {/* Action Chips — fade in place while the voice pill owns the view (same reason) */}
-              <motion.div
-                className="flex flex-wrap items-center justify-center gap-2"
-                initial={false}
-                animate={voice.isVoiceActive ? { opacity: 0, y: 8 } : { opacity: 1, y: 0 }}
-                transition={voice.isVoiceActive ? { duration: 0.2 } : voice.chromeEnter}
-                aria-hidden={voice.isVoiceActive || undefined}
-                inert={voice.isVoiceActive || undefined}
-              >
-                {platform.canRecord && <RecordPill />}
-              </motion.div>
+              {/* A recording under way: its clock and Stop above the bar (the bar's red dot starts one). Fades in place while
+                  the voice pill owns the view. */}
+              {recordingMeetingId && (
+                <motion.div
+                  className="flex justify-center"
+                  initial={false}
+                  animate={voice.isVoiceActive ? { opacity: 0, y: 8 } : { opacity: 1, y: 0 }}
+                  transition={voice.isVoiceActive ? { duration: 0.2 } : voice.chromeEnter}
+                  aria-hidden={voice.isVoiceActive || undefined}
+                  inert={voice.isVoiceActive || undefined}
+                >
+                  <RecordPill />
+                </motion.div>
+              )}
 
               {/* Until AI is fully set up: a provider first (chat waits for one), then the default models still to choose. */}
               {/* chat's model still downloading: say so, instead of sending to setup */}
@@ -160,7 +167,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
               )}
               {setupStep && !chatDownload && (
                 <div className="flex justify-center">
-                  <Button variant="outline" size="sm" onClick={handleSetupProviders}>
+                  <Button variant="link" size="inline" onClick={handleSetupProviders}>
                     {setupStep.panel === 'providers' ? FINISH_SETUP.start : FINISH_SETUP.defaults(setupStep.left)}
                     <Icon icon={ChevronRight} size="xs" />
                   </Button>

@@ -1,7 +1,7 @@
 /** Chat composer: send, shortcuts, @ mentions, / saved prompts, attachments, web search, and voice input. */
 
 import React, { KeyboardEvent, useRef, useEffect, useState, useCallback } from 'react';
-import { ArrowUp, Square, Plus, Mic } from 'lucide-react';
+import { ArrowUp, Circle, Square, Plus, Mic } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { MeetingMentionPopup } from './MeetingMentionPopup';
 import { SavedPromptPopup } from './SavedPromptPopup';
@@ -22,7 +22,7 @@ import { LAYOUT } from '@config/layout.config';
 import { shortcutLabel } from '@features/shortcuts';
 import { registerChatComposer } from '@features/chat/stores';
 import { canSendDraft } from '@features/chat/utils';
-import { COMPOSER_ICON_ONLY_BELOW_PX, COMPOSER_MAX_HEIGHT_PX, DICTATION_COPY } from '@config/chat.config';
+import { COMPOSER_ADD_COPY, COMPOSER_ICON_ONLY_BELOW_PX, COMPOSER_MAX_HEIGHT_PX, DICTATION_COPY } from '@config/chat.config';
 import { useElementWidth } from '@shared/hooks/useElementWidth';
 import { useRecordingMeetingId } from '@features/recording';
 import { platform } from '@platform/index';
@@ -87,6 +87,8 @@ interface ChatInputProps {
   placeholder?: string;
   /** The meeting this chat is about (the meeting chat window): attached, but its chip isn't repeated in the box. */
   scopeMeetingId?: string;
+  /** Starts a meeting recording (home): a red dot at the bar's end while the draft is empty and nothing records. */
+  onRecord?: () => void;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -115,6 +117,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onSpeechCancel,
   placeholder,
   scopeMeetingId,
+  onRecord,
 }) => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   // The composer's own width decides its toolbar: icons only when narrow (the meeting chat window, a narrow window).
@@ -132,7 +135,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [popup, setPopup] = useState<'mention' | 'prompt' | null>(null);
   // One hint per composer (picked when it opens): it varies between chats without a timer waking the app.
   const [hintIndex] = useState(() => Math.floor(Math.random() * PLACEHOLDER_HINTS.length));
-  // Phone (iOS): one row — + (opens the Add sheet) · the field · mic or send; the top bar owns the model.
+  // Phone (iOS): one bar — + (opens the Add sheet) · the field · its end controls; the top bar owns the model.
   const phone = useFormFactor() === 'phone';
   const recordingMeetingId = useRecordingMeetingId();
   const [addOpen, setAddOpen] = useState(false);
@@ -269,11 +272,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // iPhone: a recording holds the one audio session, so the mic is greyed until it stops.
   const micHeld = platform.sharesAudioSession && recordingMeetingId !== null;
   const micLabel = micHeld ? DICTATION_COPY.offWhileRecording : 'Voice input';
-  // Phone: the mic takes the send button's place while there is nothing to send.
-  const micInSendSlot = phone && canDictate && !canSendDraft(value, attachments);
+  // The bar's end (one rule, Mac and phone): stop while a reply is written; send once there is a draft; with none, the
+  // other ways to start (dictate, record), and send only when neither is offered.
+  const canRecord = !!onRecord && recordingMeetingId === null;
+  const offersStarts = !isLoading && !canSendDraft(value, attachments) && (canDictate || canRecord);
 
   const textField = (
-    <Text as="div" variant="reading" className={phone ? 'min-w-0 flex-1 py-1.5' : 'px-3 pt-3 pb-1'}>
+    <Text as="div" variant="reading" className={phone ? 'min-w-0 flex-1 self-center py-1.5' : 'px-3 pt-3 pb-1'}>
       <Textarea
         variant="bare"
         ref={inputRef}
@@ -287,7 +292,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         spellCheck={true}
         autoCorrect="on"
         autoCapitalize="sentences"
-        className={phone ? 'max-h-32' : 'min-h-9 max-h-48'}
+        className={phone ? undefined : 'min-h-9'}
       />
     </Text>
   );
@@ -295,14 +300,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // Every item in the row is one control height, so the toolbar (or, on a phone, +, the text line) and send share a centre line.
   const controlSize = 'sm';
   const sendControls = (
-    <div className="flex shrink-0 items-center gap-2">
-      {canDictate && !phone && (
-        <IconButton icon={Mic} label={micLabel} size="toolbar" onClick={onSpeechStart} disabled={disabled || micHeld} />
-      )}
+    <div className="flex shrink-0 items-center gap-1">
       {isLoading ? (
-        <IconButton icon={Square} label="Stop generation" variant="danger" filled size={controlSize} className="shrink-0" onClick={onStop} />
-      ) : micInSendSlot ? (
-        <IconButton icon={Mic} label={micLabel} size={controlSize} onClick={onSpeechStart} disabled={disabled || micHeld} />
+        <IconButton icon={Square} label="Stop generation" variant="danger" filled size={controlSize} onClick={onStop} />
+      ) : offersStarts ? (
+        <>
+          {canDictate && <IconButton icon={Mic} label={micLabel} size={controlSize} onClick={onSpeechStart} disabled={disabled || micHeld} />}
+          {canRecord && <IconButton icon={Circle} filled label={COMPOSER_ADD_COPY.record} variant="record" size={controlSize} onClick={onRecord} />}
+        </>
       ) : (
         <IconButton icon={ArrowUp} label="Send message" variant="primary" size={controlSize} onClick={onSend} disabled={!canSend} />
       )}
@@ -327,9 +332,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   );
 
   return (
-    <div ref={frameRef} className={cn('relative px-4 py-2', LAYOUT.chatColumn, phone && 'flex items-end gap-2')}>
-      {/* Phone (Messages): the round + stands apart from the capsule field; while dictating the pill has the row alone. */}
-      {phone && !voiceActive && <IconButton icon={Plus} label="Add" size="fab" variant="bar" onClick={() => setAddOpen(true)} />}
+    <div ref={frameRef} className={cn('relative px-4 py-2', LAYOUT.chatColumn)}>
       <Popover anchored open={popup !== null} onOpenChange={(open) => { if (!open) closeMentionPopup(); }}>
         <PopoverAnchor asChild>
           {/* Composer never unmounts (an exit flashes box chrome); the pill is an overlay that moves no layout. */}
@@ -337,7 +340,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             data-testid="composer-frame"
             variant={voiceActive ? 'plain' : 'bar'}
             radius={phone ? 'field' : 'xl'}
-            className={cn('relative transition-[background-color,box-shadow] duration-300 ease-out', phone && 'min-w-0 flex-1')}
+            className="relative transition-[background-color,box-shadow] duration-300 ease-out"
           >
             <AnimatePresence initial={false}>
               {voiceActive && (
@@ -369,7 +372,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               <AttachmentStrip attachments={attachments} onRemove={onRemoveAttachment} />
               <Input ref={fileInputRef} type="file" multiple accept={attach.accept} onChange={handleFileChange} className="hidden" />
               {phone ? (
-                <div className="flex items-end gap-1 p-1 pl-4">
+                // Phone: one bar — + at its start (the Add sheet), the field, its end controls.
+                <div className="flex items-end gap-1 p-1">
+                  <IconButton icon={Plus} label={COMPOSER_ADD_COPY.title} size={controlSize} onClick={() => setAddOpen(true)} />
                   {textField}
                   {sendControls}
                 </div>
