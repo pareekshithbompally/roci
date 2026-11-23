@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useMeetingBrief, useMeetingsFound } from '@shared/hooks/useMeetings';
 import {
-  Button, CardRow, DatePicker, Icon, Input, Popover, PopoverContent, PopoverTrigger, Row, Section, Surface, Text, Textarea,
+  Button, CardRow, DatePicker, Icon, SearchField, Popover, PopoverContent, PopoverTrigger, Row, Section, Surface, Text, Textarea,
   TimePicker,
 } from '@shared/ui';
 import { buildISOFromDateInput, formatMeetingDate } from '@shared/utils/todo.utils';
@@ -43,13 +43,7 @@ const MeetingSelector: React.FC<MeetingSelectorProps> = ({ selectedId, onSelect 
       <PopoverContent align="start" width="trigger" className="max-h-60 overflow-hidden">
         {/* Search within selector */}
         <Surface edge="bottom" className="p-2">
-          <Input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search meetings…"
-            autoFocus
-          />
+          <SearchField value={query} onChange={setQuery} onCancel={() => setQuery('')} placeholder={FORM.searchMeetings} autoFocus />
         </Surface>
 
         <div className="overflow-y-auto max-h-48 custom-scrollbar p-1">

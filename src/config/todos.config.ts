@@ -13,6 +13,7 @@ export const TODOS_CONFIG = {
     submit: 'Add',
     text: 'What do you need to do?',
     meeting: 'Meeting',
+    searchMeetings: 'Search meetings',
     due: 'Due',
     dueDate: 'Due date',
     /** The time a due date starts at until one is picked. */

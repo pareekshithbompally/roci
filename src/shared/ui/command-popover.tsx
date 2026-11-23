@@ -12,6 +12,16 @@ import { PushedScreen, useOptionalNavStack } from './nav-stack';
 import { BottomSheet } from './bottom-sheet';
 import { useFormFactor } from '@platform/formFactor';
 
+/** A picker's search: the app's one search capsule (SearchField's look) around cmdk's input, on a Mac and a phone alike. */
+function CommandSearch({ placeholder, value, onValueChange }: { placeholder: string; value?: string; onValueChange?: (value: string) => void }) {
+  return (
+    <div className={SEARCH_FIELD}>
+      <Icon icon={Search} size="sm" />
+      <CommandInput placeholder={placeholder} value={value} onValueChange={onValueChange} className="border-b-0 px-0 py-0" />
+    </div>
+  );
+}
+
 /** Shell never taller than the space Radix measured; the list shrinks with it. */
 const SHELL = 'p-0 flex flex-col max-h-[var(--radix-popover-content-available-height)]';
 const LIST = 'max-h-80 min-h-0 flex-1';
@@ -69,7 +79,9 @@ export function CommandPopoverContent({
       }
     >
       <Command className="min-h-0" shouldFilter={filter}>
-        <CommandInput placeholder={searchPlaceholder} value={search} onValueChange={onSearchChange} />
+        <div className="p-2 pb-1">
+          <CommandSearch placeholder={searchPlaceholder} value={search} onValueChange={onSearchChange} />
+        </div>
         <CommandList className={LIST}>
           <CommandEmpty>{empty}</CommandEmpty>
           {children}
@@ -121,10 +133,7 @@ export function CommandPopover({
     // iOS: a search field over an inset grouped list — a pushed screen inside a sheet's stack, else its own sheet.
     const body = (
       <Command className="min-h-0 gap-3 rounded-none px-4 pb-sheet-end pt-2">
-        <div className={SEARCH_FIELD}>
-          <Icon icon={Search} size="sm" />
-          <CommandInput placeholder={searchPlaceholder} value={search} onValueChange={onSearchChange} className="border-b-0 px-0 py-0" />
-        </div>
+        <CommandSearch placeholder={searchPlaceholder} value={search} onValueChange={onSearchChange} />
         <CommandList className={cn('min-h-0 max-h-none overflow-y-auto p-0', LIST_COMMAND)}>
           <CommandEmpty>{emptyText}</CommandEmpty>
           {children}

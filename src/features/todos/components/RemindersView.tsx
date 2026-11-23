@@ -5,7 +5,7 @@ import { Inbox, Search, Plus, X } from 'lucide-react';
 import { useGlobalTodos } from '@features/todos/hooks/useGlobalTodos';
 import type { TodoFilter } from '@features/todos/hooks/useGlobalTodos';
 import type { GlobalTodoEntry } from '@services/db';
-import { IconButton, Input, Surface, Tabs, Text, ViewHeader, ViewScroll, cn } from '@shared/ui';
+import { IconButton, SearchField, Surface, Tabs, Text, ViewHeader, ViewScroll, cn } from '@shared/ui';
 import { ScreenState } from '@shared/components';
 import { formatMeetingDate } from '@shared/utils/todo.utils';
 import { NewTodoForm } from './NewTodoForm';
@@ -46,7 +46,6 @@ export const RemindersView: React.FC = () => {
   const { groups, filter, setFilter, searchQuery, setSearchQuery, toggleTodo, addTodo, refresh, counts, isLoading } = useGlobalTodos();
   const [isCreating, setIsCreating] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const searchInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleToggle = useCallback(async (meetingId: string | null, todoId: string) => {
     await toggleTodo(meetingId, todoId);
@@ -58,7 +57,6 @@ export const RemindersView: React.FC = () => {
       setIsSearchOpen(false);
     } else {
       setIsSearchOpen(true);
-      requestAnimationFrame(() => searchInputRef.current?.focus());
     }
   }, [isSearchOpen, setSearchQuery]);
 
@@ -85,15 +83,7 @@ export const RemindersView: React.FC = () => {
         detail={counts.total > 0 && `${counts.pending} pending · ${counts.completed} done`}
         replaceTitle={isSearchOpen && (
           <>
-            <Input
-              icon={Search}
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search…"
-              onKeyDown={(e) => { if (e.key === 'Escape') handleSearchToggle(); }}
-            />
+            <SearchField value={searchQuery} onChange={setSearchQuery} onCancel={handleSearchToggle} autoFocus className="flex-1" />
             <IconButton icon={X} label="Close search" size="sm" onClick={handleSearchToggle} />
           </>
         )}
