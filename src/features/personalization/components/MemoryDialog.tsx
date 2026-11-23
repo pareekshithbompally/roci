@@ -2,8 +2,8 @@
  *  whether it is pinned (pinned memories are always in chat's prompt). */
 
 import React, { useState } from 'react';
-import { CardRow, Picker, Section, Switch, Textarea } from '@shared/ui';
-import { FormDialog, SettingsInput } from '@shared/components';
+import { CardRow, Picker, Section, Switch } from '@shared/ui';
+import { FieldRow, FormDialog } from '@shared/components';
 import { LAYOUT } from '@config/layout.config';
 import { PERSONALIZATION_CONFIG } from '@config/personalization.config';
 import { KNOWLEDGE_LIMITS } from '@config/knowledge.config';
@@ -49,8 +49,10 @@ export const MemoryDialog: React.FC<MemoryDialogProps> = ({ memory, entities, on
       dirty={text !== (memory?.text ?? '')}
       submit={{ label: COPY.save, onPress: save, disabled: !ready }}
     >
-      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (ready) save(); }}>
-        <Textarea rows={3} value={text} maxLength={KNOWLEDGE_LIMITS.memory} placeholder={COPY.placeholder} onChange={(e) => setText(e.target.value)} aria-label={COPY.text} autoFocus />
+      <form className="flex flex-col gap-section" onSubmit={(e) => { e.preventDefault(); if (ready) save(); }}>
+        <Section>
+          <FieldRow typed autoFocus lines={3} title={COPY.text} value={text} maxLength={KNOWLEDGE_LIMITS.memory} placeholder={COPY.placeholder} onChange={setText} />
+        </Section>
         <Section>
           <CardRow
             title={COPY.about}
@@ -60,11 +62,11 @@ export const MemoryDialog: React.FC<MemoryDialogProps> = ({ memory, entities, on
               </div>
             }
           />
+          {aboutSomeone && (
+            <FieldRow typed title={COPY.aboutName} value={aboutName} maxLength={KNOWLEDGE_LIMITS.name} placeholder={COPY.aboutNamePlaceholder} onChange={setAboutName} />
+          )}
           <CardRow title={COPY.pin} actions={<Switch checked={pinned} onCheckedChange={setPinned} aria-label={COPY.pin} />} />
         </Section>
-        {aboutSomeone && (
-          <SettingsInput label={COPY.aboutName} value={aboutName} maxLength={KNOWLEDGE_LIMITS.name} placeholder={COPY.aboutNamePlaceholder} onChange={(e) => setAboutName(e.target.value)} />
-        )}
       </form>
     </FormDialog>
   );

@@ -1,13 +1,14 @@
 /** Add or edit one vocabulary term: the term and its "sounds like" spellings; editing also offers Delete Term. */
 
 import React, { useState } from 'react';
-import { FormDialog, SettingsInput } from '@shared/components';
+import { Section } from '@shared/ui';
+import { FieldRow, FormDialog } from '@shared/components';
 import { PERSONALIZATION_CONFIG } from '@config/personalization.config';
 import { addTerm, parseSoundsLike, removeTerm, updateTerm } from '@features/personalization/utils/vocabulary';
 import type { VocabularyEntry } from '@shared/types';
 
 const COPY = PERSONALIZATION_CONFIG.copy.vocabulary;
-/** Links the footer's Add/Save button to the form, so Return in either field saves (as in a native sheet). */
+
 interface TermDialogProps {
   /** The term being edited; none adds a new one. */
   entry?: VocabularyEntry;
@@ -46,21 +47,11 @@ export const TermDialog: React.FC<TermDialogProps> = ({ entry, vocabulary, onSav
       submit={{ label: entry ? COPY.save : COPY.confirmAdd, onPress: save, disabled: !term.trim() }}
       aside={entry ? { label: COPY.delete, onPress: remove, tone: 'danger' } : undefined}
     >
-      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); save(); }}>
-        <SettingsInput
-          label={COPY.term}
-          value={term}
-          placeholder={COPY.termPlaceholder}
-          onChange={(e) => { setTerm(e.target.value); setError(null); }}
-          autoFocus
-        />
-        <SettingsInput
-          label={COPY.soundsLike}
-          value={soundsLike}
-          placeholder={COPY.soundsLikePlaceholder}
-          helper={COPY.soundsLikeHelper}
-          onChange={(e) => { setSoundsLike(e.target.value); setError(null); }}
-        />
+      <form onSubmit={(e) => { e.preventDefault(); save(); }}>
+        <Section footer={COPY.soundsLikeHelper}>
+          <FieldRow typed autoFocus title={COPY.term} value={term} placeholder={COPY.termPlaceholder} onChange={(next) => { setTerm(next); setError(null); }} />
+          <FieldRow typed title={COPY.soundsLike} value={soundsLike} placeholder={COPY.soundsLikePlaceholder} onChange={(next) => { setSoundsLike(next); setError(null); }} />
+        </Section>
       </form>
     </FormDialog>
   );

@@ -52,7 +52,7 @@ const InlineField: React.FC<FieldRowProps> = (props) => {
   if (lines) {
     return (
       <CardRow title={title} stacked>
-        <Textarea rows={lines} value={value} maxLength={maxLength} placeholder={placeholder} aria-label={title} onChange={(e) => onChange(e.target.value)} />
+        <Textarea rows={lines} value={value} maxLength={maxLength} placeholder={placeholder} autoFocus={props.autoFocus} aria-label={title} onChange={(e) => onChange(e.target.value)} />
       </CardRow>
     );
   }
@@ -62,10 +62,16 @@ const InlineField: React.FC<FieldRowProps> = (props) => {
   return <CardRow title={title} actions={<div className={LAYOUT.settingsField}>{field}</div>} />;
 };
 
-/** iPhone, `typed`: the field on the row, its text at the row's end. */
-const TypedRow: React.FC<FieldRowProps> = (props) => (
-  <CardRow title={props.title} actions={<Input variant="plain" size="sm" className="text-right" {...inputProps(props)} />} />
-);
+/** iPhone, `typed`: the field on the row, its text at the row's end; a long text under its title, as many lines as it needs. */
+const TypedRow: React.FC<FieldRowProps> = (props) => {
+  const { title, value, onChange, placeholder, maxLength, lines, autoFocus } = props;
+  if (!lines) return <CardRow title={title} actions={<Input variant="plain" size="sm" className="text-right" {...inputProps(props)} />} />;
+  return (
+    <CardRow title={title} stacked>
+      <Textarea variant="bare" rows={lines} value={value} maxLength={maxLength} placeholder={placeholder} autoFocus={autoFocus} aria-label={title} onChange={(e) => onChange(e.target.value)} />
+    </CardRow>
+  );
+};
 
 /** What the iPhone row shows of the value: a secret as dots, a long text's first line. */
 function shownValue({ value, kind, display }: FieldRowProps): string | undefined {

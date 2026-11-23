@@ -1,8 +1,8 @@
 /** Add or edit one saved prompt: its name (what the "/" menu shows) and its text. */
 
 import React, { useState } from 'react';
-import { Textarea } from '@shared/ui';
-import { FormDialog, SettingsInput } from '@shared/components';
+import { Section } from '@shared/ui';
+import { FieldRow, FormDialog } from '@shared/components';
 import { PERSONALIZATION_CONFIG, type SavedPrompt } from '@config/personalization.config';
 
 const { copy: COPY, limits } = PERSONALIZATION_CONFIG.savedPrompts;
@@ -29,9 +29,11 @@ export const SavedPromptDialog: React.FC<SavedPromptDialogProps> = ({ saved, onS
       dirty={name !== (saved?.name ?? '') || prompt !== (saved?.prompt ?? '')}
       submit={{ label: COPY.save, onPress: save, disabled: !ready }}
     >
-      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (ready) save(); }}>
-        <SettingsInput label={COPY.name} value={name} maxLength={limits.name} placeholder={COPY.namePlaceholder} onChange={(e) => setName(e.target.value)} autoFocus />
-        <Textarea rows={6} value={prompt} maxLength={limits.prompt} placeholder={COPY.promptPlaceholder} aria-label={COPY.prompt} onChange={(e) => setPrompt(e.target.value)} />
+      <form onSubmit={(e) => { e.preventDefault(); if (ready) save(); }}>
+        <Section>
+          <FieldRow typed autoFocus title={COPY.name} value={name} maxLength={limits.name} placeholder={COPY.namePlaceholder} onChange={setName} />
+          <FieldRow typed lines={6} title={COPY.prompt} value={prompt} maxLength={limits.prompt} placeholder={COPY.promptPlaceholder} onChange={setPrompt} />
+        </Section>
       </form>
     </FormDialog>
   );
