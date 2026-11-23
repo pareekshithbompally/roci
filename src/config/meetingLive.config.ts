@@ -52,6 +52,17 @@ export const MEETING_LIVE_CONFIG = {
 export type MeetingSourceId = MeetingSource;
 
 /** A meeting's tabs (the meeting view's one segmented control). */
+/** The Allow Recording sheet, opened when a recording can't start for a missing permission. */
+export const PERMISSION_CHECKLIST_COPY = {
+  title: 'Allow Recording',
+  needs: (system: string) => `${system} needs these before Roci can record.`,
+  ready: 'All set. Start the recording again.',
+  kinds: {
+    microphone: { title: 'Microphone', detail: 'Records your voice.' },
+    'system-audio': { title: 'System Audio Recording', detail: 'Records the other participants. Screen Recording also works.' },
+  },
+} as const;
+
 export const MEETING_TABS = { summary: 'Summary', transcript: 'Transcript' } as const;
 
 /** A meeting's header commands. */

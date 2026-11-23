@@ -12,6 +12,8 @@ import { SettingsHome, settingsScreen } from '@features/settings';
 import { BottomSheet, IconButton, NavStack, RevealLayout, Surface, TopBar, ViewBackContext, cn } from '@shared/ui';
 import { SearchScreen } from '@features/palette';
 import { Sidebar } from './Sidebar';
+import { SHELL_COPY } from '@config/shell.config';
+import { KIT_COPY } from '@config/kitCopy.config';
 
 interface PhoneShellProps {
   children: React.ReactNode;
@@ -39,9 +41,9 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children }) => {
       <Surface as="main" variant="page" className="relative flex h-full flex-col overflow-hidden">
         {!place && (
           <TopBar
-            leading={<IconButton icon={PanelLeft} size="fab" variant="bar" label="Open sidebar" onClick={() => setLeftPanel(true)} />}
+            leading={<IconButton icon={PanelLeft} size="fab" variant="bar" label={SHELL_COPY.openSidebar} onClick={() => setLeftPanel(true)} />}
             title={chatting ? <ModelPicker compact bar /> : undefined}
-            trailing={<IconButton icon={SquarePen} size="fab" variant="bar" label="New chat" onClick={startNewChat} />}
+            trailing={<IconButton icon={SquarePen} size="fab" variant="bar" label={SHELL_COPY.newChat} onClick={startNewChat} />}
           />
         )}
         {/* Clear of the home indicator once, for every screen; a place slides in as a pushed page with ‹ back to the sidebar. */}
@@ -51,10 +53,10 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children }) => {
           </div>
         </ViewBackContext.Provider>
       </Surface>
-      <BottomSheet open={inSettings} onOpenChange={(open) => !open && leaveSettings()} title="Settings" size="full">
+      <BottomSheet open={inSettings} onOpenChange={(open) => !open && leaveSettings()} title={SHELL_COPY.settings} size="full">
         <NavStack
-          title="Settings"
-          action={<IconButton icon={X} label="Close" size="fab" variant="bar" onClick={leaveSettings} />}
+          title={SHELL_COPY.settings}
+          action={<IconButton icon={X} label={KIT_COPY.close} size="fab" variant="bar" onClick={leaveSettings} />}
           initial={settingsRequest ? settingsScreen(settingsRequest) : undefined}
         >
           <SettingsHome />

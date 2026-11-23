@@ -22,7 +22,7 @@ import { LAYOUT } from '@config/layout.config';
 import { shortcutLabel } from '@features/shortcuts';
 import { registerChatComposer } from '@features/chat/stores';
 import { canSendDraft } from '@features/chat/utils';
-import { COMPOSER_ADD_COPY, COMPOSER_ICON_ONLY_BELOW_PX, COMPOSER_MAX_HEIGHT_PX, DICTATION_COPY } from '@config/chat.config';
+import { COMPOSER_ADD_COPY, COMPOSER_COPY, COMPOSER_ICON_ONLY_BELOW_PX, COMPOSER_MAX_HEIGHT_PX, DICTATION_COPY } from '@config/chat.config';
 import { useElementWidth } from '@shared/hooks/useElementWidth';
 import { useRecordingMeetingId } from '@features/recording';
 import { platform } from '@platform/index';
@@ -37,14 +37,7 @@ import { useVoicePill } from './voice/useVoicePill';
 import { voiceTransition } from './voice/voiceTransition';
 
 /** Phone: one short placeholder (iOS); the rotating hints are a desktop affordance (⌘ shortcuts, @). */
-const PHONE_PLACEHOLDER = 'Ask anything';
-
-const PLACEHOLDER_HINTS = [
-  'Ask anything...',
-  'Type @ to add meeting context',
-  `Press ${shortcutLabel('focusChat')} to jump here`,
-  'Ask about your meetings...',
-];
+const PLACEHOLDER_HINTS = COMPOSER_COPY.hints(shortcutLabel('focusChat'));
 
 interface ChatInputProps {
   value: string;
@@ -274,7 +267,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const canDictate = showSpeechInput && !!onSpeechStart && !isLoading;
   // iPhone: a recording holds the one audio session, so the mic is greyed until it stops.
   const micHeld = platform.sharesAudioSession && recordingMeetingId !== null;
-  const micLabel = micHeld ? DICTATION_COPY.offWhileRecording : 'Voice input';
+  const micLabel = micHeld ? DICTATION_COPY.offWhileRecording : COMPOSER_COPY.voice;
   // Every control in the bar is one round, filled shape (neutral, the copper send, the red stop), so none outweighs
   // another. The bar's end (one rule, Mac and phone): stop while a reply is written; send once there is a draft; with none, the
   // other ways to start (dictate, record), and send only when neither is offered.
@@ -286,8 +279,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       <Textarea
         variant="bare"
         ref={inputRef}
-        aria-label="Message"
-        placeholder={placeholder ?? (phone ? PHONE_PLACEHOLDER : PLACEHOLDER_HINTS[hintIndex])}
+        aria-label={COMPOSER_COPY.message}
+        placeholder={placeholder ?? (phone ? COMPOSER_COPY.placeholder : PLACEHOLDER_HINTS[hintIndex])}
         value={value}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
@@ -307,14 +300,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const sendControls = (
     <div className="flex shrink-0 items-center gap-1">
       {isLoading ? (
-        <IconButton icon={Square} label="Stop generation" variant="danger" filled size={controlSize} onClick={onStop} />
+        <IconButton icon={Square} label={COMPOSER_COPY.stop} variant="danger" filled size={controlSize} onClick={onStop} />
       ) : offersStarts ? (
         <>
           {canDictate && <IconButton icon={Mic} label={micLabel} variant="outline" size={controlSize} onClick={onSpeechStart} disabled={disabled || micHeld} />}
           {canRecord && <IconButton icon={Circle} filled label={COMPOSER_ADD_COPY.record} variant="record" size={controlSize} onClick={onRecord} />}
         </>
       ) : (
-        <IconButton icon={ArrowUp} label="Send message" variant="primary" size={controlSize} onClick={onSend} disabled={!canSend} />
+        <IconButton icon={ArrowUp} label={COMPOSER_COPY.send} variant="primary" size={controlSize} onClick={onSend} disabled={!canSend} />
       )}
     </div>
   );

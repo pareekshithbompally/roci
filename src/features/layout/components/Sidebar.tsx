@@ -14,6 +14,7 @@ import { AppMark, FadeScroll, IconButton, Icon, Row, RowGroupLabel, Keycaps, Tex
 import { motion } from 'framer-motion';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { APP_CONFIG } from '@config/app.config';
+import { SHELL_COPY } from '@config/shell.config';
 import {
   endSearch, startSearch, useSearchActive,
 } from '@shared/stores/searchStore';
@@ -91,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // The recents, paged as they scroll.
   const list = (
     <>
-      <RowGroupLabel>Recents</RowGroupLabel>
+      <RowGroupLabel>{SHELL_COPY.recents}</RowGroupLabel>
       <UnifiedList
         items={items}
         selectedId={getSelectedId()}
@@ -108,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <header className="flex min-h-14 shrink-0 items-center gap-2 px-4 pt-2 pb-3">
           <AppMark size="md" />
           <Text as="h1" variant="title" className="flex-1">{APP_CONFIG.name}</Text>
-          <IconButton icon={SquarePen} size="fab" variant="bar" onClick={handleHomeClick} label="New chat" />
+          <IconButton icon={SquarePen} size="fab" variant="bar" onClick={handleHomeClick} label={SHELL_COPY.newChat} />
         </header>
         <div className="shrink-0 px-2">{destinations}</div>
         <FadeScroll ref={listContainerRef} fill className="flex-1 px-2 pb-2">{list}</FadeScroll>
@@ -119,11 +120,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="size-11">
             {!searchActive && (
               <motion.div layoutId={ANIMATION_CONFIG.search.morphId} transition={ANIMATION_CONFIG.search.morph}>
-                <IconButton icon={Search} size="fab" variant="bar" onClick={startSearch} label="Search" />
+                <IconButton icon={Search} size="fab" variant="bar" onClick={startSearch} label={SHELL_COPY.search} />
               </motion.div>
             )}
           </div>
-          <IconButton icon={Settings} size="fab" variant="bar" onClick={handleSettingsClick} label="Settings" />
+          <IconButton icon={Settings} size="fab" variant="bar" onClick={handleSettingsClick} label={SHELL_COPY.settings} />
         </footer>
       </div>
     );
@@ -133,31 +134,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <div className="flex flex-col h-full w-full overflow-hidden">
       {/* Header — icon buttons aligned with the macOS traffic lights */}
       <div className={LAYOUT.sidebarHeader}>
-        {!isSettingsView && <IconButton icon={SquarePen} size="sm" onClick={handleHomeClick} label="New chat" />}
+        {!isSettingsView && <IconButton icon={SquarePen} size="sm" onClick={handleHomeClick} label={SHELL_COPY.newChat} />}
         <IconButton
           icon={PanelLeft}
           size="sm"
           onClick={() => setLeftPanel(!isLeftPanelOpen)}
-          label={isLeftPanelOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+          label={isLeftPanelOpen ? SHELL_COPY.collapseSidebar : SHELL_COPY.expandSidebar}
         />
       </div>
 
       {/* Fixed above the scroll: the app (its mark and name; a new chat, like the pen), then Search, or the way back out in settings */}
       <div className="shrink-0 px-2">
-        <Row onClick={handleHomeClick} aria-label={`${APP_CONFIG.name}: new chat`}>
+        <Row onClick={handleHomeClick} aria-label={SHELL_COPY.appNewChat(APP_CONFIG.name)}>
           <AppMark size="lg" />
           <Text variant="title">{APP_CONFIG.name}</Text>
         </Row>
         {isSettingsView ? (
           <Row onClick={leaveSettings}>
             <Icon icon={ChevronLeft} size="xs" className="shrink-0" />
-            <span className="flex-1">Back to App</span>
+            <span className="flex-1">{SHELL_COPY.backToApp}</span>
             <Keycaps keys={shortcutKeys('leaveSettings')} />
           </Row>
         ) : (
           <Row onClick={startSearch}>
             <Icon icon={Search} size="xs" className="shrink-0" />
-            <span className="flex-1">Search</span>
+            <span className="flex-1">{SHELL_COPY.search}</span>
             <Keycaps keys={shortcutKeys('search')} />
           </Row>
         )}
@@ -167,7 +168,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <FadeScroll ref={listContainerRef} fill className="flex-1 px-2 pb-1">
         {isSettingsView ? (
           <>
-            <RowGroupLabel>Settings</RowGroupLabel>
+            <RowGroupLabel>{SHELL_COPY.settings}</RowGroupLabel>
             <SettingsNav />
           </>
         ) : (
@@ -186,7 +187,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="shrink-0 px-2 pb-2">
           <Row onClick={handleSettingsClick}>
             <Icon icon={Settings} size="xs" className="shrink-0" />
-            <span className="flex-1">Settings</span>
+            <span className="flex-1">{SHELL_COPY.settings}</span>
           </Row>
         </div>
       )}

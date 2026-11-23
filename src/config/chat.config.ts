@@ -138,4 +138,15 @@ export const MODEL_PICKER_COPY = {
 } as const;
 
 /** The composer's + sheet (iPhone): its title and groups. */
+/** The composer's words: the field, its hints (a Mac rotates them; a phone has one) and its bar's controls. */
+export const COMPOSER_COPY = {
+  message: 'Message',
+  placeholder: 'Ask anything',
+  /** `focusKey`: the shortcut that jumps to the composer (⌘L). */
+  hints: (focusKey: string) => ['Ask anything...', 'Type @ to add meeting context', `Press ${focusKey} to jump here`, 'Ask about your meetings...'],
+  send: 'Send message',
+  stop: 'Stop generation',
+  voice: 'Voice input',
+} as const;
+
 export const COMPOSER_ADD_COPY = { title: 'Add', meeting: 'Meeting', record: 'Record', attach: 'Attach' } as const;

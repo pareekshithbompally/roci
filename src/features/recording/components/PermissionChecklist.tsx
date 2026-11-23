@@ -3,22 +3,14 @@
 import React from 'react';
 import { CardRow, Section, Text } from '@shared/ui';
 import { KIT_COPY } from '@config/kitCopy.config';
+import { PERMISSION_CHECKLIST_COPY } from '@config/meetingLive.config';
 import { FormDialog, PermissionAction } from '@shared/components';
 import { useAppStore, usePermissionChecklistOpen } from '@shared/stores/appStore';
 import { permissionsService, type PermissionKind, type PermissionRow } from '@services/permissions.service';
 import { usePermissions } from '@features/recording/hooks/usePermissions';
 import { platform } from '@platform/index';
 
-const COPY: Record<PermissionKind, { title: string; detail: string }> = {
-  microphone: {
-    title: 'Microphone',
-    detail: 'Records your voice.',
-  },
-  'system-audio': {
-    title: 'System Audio Recording',
-    detail: 'Records the other participants. Screen Recording also works.',
-  },
-};
+const COPY = PERMISSION_CHECKLIST_COPY;
 
 function reportFailure(action: string) {
   return (error: unknown) => console.error(`[PermissionChecklist] ${action} failed:`, error);
@@ -44,19 +36,19 @@ export const PermissionChecklist: React.FC = () => {
   const allReady = rows.length > 0 && rows.every((row) => row.state === 'ready');
 
   return (
-    <FormDialog open={open} onOpenChange={setOpen} title="Allow Recording" size="sm" viewOnly submit={{ label: KIT_COPY.done, onPress: () => setOpen(false) }}>
-      <Section footer={`${platform.systemName} needs these before Roci can record.`}>
+    <FormDialog open={open} onOpenChange={setOpen} title={COPY.title} size="sm" viewOnly submit={{ label: KIT_COPY.done, onPress: () => setOpen(false) }}>
+      <Section footer={COPY.needs(platform.systemName)}>
         {rows.map((row) => (
           <CardRow
             key={row.kind}
-            title={COPY[row.kind].title}
-            description={COPY[row.kind].detail}
+            title={COPY.kinds[row.kind].title}
+            description={COPY.kinds[row.kind].detail}
             wrap
             actions={<RowAction row={row} request={request} />}
           />
         ))}
       </Section>
-      {allReady && <Text as="p" variant="helper" tone="success">All set. Start the recording again.</Text>}
+      {allReady && <Text as="p" variant="helper" tone="success">{COPY.ready}</Text>}
     </FormDialog>
   );
 };
