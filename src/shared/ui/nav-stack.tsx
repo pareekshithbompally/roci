@@ -200,8 +200,9 @@ function useEdgeSwipeBack(node: HTMLDivElement | null, back: () => void, stays?:
   });
 }
 
-/** A pushed screen's bar: a round back button, the centred title, and an optional trailing control (a form's Save). */
-function BackBar({ title, onBack, action }: { title: string; onBack: () => void; action?: React.ReactNode }) {
+/** A pushed screen's bar: a round back button, the centred title, and an optional trailing control (a form's Save). The one
+ *  bar of every pushed page on iPhone: a stack's screens, a list's open item, a place opened from the sidebar. */
+export function BackBar({ title, onBack, action }: { title: string; onBack: () => void; action?: React.ReactNode }) {
   return (
     <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pt-2 pb-3">
       <IconButton icon={ChevronLeft} label={KIT_COPY.back} size="fab" variant="bar" onClick={onBack} className="justify-self-start" />
@@ -225,7 +226,8 @@ export function PushedPage({ title, onBack, children }: PushedPageProps) {
   useEdgeSwipeBack(node, onBack);
   return (
     <div ref={setNode} className="absolute inset-0 z-10 animate-push-in transition-[translate] duration-ios ease-ios data-[dragging]:transition-none">
-      <Surface className="absolute inset-0 flex flex-col">
+      {/* Over a whole place (the shell's bar gone), so it clears the status bar itself. */}
+      <Surface className="absolute inset-0 flex flex-col pt-safe-top">
         <TitlebarSpacer />
         <BackBar title={title} onBack={onBack} />
         <PageScroll underTitlebar={false} className="flex-1 pb-safe-bottom">{children}</PageScroll>

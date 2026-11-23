@@ -3,12 +3,17 @@
  *  (its ViewScroll fades under it); a full-width tool's (Upcoming's grid) spans the view over a hairline. One place, so every
  *  view's title sits at the same spot. */
 
-import React from 'react';
+import React, { createContext, useContext } from 'react';
 import { LAYOUT } from '@config/layout.config';
 import { Surface } from './surface';
 import { Text } from './text';
 import { cn } from './utils';
 import { TitlebarSpacer } from './page-scroll';
+import { BackBar } from './nav-stack';
+
+/** Back to where a place was opened from, supplied by a shell that presents places as pushed pages (iPhone: back to the
+ *  sidebar). Absent (a Mac, iPad), a place keeps its large title. */
+export const ViewBackContext = createContext<(() => void) | null>(null);
 
 export interface ViewHeaderProps {
   title: string;
@@ -25,6 +30,16 @@ export interface ViewHeaderProps {
 }
 
 export function ViewHeader({ title, detail, accessory, replaceTitle, children, fullWidth }: ViewHeaderProps) {
+  const back = useContext(ViewBackContext);
+  if (back) {
+    // A pushed page (iPhone): ‹ back, the title centred, the place's controls at the end; its rows (a search, filters) under it.
+    return (
+      <header className="shrink-0 pt-safe-top">
+        <BackBar title={title} onBack={back} action={accessory && <div className="flex items-center gap-1">{accessory}</div>} />
+        {(replaceTitle || children) && <div className={cn('space-y-3 pb-3', LAYOUT.listGutter)}>{replaceTitle && <div className="flex items-center gap-2">{replaceTitle}</div>}{children}</div>}
+      </header>
+    );
+  }
   // The title line is one control tall and the controls align to it, so every view's title sits at the same spot with or
   // without buttons or a detail line.
   const rows = (
