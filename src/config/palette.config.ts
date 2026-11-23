@@ -16,6 +16,13 @@ export const PALETTE_CONFIG = {
   resultsPerKind: 5,
   /** How many of one kind the index is asked for inside Show All. */
   allResultsLimit: 200,
+  /** iPhone's full-screen search (SearchScreen): its words. */
+  phone: {
+    placeholder: 'Search meetings and chats',
+    hint: 'Titles, transcripts and chats',
+    searching: 'Searching…',
+    none: (term: string) => `No results for “${term}”`,
+  },
   /** Go to rows sink below real matches once something is typed. */
   navigateWeight: 0.7,
 } as const;

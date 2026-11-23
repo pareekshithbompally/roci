@@ -7,6 +7,7 @@ import { useAppActions, useAppStore, useCurrentView } from '@shared/stores/appSt
 import { ModelPicker, startNewChat } from '@features/chat';
 import { SettingsHome, settingsScreen } from '@features/settings';
 import { BottomSheet, IconButton, NavStack, RevealLayout, Surface, TopBar } from '@shared/ui';
+import { SearchScreen } from '@features/palette';
 import { Sidebar } from './Sidebar';
 
 interface PhoneShellProps {
@@ -21,6 +22,7 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children }) => {
   const settingsRequest = useAppStore((s) => s.settingsRequest);
 
   return (
+    <>
     <RevealLayout open={open} onOpen={() => setLeftPanel(true)} onClose={() => setLeftPanel(false)} paneLabel="Sidebar" pane={<Sidebar variant="sheet" shouldOffsetMacControls={false} />}>
       <Surface as="main" variant="page" className="relative flex h-full flex-col overflow-hidden">
         <TopBar
@@ -43,5 +45,9 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children }) => {
         </NavStack>
       </BottomSheet>
     </RevealLayout>
+    {/* Search over the whole shell (outside the sliding view, which would carry a fixed layer with it): the sidebar's
+        magnifier grows into it; a result opens with the sidebar closed under it. */}
+    <SearchScreen onOpened={() => setLeftPanel(false)} />
+    </>
   );
 };

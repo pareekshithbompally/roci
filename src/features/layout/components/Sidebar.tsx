@@ -8,12 +8,14 @@ import { useSmallScreen } from '@shared/hooks/useMediaQuery';
 import { useSelectedHistoryId, useCurrentView, useAppActions } from '@shared/stores/appStore';
 import { UnifiedList } from '@features/history';
 import { SettingsNav } from '@features/settings/components/SettingsNav';
-import { useOpenSession, useSessionSearch, useUnifiedSidebar } from '@features/history/hooks';
+import { useOpenSession, useUnifiedSidebar } from '@features/history/hooks';
 import { LAYOUT } from '@config/layout.config';
-import { AppMark, Button, FadeScroll, IconButton, Icon, Row, RowGroupLabel, Keycaps, SearchField, Text } from '@shared/ui';
+import { AppMark, FadeScroll, IconButton, Icon, Row, RowGroupLabel, Keycaps, Text } from '@shared/ui';
+import { motion } from 'framer-motion';
+import { ANIMATION_CONFIG } from '@config/animations.config';
 import { APP_CONFIG } from '@config/app.config';
 import {
-  endSearch, setSearchQuery, startSearch, useSearchActive, useSearchQuery,
+  endSearch, startSearch, useSearchActive,
 } from '@shared/stores/searchStore';
 import { ActivityTray, ActivityButton } from '@shared/components';
 import { shortcutKeys } from '@features/shortcuts';
@@ -25,7 +27,7 @@ import { useDestinations } from '@features/layout/hooks/useDestinations';
 interface SidebarProps {
   shouldOffsetMacControls: boolean;
   /** `column` (Mac): window sidebar with its header and rows. `sheet` (phone): the app name with Search and New chat at
-   *  the top, Settings at the bottom. The list and search are the same. */
+   *  the top, Search and Settings at the bottom. The list is the same. */
   variant?: 'column' | 'sheet';
 }
 
@@ -44,11 +46,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const listContainerRef = useRef<HTMLDivElement>(null);
   const openSession = useOpenSession();
   const searchActive = useSearchActive();
-  const query = useSearchQuery();
-  // The sheet (iPhone) searches in place; a column sidebar's search is the ⌘K command palette (CommandPalette), so it never searches here.
+  // Search is its own screen: iPhone's full-screen search (SearchScreen) from the magnifier, a column sidebar's ⌘K palette.
   const sheet = variant === 'sheet';
-  const search = useSessionSearch(items, sheet ? query : '');
-  const results = search.matches?.map((match) => match.item) ?? null;
 
   // Scroll the selected item into view when selection changes (e.g. from the ⌘K palette)
   useEffect(() => {
@@ -89,54 +88,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // The app's own places above Recents, the same on both platforms: To-dos always, Upcoming while the calendar is on.
   const destinations = useDestinations().map(({ view, icon, label }) => <DestinationRow key={view} view={view} icon={icon} label={label} prominent={sheet} />);
 
-  // One list: the recents, or (iPhone, while searching) the matches with their words highlighted.
+  // The recents, paged as they scroll.
   const list = (
     <>
-      <RowGroupLabel>{results ? 'Results' : 'Recents'}</RowGroupLabel>
+      <RowGroupLabel>Recents</RowGroupLabel>
       <UnifiedList
-        items={results ?? items}
+        items={items}
         selectedId={getSelectedId()}
         onSelect={handleSelectItem}
-        searchQuery={results ? query : ''}
-        paging={results ? undefined : { loading: isLoading, hasMore, loadingMore, loadMore }}
+        searchQuery=""
+        paging={{ loading: isLoading, hasMore, loadingMore, loadMore }}
       />
     </>
-  );
-  const searchField = (
-    <SearchField
-      value={query}
-      onChange={setSearchQuery}
-      onCancel={endSearch}
-      placeholder="Search"
-      autoFocus
-      busy={search.searching}
-      className="flex-1"
-    />
   );
 
   if (sheet) {
     return (
       <div className="flex h-full w-full flex-col overflow-hidden">
         <header className="flex min-h-14 shrink-0 items-center gap-2 px-4 pt-2 pb-3">
-          {searchActive ? (
-            <>
-              {searchField}
-              <Button variant="link" size="inline" onClick={endSearch}>Cancel</Button>
-            </>
-          ) : (
-            <>
-              <AppMark size="md" />
-              <Text as="h1" variant="title" className="flex-1">{APP_CONFIG.name}</Text>
-              <IconButton icon={Search} size="fab" variant="bar" onClick={startSearch} label="Search" />
-              <IconButton icon={SquarePen} size="fab" variant="bar" onClick={handleHomeClick} label="New chat" />
-            </>
-          )}
+          <AppMark size="md" />
+          <Text as="h1" variant="title" className="flex-1">{APP_CONFIG.name}</Text>
+          <IconButton icon={SquarePen} size="fab" variant="bar" onClick={handleHomeClick} label="New chat" />
         </header>
         <div className="shrink-0 px-2">{destinations}</div>
         <FadeScroll ref={listContainerRef} fill className="flex-1 px-2 pb-2">{list}</FadeScroll>
-        {/* Bottom right, under Search and New chat: Activity while work runs (downloads, model loads), then Settings. */}
+        {/* Bottom right: Activity while work runs (downloads, model loads), Search, then Settings. Search grows out of its
+            button into the full screen (SearchScreen shares its layout id), so the button leaves while the screen is open. */}
         <footer className="flex shrink-0 items-center justify-end gap-2 px-4 pt-2 pb-4">
           <ActivityButton />
+          <div className="size-11">
+            {!searchActive && (
+              <motion.div layoutId={ANIMATION_CONFIG.search.morphId} transition={ANIMATION_CONFIG.search.morph}>
+                <IconButton icon={Search} size="fab" variant="bar" onClick={startSearch} label="Search" />
+              </motion.div>
+            )}
+          </div>
           <IconButton icon={Settings} size="fab" variant="bar" onClick={handleSettingsClick} label="Settings" />
         </footer>
       </div>

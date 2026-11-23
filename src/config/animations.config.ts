@@ -47,6 +47,18 @@ export const ANIMATION_CONFIG = {
     appear: { duration: 0.2, ease: [0.4, 0, 0.2, 1] as const },
   },
 
+  /** iPhone search (framer-motion, seconds): the sidebar's magnifier and the search field share one layout id, so the button
+   *  grows into the field on the iOS curve; the screen fades in under it and the results rise a beat later. */
+  search: {
+    morphId: 'search-field',
+    morph: { duration: 0.5, ease: [0.32, 0.72, 0, 1] as const },
+    fade: { duration: 0.25, ease: 'easeOut' as const },
+    results: { duration: 0.35, delay: 0.15, ease: [0.32, 0.72, 0, 1] as const },
+    hidden: { opacity: 0 },
+    shown: { opacity: 1, y: 0 },
+    resultsHidden: { opacity: 0, y: 8 },
+  },
+
   /** Disclosure open/close (framer-motion, seconds): height and fade together. */
   disclosure: { duration: 0.2, ease: [0.4, 0, 0.2, 1] as const },
 } as const;
