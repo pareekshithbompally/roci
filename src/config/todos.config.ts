@@ -48,6 +48,7 @@ export const TODOS_CONFIG = {
     due: 'Due Date',
     reminder: 'Reminder',
     owner: 'Owner',
+    details: 'Details',
     dueShort: 'Due',
     reminderShort: 'Reminder',
     verbs: { delete: 'Delete', done: 'Mark done', reopen: 'Reopen', update: 'Update' },

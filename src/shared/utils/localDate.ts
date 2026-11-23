@@ -24,3 +24,6 @@ export const daysBetween = (a: Date, b: Date) =>
 
 /** `YYYY-MM-DD` of the local day (date inputs, SQLite's `date(…, 'localtime')`, the AI tools' dates). */
 export const localDayKey = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
+/** "HH:MM" in local time, as a time picker reads it. */
+export const localTimeKey = (date: Date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`;

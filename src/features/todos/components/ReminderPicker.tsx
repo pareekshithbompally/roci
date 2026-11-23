@@ -10,7 +10,7 @@ import { reminderService } from '@services/reminder.service';
 import type { ScheduleReminderParams } from '@services/reminder.service';
 import { parseDateLoose, localDateFromParts, formatReminderDate } from '@shared/utils/todo.utils';
 import { formatShortDateTime } from '@shared/utils/formatters';
-import { localDayKey } from '@shared/utils/localDate';
+import { localDayKey, localTimeKey } from '@shared/utils/localDate';
 
 interface ReminderPickerProps {
   todoId: string;
@@ -70,14 +70,6 @@ function buildQuickOptions(dueDate?: string): QuickOption[] {
   }
 
   return options;
-}
-
-/** Format ISO datetime to local time string for TimePicker */
-function toTimeInputValue(iso: string): string {
-  const d = new Date(iso);
-  const h = String(d.getHours()).padStart(2, '0');
-  const m = String(d.getMinutes()).padStart(2, '0');
-  return `${h}:${m}`;
 }
 
 const ReminderPicker: React.FC<ReminderPickerProps> = ({
@@ -212,7 +204,7 @@ const ReminderPicker: React.FC<ReminderPickerProps> = ({
                 setShowCustom(true);
                 if (reminderDateTime) {
                   setCustomDate(localDayKey(new Date(reminderDateTime)));
-                  setCustomTime(toTimeInputValue(reminderDateTime));
+                  setCustomTime(localTimeKey(new Date(reminderDateTime)));
                 }
               }}
             >

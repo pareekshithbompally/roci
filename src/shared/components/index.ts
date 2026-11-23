@@ -14,7 +14,7 @@ export { ModelCreditLine } from './ModelCreditLine';
 export type { ModelCreditItem } from './ModelCreditLine';
 export { EditableList } from './EditableList';
 export { RecordList } from './RecordList';
-export { SettingsInput, renderWithLinks } from './SettingsInput';
+export { renderWithLinks } from './renderWithLinks';
 export type { ProposalCardProps, ProposalItem } from './ProposalCard';
 export { RemovedNotice } from './RemovedNotice';
 export { LoadingPane } from './LoadingPane';
