@@ -24,7 +24,7 @@ function useRemovedMeetings(ids: string[]): Set<string> {
 /** A meeting the question was asked about; once the meeting is deleted, its chip says so. */
 const MeetingChip: React.FC<{ title: string; removed: boolean }> = ({ title, removed }) => (
   <Surface variant="inset" radius="md" className="inline-flex items-center gap-1 px-2 py-0.5">
-    <Icon icon={removed ? FileX : FileAudio} size="xs" tone={removed ? 'faint' : 'warning'} />
+    <Icon icon={removed ? FileX : FileAudio} size="xs" tone="faint" />
     <Text variant="helper" tone="muted" truncate className="max-w-40">
       {removed ? StorageConfig.removed.meeting : title}
     </Text>
@@ -70,7 +70,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ message, isCopied, actions })
       </Surface>
 
       {/* Timestamp */}
-      <Text as="div" variant="helper" tone="faint" className="mt-1">
+      <Text as="div" variant="caption" tone="faint" className="mt-1">
         {formatClockTime(createdAt)}
       </Text>
     </div>

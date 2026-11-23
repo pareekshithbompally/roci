@@ -1,7 +1,8 @@
-/** A tool call's arguments as "key value" chips (the model's query, filters, ids), so the user sees what it asked for. */
+/** A tool call's arguments as "key value" lines (the model's query, filters, ids), so the user sees what it asked for; key
+ *  and value at one size, the value in the text colour. */
 
 import React from 'react';
-import { Chip, Text } from '@shared/ui';
+import { Text } from '@shared/ui';
 import type { ToolCallView } from './toolCallView';
 
 /** An argument as one line: text as it is, a list joined, anything nested as JSON; none when empty. */
@@ -25,7 +26,7 @@ export const ToolParameters: React.FC<{ part: ToolCallView }> = ({ part }) => {
           // Baseline-aligned, so the name and its value read as one line.
           <div key={key} className="flex min-w-0 max-w-full items-baseline gap-1.5">
             <Text variant="helper" tone="muted" className="shrink-0">{key}</Text>
-            <Chip label={text} />
+            <Text variant="helper" truncate className="min-w-0">{text}</Text>
           </div>
         ))}
       </div>

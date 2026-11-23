@@ -11,6 +11,7 @@ import { normalizeMath } from '@shared/utils/mathMarkup';
 import { MarkdownTable } from './MarkdownTable';
 import { MarkdownLink } from './MarkdownLink';
 import { mermaidTheme } from './mermaidTheme';
+import { MARKDOWN_ICONS } from './markdownIcons';
 import { useThemeContext } from '@shared/contexts/ThemeContext';
 
 interface MarkdownProps {
@@ -60,6 +61,7 @@ const MarkdownInner: React.FC<MarkdownProps> = ({
         plugins={STREAMDOWN_PLUGINS}
         mermaid={diagrams}
         linkSafety={LINK_SAFETY}
+        icons={MARKDOWN_ICONS}
       >
         {effectiveContent}
       </Streamdown>

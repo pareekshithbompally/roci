@@ -67,7 +67,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
       {/* Provider/Model Header — always visible, consistent across all states */}
       <div className="flex items-center gap-2 mb-2">
         <AnimatedProviderIcon provider={provider || 'unknown'} modelId={model} size={18} isAnimating={isLoading || isStreaming} />
-        <Text variant="label" tone="muted">
+        <Text variant="helper" tone="muted">
           {/* The model, always: a running tool shows in its own row below, not here too. */}
           {isLoading ? status.label : <ProviderModelLabel provider={provider} model={model} />}
         </Text>
@@ -78,7 +78,8 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
       {(isStreaming || isComplete) && (
         <>
           {/* Message Content */}
-          <div ref={bodyRef} className="relative">
+          {/* The reply's parts (its work, its text, a tool's view) one gap apart. */}
+          <div ref={bodyRef} className="relative flex flex-col gap-2">
             {!isStreaming && isError && text ? (
               <ErrorMessageBox errorText={text} />
             ) : (

@@ -45,6 +45,8 @@
   --control-md: 32px;
   /* A chat bubble (iMessage): a one-line message is a full pill, a longer one keeps soft round corners. */
   --radius-bubble: 18px;
+  /* A block inside content (a reply's table, code, a tool's output): its corners; iOS rounds them more. */
+  --radius-block: 8px;
   /* A screen's main button (first-run Continue). */
   --control-lg: 36px;
 
@@ -257,6 +259,7 @@ html.platform-ios {
   --bg-grouped-card: #ffffff;
   --radius-card: 26px;
   --radius-sheet: 38px;
+  --radius-block: 12px;
   --row-min-h: 48px;
   --row-icon-gap: 14px;
   --section-gap: 24px;

@@ -16,6 +16,7 @@ export const KIT_COPY = {
   navigation: 'Navigation',
   time: 'Time',
   expand: 'Expand',
+  table: 'Table',
   expandTable: 'Expand table',
   saveTable: 'Save table',
   clearFinished: 'Clear finished',

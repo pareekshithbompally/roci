@@ -1,10 +1,12 @@
-/** Streamdown's table wrapper rebuilt from kit parts (Copy, Save via native panel, Expand) for the Tauri webview. */
+/** Streamdown's table wrapper rebuilt from kit parts: the one content block frame, its actions Copy, Save (native panel)
+ *  and Expand. */
 
 import { useRef, useState } from 'react';
 import type { ComponentProps } from 'react';
 import { Check, Copy, Download, Maximize2, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
+  ContentBlock,
   Dialog,
   DialogClose,
   DialogContent,
@@ -72,14 +74,20 @@ export function MarkdownTable({ children, node: _node, ...props }: TableProps) {
   );
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-end gap-1">
-        {actions}
-        <IconButton icon={Maximize2} label={KIT_COPY.expandTable} size="sm" onClick={() => setExpanded(true)} />
-      </div>
-      <div className="overflow-x-auto">
-        <table ref={tableRef} {...props}>{children}</table>
-      </div>
+    <>
+      <ContentBlock
+        label={KIT_COPY.table}
+        actions={
+          <>
+            {actions}
+            <IconButton icon={Maximize2} label={KIT_COPY.expandTable} size="sm" onClick={() => setExpanded(true)} />
+          </>
+        }
+      >
+        <div className="overflow-x-auto">
+          <table ref={tableRef} {...props}>{children}</table>
+        </div>
+      </ContentBlock>
 
       <Dialog open={expanded} onOpenChange={setExpanded}>
         <DialogPortal>
@@ -101,7 +109,7 @@ export function MarkdownTable({ children, node: _node, ...props }: TableProps) {
           </DialogContent>
         </DialogPortal>
       </Dialog>
-    </div>
+    </>
   );
 }
 

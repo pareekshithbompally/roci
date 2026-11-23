@@ -83,6 +83,8 @@ export { Toaster, showToast, dismissToast } from './sonner';
 export type { ToastTone, ToastAction } from './sonner';
 export { TopBar } from './top-bar';
 export type { TopBarProps } from './top-bar';
+export { ContentBlock } from './content-block';
+export type { ContentBlockProps } from './content-block';
 export { ListDetail, useListBesideDetail } from './list-detail';
 export type { ListDetailProps } from './list-detail';
 export { NavStack, PageBody, PushedPage, PushedScreen, useNavStack, useOptionalNavStack } from './nav-stack';

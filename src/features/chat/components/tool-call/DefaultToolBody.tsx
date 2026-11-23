@@ -1,5 +1,5 @@
 import React from 'react';
-import { Surface, Text } from '@shared/ui';
+import { ContentBlock, Text } from '@shared/ui';
 import type { ToolCallView } from './toolCallView';
 import { ToolParameters } from './ToolParameters';
 
@@ -22,14 +22,11 @@ interface ToolSectionProps {
 
 function ToolSection({ label, text, isError }: ToolSectionProps) {
   return (
-    <div className="flex flex-col gap-1">
-      <Text variant="label" tone="faint">{label}</Text>
-      <Surface variant="subtle" radius="md" className="max-h-48 overflow-auto px-2.5 py-2">
-        <Text as="div" variant="mono" tone={isError ? 'danger' : 'muted'} className="whitespace-pre-wrap break-words">
-          {text}
-        </Text>
-      </Surface>
-    </div>
+    <ContentBlock label={label} padded>
+      <Text as="div" variant="mono" tone={isError ? 'danger' : 'primary'} className="max-h-48 overflow-auto whitespace-pre-wrap break-words">
+        {text}
+      </Text>
+    </ContentBlock>
   );
 }
 
