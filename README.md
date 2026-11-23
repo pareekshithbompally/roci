@@ -7,14 +7,7 @@
 <p align="center">Private meeting notes and AI chat for Mac, iPhone and iPad.</p>
 
 <p align="center">
-  <img alt="macOS · iOS · iPadOS 26" src="https://img.shields.io/badge/macOS%20%C2%B7%20iOS%20%C2%B7%20iPadOS-26-000000?logo=apple&logoColor=white">
-  <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white">
-  <img alt="React 19" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black">
-  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white">
-  <img alt="Rust" src="https://img.shields.io/badge/Rust-2024-000000?logo=rust&logoColor=white">
-  <img alt="Swift" src="https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white">
-  <img alt="Vercel AI SDK" src="https://img.shields.io/badge/Vercel%20AI%20SDK-7-000000?logo=vercel&logoColor=white">
-  <img alt="SQLite" src="https://img.shields.io/badge/SQLite-sqlite--vec%20%C2%B7%20GraphQLite-003B57?logo=sqlite&logoColor=white">
+  <img alt="macOS · iOS · iPadOS" src="https://img.shields.io/badge/macOS%20%C2%B7%20iOS%20%C2%B7%20iPadOS-000000?logo=apple&logoColor=white">
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue">
 </p>
 
