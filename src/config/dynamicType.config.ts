@@ -39,11 +39,16 @@ const TOKEN_STYLE: Readonly<Record<string, AppleStyle>> = {
   title3: 'title3',
   body: 'body',
   reading: 'body',
+  prose: 'body',
   callout: 'subhead',
   subheadline: 'footnote',
   section: 'footnote',
   segment: 'footnote',
 };
+
+/** Long-form text (a reply's paragraphs and lists) is Body with roomier leading: Apple's Body leading (22 on 17) is set for
+ *  single lines (rows, buttons) and reads cramped over a paragraph. Its line is this many times its size. */
+const LOOSE_LEADING: Readonly<Record<string, number>> = { prose: 1.5 };
 
 /** The Text Size setting whose Body is `bodyPx` (the nearest standard one at or below it; accessibility sizes → xxxLarge). */
 export function contentSizeFor(bodyPx: number): ContentSize {
@@ -53,7 +58,9 @@ export function contentSizeFor(bodyPx: number): ContentSize {
 /** The CSS custom properties for one Text Size setting: size, leading and tracking for every Roci type token. */
 export function typeTokensFor(size: ContentSize): Record<string, string> {
   return Object.fromEntries(Object.entries(TOKEN_STYLE).flatMap(([token, style]) => {
-    const [px, leading] = SIZES[size][style];
+    const [px, appleLeading] = SIZES[size][style];
+    const loose = LOOSE_LEADING[token];
+    const leading = loose ? Math.round(px * loose) : appleLeading;
     return [[`--fs-${token}`, `${px}px`], [`--lh-${token}`, `${leading}px`], [`--tr-${token}`, `${TRACKING[px] ?? 0}px`]];
   }));
 }

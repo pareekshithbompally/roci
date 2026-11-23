@@ -3,11 +3,10 @@
 .markdown-content {
   /* Text colour for body, headings, bold and tables; the `aside` variant quiets it. */
   --markdown-text: var(--text-primary);
-  /* The platform reading style (14 / 22 macOS; Apple's Body 17 / 22 with its tracking on iOS), so a reply matches the
-     text around it. */
-  font-size: var(--fs-reading);
-  line-height: var(--lh-reading);
-  letter-spacing: var(--tr-reading);
+  /* Long-form text: the reading size with prose leading (14 / 22 macOS; Body 17 on 26 with its tracking on iOS). */
+  font-size: var(--fs-prose);
+  line-height: var(--lh-prose);
+  letter-spacing: var(--tr-prose);
   color: var(--markdown-text);
   word-wrap: break-word;
   overflow-wrap: break-word;
@@ -50,7 +49,7 @@
 
 /* Paragraphs */
 .markdown-content p {
-  line-height: var(--lh-reading);
+  line-height: var(--lh-prose);
   margin-bottom: var(--md-block);
 }
 
@@ -65,7 +64,7 @@
 /* Lists */
 .markdown-content ul,
 .markdown-content ol {
-  line-height: var(--lh-reading);
+  line-height: var(--lh-prose);
   margin-bottom: var(--md-block);
   padding-left: 1.5em;
   list-style-position: outside;
@@ -92,7 +91,7 @@
 
 /* Blockquotes: a quiet rule and muted text, no fill (a quote isn't a status). */
 .markdown-content blockquote {
-  line-height: var(--lh-reading);
+  line-height: var(--lh-prose);
   border-left: 3px solid var(--border-strong);
   padding: 0 0 0 1em;
   margin-left: 0;
