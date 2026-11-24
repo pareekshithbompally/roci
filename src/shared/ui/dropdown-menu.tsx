@@ -1,6 +1,6 @@
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronRight } from 'lucide-react';
-import type { ComponentProps } from 'react';
+import type { ComponentProps, MouseEvent } from 'react';
 import { cn } from './utils';
 import { Icon } from './icon';
 import { MENU_LIST, MENU_ITEM, MENU_LABEL, MENU_SEPARATOR, MENU_TOUCH } from './recipes';
@@ -13,6 +13,10 @@ const LIST = touch ? MENU_TOUCH.list : MENU_LIST;
 const ITEM = touch ? MENU_TOUCH.item : MENU_ITEM;
 const SEPARATOR = touch ? MENU_TOUCH.separator : MENU_SEPARATOR;
 
+/** A menu is portalled, but React still bubbles its clicks to the element it was opened from (a sidebar row that opens its
+ *  chat): a pick stays in the menu. */
+const keepClick = (e: MouseEvent) => e.stopPropagation();
+
 export const DropdownMenu = DropdownMenuPrimitive.Root;
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 export const DropdownMenuSub = DropdownMenuPrimitive.Sub;
@@ -20,7 +24,7 @@ export const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 export function DropdownMenuContent({ className, sideOffset = 4, ...props }: ComponentProps<typeof DropdownMenuPrimitive.Content>) {
   return (
     <DropdownMenuPrimitive.Portal>
-      <DropdownMenuPrimitive.Content sideOffset={sideOffset} collisionPadding={UI_CONFIG.picker.collisionPadding} className={cn(LIST, className)} {...props} />
+      <DropdownMenuPrimitive.Content sideOffset={sideOffset} collisionPadding={UI_CONFIG.picker.collisionPadding} className={cn(LIST, className)} onClick={keepClick} {...props} />
     </DropdownMenuPrimitive.Portal>
   );
 }
@@ -77,7 +81,7 @@ export function DropdownMenuSubTrigger({ className, children, ...props }: Compon
 export function DropdownMenuSubContent({ className, ...props }: ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
   return (
     <DropdownMenuPrimitive.Portal>
-      <DropdownMenuPrimitive.SubContent className={cn(LIST, className)} {...props} />
+      <DropdownMenuPrimitive.SubContent className={cn(LIST, className)} onClick={keepClick} {...props} />
     </DropdownMenuPrimitive.Portal>
   );
 }

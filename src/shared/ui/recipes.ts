@@ -35,14 +35,18 @@ export const MENU_TOUCH = {
 /** The grouped card surface (System Settings): what every card, table and KPI tile sits on. */
 export const GROUPED_SURFACE = 'rounded-card bg-grouped-card';
 
-/** A searchable list shown as an iOS screen: results are an inset grouped card — list-height rows, separators inset
- *  like a list's, no hover/selection fill on touch (a press shades the row), group headings above the card's rows. */
+/** A picker list shown as an iOS screen (Settings): each group an inset grouped card with its title above it, a section's
+ *  gap between groups; list-height rows, separators inset like a list's, no hover/selection fill on touch (a press shades
+ *  the row). A picker's rows always sit in a group. */
 export const LIST_COMMAND = cn(
-  'overflow-hidden', GROUPED_SURFACE,
+  '[&_[cmdk-list-sizer]]:flex [&_[cmdk-list-sizer]]:flex-col [&_[cmdk-list-sizer]]:gap-section',
+  '[&_[cmdk-group-items]]:overflow-hidden [&_[cmdk-group-items]]:rounded-card [&_[cmdk-group-items]]:bg-grouped-card',
   '[&_[cmdk-item]]:mx-4 [&_[cmdk-item]]:min-h-row [&_[cmdk-item]]:rounded-none [&_[cmdk-item]]:px-0 [&_[cmdk-item]]:py-3',
   '[&_[cmdk-item]+[cmdk-item]]:border-t [&_[cmdk-item]+[cmdk-item]]:border-muted',
   '[&_[cmdk-item][data-selected=true]]:bg-transparent [&_[cmdk-item]:active]:opacity-60',
-  '[&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:pt-3',
+  '[&_[cmdk-group-heading]]:px-4',
+  // The gap between cards already parts groups.
+  '[&_[cmdk-separator]]:hidden',
 );
 
 /** iOS search field: a rounded filled bar with a magnifier (UISearchBar). */

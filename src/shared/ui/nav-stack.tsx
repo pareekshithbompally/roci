@@ -248,8 +248,8 @@ export function PushedPage({ open, title, onBack, children }: PushedPageProps) {
       }}
     >
       {/* Over a whole place (the shell's bar gone), so it clears the status bar itself; the shell already clears the home
-          indicator. */}
-      <Surface className="absolute inset-0 flex flex-col pt-safe-top">
+          indicator. The place's own fill: it hides the view it covers. */}
+      <Surface variant="page" className="absolute inset-0 flex flex-col pt-safe-top">
         <TitlebarSpacer />
         <BackBar title={last.current.title} onBack={onBack} />
         <PageScroll underTitlebar={false} className="flex-1">{last.current.children}</PageScroll>

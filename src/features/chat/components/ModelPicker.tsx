@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
-import { ModelChips, ModelIcon, ProvidersAvatar, openModelMenu } from '@shared/components';
+import { ModelChips, ModelIcon, openModelMenu } from '@shared/components';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { groupChoices, modelSources, type ModelChoice } from '@shared/utils/modelResolver';
 import { jobChoices } from '@services/ai/models';
@@ -111,15 +111,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false, iconO
       trigger={trigger()}
     >
       {groups.map(([provider, models]) => (
-        <CommandGroup
-          key={provider}
-          heading={
-            <div className="flex items-center gap-2">
-              <ProvidersAvatar provider={provider} size={14} />
-              <span>{getProviderTitle(provider)}</span>
-            </div>
-          }
-        >
+        <CommandGroup key={provider} heading={getProviderTitle(provider)}>
           {models.map((model) => {
             const isSelected = model.provider === selected?.provider && model.modelId === selected.modelId;
 

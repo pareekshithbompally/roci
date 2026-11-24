@@ -86,15 +86,17 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
           <CommandRow value={typed} onSelect={() => add({ id: typed, report: {} })} leading={<Icon icon={Plus} size="sm" tone="faint" />} label={COPY.addTyped(typed)} />
         </CommandGroup>
       )}
-      {available.filter((model) => !added.has(model.id)).map((model) => (
-        <CommandRow
-          key={model.id}
-          value={model.id}
-          onSelect={() => add(model)}
-          label={model.id}
-          meta={<ModelChips profile={shownProfile(profileOf(provider, { id: model.id, reported: model.report }))} />}
-        />
-      ))}
+      <CommandGroup>
+        {available.filter((model) => !added.has(model.id)).map((model) => (
+          <CommandRow
+            key={model.id}
+            value={model.id}
+            onSelect={() => add(model)}
+            label={model.id}
+            meta={<ModelChips profile={shownProfile(profileOf(provider, { id: model.id, reported: model.report }))} />}
+          />
+        ))}
+      </CommandGroup>
     </CommandPopover>
   );
 };

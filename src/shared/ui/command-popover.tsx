@@ -1,6 +1,6 @@
 /** Composer pickers: a searchable popover list plus a side flyout submenu, both clamped to the window and scrolling. */
 
-import React from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { UI_CONFIG } from '@config/ui.config';
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from './popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandList } from './command';
@@ -21,6 +21,34 @@ function SheetList({ emptyText, children }: { emptyText: string; children: React
       <CommandEmpty>{emptyText}</CommandEmpty>
       {children}
     </CommandList>
+  );
+}
+
+interface PhonePickerProps {
+  searchPlaceholder: string;
+  search?: string;
+  onSearchChange?: (search: string) => void;
+  emptyText: string;
+  children: React.ReactNode;
+}
+
+/** A phone picker (iOS): its groups as inset grouped cards. A search field only where typing helps (HIG): the caller acts
+ *  on what's typed (add a model by name), or the list is too long to scan; a short list stays a list, so no keyboard rises
+ *  and the sheet holds its height. */
+function PhonePicker({ searchPlaceholder, search, onSearchChange, emptyText, children }: PhonePickerProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  // Once long, it keeps its field: a search that narrows the list never takes the field away mid-typing.
+  const [long, setLong] = useState(false);
+  useLayoutEffect(() => {
+    const rows = ref.current?.querySelectorAll('[cmdk-item]').length ?? 0;
+    if (rows > UI_CONFIG.picker.searchFrom) setLong(true);
+  });
+  const searchable = !!onSearchChange || long;
+  return (
+    <Command ref={ref} className="min-h-0 gap-3 rounded-none px-4 pb-sheet-end pt-2">
+      {searchable && <CommandSearch placeholder={searchPlaceholder} value={search} onValueChange={onSearchChange} />}
+      <SheetList emptyText={emptyText}>{children}</SheetList>
+    </Command>
   );
 }
 
@@ -123,7 +151,8 @@ interface CommandPopoverProps {
   children: React.ReactNode;
 }
 
-/** A searchable list: a popover by its trigger; on a phone inside a NavStack, a pushed screen in the same sheet (iOS). */
+/** A searchable list: a popover by its trigger; on a phone (a pushed screen inside a NavStack, else its own sheet) an
+ *  inset grouped list, searchable only where that helps (PhonePicker). */
 export function CommandPopover({
   open,
   onOpenChange,
@@ -142,12 +171,11 @@ export function CommandPopover({
   const stack = useOptionalNavStack();
   const phone = useFormFactor() === 'phone';
   if (phone) {
-    // iOS: a search field over an inset grouped list — a pushed screen inside a sheet's stack, else its own sheet.
+    // iOS: an inset grouped list — a pushed screen inside a sheet's stack, else its own sheet.
     const body = (
-      <Command className="min-h-0 gap-3 rounded-none px-4 pb-sheet-end pt-2">
-        <CommandSearch placeholder={searchPlaceholder} value={search} onValueChange={onSearchChange} />
-        <SheetList emptyText={emptyText}>{children}</SheetList>
-      </Command>
+      <PhonePicker searchPlaceholder={searchPlaceholder} search={search} onSearchChange={onSearchChange} emptyText={emptyText}>
+        {children}
+      </PhonePicker>
     );
     const sheetTitle = title ?? searchPlaceholder;
     return (

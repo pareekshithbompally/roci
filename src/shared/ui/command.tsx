@@ -8,6 +8,10 @@ import { LITERAL_TEXT, MENU_ITEM, MENU_SEPARATOR, SHEET_SURFACE } from './recipe
 import { Icon } from './icon';
 import { Text, type TextTone, type TextVariant } from './text';
 import { Keycaps } from './kbd';
+import { platform } from '@platform/index';
+
+/** A finger's list (iOS) shows a long name whole, on a second line; a Mac's dense list cuts it short. */
+const wholeNames = platform.hasTouchScreen;
 
 export function Command({ className, ...props }: ComponentProps<typeof CommandPrimitive>) {
   return <CommandPrimitive className={cn('flex flex-col overflow-hidden rounded-lg text-primary', className)} {...props} />;
@@ -84,7 +88,7 @@ export function CommandItem({ className, ...props }: ComponentProps<typeof Comma
 export interface CommandRowProps extends Omit<ComponentProps<typeof CommandPrimitive.Item>, 'children'> {
   /** Leading glyph: a kit Icon, a model or server icon. */
   leading?: ReactNode;
-  /** The row's name; it fills the row and truncates, never the columns after it. */
+  /** The row's name; it fills the row and truncates (wraps on a touch screen), never the columns after it. */
   label: ReactNode;
   /** A small mark right after the name that never truncates (e.g. a loaded dot). */
   status?: ReactNode;
@@ -112,7 +116,7 @@ export function CommandRow({
       {leading}
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex min-w-0 items-center gap-1.5">
-          <Text variant={labelVariant} tone={labelTone} truncate>{label}</Text>
+          <Text variant={labelVariant} tone={labelTone} truncate={!wholeNames} className={cn('min-w-0', wholeNames && 'break-words')}>{label}</Text>
           {status}
         </span>
         {description && <Text variant="helper" tone="faint" truncate>{description}</Text>}

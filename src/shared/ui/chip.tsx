@@ -12,9 +12,17 @@ export interface ChipProps {
   estimated?: boolean;
 }
 
-/** A small outlined capsule for a fact about an item (18.85 GB · GGUF · vision, a tool call's argument); quiet, never a
- *  control. A long label is cut short at the row's width. */
+/** A small outlined capsule for a fact about an item (18.85 GB · GGUF, a tool call's argument); quiet, never a control. A
+ *  long label is cut short at the row's width. Icon-only (a model can see, use tools…) it is the bare glyph, muted, as
+ *  Apple marks a row; a guess is fainter. */
 export function Chip({ label, icon, title, estimated }: ChipProps) {
+  if (!label) {
+    return (
+      <span title={title} aria-label={title} className={cn('inline-flex shrink-0', estimated ? 'text-faint' : 'text-muted')}>
+        {icon && <Icon icon={icon} size="xs" />}
+      </span>
+    );
+  }
   return (
     <span
       title={title}
@@ -22,11 +30,11 @@ export function Chip({ label, icon, title, estimated }: ChipProps) {
       className={cn(
         'inline-flex h-6 max-w-full items-center gap-1 rounded-full border border-muted text-subheadline text-muted',
         estimated && 'border-dashed',
-        label ? 'min-w-0 px-2' : 'w-6 shrink-0 justify-center',
+        'min-w-0 px-2',
       )}
     >
       {icon && <Icon icon={icon} size="xs" />}
-      {label && <span className="truncate">{label}</span>}
+      <span className="truncate">{label}</span>
     </span>
   );
 }

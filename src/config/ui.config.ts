@@ -142,6 +142,9 @@ export const UI_CONFIG = {
     flyoutOffset: 6,
     /** Popovers stay this far inside the window edges */
     collisionPadding: 12,
+    /** A phone picker shows a search field only past this many rows (HIG: search a list too long to scan), or when the
+     *  caller acts on what's typed. */
+    searchFrom: 30,
   },
 
 
