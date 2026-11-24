@@ -25,7 +25,6 @@ const MODELS: ProviderModelBreakdown[] = [
 const CATEGORIES = [
   { category: 'chat', calls: 96, cost: 0.0821 },
   { category: 'summary', calls: 21, cost: 0.0192 },
-  { category: 'chat-extras', calls: 28, cost: 0.0081 },
   { category: 'liveNotes', calls: 11, cost: 0.0032 },
   { category: 'transcription', calls: 14, cost: 0, unpriced: 9 },
 ];

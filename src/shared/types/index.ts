@@ -247,8 +247,6 @@ export interface AppSettings {
   chatTitles?: boolean;
   /** Suggest follow-ups under each reply (on unless false). */
   followUps?: boolean;
-  /** The model that names chats and suggests follow-ups, in one call; unset = the chat's own model. */
-  chatExtrasModel?: string;
   /** LLM model for the Analyze phase — produces the structured meeting summary (Summary tab). */
   analyzeModel?: string;
   /** Image model provider for chat's generate_image tool (`openai`, `gemini`); unset = chat can't make images. */

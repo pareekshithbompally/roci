@@ -3,7 +3,7 @@
  *  · 4 what exactly (models, tools the AI used, each day). A Mac shows it all on one page; iPhone pushes 3, 4 and Prices. */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { ChartPie, Lightbulb, NotebookPen, Sparkles, type LucideIcon } from 'lucide-react';
+import { ChartPie, NotebookPen, Sparkles, type LucideIcon } from 'lucide-react';
 import {
   Chart, DonutChart, DrillGroup, Icon, Section, StatGroup, Tabs, Text, axisChart,
   type ChartOption, type DataColumn, type DonutSlice, type DrillGroupPage,
@@ -34,7 +34,6 @@ const MEASURE_LABEL = Object.fromEntries(USAGE_CONFIG.measures.map((m) => [m.val
 /** Each use case's glyph (as in Default Models); one the app doesn't name gets a generic one. */
 const USE_CASE_GLYPH: Record<string, LucideIcon> = {
   chat: JOB_GLYPH.chat,
-  'chat-extras': Lightbulb,
   image: JOB_GLYPH.images,
   summary: JOB_GLYPH.summaries,
   liveNotes: NotebookPen,

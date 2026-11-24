@@ -26,7 +26,7 @@ export interface ChatMessageProps {
 }
 
 /** UserMessage receives a subset */
-export type UserMessageProps = Pick<ChatMessageProps, 'message' | 'isCopied' | 'actions'>;
+export type UserMessageProps = Pick<ChatMessageProps, 'message' | 'actions'>;
 
 /** AssistantMessage receives the rest */
 export type AssistantMessageProps = Omit<ChatMessageProps, 'isLastMessage'> & { isLastMessage: boolean };

@@ -76,8 +76,9 @@ function replyOnce(parts: object[] = WORDS) {
 }
 
 const callbacks = { onParts: vi.fn(), onProgress: vi.fn(), onGeneration: vi.fn() };
-const run = (settings: Partial<AppSettings>) =>
-  orchestrate({ messages: [], sessionId: 'c1', messageId: 'r1', model: resolved.current as never, prompt: { meetingCount: 0, timeContext: '' }, settings: settings as AppSettings, providers: [], reasoningEffort: 'provider-default' }, callbacks);
+const NO_EXTRAS = { title: false, suggestions: false };
+const run = (settings: Partial<AppSettings>, extras = NO_EXTRAS) =>
+  orchestrate({ messages: [], sessionId: 'c1', messageId: 'r1', model: resolved.current as never, prompt: { meetingCount: 0, timeContext: '' }, settings: settings as AppSettings, providers: [], reasoningEffort: 'provider-default', extras }, callbacks);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -150,6 +151,31 @@ describe('orchestrate — the reply as the SDK builds it', () => {
     replyOnce();
     await run({});
     expect(streamText.mock.calls[1][0]).not.toHaveProperty('experimental_transform');
+  });
+
+  it('reads the title and follow-ups from the reply\'s finishReply, which is never shown or returned', async () => {
+    const input = { title: 'Q3 launch plan.', suggestions: ['Who owns it?', 'What is at risk?', 'Draft the email', 'One too many'] };
+    replyOnce([...WORDS, { type: 'tool-call', toolCallId: 'f1', toolName: 'finishReply', input }]);
+    const result = await run({}, { title: true, suggestions: true });
+    expect(result.parts).toEqual([{ type: 'text', text: 'Hi', state: 'done' }]);
+    expect(callbacks.onParts.mock.calls.flat(2)).not.toContainEqual(expect.objectContaining({ type: 'tool-finishReply' }));
+    expect(result.extras).toEqual({ title: 'Q3 launch plan', suggestions: ['Who owns it?', 'What is at risk?', 'Draft the email'] });
+  });
+
+  it('has no title or follow-ups when the reply did not call finishReply', async () => {
+    expect((await run({}, { title: true, suggestions: true })).extras).toEqual({ suggestions: [] });
+  });
+
+  it('turns a link marker into a source pill, even split across chunks, and drops other markers', async () => {
+    await run({});
+    type Transform = (options: { tools: object; stopStream: () => void }) => TransformStream<object, { type: string; text?: string }>;
+    const [{ experimental_transform: transform }] = streamText.mock.calls[0] as [{ experimental_transform: Transform }];
+    const chunks = ['Drop. \ue200link\ue202https://www.cnbc.com/a', '.html\ue201 \ue200cite\ue202turn0search0\ue201end'];
+    const reader = streamOf([...chunks.map((text) => ({ type: 'text-delta', id: 't', text })), { type: 'text-end', id: 't' }])
+      .pipeThrough(transform({ tools: {}, stopStream: () => undefined })).getReader();
+    let text = '';
+    for (let next = await reader.read(); !next.done; next = await reader.read()) text += next.value.text ?? '';
+    expect(text).toBe('Drop. [cnbc.com](<https://www.cnbc.com/a.html> "source") end');
   });
 
   it('throws the stream\'s own error, not a generic one', async () => {

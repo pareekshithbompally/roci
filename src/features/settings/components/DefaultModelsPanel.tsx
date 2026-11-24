@@ -109,13 +109,11 @@ const ImageGenerationRow: React.FC = () => {
   );
 };
 
-/** Titles & follow-ups: a switch for each, then the one model that does both in one call ("Same as chat" = the chat's
- *  own); the picker is off while both are. */
-const ChatExtrasSection: React.FC<{ choices: ModelChoice[] }> = ({ choices }) => {
+/** Titles & follow-ups: a switch for each; the reply itself carries both, so there is no model to pick. */
+const ChatExtrasSection: React.FC = () => {
   const { settings, setSettings } = useSettings();
   const titles = settings.chatTitles !== false;
   const followUps = settings.followUps !== false;
-  const { sameAsChat } = EXTRAS;
   return (
     <Section title={EXTRAS.section} footer={FOOTERS.chatExtras}>
       <CardRow
@@ -126,14 +124,6 @@ const ChatExtrasSection: React.FC<{ choices: ModelChoice[] }> = ({ choices }) =>
         title={EXTRAS.followUps}
         actions={<Switch checked={followUps} onCheckedChange={(on) => setSettings({ followUps: on })} aria-label={EXTRAS.followUps} />}
       />
-      <CapabilityRow icon={JOB_GLYPH.chat} job={JOBS.chatExtras} disabled={!titles && !followUps}>
-        <ModelSelect
-          value={settings.chatExtrasModel || sameAsChat.value}
-          choices={choices}
-          off={sameAsChat}
-          onChange={(key) => setSettings({ chatExtrasModel: key === sameAsChat.value ? undefined : key })}
-        />
-      </CapabilityRow>
     </Section>
   );
 };
@@ -181,7 +171,7 @@ export const DefaultModelsPanel: React.FC = () => {
         </CapabilityRow>
       </Section>
 
-      <ChatExtrasSection choices={textChoices} />
+      <ChatExtrasSection />
 
       <Section title="Speech" footer={platform.hasLocalModels ? `${FOOTERS.speech} ${FOOTERS.readAloud}` : FOOTERS.speech}>
         <CapabilityRow icon={JOB_GLYPH.transcription} job={JOBS.transcription}>

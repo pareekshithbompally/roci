@@ -12,7 +12,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
   return (
     <div className={cn('flex gap-3', isUser ? 'justify-end' : 'justify-start')}>
       {isUser ? (
-        <UserMessage message={message} isCopied={isCopied} actions={actions} />
+        <UserMessage message={message} actions={actions} />
       ) : (
         <AssistantMessage
           message={message} onSuggestionClick={onSuggestionClick} isLastMessage={isLastMessage}

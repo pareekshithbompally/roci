@@ -1,14 +1,13 @@
-/** Sending a question and generating its reply, one at a time: begin, stream, settle (complete, failed or stopped), then
- *  titles and follow-ups. Given the chat store, so the store doesn't have to be imported back. */
+/** Sending a question and generating its reply, one at a time: begin, stream, settle (complete, failed or stopped) with
+ *  the title and follow-ups the reply ended with. Given the chat store, so the store doesn't have to be imported back. */
 
 import type { StoreApi } from 'zustand';
 import type { AppSettings, ChatMessage, ChatSession } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
-import { resolveChatExtrasModel, resolveChatModel } from '@shared/utils/modelResolver';
+import { resolveChatModel } from '@shared/utils/modelResolver';
 import { contextPipeline } from '@extensions/context-pipeline';
 import { orchestrate } from '@extensions/tool-orchestrator';
-import { formatChatTimeContext, type ChatToolset } from '@core/ai';
-import { generateChatExtras } from '@services/ai/chatExtras';
+import { formatChatTimeContext, type ChatExtrasWant } from '@core/ai';
 import { logUsage } from '@extensions/usage';
 import { queryClient } from '@shared/query/queryClient';
 import { itemCountsQuery } from '@shared/query/items';
@@ -58,6 +57,11 @@ interface ReplyRequest {
   settings: AppSettings;
   providers: ModelProvider[];
   isNewSession: boolean;
+}
+
+/** What the reply ends with, as Settings › Default Models › Titles & follow-ups say: a new chat's title, follow-ups. */
+function extrasWanted({ settings, isNewSession }: Pick<ReplyRequest, 'settings' | 'isNewSession'>): ChatExtrasWant {
+  return { title: isNewSession && settings.chatTitles !== false, suggestions: settings.followUps !== false };
 }
 
 /** When the reply's first word arrived. */
@@ -149,6 +153,7 @@ export function createReplies(store: StoreApi<ChatStoreState>, sessions: Session
         providers,
         signal,
         reasoningEffort: session.reasoningEffort ?? 'provider-default',
+        extras: extrasWanted(request),
       },
       {
         onParts: (parts) => {
@@ -168,27 +173,6 @@ export function createReplies(store: StoreApi<ChatStoreState>, sessions: Session
     );
   }
 
-  /** Once a reply has finished: one call names a new chat and/or suggests follow-ups, as Settings › Default Models › Titles &
-   *  follow-ups say (its model, else the chat's own); best-effort, and none at all when both are off. */
-  function afterReply(reply: Reply, request: ReplyRequest, text: string, tools: ChatToolset): void {
-    const { session, question, settings, providers, isNewSession } = request;
-    const want = { title: isNewSession && settings.chatTitles !== false, suggestions: settings.followUps !== false };
-    if (!want.title && !want.suggestions) return;
-    generateChatExtras({
-      resolved: resolveChatExtrasModel(settings, providers) ?? request.resolved,
-      want,
-      question: question.text || session.title,
-      reply: text,
-      tools,
-      sessionId: reply.sessionId,
-    })
-      .then(({ title, suggestions }) => {
-        if (title) void store.getState().renameSession(reply.sessionId, title);
-        if (suggestions.length > 0) saveSession(patchMessage(reply.sessionId, reply.messageId, (m) => withMetadata(m, { suggestions })));
-      })
-      .catch((error: unknown) => console.error('[ChatStore] Titles & follow-ups failed:', error));
-  }
-
   /** Runs one reply to its end: complete, failed, or (via Stop) settled elsewhere. Every outcome is saved once. */
   async function generateReply(reply: Reply, request: ReplyRequest): Promise<void> {
     const tally: StreamTally = { firstTextAt: 0 };
@@ -200,16 +184,16 @@ export function createReplies(store: StoreApi<ChatStoreState>, sessions: Session
         .catch((e: unknown) => console.error('[UsageLog] chat:', e));
 
       streamingStore.finish();
-      const { parts, tokenUsage: usage, context } = result;
+      const { parts, tokenUsage: usage, context, extras } = result;
       saveSession(settle(reply.sessionId, reply.messageId, parts, {
         tokensPerSecond: tokensPerSecond(usage?.outputTokens, tally.firstTextAt),
         context,
         usage,
+        ...(extras.suggestions.length > 0 && { suggestions: extras.suggestions }),
       }));
       endReply(reply);
-      const text = messageText({ parts });
-      notifyReply(reply.sessionId, text);
-      afterReply(reply, request, text, result.toolset);
+      if (extras.title) void store.getState().renameSession(reply.sessionId, extras.title);
+      notifyReply(reply.sessionId, messageText({ parts }));
     } catch (error: unknown) {
       if (!isLive(reply)) return; // Stopped: the abort surfaced as an error, and Stop already settled it.
       console.error('[ChatStore] Error sending message:', error);

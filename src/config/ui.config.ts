@@ -231,6 +231,7 @@ export const MENU_SYMBOLS = {
   cancel: 'xmark',
   transcribe: 'waveform',
   summarize: 'sparkles',
+  copy: 'doc.on.doc',
 } as const;
 
 export const BREAKPOINTS = {

@@ -42,8 +42,15 @@ export const ATTACHMENT_COPY = {
 /** A new chat's title is the question's first this-many characters until the model names it. */
 export const CHAT_TITLE_MAX_CHARS = 30;
 
-/** The title and follow-up suggestion helpers see this much of the reply. */
-export const REPLY_PREVIEW_CHARS = 500;
+/** A message's menus: the question's (a long press, a right-click) and the reply's ⋯ details. */
+export const CHAT_MESSAGE_MENU_COPY = {
+  question: 'Message',
+  copy: 'Copy',
+  details: 'Reply details',
+} as const;
+
+/** The markdown link title that marks a link as a source the reply cites: drawn as a pill, named by its site. */
+export const SOURCE_LINK_TITLE = 'source';
 
 /** Follow-up suggestions shown under a reply. */
 export const SUGGESTION_COUNT = 3;

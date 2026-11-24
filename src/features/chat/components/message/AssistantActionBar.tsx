@@ -1,28 +1,51 @@
 import React, { useState, useEffect } from 'react';
-import { formatClockTime } from '@shared/utils/formatters';
-import { Copy, Check, Gauge, Loader2, Square, Volume2 } from 'lucide-react';
+import { formatDayAndTime } from '@shared/utils/formatters';
+import { Copy, Check, Loader2, MoreHorizontal, Square, Volume2 } from 'lucide-react';
 import type { ReadAloud, ReadAloudState } from '@shared/hooks/useReadAloud';
 import SuggestionsList from './SuggestionsList';
 import SourcesList from './SourcesList';
 import type { ActionProps, CitationHandlers } from './types';
 import type { ContextTokens, MeetingCitation, WebCitation } from '@shared/types';
-import { Tooltip, Tabs, Button, IconButton, Separator, Dot, Text } from '@shared/ui';
+import { Tabs, Button, IconButton, Separator, Dot, Text } from '@shared/ui';
+import { Menu, type MenuEntry } from '@shared/components';
+import { useModelLabel } from '@shared/hooks/useModelLabel';
+import { CHAT_MESSAGE_MENU_COPY as MENU_COPY } from '@config/chat.config';
 import { platform } from '@platform/index';
 
 /** Read aloud's glyph: speaker, then a spinner while the voice gets ready, then stop. */
 const READ_ALOUD_ICON: Record<ReadAloudState, typeof Volume2> = { idle: Volume2, preparing: Loader2, speaking: Square };
 
-interface AssistantActionBarProps {
-  id: string;
-  text: string;
+/** What the reply's ⋯ menu tells: when it was written, by which model, and its speed and cost. */
+interface ReplyDetails {
   timestamp?: number;
-  isLastMessage: boolean;
-  isCopied?: boolean;
+  provider?: string;
+  model?: string;
   /** The reply's share of the context window: its last call's prompt and reply. */
   context?: ContextTokens;
   tokensPerSecond?: number;
   /** What the reply cost ("$0.0031", "Free", "no price"); null when it recorded no tokens. */
   cost?: string | null;
+}
+
+/** The reply's ⋯: its details as the menu's heading lines (as Gemini and iOS Messages show a message's info). */
+const ReplyDetailsMenu: React.FC<ReplyDetails> = ({ timestamp, provider, model, context, tokensPerSecond, cost }) => {
+  const modelLabel = useModelLabel(provider, model);
+  const usage = [
+    tokensPerSecond != null && `${tokensPerSecond} tok/s`,
+    context && `${context.prompt} in / ${context.reply} out`,
+    cost,
+  ].filter(Boolean).join(' · ');
+  const lines = [timestamp && formatDayAndTime(timestamp), modelLabel, usage].filter((line): line is string => !!line);
+  const items: MenuEntry[] = lines.map((label) => ({ type: 'label', label }));
+  if (items.length === 0) return null;
+  return <Menu label={MENU_COPY.details} trigger={<IconButton icon={MoreHorizontal} label={MENU_COPY.details} size="sm" />} items={items} />;
+};
+
+interface AssistantActionBarProps extends ReplyDetails {
+  id: string;
+  text: string;
+  isLastMessage: boolean;
+  isCopied?: boolean;
   actions: ActionProps;
   meetingCitations?: MeetingCitation[];
   suggestions?: string[];
@@ -34,11 +57,10 @@ interface AssistantActionBarProps {
 }
 
 const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
-  id, text, timestamp, isLastMessage, isCopied,
-  context, tokensPerSecond, cost,
+  id, text, isLastMessage, isCopied,
   actions, meetingCitations,
   suggestions, onSuggestionClick,
-  citationHandlers, webCitations, readAloud,
+  citationHandlers, webCitations, readAloud, ...details
 }) => {
   const { onCopy } = actions;
   const { onCitationClick, onShowAllMeetingCitations, onShowAllWebCitations } = citationHandlers;
@@ -99,18 +121,6 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
 
         {/* Right: icons */}
         <div className="ml-auto flex items-center gap-2">
-          {/* Token usage reads on hover only, so it is offered where there is hover (not on touch). */}
-          {!platform.hasTouchScreen && (tokensPerSecond != null || context || cost) && (
-            <Tooltip
-              content={[
-                tokensPerSecond != null && `${tokensPerSecond} tok/s`,
-                context && `${context.prompt} in / ${context.reply} out`,
-                cost,
-              ].filter(Boolean).join(' · ')}
-            >
-              <IconButton icon={Gauge} label="Token usage" size="sm" />
-            </Tooltip>
-          )}
           {onCopy && (
             <IconButton icon={isCopied ? Check : Copy} label="Copy message" size="sm" onClick={() => onCopy(id, text)} />
           )}
@@ -123,11 +133,7 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
               onClick={readAloud.toggle}
             />
           )}
-          {timestamp && (
-            <Text variant="caption" tone="faint">
-              {formatClockTime(timestamp)}
-            </Text>
-          )}
+          <ReplyDetailsMenu {...details} />
         </div>
       </div>
 

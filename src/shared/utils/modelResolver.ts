@@ -166,12 +166,6 @@ export function resolveSummaryModel(settings: AppSettings, providers: ModelProvi
   return resolveModel(settings.analyzeModel || settings.chatModel, modelSources(providers, settings));
 }
 
-/** The titles & follow-ups model (Settings › Default Models) resolved against every model source; null when unset, so the
- *  chat's own model does the job. */
-export function resolveChatExtrasModel(settings: AppSettings, providers: ModelProvider[]): ResolvedModel | null {
-  return settings.chatExtrasModel ? resolveModel(settings.chatExtrasModel, modelSources(providers, settings)) : null;
-}
-
 /** Whether calls need an API key (on-device models don't). */
 export function requiresApiKey(resolved: ResolvedModel): boolean {
   const type = getProviderType(resolved.provider);

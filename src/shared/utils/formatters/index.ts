@@ -140,6 +140,9 @@ export function formatDayLabel(date: Date | string | number, now: Date = new Dat
   return format(d, { weekday: 'short', month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) });
 }
 
+/** A moment as a message's details name it: "Today at 22:35", "Mon, Nov 17 at 9:28 PM". */
+export const formatDayAndTime = (date: Date | string | number) => `${formatDayLabel(date)} at ${formatClockTime(date)}`;
+
 /** Newest-first items as consecutive day groups headed by `labelOf` (Today, Yesterday, then dates). */
 export function groupByLabel<T>(items: readonly T[], labelOf: (item: T) => string): Array<{ label: string; items: T[] }> {
   const groups: Array<{ label: string; items: T[] }> = [];

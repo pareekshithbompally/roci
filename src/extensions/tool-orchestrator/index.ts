@@ -11,7 +11,7 @@ import { fitsJob, profileOf } from '@services/ai/models';
 import type { ModelProfile } from '@services/ai/models';
 import { modalitiesService } from '@services/modalities';
 import { AiError } from '@services/ai/errors';
-import { CHAT_CATALOG_COPY } from '@config/chat.config';
+import { CHAT_CATALOG_COPY, SOURCE_LINK_TITLE } from '@config/chat.config';
 import { followModelLoad, generationStats, promptProgress } from '@services/ai/llamaServer';
 import { listStyleOf } from '@services/providers/listers';
 import { followMlxLoad } from '@services/mlx.service';
@@ -29,21 +29,54 @@ import { errorMessage } from '@shared/utils/errors';
 import { messageText } from '@shared/utils/chatParts';
 import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
 import { finalStepGuard } from './stepGuard';
-import { buildChatSystemPrompt, NO_TOOLS } from '@core/ai';
+import { extrasOf, finishReplyTools, isFinishReply, type ChatExtras } from './finishReply';
+import { buildChatSystemPrompt, FINISH_REPLY_TOOL, NO_TOOLS } from '@core/ai';
 import type { ChatToolset } from '@core/ai';
 
-/** Drops provider citation markers; used only while web search is on, so code like `arr[0]` survives otherwise. */
-export function stripWebCitations(text: string): string {
-  return text.replace(/<\/?cite[^>]*>/g, '').replace(/\[(\d+)\](?!\()/g, '');
+/** GPT's private-use citation marker: \ue200 kind \ue202 field(s) \ue201. */
+const MARKER_OPEN = '\ue200';
+const MARKER_CLOSE = '\ue201';
+const MARKER = /\ue200([a-z_]+)\ue202([^\ue200\ue201]*)\ue201/g;
+
+/** A `link` marker becomes a source pill (a markdown link titled `SOURCE_LINK_TITLE`, named by its site); any other is dropped. */
+function markerText(kind: string, fields: string): string {
+  const url = kind === 'link' ? URL.parse(fields.split('\ue202')[0]) : null;
+  return url ? `[${url.hostname.replace(/^www\./, '')}](<${url.href}> "${SOURCE_LINK_TITLE}")` : '';
 }
 
-/** The answer without citation markers, everywhere it goes: the screen, the saved chat, the next step's input. */
-const withoutCitationMarkers: StreamTextTransform<ToolSet> = () =>
-  new TransformStream({
+/** Drops provider citation markers (a link marker becomes a source pill); used only while web search is on, so code like
+ *  `arr[0]` survives otherwise. */
+export function stripWebCitations(text: string): string {
+  return text
+    .replace(MARKER, (_match, kind: string, fields: string) => markerText(kind, fields))
+    .replace(/<\/?cite[^>]*>/g, '')
+    .replace(/\[(\d+)\](?!\()/g, '');
+}
+
+/** Where `text` stops being safe to clean: an unclosed marker is held back until its close arrives. */
+function heldFrom(text: string): number {
+  const open = text.lastIndexOf(MARKER_OPEN);
+  return open !== -1 && !text.includes(MARKER_CLOSE, open) ? open : text.length;
+}
+
+/** The answer without citation markers, everywhere it goes: the screen, the saved chat, the next step's input. A marker
+ *  split across chunks is held until it closes, or the text ends. */
+const withoutCitationMarkers: StreamTextTransform<ToolSet> = () => {
+  let held = '';
+  return new TransformStream({
     transform(part, controller) {
-      controller.enqueue(part.type === 'text-delta' ? { ...part, text: stripWebCitations(part.text) } : part);
+      if (part.type === 'text-end' && held) {
+        controller.enqueue({ type: 'text-delta', id: part.id, text: stripWebCitations(held) });
+        held = '';
+      }
+      if (part.type !== 'text-delta') return controller.enqueue(part);
+      const text = held + part.text;
+      const cut = heldFrom(text);
+      held = text.slice(cut);
+      controller.enqueue({ ...part, text: stripWebCitations(text.slice(0, cut)) });
     },
   });
+};
 
 /** The models.dev list (what each model can do) before the chat reads it; the reply says so while it's fetched. */
 async function loadModelFacts(onProgress: OrchestratorCallbacks['onProgress']): Promise<void> {
@@ -70,6 +103,8 @@ interface ChatTools {
   tools: ToolSet | undefined;
   /** The tool groups sent, so the system prompt guides exactly these. */
   toolset: ChatToolset;
+  /** finishReply is sent: the reply ends with its title and follow-ups. */
+  finishReply: boolean;
 }
 
 /** The built-in tool groups the user's settings turn on, before the model and connected apps are known (chat sends these to
@@ -79,25 +114,25 @@ export function selectedToolset(settings: AppSettings): Pick<ChatToolset, 'meeti
   return { meetings: prefs.meetingTools, image: prefs.imageGeneration && hasImageModel(settings), views: prefs.resultViews, memory: memoryEnabled(settings) };
 }
 
-/** Roci's tools go only to a model that takes tools; the provider's own web search goes either way. */
+/** Roci's tools and finishReply go only to a model that takes tools; the provider's own web search goes either way. */
 async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet | undefined, mcpSettings: McpSettings, takesTools: boolean): Promise<ChatTools> {
   const webSearch = !!webSearchTools;
-  const none: ChatTools = { tools: webSearchTools, toolset: { ...NO_TOOLS, webSearch } };
-  if (!takesTools) return none;
+  if (!takesTools) return { tools: webSearchTools, toolset: { ...NO_TOOLS, webSearch }, finishReply: false };
   const { settings, providers } = options;
   const on = selectedToolset(settings);
   const memoryTools = on.memory ? [suggestMemoryTool] : [];
   const viewTools = on.views ? [showTool] : [];
-  const reservedNames = new Set([...toolRegistry.getToolNames(), GENERATE_IMAGE_TOOL, showTool.name, ...memoryTools.map((t) => t.name)]);
+  const reservedNames = new Set([...toolRegistry.getToolNames(), GENERATE_IMAGE_TOOL, showTool.name, FINISH_REPLY_TOOL, ...memoryTools.map((t) => t.name)]);
   const meetingTools = on.meetings ? toolRegistry.getTools() : [];
   const imageTools = on.image ? [generateImageTool({ settings, providers })] : [];
   const mcpTools = await loadMcpTools(reservedNames, mcpSettings, new Set(chatToolPreferences(settings).disabledMcpTools));
   const definitions = [...meetingTools, ...imageTools, ...viewTools, ...memoryTools, ...mcpTools];
-  if (definitions.length === 0) return none;
   const rociTools = toExecutableTools(definitions, { signal: options.signal, approval: 'chat', sessionId: options.sessionId });
+  const finish = finishReplyTools(options.extras, options.prompt.personalization);
   const apps = [...new Set(mcpTools.flatMap((t) => (t.source ? [t.source] : [])))];
   const toolset = { meetings: meetingTools.length > 0, webSearch, image: imageTools.length > 0, views: viewTools.length > 0, apps, memory: memoryTools.length > 0 };
-  return { tools: { ...rociTools, ...webSearchTools }, toolset };
+  const tools = { ...rociTools, ...finish, ...webSearchTools };
+  return { tools: Object.keys(tools).length > 0 ? tools : undefined, toolset, finishReply: FINISH_REPLY_TOOL in finish };
 }
 
 /** llama-server's own chunk (raw, so outside the UI stream): prompt-reading progress, and tokens and speed while it generates. */
@@ -159,7 +194,7 @@ async function readReply(
 export async function orchestrate(
   options: OrchestratorOptions,
   callbacks: OrchestratorCallbacks,
-): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage; context?: ContextTokens; parts: ChatPart[]; toolset: ChatToolset }> {
+): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage; context?: ContextTokens; parts: ChatPart[]; extras: ChatExtras }> {
   const { messages, model, prompt, settings, signal, reasoningEffort } = options;
 
   await loadModelFacts(callbacks.onProgress);
@@ -167,9 +202,9 @@ export async function orchestrate(
   const resolved = chatModelOrThrow(model, profile);
   const webSearchTools = chatToolPreferences(settings).webSearch ? getWebSearchTools(resolved) : undefined;
   const mcpSettings = await loadMcpSettings();
-  const { tools, toolset } = await buildTools(options, webSearchTools, mcpSettings, profile.tools);
+  const { tools, toolset, finishReply } = await buildTools(options, webSearchTools, mcpSettings, profile.tools);
   const { input, output } = profile;
-  const systemPrompt = buildChatSystemPrompt({ ...prompt, tools: toolset, modalities: { input, output } });
+  const systemPrompt = buildChatSystemPrompt({ ...prompt, tools: toolset, modalities: { input, output }, finishReply });
   const { maxToolCalls } = mcpSettings;
   // A local llama-server reports loading the model and reading the prompt before it replies.
   const reportsProgress = (await listStyleOf(resolved.provider, { baseUrl: resolved.baseUrl })) === 'llama-server';
@@ -192,13 +227,15 @@ export async function orchestrate(
       ...(tools && {
         tools,
         toolChoice: 'auto' as const,
-        prepareStep: finalStepGuard(maxToolCalls),
+        prepareStep: finalStepGuard(maxToolCalls, finishReply ? [FINISH_REPLY_TOOL] : []),
         // Every step before the answer calls at least one tool, so the guard has turned tools off by this count.
         stopWhen: isStepCount(maxToolCalls + 1),
       }),
     });
 
-    const parts = await readReply(result.stream, tools, options, callbacks.onParts);
+    // finishReply is read for its title and follow-ups, never shown or saved.
+    const all = await readReply(result.stream, tools, options, (shown) => callbacks.onParts(shown.filter((p) => !isFinishReply(p))));
+    const parts = all.filter((p) => !isFinishReply(p));
     if (!messageText({ parts }) && !signal?.aborted) throw emptyResponseError(await result.finishReason);
 
     return {
@@ -207,7 +244,7 @@ export async function orchestrate(
       tokenUsage: extractTokenUsage(await result.usage),
       context: contextOf((await result.steps).at(-1)?.usage),
       parts,
-      toolset,
+      extras: extrasOf(all, options.extras),
     };
   } finally {
     stopFollowingLoad();

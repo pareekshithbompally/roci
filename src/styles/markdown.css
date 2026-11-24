@@ -139,6 +139,9 @@
 
 .markdown-content a:hover { text-decoration: underline; }
 
+/* A cited source is a pill (kit Badge), not underlined text. */
+.markdown-content a[data-source]:hover { text-decoration: none; }
+
 /* Display equations: a wide one scrolls sideways inside itself (as tables and code do), never the page; a little padding
    keeps tall fractions and their bars clear of the scroll edge. */
 .markdown-content .katex-display {

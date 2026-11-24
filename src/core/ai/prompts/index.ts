@@ -7,7 +7,7 @@ export type { PersonalizationScope, PromptPersonalization } from './personalizat
 export { promptTemplateDefault } from './templates.prompt';
 export type { MeetingContext, TranscriptionPromptOptions, UserNote } from './transcription.prompt';
 
-export { chatExtrasPrompt } from './chatExtras.prompt';
+export { FINISH_REPLY_TOOL, FINISH_REPLY_RULE, finishReplyDescription } from './chatExtras.prompt';
 export type { ChatExtrasWant } from './chatExtras.prompt';
 
 export { formatChatTimeContext, formatSentAt, formatTemporalContext } from '@core/ai/temporal';

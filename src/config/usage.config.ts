@@ -30,7 +30,6 @@ export const USAGE_CONFIG = {
   /** What each recorded use case is called; one the app doesn't name shows under its own name. */
   useCases: {
     chat: 'Chat',
-    'chat-extras': 'Titles & follow-ups',
     image: 'Images',
     summary: 'Summaries',
     liveNotes: 'Live notes',

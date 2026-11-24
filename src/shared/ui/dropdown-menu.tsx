@@ -1,21 +1,13 @@
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronRight } from 'lucide-react';
-import type { ComponentProps, MouseEvent } from 'react';
+import type { ComponentProps } from 'react';
 import { cn } from './utils';
 import { Icon } from './icon';
-import { MENU_LIST, MENU_ITEM, MENU_LABEL, MENU_SEPARATOR, MENU_TOUCH } from './recipes';
-import { platform } from '@platform/index';
+import { MENU_LABEL } from './recipes';
+import { keepClick, MENU_PARTS } from './menu-parts';
 import { UI_CONFIG } from '@config/ui.config';
 
-/** A finger picks from it (iPhone): iOS's menu proportions over the Mac's compact ones. */
-const touch = platform.hasTouchScreen;
-const LIST = touch ? MENU_TOUCH.list : MENU_LIST;
-const ITEM = touch ? MENU_TOUCH.item : MENU_ITEM;
-const SEPARATOR = touch ? MENU_TOUCH.separator : MENU_SEPARATOR;
-
-/** A menu is portalled, but React still bubbles its clicks to the element it was opened from (a sidebar row that opens its
- *  chat): a pick stays in the menu. */
-const keepClick = (e: MouseEvent) => e.stopPropagation();
+const { list: LIST, item: ITEM, separator: SEPARATOR } = MENU_PARTS;
 
 export const DropdownMenu = DropdownMenuPrimitive.Root;
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;

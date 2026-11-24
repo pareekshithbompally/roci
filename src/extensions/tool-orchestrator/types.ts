@@ -4,7 +4,7 @@ import type { ChatMessage, ChatPart, AppSettings, ReasoningEffort } from '@share
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { GenerationStats, StreamProgress } from '@services/ai/types';
-import type { ChatPromptOptions } from '@core/ai';
+import type { ChatExtrasWant, ChatPromptOptions } from '@core/ai';
 
 /** Input options for the orchestration loop */
 export interface OrchestratorOptions {
@@ -16,12 +16,14 @@ export interface OrchestratorOptions {
   /** The chat's model (a chat keeps the model of its first reply). */
   model: ResolvedModel;
   /** What the system prompt needs from the chat; the orchestrator adds the tools it sends and the model's modalities. */
-  prompt: Omit<ChatPromptOptions, 'tools' | 'modalities'>;
+  prompt: Omit<ChatPromptOptions, 'tools' | 'modalities' | 'finishReply'>;
   settings: AppSettings;
   providers: ModelProvider[];
   signal?: AbortSignal;
   /** The chat's thinking level. */
   reasoningEffort: ReasoningEffort;
+  /** What the reply's finishReply carries: a title (a new chat), follow-ups. */
+  extras: ChatExtrasWant;
 }
 
 /** Callbacks the orchestrator uses to communicate with the UI layer */

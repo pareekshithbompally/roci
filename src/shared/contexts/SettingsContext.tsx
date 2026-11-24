@@ -63,7 +63,6 @@ const PERSISTED_SETTINGS: Record<keyof AppSettings, true> = {
   appleNotesIntegration: true,
   autoTranscribe: true,
   calendarIntegration: true,
-  chatExtrasModel: true,
   chatModel: true,
   chatTitles: true,
   chatTools: true,
@@ -198,7 +197,6 @@ function keyAndDropModels(settings: AppSettings, sources: ModelProvider[]): void
   };
   if (settings.chatModel) settings.chatModel = keep(settings.chatModel);
   if (settings.analyzeModel) settings.analyzeModel = keep(settings.analyzeModel);
-  if (settings.chatExtrasModel) settings.chatExtrasModel = keep(settings.chatExtrasModel) || undefined;
 }
 
 export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {

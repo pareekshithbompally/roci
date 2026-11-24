@@ -7,6 +7,7 @@ export type { SliderProps } from './slider';
 export * from './command';
 export { CommandPopover, CommandPopoverContent, CommandFlyout } from './command-popover';
 export * from './dropdown-menu';
+export * from './context-menu';
 export * from './switch';
 export * from './date-picker';
 export * from './tabs';

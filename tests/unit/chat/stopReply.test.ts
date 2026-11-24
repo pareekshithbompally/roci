@@ -8,7 +8,6 @@ vi.mock('@services/chat.service', () => ({
 }));
 vi.mock('@shared/utils/modelResolver', () => ({ resolveChatModel: () => ({ provider: 'openai', modelId: 'm', model: {} }) }));
 vi.mock('@extensions/context-pipeline', () => ({ contextPipeline: { resolve: async () => ({ text: '' }) } }));
-vi.mock('@services/ai/chatExtras', () => ({ generateChatExtras: async () => ({ suggestions: [] }) }));
 vi.mock('@extensions/usage', () => ({ logUsage: async () => undefined }));
 vi.mock('@shared/query/memories', () => ({
   memoriesQuery: { queryKey: ['memories'], queryFn: async () => ({ entities: [], memories: [] }) },
@@ -33,7 +32,7 @@ vi.mock('@extensions/tool-orchestrator', () => ({
       streams.push({
         say: (text) => callbacks.onParts((parts = [{ type: 'text', text }])),
         show: (next) => callbacks.onParts((parts = next)),
-        finish: () => resolve({ provider: 'openai', model: 'm', tokenUsage: undefined, parts }),
+        finish: () => resolve({ provider: 'openai', model: 'm', tokenUsage: undefined, parts, extras: { suggestions: [] } }),
         fail: reject,
       });
     }),

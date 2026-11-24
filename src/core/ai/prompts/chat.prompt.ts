@@ -4,6 +4,7 @@
 
 import type { Modality } from '@config/modelSpine.config';
 import { TRANSCRIPT_GUIDE } from './transcript.prompt';
+import { FINISH_REPLY_RULE } from './chatExtras.prompt';
 import { NO_PERSONALIZATION, personalizationSections, templateText, type PromptPersonalization } from './personalization.prompt';
 import { PERSONALIZATION_CONFIG, type ResponseFormat, type ResponseLength, type ResponsePreferences, type ResponseTone } from '@config/personalization.config';
 
@@ -39,6 +40,8 @@ export interface ChatPromptOptions {
   timeContext: string;
   /** What the user set in Personalization. */
   personalization?: PromptPersonalization;
+  /** finishReply is sent: the reply ends by calling it. */
+  finishReply?: boolean;
 }
 
 /** Each modality as the prompt names it; embeddings aren't something a chat reads or writes. */
@@ -186,7 +189,7 @@ export function attachedMeetingsText(meetings: string): string {
   return `## Meetings the user attached\n\nAnswer from these first, and name the meeting each fact comes from.\n\n${meetings}`;
 }
 
-export function buildChatSystemPrompt({ tools, modalities, meetingCount, timeContext, personalization = NO_PERSONALIZATION }: ChatPromptOptions): string {
+export function buildChatSystemPrompt({ tools, modalities, meetingCount, timeContext, personalization = NO_PERSONALIZATION, finishReply = false }: ChatPromptOptions): string {
   return [
     identity(meetingCount),
     capabilities(modalities, tools),
@@ -196,6 +199,7 @@ export function buildChatSystemPrompt({ tools, modalities, meetingCount, timeCon
     rules(tools),
     tools.meetings && TRANSCRIPT_GUIDE,
     personalizationSections(personalization, 'chat', tools.meetings),
+    finishReply && FINISH_REPLY_RULE,
     timeContext,
   ]
     .filter(Boolean)
@@ -203,4 +207,4 @@ export function buildChatSystemPrompt({ tools, modalities, meetingCount, timeCon
 }
 
 /** Sent as the last message when the agent loop must stop calling tools and answer. */
-export const FINAL_ANSWER_PROMPT = `Tools are off for the rest of this reply. Answer now from the tool results above. If they don't cover part of the question, say what is missing.`;
+export const FINAL_ANSWER_PROMPT = `Stop looking things up: answer now from the tool results above. If they don't cover part of the question, say what is missing.`;

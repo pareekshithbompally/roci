@@ -20,9 +20,9 @@ export class AiError extends Error {
 }
 
 /** What the call was for: names the setting to change in the sentence. */
-export type AiJob = 'summary' | 'liveNotes' | 'chatExtras' | 'speech';
+export type AiJob = 'summary' | 'liveNotes' | 'speech';
 
-const SETTING: Record<AiJob, string> = { summary: 'Summary model', liveNotes: 'Summary model', chatExtras: 'titles & follow-ups model', speech: 'speech model' };
+const SETTING: Record<AiJob, string> = { summary: 'Summary model', liveNotes: 'Summary model', speech: 'speech model' };
 
 /** Providers' words for a prompt that didn't fit (Apple says it in its own payload). */
 const CONTEXT_WORDS = /context (length|window)|maximum context|too many tokens|prompt is too long|input is too long|exceeds the (model'?s )?context/i;
