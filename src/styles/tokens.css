@@ -150,6 +150,9 @@
   /* Glass controls over the page (round bar buttons, the composer): a soft grey tint, so they show on white and on the copper
      wash alike without a heavy shadow; dark is a lifted grey. */
   --bg-bar: color-mix(in srgb, var(--grey-1100) 6%, transparent);
+  /* A touch menu's material (UIMenu): thick translucent glass over a blur; the band between its groups is darker. */
+  --bg-menu: color-mix(in srgb, var(--grey-50) 78%, transparent);
+  --bg-menu-gap: rgb(0 0 0 / 0.06);
 
   --text-primary: var(--grey-1100);
   --text-muted: var(--grey-700);
@@ -172,6 +175,8 @@
   --viz-6: #008300;
   --viz-7: #6250d6;
   --viz-8: #e34948;
+  /* What a chart groups as Other, past its named series: no hue of its own. */
+  --viz-other: var(--grey-400);
 
   --danger-fg: var(--red-800);
   --danger-bg: var(--red-100);
@@ -317,6 +322,8 @@ html.platform-ios.dark {
   --bg-deep-glass: color-mix(in srgb, var(--grey-1200) 85%, transparent);
   --bg-raised-glass: color-mix(in srgb, var(--grey-1000) 92%, transparent);
   --bg-bar: color-mix(in srgb, var(--grey-1000) 82%, transparent);
+  --bg-menu: color-mix(in srgb, var(--grey-1000) 78%, transparent);
+  --bg-menu-gap: rgb(0 0 0 / 0.24);
 
   --text-primary: var(--grey-100);
   --text-muted: var(--grey-500);
@@ -336,6 +343,7 @@ html.platform-ios.dark {
   --viz-6: #0ca30c;
   --viz-7: #9085e9;
   --viz-8: #e66767;
+  --viz-other: var(--grey-700);
 
   --danger-fg: var(--red-500);
   --danger-bg: color-mix(in srgb, var(--red-900) 18%, transparent);

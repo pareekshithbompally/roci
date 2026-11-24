@@ -1,10 +1,11 @@
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronRight } from 'lucide-react';
 import type { ComponentProps } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { cn } from './utils';
 import { Icon } from './icon';
 import { MENU_LABEL } from './recipes';
-import { keepClick, MENU_PARTS } from './menu-parts';
+import { keepClick, MENU_PARTS, MenuRowBody } from './menu-parts';
 import { UI_CONFIG } from '@config/ui.config';
 
 const { list: LIST, item: ITEM, separator: SEPARATOR } = MENU_PARTS;
@@ -23,14 +24,16 @@ export function DropdownMenuContent({ className, sideOffset = 4, ...props }: Com
 
 export interface DropdownMenuItemProps extends ComponentProps<typeof DropdownMenuPrimitive.Item> {
   variant?: 'default' | 'danger';
+  /** Its glyph, at the row's trailing edge (as iOS lays a menu row out). */
+  icon?: LucideIcon;
 }
 
-export function DropdownMenuItem({ variant = 'default', className, ...props }: DropdownMenuItemProps) {
+export function DropdownMenuItem({ variant = 'default', icon, className, children, ...props }: DropdownMenuItemProps) {
+  const danger = variant === 'danger';
   return (
-    <DropdownMenuPrimitive.Item
-      className={cn(ITEM, variant === 'danger' && 'text-danger data-[highlighted]:bg-danger-subtle', className)}
-      {...props}
-    />
+    <DropdownMenuPrimitive.Item className={cn(ITEM, danger && 'text-danger data-[highlighted]:bg-danger-subtle', className)} {...props}>
+      <MenuRowBody icon={icon} tone={danger ? 'danger' : 'inherit'}>{children}</MenuRowBody>
+    </DropdownMenuPrimitive.Item>
   );
 }
 

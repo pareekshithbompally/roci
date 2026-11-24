@@ -521,6 +521,33 @@ pub struct UsageSummary {
     pub by_tool: Vec<ToolBreakdown>,
     /// Totals per local day or month, oldest first; only buckets with records, empty unless `bucket` was asked for.
     pub trend: Vec<UsageBucket>,
+    /// Each bucket split by model (`provider/model`), for a trend stacked by model; empty unless `bucket` was asked for.
+    pub trend_by_model: Vec<UsageBucketPart>,
+    /// Each bucket split by use case, for a trend stacked by use case; empty unless `bucket` was asked for.
+    pub trend_by_use_case: Vec<UsageBucketPart>,
+    /// What each model was used for: its totals per use case, costliest first.
+    pub by_model_use_case: Vec<ModelUseCase>,
+}
+
+/// What one model (`provider/model`) or one use case added to a trend bucket.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UsageBucketPart {
+    pub key: String,
+    pub part: String,
+    pub calls: i64,
+    pub tokens: i64,
+    pub estimated_cost: f64,
+}
+
+/// One model's totals for one use case.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ModelUseCase {
+    pub provider: String,
+    pub model: String,
+    pub category: String,
+    pub calls: i64,
+    pub tokens: i64,
+    pub estimated_cost: f64,
 }
 
 /// Calendar bucket for a usage trend, in the machine's local time zone.
@@ -2500,12 +2527,20 @@ fn usage_params(q: &UsageQuery) -> (i64, i64) {
     (q.since.unwrap_or(0), q.until.unwrap_or(i64::MAX))
 }
 
-fn usage_trend(db: &Connection, q: &UsageQuery) -> Result<Vec<UsageBucket>, StoreError> {
-    let Some(bucket) = q.bucket else { return Ok(Vec::new()) };
-    let key = match bucket {
+/// The SQL that names a record's bucket: its local date or month.
+fn bucket_key_sql(bucket: UsageBucketSize) -> &'static str {
+    match bucket {
         UsageBucketSize::Day => "date(timestamp / 1000, 'unixepoch', 'localtime')",
         UsageBucketSize::Month => "strftime('%Y-%m', timestamp / 1000, 'unixepoch', 'localtime')",
-    };
+    }
+}
+
+/// A model's key in a split: `provider/model`, as the app keys it.
+const MODEL_PART: &str = "provider || '/' || model";
+
+fn usage_trend(db: &Connection, q: &UsageQuery) -> Result<Vec<UsageBucket>, StoreError> {
+    let Some(bucket) = q.bucket else { return Ok(Vec::new()) };
+    let key = bucket_key_sql(bucket);
     let sql = format!(
         "SELECT {key} AS bucket, COUNT(*), SUM(input_tokens), SUM(output_tokens),
          SUM(COALESCE(cache_read_tokens, 0)), SUM(COALESCE(estimated_cost, 0))
@@ -2521,6 +2556,47 @@ fn usage_trend(db: &Connection, q: &UsageQuery) -> Result<Vec<UsageBucket>, Stor
                 input_tokens: row.get(2)?,
                 output_tokens: row.get(3)?,
                 cache_read_tokens: row.get(4)?,
+                estimated_cost: row.get(5)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
+}
+
+/// Each bucket's totals split by `part` (a SQL expression: the model's key, or the use case), oldest bucket first.
+fn usage_trend_parts(db: &Connection, q: &UsageQuery, part: &str) -> Result<Vec<UsageBucketPart>, StoreError> {
+    let Some(bucket) = q.bucket else { return Ok(Vec::new()) };
+    let key = bucket_key_sql(bucket);
+    let sql = format!(
+        "SELECT {key} AS bucket, {part} AS part, COUNT(*), SUM(input_tokens + output_tokens), SUM(COALESCE(estimated_cost, 0))
+         FROM usage_log WHERE {USAGE_WHERE} GROUP BY bucket, part ORDER BY bucket, part"
+    );
+    let p = usage_params(q);
+    let mut stmt = db.prepare(&sql)?;
+    let rows = stmt
+        .query_map(rusqlite::params![p.0, p.1], |row| {
+            Ok(UsageBucketPart { key: row.get(0)?, part: row.get(1)?, calls: row.get(2)?, tokens: row.get(3)?, estimated_cost: row.get(4)? })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
+}
+
+/// The window's totals per model and use case, costliest first.
+fn usage_model_use_cases(db: &Connection, q: &UsageQuery) -> Result<Vec<ModelUseCase>, StoreError> {
+    let p = usage_params(q);
+    let mut stmt = db.prepare(&format!(
+        "SELECT provider, model, category, COUNT(*), SUM(input_tokens + output_tokens), SUM(COALESCE(estimated_cost, 0))
+         FROM usage_log WHERE {USAGE_WHERE}
+         GROUP BY provider, model, category ORDER BY SUM(COALESCE(estimated_cost, 0)) DESC, COUNT(*) DESC"
+    ))?;
+    let rows = stmt
+        .query_map(rusqlite::params![p.0, p.1], |row| {
+            Ok(ModelUseCase {
+                provider: row.get(0)?,
+                model: row.get(1)?,
+                category: row.get(2)?,
+                calls: row.get(3)?,
+                tokens: row.get(4)?,
                 estimated_cost: row.get(5)?,
             })
         })?
@@ -2612,6 +2688,9 @@ fn usage_summary_impl(db: &Connection, q: &UsageQuery) -> Result<UsageSummary, S
         by_category,
         by_tool: usage_tools(db, q)?,
         trend: usage_trend(db, q)?,
+        trend_by_model: usage_trend_parts(db, q, MODEL_PART)?,
+        trend_by_use_case: usage_trend_parts(db, q, "category")?,
+        by_model_use_case: usage_model_use_cases(db, q)?,
     })
 }
 
@@ -3274,6 +3353,19 @@ pub(crate) mod tests {
         assert_eq!(all.trend.iter().map(|b| b.calls).sum::<i64>(), all.total_calls);
         assert_eq!(all.trend.iter().map(|b| b.input_tokens).sum::<i64>(), all.total_input_tokens);
         assert!((all.trend.iter().map(|b| b.estimated_cost).sum::<f64>() - all.total_cost).abs() < 1e-9);
+
+        // Each split of a bucket adds back up to the bucket: by model, and by use case.
+        for parts in [&all.trend_by_model, &all.trend_by_use_case] {
+            for bucket in &all.trend {
+                let mine = parts.iter().filter(|p| p.key == bucket.key);
+                assert_eq!(mine.clone().map(|p| p.calls).sum::<i64>(), bucket.calls);
+                assert!((mine.map(|p| p.estimated_cost).sum::<f64>() - bucket.estimated_cost).abs() < 1e-9);
+            }
+        }
+        assert!(all.trend_by_model.iter().any(|p| p.part == "gemini/flash" && p.calls == 2));
+        assert_eq!(all.trend_by_use_case.iter().filter(|p| p.part == "summary").count(), 1);
+        let flash: Vec<_> = all.by_model_use_case.iter().filter(|m| m.model == "flash").collect();
+        assert_eq!(flash.len(), 2, "flash ran for chat and for a summary");
 
         // [since, until): the first day only; the record exactly at `until` is excluded.
         let window = usage_summary_impl(&conn, &UsageQuery { since: Some(noon), until: Some(noon + DAY_MS), ..Default::default() }).unwrap();

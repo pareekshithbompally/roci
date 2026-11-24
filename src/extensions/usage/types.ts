@@ -67,6 +67,25 @@ export interface UsageBucket {
   estimated_cost: number;
 }
 
+/** What one model (`provider/model`) or one use case added to a trend bucket (Rust `UsageBucketPart`). */
+export interface UsageBucketPart {
+  key: string;
+  part: string;
+  calls: number;
+  tokens: number;
+  estimated_cost: number;
+}
+
+/** One model's totals for one use case (Rust `ModelUseCase`). */
+export interface ModelUseCase {
+  provider: string;
+  model: string;
+  category: string;
+  calls: number;
+  tokens: number;
+  estimated_cost: number;
+}
+
 /** Calendar bucket for a trend, in local time. */
 export type UsageBucketSize = 'day' | 'month';
 
@@ -93,4 +112,10 @@ export interface UsageSummary {
   by_tool: ToolBreakdown[];
   /** Totals per bucket that has records, oldest first; empty unless the query asked for buckets. */
   trend: UsageBucket[];
+  /** Each bucket split by model (`provider/model`); empty unless the query asked for buckets. */
+  trend_by_model: UsageBucketPart[];
+  /** Each bucket split by use case; empty unless the query asked for buckets. */
+  trend_by_use_case: UsageBucketPart[];
+  /** What each model was used for: its totals per use case, costliest first. */
+  by_model_use_case: ModelUseCase[];
 }

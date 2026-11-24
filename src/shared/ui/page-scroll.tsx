@@ -1,10 +1,10 @@
-import { forwardRef, useCallback, useState, type HTMLAttributes, type ReactNode, type UIEvent } from 'react';
+import { forwardRef, useState, type HTMLAttributes, type ReactNode, type UIEvent } from 'react';
 import { platform } from '@platform/index';
 import { UI_CONFIG } from '@config/ui.config';
 import { LAYOUT } from '@config/layout.config';
 import { edgeFade } from './fade';
 import { cn } from './utils';
-import { useSheetPull, useSheetScrolls } from './bottom-sheet';
+import { useSheetScrolls } from './bottom-sheet';
 
 const { safeArea } = UI_CONFIG.layout.titlebar;
 /** The titlebar band where there is one (Mac); none on iPhone, whose bar sits above the scroller, so nothing rests in a fade. */
@@ -45,25 +45,17 @@ export const PageScroll = forwardRef<HTMLDivElement, PageScrollProps>(
     // No titlebar (iPhone): the top edge fades only once content has scrolled under the bar, never at rest.
     const [scrolled, setScrolled] = useState(false);
     const scrolls = useSheetScrolls();
-    // Inside a sheet: a pull down from this page's top moves the sheet.
-    const pull = useSheetPull();
-    const setNode = useCallback((node: HTMLDivElement | null) => {
-      pull(node);
-      if (typeof ref === 'function') ref(node);
-      else if (ref) ref.current = node;
-    }, [pull, ref]);
     const band = fadeTop === true ? edgeFadePx : fadeTop || 0;
     const barFade = titlebarBand || (scrolled ? edgeFadePx : 0);
     const top = underTitlebar ? barFade : band;
     const handleScroll = (e: UIEvent<HTMLDivElement>) => {
       setScrolled(e.currentTarget.scrollTop > 0);
-      pull(e.currentTarget);
       onScroll?.(e);
     };
     const fade = edgeFade({ top, bottom: fadeBottom ? edgeFadePx : 0 });
     return (
       <div
-        ref={setNode}
+        ref={ref}
         // In a sheet below full height the page holds still, so a push moves the sheet (bottom-sheet.tsx).
         className={cn('min-h-0 overflow-x-hidden custom-scrollbar', !scrolls ? 'overflow-y-clip' : steady ? 'overflow-y-scroll' : 'overflow-y-auto', className)}
         style={{ ...fade, ...style }}

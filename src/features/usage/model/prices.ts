@@ -5,6 +5,8 @@ import { modalitiesService } from '@services/modalities';
 import { runsLocally } from '@extensions/usage';
 import type { ProviderModelBreakdown } from '@extensions/usage';
 import type { Model, ModelPrice, ModelProvider } from '@shared/types/modelProviders';
+import { USAGE_CONFIG } from '@config/usage.config';
+import { formatMeasure } from './format';
 
 /** Where a model's price comes from, in the price rule's order. */
 type PriceSource = 'free' | 'own' | 'catalog' | 'unknown';
@@ -65,4 +67,12 @@ export function parsePrice(text: PriceText): ModelPrice | null | undefined {
   const outputPer1M = tokens ? amount(text.outputPer1M) : 0;
   if (inputPer1M === undefined || outputPer1M === undefined) return undefined;
   return perMinute === undefined ? { inputPer1M, outputPer1M } : { inputPer1M, outputPer1M, perMinute };
+}
+
+/** The price that applies, as one value: "$1.25 / $10.00", or a speech model's per-minute rate. */
+export function priceText({ own, catalog }: PriceRow): string | undefined {
+  const price = own ?? catalog;
+  if (!price) return undefined;
+  if (price.perMinute !== undefined && !price.inputPer1M && !price.outputPer1M) return formatMeasure('cost', price.perMinute);
+  return USAGE_CONFIG.copy.prices.rates(formatMeasure('cost', price.inputPer1M), formatMeasure('cost', price.outputPer1M));
 }

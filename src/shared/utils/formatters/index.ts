@@ -36,6 +36,12 @@ export const formatWeekday = (date: Date | string | number) => format(date, { we
 /** A month as a calendar titles it: "November 2026". */
 export const formatMonth = (date: Date | string | number) => format(date, { month: 'long', year: 'numeric' });
 
+/** A month's name alone: "November". */
+export const formatMonthName = (date: Date | string | number) => format(date, { month: 'long' });
+
+/** A year: "2026". */
+export const formatYear = (date: Date | string | number) => format(date, { year: 'numeric' });
+
 /** A time of day on the device's clock: "21:28" or "9:28 PM". */
 export const formatClockTime = (date: Date | string | number) => format(date, { timeStyle: 'short' });
 

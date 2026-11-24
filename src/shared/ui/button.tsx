@@ -45,6 +45,12 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   ai: 'bg-[image:var(--ai-gradient)] text-on-accent shadow-raised hover:opacity-90',
 };
 
+/** Glyph buttons that belong together (back · forward) in one bar capsule, iOS 26's grouped bar items: one glass shape,
+ *  hairlines between its buttons. */
+export function ButtonCapsule({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div role="group" aria-label={label} className="inline-flex shrink-0 items-center divide-x divide-muted rounded-full bg-bar shadow-bar backdrop-blur-xl">{children}</div>;
+}
+
 const SIZE_CLASSES: Record<ButtonSize, string> = {
   /** No box — sits in a line of text and wraps with it (a long source, a link); on touch screens an invisible overlay widens the tap area without moving the text */
   inline: cn('text-callout gap-1 text-left', platform.hasTouchScreen && "relative after:absolute after:-inset-2 after:content-['']"),

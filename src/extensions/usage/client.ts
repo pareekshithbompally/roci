@@ -110,6 +110,9 @@ export async function getUsageSummary(query: UsageQuery): Promise<UsageSummary> 
       by_category: [],
       by_tool: [],
       trend: [],
+      trend_by_model: [],
+      trend_by_use_case: [],
+      by_model_use_case: [],
     };
   }
 

@@ -23,14 +23,20 @@ export const SHEET_DESCRIPTION = 'text-body text-muted mt-1';
 /** Menu list and row — DropdownMenu, Select, Command. */
 export const MENU_LIST = `${FLOATING_SURFACE} min-w-36 p-1`;
 /** A menu row's look, without its box. */
-const MENU_ROW = 'relative flex items-center gap-2 text-body text-primary cursor-default select-none outline-none transition-colors data-[highlighted]:bg-hover aria-disabled:opacity-50';
+const MENU_ROW_LOOK = 'relative flex items-center text-body text-primary cursor-default select-none outline-none transition-colors aria-disabled:opacity-50';
+const MENU_ROW = `${MENU_ROW_LOOK} gap-2 data-[highlighted]:bg-hover`;
 export const MENU_ITEM = `${MENU_ROW} px-2 py-1.5 rounded`;
-/** The drawn menu on a touch screen (iOS's button menu): wider, a card's corners, 44 pt rows edge to edge, a press shading
- *  the row. Whole recipes, not additions: classes don't merge. */
+/** The drawn menu on a touch screen (iOS's button menu, UIMenu): its glass material over a blur, a card's corners, popping
+ *  out of the button it came from; 44 pt rows edge to edge, a hairline between rows, a band between groups, the icon at the
+ *  trailing edge, a press shading the row. Whole recipes, not additions: classes don't merge. */
 export const MENU_TOUCH = {
-  list: `${FLOATING} rounded-card min-w-60 overflow-hidden`,
-  item: `${MENU_ROW} min-h-11 px-4`,
-  separator: 'h-px bg-separator',
+  list: cn(
+    'z-popover min-w-60 overflow-hidden rounded-card bg-menu shadow-floating outline-none backdrop-blur-2xl backdrop-saturate-150',
+    'origin-[var(--radix-dropdown-menu-content-transform-origin)] data-[state=open]:animate-menu-pop-show data-[state=closed]:animate-menu-pop-hide',
+    '[&_[role^=menuitem]+[role^=menuitem]]:border-t [&_[role^=menuitem]+[role^=menuitem]]:border-muted',
+  ),
+  item: `${MENU_ROW_LOOK} min-h-11 gap-3 px-4 data-[highlighted]:bg-pressed`,
+  separator: 'h-2 bg-menu-gap',
 } as const;
 /** The grouped card surface (System Settings): what every card, table and KPI tile sits on. */
 export const GROUPED_SURFACE = 'rounded-card bg-grouped-card';

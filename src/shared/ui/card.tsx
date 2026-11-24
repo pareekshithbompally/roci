@@ -41,6 +41,8 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   actions?: React.ReactNode;
   /** What the row is set to, at its end (iOS): part of the row, so tapping it opens the row; a long one truncates. */
   value?: string;
+  /** Its share of a whole under the title (Screen Time's Most Used): a bar in its chart colour, then its figure. */
+  meter?: RowMeter;
   /** Stands in, fainter, while there is no `value`. */
   valuePlaceholder?: string;
   /** Control below the copy instead of beside it (wide editors, lists). */
@@ -62,6 +64,23 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
    *  right below (iOS: a row holds one trailing thing, commands are rows). */
   action?: RowCommand;
 }
+
+export interface RowMeter {
+  /** 0…1 of the largest row's, which fills the track. */
+  share: number;
+  /** Its colour token (`--viz-1` …), as the chart draws it. */
+  token: string;
+  value: string;
+}
+
+/** A row's share: a bar across its share of the row's text width, in the row's colour, its figure right after it (a bar
+ *  too long for both gives way to the figure). */
+const Meter: React.FC<RowMeter> = ({ share, token, value }) => (
+  <div className="mt-1 flex items-center gap-2">
+    {share > 0 && <div className="h-1.5 min-w-1.5 rounded-full" style={{ flexBasis: `${Math.min(share, 1) * 100}%`, backgroundColor: `var(${token})` }} />}
+    <Text variant="figureSmall" tone="muted" className="shrink-0">{value}</Text>
+  </div>
+);
 
 export interface RowCommand {
   label: string;
@@ -90,7 +109,7 @@ export function CardRow({ action, ...props }: CardRowProps) {
   );
 }
 
-function RowBody({ title, description, leading, status, actions, value, valuePlaceholder, stacked, wrap, align = 'center', onOpen, onPress, tone, disabled, phone, className, children, ...props }: Omit<CardRowProps, 'action'> & { phone: boolean }) {
+function RowBody({ title, description, leading, status, actions, value, meter, valuePlaceholder, stacked, wrap, align = 'center', onOpen, onPress, tone, disabled, phone, className, children, ...props }: Omit<CardRowProps, 'action'> & { phone: boolean }) {
   const press = disabled ? undefined : onOpen ?? onPress;
   // A phone row holds one trailing thing: with controls at the side, its state reads under the title instead.
   const statusBeside = status && !(phone && actions);
@@ -126,15 +145,16 @@ function RowBody({ title, description, leading, status, actions, value, valuePla
       >
       {/* Title first (iOS / macOS lists): beside controls it keeps its space and the controls truncate; beside a status
           only, the status keeps its one line and the title side truncates instead. */}
-      <div className={cn('flex min-w-0', trailing && !stacked ? cn('max-w-[70%]', actions || shownValue ? 'shrink-0' : 'shrink') : 'flex-1')}>
-        <div className="min-w-0">
+      <div className={cn('flex min-w-0', meter || !trailing || stacked ? 'flex-1' : cn('max-w-[70%]', actions || shownValue ? 'shrink-0' : 'shrink'))}>
+        <div className={cn('min-w-0', meter && 'flex-1')}>
           <Text as="p" variant="body" tone={tone} truncate>{title}</Text>
           {description && <Text as="p" variant="helper" tone="muted" truncate={!wrap} className="mt-0.5">{description}</Text>}
           {status && !statusBeside && <div className="mt-1 flex items-center gap-2">{status}</div>}
+          {meter && <Meter {...meter} />}
         </div>
       </div>
       {trailing && (
-        <div className={cn('flex items-center gap-3', (actions || shownValue) && 'min-w-0', !stacked && 'flex-1 justify-end')}>
+        <div className={cn('flex items-center gap-3', (actions || shownValue) && 'min-w-0', !stacked && !meter && 'flex-1 justify-end')}>
           {statusBeside && <div className="flex shrink-0 items-center gap-2">{status}</div>}
           {shownValue && <Text variant="figure" tone={value ? 'muted' : 'faint'} truncate>{shownValue}</Text>}
           {/* Controls shrink to the row (a long value truncates) instead of spilling past the card; using one never presses

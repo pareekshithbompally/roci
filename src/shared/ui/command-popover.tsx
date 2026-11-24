@@ -9,15 +9,14 @@ import { Search } from 'lucide-react';
 import { Icon } from './icon';
 import { LIST_COMMAND, SEARCH_FIELD } from './recipes';
 import { PushedScreen, useOptionalNavStack } from './nav-stack';
-import { BottomSheet, useSheetPull, useSheetScrolls } from './bottom-sheet';
+import { BottomSheet, useSheetScrolls } from './bottom-sheet';
 import { useFormFactor } from '@platform/formFactor';
 
 /** A phone picker's list as an inset grouped card; it scrolls once its sheet is at full height (a push below lifts the sheet). */
 function SheetList({ emptyText, children }: { emptyText: string; children: React.ReactNode }) {
   const scrolls = useSheetScrolls();
-  const pull = useSheetPull();
   return (
-    <CommandList ref={pull} onScroll={(e) => pull(e.currentTarget)} className={cn('min-h-0 max-h-none p-0', scrolls ? 'overflow-y-auto' : 'overflow-y-clip', LIST_COMMAND)}>
+    <CommandList className={cn('min-h-0 max-h-none p-0', scrolls ? 'overflow-y-auto' : 'overflow-y-clip', LIST_COMMAND)}>
       <CommandEmpty>{emptyText}</CommandEmpty>
       {children}
     </CommandList>

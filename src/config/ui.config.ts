@@ -1,3 +1,4 @@
+import { AudioWaveform, Copy, Pencil, RotateCw, Sparkles, Trash2, X, type LucideIcon } from 'lucide-react';
 /** UI dimensions, spacing and layout constants. */
 
 export const UI_CONFIG = {
@@ -76,18 +77,13 @@ export const UI_CONFIG = {
   chart: {
     /** The trend's plot, dates included (px). */
     trendHeight: 200,
-    /** A donut's ring (px). */
-    donutHeight: 180,
     /** Series colours in `tokens.css` (`--viz-1` …); never cycled — past them, a mark is neutral. */
     seriesSlots: 8,
-    /** Legend rows a donut shows: the largest by name, then one "+N more" for the rest. */
-    maxSlices: 6,
     /** A legend or table row’s model, provider or use-case icon (px). */
     rowIcon: 16,
-    /** Marks: widest bar, its rounded top, the gap between slices (px). */
+    /** Marks: widest bar, its rounded top (px). */
     barMaxWidth: 24,
     barRadius: 4,
-    sliceGap: 2,
     /** Value ticks up a chart's side (ECharts rounds to near this many). */
     valueTicks: 3,
     /** A line's stroke, and an area's fill under it as a share of the line's colour. */
@@ -97,7 +93,7 @@ export const UI_CONFIG = {
     inset: 8,
     /** A value change (another measure, another range) morphs the marks this long: the app's enter timing (tailwind ENTER). */
     morphMs: 150,
-    /** Opacity of the other marks while one is highlighted. */
+    /** Opacity of the other days' bars while one is picked. */
     dimOpacity: 0.35,
   },
   /** A macOS app icon's visible body inside its canvas (824 of 1024): app icons scale up by its inverse to match a tile. */
@@ -132,7 +128,17 @@ export const UI_CONFIG = {
 
   /** A bottom sheet (iPhone, react-modal-sheet): it opens at `restShare` of the screen's height, and opens, closes and
    *  settles on the iOS presentation curve. */
-  sheet: { restShare: 0.56, tween: { ease: [0.32, 0.72, 0, 1] as [number, number, number, number], duration: 0.35 } },
+  sheet: {
+    restShare: 0.56,
+    tween: { ease: [0.32, 0.72, 0, 1] as [number, number, number, number], duration: 0.35 },
+    /** A pull down from the content's top at full height (bottom-sheet-pull.ts). */
+    pull: {
+      /** How far (px) a finger moves before the pull or the scroll is decided. */
+      slop: 6,
+      /** Seconds of the release speed added to where the sheet settles (a flick carries it further). */
+      projection: 0.2,
+    },
+  },
 
   // Command popovers (composer pickers) and their hover flyouts
   picker: {
@@ -233,6 +239,17 @@ export const MENU_SYMBOLS = {
   summarize: 'sparkles',
   copy: 'doc.on.doc',
 } as const;
+
+/** Each menu symbol's glyph where the app draws the menu itself (iPhone): the same picture the Mac's native menu shows. */
+export const MENU_SYMBOL_ICONS: Record<(typeof MENU_SYMBOLS)[keyof typeof MENU_SYMBOLS], LucideIcon> = {
+  pencil: Pencil,
+  trash: Trash2,
+  'arrow.clockwise': RotateCw,
+  xmark: X,
+  waveform: AudioWaveform,
+  sparkles: Sparkles,
+  'doc.on.doc': Copy,
+};
 
 export const BREAKPOINTS = {
   sm: 640,

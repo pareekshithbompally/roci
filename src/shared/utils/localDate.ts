@@ -14,6 +14,14 @@ export const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getM
 /** Local midnight `n` days after `date`'s day. */
 export const addDays = (date: Date, n: number) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + n);
 
+/** Local midnight of the first day of `date`'s week (1 = Sunday … 7 = Saturday, the device's first weekday). */
+export function startOfWeek(date: Date, firstWeekday: number): Date {
+  return addDays(startOfDay(date), -((date.getDay() - (firstWeekday - 1) + DAYS_PER_WEEK) % DAYS_PER_WEEK));
+}
+
+/** Local midnight of the first day of `date`'s month, `n` months on. */
+export const startOfMonth = (date: Date, n = 0) => new Date(date.getFullYear(), date.getMonth() + n, 1);
+
 /** Both fall on the same local day. */
 export const isSameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();

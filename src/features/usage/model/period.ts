@@ -1,7 +1,8 @@
-/** Time windows for usage, in local calendar days (DST-safe: days step by date, never by 24 h). */
+/** Time windows for usage, in local calendar days (DST-safe: days step by date, never by 24 h): a calendar week or month,
+ *  stepped back from the one holding today, or all time in months. */
 
-import { addDays, localDayKey, startOfDay } from '@shared/utils/localDate';
-import { USAGE_CONFIG, type UsageRange } from '@config/usage.config';
+import { addDays, localDayKey, startOfDay, startOfMonth, startOfWeek, DAYS_PER_WEEK } from '@shared/utils/localDate';
+import type { UsagePeriod } from '@config/usage.config';
 import type { UsageBucketSize } from '@extensions/usage';
 
 /** `[since, until)` in epoch ms; `since` absent means from the first record. */
@@ -22,33 +23,35 @@ export function keyToDate(key: string): Date {
   return new Date(y, m - 1, d);
 }
 
-/** The window a range covers, ending at the end of today: fixed ranges in days, all time in months. */
-export function windowFor(range: UsageRange, now: Date): UsageWindow {
-  const until = addDays(startOfDay(now), 1).getTime();
-  if (range === 'all') return { until, bucket: 'month' };
-  const days = USAGE_CONFIG.rangeDays[range];
-  return { since: addDays(startOfDay(now), -(days - 1)).getTime(), until, bucket: 'day' };
+/** The window of `period`, `offset` steps back (0 holds today): a whole calendar week or month by day; all time by month,
+ *  ending with today. */
+export function windowFor(period: UsagePeriod, offset: number, now: Date, firstWeekday: number): UsageWindow {
+  if (period === 'all') return { until: addDays(startOfDay(now), 1).getTime(), bucket: 'month' };
+  const start = period === 'week' ? addDays(startOfWeek(now, firstWeekday), -offset * DAYS_PER_WEEK) : startOfMonth(now, -offset);
+  const end = period === 'week' ? addDays(start, DAYS_PER_WEEK) : startOfMonth(start, 1);
+  return { since: start.getTime(), until: end.getTime(), bucket: 'day' };
 }
 
-/** Every bucket key in the window, oldest first: each day of a fixed range, each month from the first record to now. */
+/** The period just before, for the change against it; none for all time. */
+export function previousWindow(period: UsagePeriod, offset: number, now: Date, firstWeekday: number): UsageWindow | null {
+  return period === 'all' ? null : windowFor(period, offset + 1, now, firstWeekday);
+}
+
+/** Every bucket key in the window, oldest first: each day of a week or month (days still to come included, as Screen Time
+ *  shows the whole week), each month from the first record to now. */
 export function bucketKeys(window: UsageWindow, firstTimestamp: number | null, now: Date): string[] {
-  const today = startOfDay(now);
+  const keys: string[] = [];
   if (window.bucket === 'day') {
-    const keys: string[] = [];
-    for (let d = new Date(window.since ?? today.getTime()); d <= today; d = addDays(d, 1)) keys.push(localDayKey(d));
+    for (let d = new Date(window.since ?? startOfDay(now).getTime()); d.getTime() < window.until; d = addDays(d, 1)) keys.push(localDayKey(d));
     return keys;
   }
-  const first = firstTimestamp === null ? today : new Date(firstTimestamp);
-  const keys: string[] = [];
-  for (let m = new Date(first.getFullYear(), first.getMonth(), 1); m <= today; m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) {
-    keys.push(monthKey(m));
-  }
+  const first = startOfMonth(firstTimestamp === null ? now : new Date(firstTimestamp));
+  for (let m = first; m <= now; m = startOfMonth(m, 1)) keys.push(monthKey(m));
   return keys;
 }
 
-/** The same number of days just before a fixed range, for each KPI's change; none for all time. */
-export function previousWindow(range: UsageRange, now: Date): UsageWindow | null {
-  if (range === 'all') return null;
-  const days = USAGE_CONFIG.rangeDays[range];
-  return { since: addDays(startOfDay(now), -(2 * days - 1)).getTime(), until: addDays(startOfDay(now), -(days - 1)).getTime(), bucket: 'day' };
+/** How many of the window's buckets have begun by now (at least one), the divisor of a daily or monthly average. */
+export function elapsedBuckets(window: UsageWindow, firstTimestamp: number | null, now: Date): number {
+  const today = window.bucket === 'day' ? localDayKey(now) : monthKey(now);
+  return Math.max(1, bucketKeys(window, firstTimestamp, now).filter((key) => key <= today).length);
 }

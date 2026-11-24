@@ -1,6 +1,10 @@
 /** The kit's own words: labels its parts show or read out (bar buttons, sheet commands), one place for every screen. */
 
 export const KIT_COPY = {
+  goToDate: 'Go to date',
+  stepDate: (unit: string) => `Change ${unit}`,
+  previous: (unit: string) => `Previous ${unit}`,
+  next: (unit: string) => `Next ${unit}`,
   cancel: 'Cancel',
   save: 'Save',
   rename: 'Rename',

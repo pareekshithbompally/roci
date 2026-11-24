@@ -1,4 +1,4 @@
-/** Usage from the store plugin: a range's window by day (or month), the window before it, and every model ever used. */
+/** Usage from the store plugin: a period's window by day (or month), the period before it, and every model ever used. */
 
 import { useMemo } from 'react';
 import { keepPreviousData, queryOptions, useQuery } from '@tanstack/react-query';
@@ -6,8 +6,9 @@ import { localDayKey } from '@shared/utils/localDate';
 import { queryKeys } from '@shared/query/queryKeys';
 import { getUsageSummary, type ProviderModelBreakdown, type UsageQuery, type UsageSummary } from '@extensions/usage';
 import { queryClient } from '@shared/query/queryClient';
-import { usageRangeNow } from '@features/usage/stores/usageStore';
-import type { UsageRange } from '@config/usage.config';
+import { usagePeriodNow } from '@features/usage/stores/usageStore';
+import { useSystemFormatStore } from '@shared/stores/systemFormatStore';
+import type { UsagePeriod } from '@config/usage.config';
 import { previousWindow, windowFor, type UsageWindow } from '@features/usage/model/period';
 
 /** Usage changes only when a request is logged, which invalidates every usage query; until then a result stays current. */
@@ -17,20 +18,21 @@ const summaryOptions = (query: UsageQuery) =>
 interface UsageView {
   period: UsageWindow;
   summary: UsageSummary | undefined;
-  /** The window before, for each KPI's change; null for all time. */
+  /** The period before, for the change against it; null for all time. */
   previous: UsageSummary | undefined | null;
   isLoading: boolean;
   error: unknown;
 }
 
-/** A range's usage; while a new range loads, the last one stays on screen. */
-export function useUsageWindow(range: UsageRange): UsageView {
-  // The windows change only with the range or the day, so charts built from them aren't rebuilt on every render.
+/** A period's usage, `offset` periods back; while another loads, the last one stays on screen. */
+export function useUsageWindow(kind: UsagePeriod, offset: number): UsageView {
+  // The windows change only with the period, the step or the day, so charts built from them aren't rebuilt on every render.
   const today = localDayKey(new Date());
+  const firstWeekday = useSystemFormatStore((s) => s.firstWeekday);
   const { period, before } = useMemo(() => {
     const now = new Date();
-    return { period: windowFor(range, now), before: previousWindow(range, now) };
-  }, [range, today]);
+    return { period: windowFor(kind, offset, now, firstWeekday), before: previousWindow(kind, offset, now, firstWeekday) };
+  }, [kind, offset, firstWeekday, today]);
   const current = useQuery({ ...summaryOptions({ since: period.since, until: period.until, bucket: period.bucket }), placeholderData: keepPreviousData });
   const previous = useQuery({ ...summaryOptions({ since: before?.since, until: before?.until }), enabled: before !== null });
   return {
@@ -50,9 +52,9 @@ export function useUsedModels() {
 
 const NONE: ProviderModelBreakdown[] = [];
 
-/** Loads Usage ahead (Settings opened), so it lands with its data: the range shown, and every model for Prices. */
+/** Loads Usage ahead (Settings opened), so it lands with its data: the period shown, and every model for Prices. */
 export function preloadUsage(): void {
-  const window = windowFor(usageRangeNow(), new Date());
+  const window = windowFor(usagePeriodNow(), 0, new Date(), useSystemFormatStore.getState().firstWeekday);
   const failed = (error: unknown) => console.error('[Usage] Preload failed:', error);
   queryClient.prefetchQuery(summaryOptions({ since: window.since, until: window.until, bucket: window.bucket })).catch(failed);
   queryClient.prefetchQuery(summaryOptions({})).catch(failed);

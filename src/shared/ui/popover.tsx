@@ -1,10 +1,10 @@
 import * as PopoverPrimitive from '@radix-ui/react-popover';
-import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { createContext, useContext, type ComponentProps } from 'react';
 import { cn } from './utils';
 import { FLOATING_SURFACE, NO_INSETS } from './recipes';
 import { useFormFactor } from '@platform/formFactor';
-import { SheetContent } from './bottom-sheet';
+import { SheetContent, SheetRoot } from './bottom-sheet';
+import { DialogTrigger } from './dialog';
 import { KIT_COPY } from '@config/kitCopy.config';
 
 /**
@@ -21,13 +21,13 @@ export function Popover({ anchored, ...props }: PopoverProps) {
   const sheet = useFormFactor() === 'phone' && !anchored;
   return (
     <AsSheet.Provider value={sheet}>
-      {sheet ? <DialogPrimitive.Root {...props} /> : <PopoverPrimitive.Root {...props} />}
+      {sheet ? <SheetRoot {...props} /> : <PopoverPrimitive.Root {...props} />}
     </AsSheet.Provider>
   );
 }
 
 export function PopoverTrigger(props: ComponentProps<typeof PopoverPrimitive.Trigger>) {
-  return useContext(AsSheet) ? <DialogPrimitive.Trigger {...props} /> : <PopoverPrimitive.Trigger {...props} />;
+  return useContext(AsSheet) ? <DialogTrigger {...props} /> : <PopoverPrimitive.Trigger {...props} />;
 }
 
 export function PopoverAnchor(props: ComponentProps<typeof PopoverPrimitive.Anchor>) {
@@ -55,8 +55,7 @@ export function PopoverContent({ className, sideOffset = 4, width = 'lg', label 
   if (useContext(AsSheet)) {
     return (
       // The sheet draws its own backdrop and portals itself.
-      <SheetContent padded aria-describedby={undefined}>
-        <DialogPrimitive.Title className="sr-only">{label}</DialogPrimitive.Title>
+      <SheetContent padded aria-describedby={undefined} label={label}>
         <div className={cn('flex min-h-0 flex-col', NO_INSETS)}>{children}</div>
       </SheetContent>
     );

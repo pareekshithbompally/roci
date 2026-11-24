@@ -1,15 +1,14 @@
 /** Upcoming: the calendar's events on a time grid, a week on a Mac and a day on iPhone, any week back or forward; live on calendar changes. */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, CircleAlert, Lock, RotateCw, Settings } from 'lucide-react';
+import { CalendarDays, CircleAlert, Lock, RotateCw, Settings } from 'lucide-react';
 import { useAppActions } from '@shared/stores/appStore';
 import { useSystemFormatStore } from '@shared/stores/systemFormatStore';
-import { DatePicker, Button, Icon, IconButton, useListBesideDetail, ViewHeader } from '@shared/ui';
+import { Button, DateStepper, Icon, useListBesideDetail, ViewHeader } from '@shared/ui';
 import { EmptyState } from '@shared/components';
 import { useCalendarControls } from '@features/integrations';
 import { LAYOUT } from '@config/layout.config';
 import { CALENDAR_CONFIG } from '@config/calendar.config';
-import { formatMonth } from '@shared/utils/formatters';
 import { addDays, localDayKey } from '@shared/utils/localDate';
 import { useRangeEvents } from '@features/calendar/hooks/useRangeEvents';
 import { visibleRange, type CalendarSpan } from '@features/calendar/utils/timeGrid';
@@ -45,23 +44,15 @@ export const CalendarView: React.FC = () => {
 
   const empty = !calendar.enabled ? OFF : blocked ? NO_ACCESS : isError ? READ_FAILED : null;
   const unit = span === 'day' ? 'day' : 'week';
-  // As Calendar: the month (it opens the system date picker), then back · Today · forward. One date on screen, one format.
-  const controls = (
-    <div className="flex items-center gap-1.5">
-      <DatePicker value={localDayKey(anchor)} onChange={(v) => v && setPicked(new Date(`${v}T00:00`))} placeholder="Go to date">
-        {formatMonth(anchor)}
-      </DatePicker>
-      <IconButton icon={ChevronLeft} label={`Previous ${unit}`} size="sm" variant="outline" onClick={() => step(-1)} />
-      <Button variant="outline" size="sm" onClick={() => setPicked(null)}>Today</Button>
-      <IconButton icon={ChevronRight} label={`Next ${unit}`} size="sm" variant="outline" onClick={() => step(1)} />
-    </div>
-  );
+  // As Calendar: the month is the title (it opens the system date picker), back · forward beside it; Today only once you've
+  // moved away from it.
+  const awayFromToday = picked !== null && !range.days.some((day) => localDayKey(day) === today);
+  const todayButton = awayFromToday && <Button variant="link" size="inline" onClick={() => setPicked(null)}>{CALENDAR_CONFIG.today}</Button>;
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden animate-fade-in">
-      {/* The month and back · Today · forward beside the title on a Mac, under it on iPhone */}
-      <ViewHeader fullWidth title={CALENDAR_CONFIG.title} accessory={!empty && span === 'week' && controls}>
-        {!empty && span === 'day' && controls}
+      <ViewHeader fullWidth title={CALENDAR_CONFIG.title} accessory={!empty && todayButton}>
+        {!empty && <DateStepper date={anchor} unit={unit} onStep={step} onPick={(day) => setPicked(new Date(`${day}T00:00`))} />}
       </ViewHeader>
 
       {empty ? (

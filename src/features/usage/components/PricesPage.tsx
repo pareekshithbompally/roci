@@ -1,6 +1,6 @@
-/** Usage › Prices: the models worth a price, with the price that applies and where it comes from; a model's price form sets
- *  your own (it also prices that model's earlier calls) or goes back to models.dev's. A Mac opens it from the table's Edit;
- *  iPhone from the model's row. */
+/** Usage › Prices, a page opened from Usage: the models worth a price, with the price that applies and where it comes from;
+ *  a model's price form sets your own (it also prices that model's earlier calls) or goes back to models.dev's. A Mac opens
+ *  it from the table's Edit; iPhone from the model's row. */
 
 import React, { useCallback, useMemo, useState } from 'react';
 import { ChartPie } from 'lucide-react';
@@ -12,9 +12,10 @@ import { USAGE_CONFIG, type PriceScope } from '@config/usage.config';
 import { getModelDisplayName } from '@shared/utils/provider.utils';
 import type { ModelPrice } from '@shared/types/modelProviders';
 import { usePriceRows } from '@features/usage/hooks/useModelPrices';
-import { parsePrice, type PriceRow, type PriceText } from '@features/usage/model/prices';
+import { parsePrice, priceText, type PriceRow, type PriceText } from '@features/usage/model/prices';
 import { modelName, providerName } from '@features/usage/model/series';
 import { formatMeasure } from '@features/usage/model/format';
+import { SettingsPage } from '@features/settings/components/shared';
 import { ModelCell } from './ModelCell';
 
 const COPY = USAGE_CONFIG.copy.prices;
@@ -28,14 +29,6 @@ const priceName = (row: PriceRow) => (row.model ? getModelDisplayName(row.model)
 const PriceCaption: React.FC<{ row: PriceRow }> = ({ row }) => (
   <>{providerName(row.provider)} · <Text as="span" variant="caption" tone={row.source === 'unknown' ? 'warning' : 'muted'}>{COPY.sources[row.source]}</Text></>
 );
-
-/** The price that applies, as one value: "$1.25 / $10.00", or a speech model's per-minute rate. */
-function priceText({ own, catalog }: PriceRow): string | undefined {
-  const price = own ?? catalog;
-  if (!price) return undefined;
-  if (price.perMinute !== undefined && !price.inputPer1M && !price.outputPer1M) return formatMeasure('cost', price.perMinute);
-  return COPY.rates(formatMeasure('cost', price.inputPer1M), formatMeasure('cost', price.outputPer1M));
-}
 
 const rateText = (rate: number | undefined) => (rate === undefined ? '' : String(rate));
 
@@ -107,7 +100,7 @@ const PriceForm: React.FC<PriceFormProps> = ({ row, onSave, onClose }) => {
 
 const priceKey = (row: PriceRow) => `${row.provider}/${row.modelId}`;
 
-export const PricesTab: React.FC = () => {
+export const PricesPage: React.FC<{ title: string; onBack?: () => void }> = ({ title, onBack }) => {
   const { rows, setPrice, isLoading } = usePriceRows();
   const [scope, setScope] = useState<PriceScope>('all');
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -116,27 +109,29 @@ export const PricesTab: React.FC = () => {
   const open = rows.find((row) => priceKey(row) === openKey);
   const shown = useMemo(() => rows.filter(inScope(scope)), [rows, scope]);
   return (
-    <ScreenState loading={isLoading} empty={rows.length === 0 && { icon: ChartPie, message: COPY.none }}>
-      <Section layout="stack" footer={COPY.footer}>
-        <RecordList
-          columns={table}
-          rows={shown}
-          rowKey={priceKey}
-          label={COPY.label}
-          search={{ placeholder: USAGE_CONFIG.copy.search.prices, text: (row) => `${row.modelId} ${providerName(row.provider)}` }}
-          accessory={<Tabs items={COPY.scopes} value={scope} onValueChange={setScope} label={COPY.scopeLabel} />}
-          empty={USAGE_CONFIG.copy.noMatches}
-          phoneRow={(row) => ({
-            title: priceName(row),
-            description: <PriceCaption row={row} />,
-            leading: <ModelIcon provider={row.provider} modelId={row.modelId} size={UI_CONFIG.chart.rowIcon} />,
-            value: priceText(row),
-          })}
-          onOpen={(row) => setOpenKey(priceKey(row))}
-          canOpen={editable}
-        />
-      </Section>
-      {open && <PriceForm row={open} onSave={save} onClose={() => setOpenKey(null)} />}
-    </ScreenState>
+    <SettingsPage title={title} onBack={onBack}>
+      <ScreenState loading={isLoading} empty={rows.length === 0 && { icon: ChartPie, message: COPY.none }}>
+        <Section layout="stack" footer={COPY.footer}>
+          <RecordList
+            columns={table}
+            rows={shown}
+            rowKey={priceKey}
+            label={COPY.label}
+            search={{ placeholder: USAGE_CONFIG.copy.search.prices, text: (row) => `${row.modelId} ${providerName(row.provider)}` }}
+            accessory={<Tabs items={COPY.scopes} value={scope} onValueChange={setScope} label={COPY.scopeLabel} />}
+            empty={USAGE_CONFIG.copy.noMatches}
+            phoneRow={(row) => ({
+              title: priceName(row),
+              description: <PriceCaption row={row} />,
+              leading: <ModelIcon provider={row.provider} modelId={row.modelId} size={UI_CONFIG.chart.rowIcon} />,
+              value: priceText(row),
+            })}
+            onOpen={(row) => setOpenKey(priceKey(row))}
+            canOpen={editable}
+          />
+        </Section>
+        {open && <PriceForm row={open} onSave={save} onClose={() => setOpenKey(null)} />}
+      </ScreenState>
+    </SettingsPage>
   );
 };

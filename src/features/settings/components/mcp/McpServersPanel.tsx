@@ -76,17 +76,13 @@ export const McpServersPanel: React.FC = () => {
 
   return (
     <PanelShell>
-      <Section title={MCP_COPY.permissions} footer={MCP_COPY.permissionsFooter}>
-        <McpPermissionsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
-      </Section>
-
-      <Section title={MCP_COPY.limits} footer={MCP_COPY.limitsFooter}>
-        <McpLimitsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
+      {/* The page's two actions first, then the servers, then how their tools run. */}
+      <Section>
+        <CardRow title={MCP_COPY.addServer} tone="accent" disabled={busy} onPress={() => setEditing({ name: null })} />
+        <CardRow title={MCP_COPY.editAll} tone="accent" disabled={busy} onPress={() => setJsonOpen(true)} />
       </Section>
 
       <Section title={MCP_COPY.servers} footer={MCP_COPY.serversFooter}>
-        {/* Add Server first, so it stays in view however many servers follow; Edit as JSON closes the list. */}
-        <CardRow title={MCP_COPY.addServer} tone="accent" disabled={busy} onPress={() => setEditing({ name: null })} />
         {serverEntries.length === 0 ? (
           <Text as="p" tone="muted" truncate className="py-3">{MCP_COPY.empty}</Text>
         ) : (
@@ -106,9 +102,15 @@ export const McpServersPanel: React.FC = () => {
             />
           ))
         )}
-        <CardRow title={MCP_COPY.editAll} tone="accent" disabled={busy} onPress={() => setJsonOpen(true)} />
       </Section>
 
+      <Section title={MCP_COPY.permissions} footer={MCP_COPY.permissionsFooter}>
+        <McpPermissionsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
+      </Section>
+
+      <Section title={MCP_COPY.limits} footer={MCP_COPY.limitsFooter}>
+        <McpLimitsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
+      </Section>
 
       <AddEditMcpServerDialog
         open={editing !== null}

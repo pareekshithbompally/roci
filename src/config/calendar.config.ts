@@ -41,6 +41,8 @@ export const CALENDAR_CONFIG = {
 
   /** The place's one name: sidebar row and page title. */
   title: 'Upcoming',
+  /** Back to today, once you've moved away from it. */
+  today: 'Today',
 
   /** The Upcoming time grid: an hour's height (px), the shortest block (min), the gap between side-by-side blocks (px),
    *  and how many hours above now it opens scrolled to. */

@@ -117,6 +117,13 @@ export const CHAT_REASONING_COPY = {
 /** A scroll area counts as at its bottom within this distance, px, and keeps following new content. */
 export const SCROLL_FOLLOW_THRESHOLD_PX = 48;
 
+/** A reply that failed (ErrorMessageBox). */
+export const CHAT_ERROR_COPY = {
+  unknown: 'The model returned an error.',
+  showDetails: 'Show error details',
+  hideDetails: 'Hide error details',
+} as const;
+
 /** The one row a run of the model's work folds into once its answer starts. */
 export const CHAT_ACTIVITY_COPY = {
   thought: 'Thought',

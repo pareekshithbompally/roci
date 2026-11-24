@@ -1,7 +1,7 @@
 /** Time-grid layout: the days on screen, and where each event sits in its day (minutes from local midnight, overlap lanes). */
 
 import { CALENDAR_CONFIG } from '@config/calendar.config';
-import { DAYS_PER_WEEK, MINUTES_PER_HOUR, addDays, daysBetween, startOfDay } from '@shared/utils/localDate';
+import { DAYS_PER_WEEK, MINUTES_PER_HOUR, addDays, daysBetween, startOfDay, startOfWeek } from '@shared/utils/localDate';
 import type { CalendarEvent } from '@services/calendar';
 
 /** `week` (Mac) or `day` (iPhone): the grid's span and the step of back / forward. */
@@ -26,11 +26,6 @@ export function minutesIntoDay(date: Date): number {
 
 /** Grid pixels for `minutes` (from midnight, or a duration): the one scale the hours, blocks and now line share. */
 export const minutesToPx = (minutes: number) => (minutes / MINUTES_PER_HOUR) * CALENDAR_CONFIG.grid.hourHeight;
-
-/** Local midnight of the first day of `date`'s week (1 = Sunday … 7 = Saturday, the device's first weekday). */
-export function startOfWeek(date: Date, firstWeekday: number): Date {
-  return addDays(date, -((date.getDay() - (firstWeekday - 1) + DAYS_PER_WEEK) % DAYS_PER_WEEK));
-}
 
 /** The local days on screen around `anchor` (its week, or the one day) and the range to read. */
 export function visibleRange(anchor: Date, span: CalendarSpan, firstWeekday: number): { days: Date[]; start: Date; end: Date } {

@@ -33,6 +33,9 @@ const SLIDE_START = edgeSlide('-100%');
 const SLIDE_END = edgeSlide('100%');
 const DRAWER_ENTER = '300ms ease-out';
 const DRAWER_EXIT = '250ms ease-in';
+/** A touch menu popping out of its button (UIMenu): grows from the button with a slight spring, shrinks back faster. */
+const MENU_POP_ENTER = '320ms cubic-bezier(0.2, 1.2, 0.35, 1)';
+const MENU_POP_EXIT = '180ms ease-in';
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -56,7 +59,7 @@ export default {
       // ─── Semantic roles (tokens.css). Alpha lives in the token: no `/NN` modifiers. ───
       backgroundColor: {
         ...roles('bg', ['base', 'deep', 'layer-1', 'layer-2', 'layer-3', 'layer-4', 'inverse', 'accent', 'accent-wash', 'knob',
-          'hover', 'pressed', 'control', 'control-hover', 'scrim', 'base-glass', 'deep-glass', 'raised-glass', 'bar', 'glow-core', 'glow-companion', 'glow-wash',
+          'hover', 'pressed', 'control', 'control-hover', 'scrim', 'base-glass', 'deep-glass', 'raised-glass', 'bar', 'menu', 'menu-gap', 'glow-core', 'glow-companion', 'glow-wash',
           'grouped', 'grouped-card']),
         ...stateRoles('bg', '-subtle'),
         ...stateRoles('solid'),
@@ -142,6 +145,8 @@ export default {
         'sheet-show': SHEET_SLIDE.show,
         'sheet-hide': SHEET_SLIDE.hide,
         // A screen pushed onto a sheet's stack (kit NavStack): in from the trailing edge, back out to it.
+        'menu-pop-show': { from: { opacity: '0', scale: '0.4' }, to: { opacity: '1', scale: '1' } },
+        'menu-pop-hide': { from: { opacity: '1', scale: '1' }, to: { opacity: '0', scale: '0.85' } },
         'push-in': { from: { translate: '100% 0' }, to: { translate: '0 0' } },
         'push-out': { from: { translate: '0 0' }, to: { translate: '100% 0' } },
         'rise-show': RISE.show,
@@ -180,6 +185,8 @@ export default {
         'content-hide': `content-hide ${EXIT}`,
         'sheet-show': `sheet-show ${ENTER}`,
         'sheet-hide': `sheet-hide ${EXIT}`,
+        'menu-pop-show': `menu-pop-show ${MENU_POP_ENTER}`,
+        'menu-pop-hide': `menu-pop-hide ${MENU_POP_EXIT} both`,
         'push-in': `push-in ${IOS_DURATION} ${IOS_EASE}`,
         'push-out': `push-out ${IOS_DURATION} ${IOS_EASE} both`,
         'rise-show': `rise-show ${RISE_ENTER}`,

@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuLabel, ContextMenuSeparator, ContextMenuTrigger, DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@shared/ui';
 import { nativeMenu, type MenuEntry, type NativeMenuEntry } from '@services/tauri';
-import { MENU_GAP_PT } from '@config/ui.config';
+import { MENU_GAP_PT, MENU_SYMBOL_ICONS } from '@config/ui.config';
 import { platform } from '@platform/index';
 
 export type { MenuEntry };
@@ -34,12 +34,15 @@ function withClick(trigger: Trigger, open: (e: React.MouseEvent<HTMLElement>) =>
   });
 }
 
+/** A menu symbol's drawn glyph; none for a symbol the app doesn't draw. */
+const symbolIcon = (symbol?: string) => (symbol && symbol in MENU_SYMBOL_ICONS ? MENU_SYMBOL_ICONS[symbol as keyof typeof MENU_SYMBOL_ICONS] : undefined);
+
 const DrawnEntries: React.FC<{ items: MenuEntry[] }> = ({ items }) => (
   <>
     {items.map((entry, i) => {
       switch (entry.type) {
         case 'item':
-          return <DropdownMenuItem key={i} disabled={entry.disabled} variant={entry.destructive ? 'danger' : 'default'} onSelect={entry.onSelect}>{entry.label}</DropdownMenuItem>;
+          return <DropdownMenuItem key={i} disabled={entry.disabled} variant={entry.destructive ? 'danger' : 'default'} icon={symbolIcon(entry.symbol)} onSelect={entry.onSelect}>{entry.label}</DropdownMenuItem>;
         case 'check':
           return <DropdownMenuCheckboxItem key={i} checked={entry.checked} disabled={entry.disabled} onSelect={entry.onSelect}>{entry.label}</DropdownMenuCheckboxItem>;
         case 'label':
@@ -86,11 +89,20 @@ async function showNative(items: MenuEntry[], x: number, y: number): Promise<voi
   if (chosen) actions.get(chosen)?.();
 }
 
+/** A finger picks from it (iPhone): the menu opens toward the screen's middle, as iOS does, so it never runs off an edge
+ *  and pops out of its button's corner. */
+const touch = platform.hasTouchScreen;
+const towardCentre = (button: Element): 'start' | 'end' => {
+  const r = button.getBoundingClientRect();
+  return r.left + r.width / 2 < window.innerWidth / 2 ? 'start' : 'end';
+};
+
 /** The entries now: as given, or built by the builder. */
 const entriesOf = async (items: MenuProps['items']): Promise<MenuEntry[]> => (typeof items === 'function' ? items() : items);
 
 export function Menu({ label, trigger, items: source, align = 'end' }: MenuProps) {
   const [open, setOpen] = useState(false);
+  const [side, setSide] = useState(align);
   const [items, setItems] = useState<MenuEntry[]>(() => (typeof source === 'function' ? [] : source));
   /** Builds the entries, then shows the drawn menu once they are in. */
   const prepare = (then: () => void) => {
@@ -110,8 +122,8 @@ export function Menu({ label, trigger, items: source, align = 'end' }: MenuProps
 
   return (
     <DropdownMenu open={open} onOpenChange={(next) => (next ? prepare(() => setOpen(true)) : setOpen(false))}>
-      <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-      <DropdownMenuContent align={align} aria-label={label}><DrawnEntries items={items} /></DropdownMenuContent>
+      <DropdownMenuTrigger asChild onPointerDown={(e) => touch && setSide(towardCentre(e.currentTarget))}>{trigger}</DropdownMenuTrigger>
+      <DropdownMenuContent align={touch ? side : align} aria-label={label}><DrawnEntries items={items} /></DropdownMenuContent>
     </DropdownMenu>
   );
 }
@@ -124,7 +136,7 @@ const DrawnContextEntries: React.FC<{ items: ContextEntry[] }> = ({ items }) => 
     {items.map((entry, i) => {
       switch (entry.type) {
         case 'item':
-          return <ContextMenuItem key={i} disabled={entry.disabled} onSelect={entry.onSelect}>{entry.label}</ContextMenuItem>;
+          return <ContextMenuItem key={i} disabled={entry.disabled} icon={symbolIcon(entry.symbol)} onSelect={entry.onSelect}>{entry.label}</ContextMenuItem>;
         case 'label':
           return <ContextMenuLabel key={i}>{entry.label}</ContextMenuLabel>;
         case 'separator':

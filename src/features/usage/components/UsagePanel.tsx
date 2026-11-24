@@ -1,23 +1,16 @@
-/** Settings › Usage: Activity (what was used and what it cost) and Prices (what each model costs): a Mac's toolbar switches
- *  them; iPhone stays on Activity, which pushes Prices. */
+/** Settings › Usage: one page, as Screen Time lays its activity out (UsageOverview); a model, a use case, the tools and the
+ *  prices open as their own pages, pushed on iPhone and in place of the pane on Mac (usePaneDrill). */
 
 import React from 'react';
-import { Tabs } from '@shared/ui';
-import { USAGE_CONFIG } from '@config/usage.config';
-import { SettingsPage } from '@features/settings/components/shared/SettingsPage';
-import { useSetUsageTab, useUsageTab } from '@features/usage/stores/usageStore';
-import { ActivityTab } from './ActivityTab';
-import { PricesTab } from './PricesTab';
+import { SettingsPage, usePaneDrill } from '@features/settings/components/shared';
+import { UsageOverview } from './UsageOverview';
 
 export const UsagePanel: React.FC = () => {
-  const tab = useUsageTab();
-  const setTab = useSetUsageTab();
+  const drill = usePaneDrill();
+  if (drill.view) return drill.view;
   return (
-    <SettingsPage
-      pane="usage"
-      views={<Tabs items={USAGE_CONFIG.tabs} value={tab} onValueChange={setTab} label="Usage view" />}
-    >
-      {tab === 'activity' ? <ActivityTab /> : <PricesTab />}
+    <SettingsPage pane="usage" onForward={drill.forward}>
+      <UsageOverview open={drill.open} />
     </SettingsPage>
   );
 };

@@ -2,5 +2,6 @@ export { logUsage, recordUsage, getUsageSummary, getSessionUsage, sessionCostOf,
 export { costOf, priceOf, runsLocally } from './pricing';
 export type { SessionCost, SessionUsage } from './client';
 export type {
-  UsageRecord, UsageCategory, UsageSummary, UsageQuery, UsageBucket, UsageBucketSize, ProviderModelBreakdown, CategoryBreakdown, ToolBreakdown,
+  UsageRecord, UsageCategory, UsageSummary, UsageQuery, UsageBucket, UsageBucketPart, UsageBucketSize, ProviderModelBreakdown, CategoryBreakdown,
+  ModelUseCase, ToolBreakdown,
 } from './types';

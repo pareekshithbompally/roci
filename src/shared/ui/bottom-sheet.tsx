@@ -4,6 +4,7 @@ import { useReducedMotion } from 'framer-motion';
 import { Sheet } from 'react-modal-sheet';
 import { cn, dismissKeyboard } from './utils';
 import { NO_TOP_INSET } from './recipes';
+import { useSheetPullDown } from './bottom-sheet-pull';
 import { Check, X } from 'lucide-react';
 import { IconButton } from './button';
 import { Text } from './text';
@@ -12,12 +13,13 @@ import { UI_CONFIG } from '@config/ui.config';
 import { KIT_COPY } from '@config/kitCopy.config';
 
 /**
- * The one iOS sheet (BottomSheet, and Dialog / Popover on a phone). react-modal-sheet moves it: it follows the finger 1:1 and
- * settles at a stop (or closes) by distance and speed, with resistance past full. A `fit` sheet stops only at its own height
- * (a short one sits on the bottom edge); a `full` one at half the screen, where a push on the content lifts it, and full. At
- * its top stop the content scrolls, and a pull down from the top of whichever scroller is under the finger lowers it.
- * Radix keeps it a dialog: focus stays inside, Escape and a tap outside close it, VoiceOver reads its name. Every close
- * animates out before Radix lets go.
+ * The one iOS sheet. Every sheet on a phone is this: BottomSheet, InfoSheet, EditSheet, and a Dialog or Popover (their
+ * roots are `SheetRoot` there). One contract: the grabber and the sheet's bar (✕, title, ✓) hold still at the top and drag
+ * the sheet; the content under them scrolls. react-modal-sheet moves it: it follows the finger 1:1 and settles at a stop (or
+ * closes) by distance and speed. A `fit` sheet stops only at its own height (a short one sits on the bottom edge); a `full`
+ * one at half the screen, where a push on the content lifts it, and full. At its top stop the content scrolls natively and
+ * a pull down from the top of what scrolls lowers it (bottom-sheet-pull.ts). Radix keeps it a dialog: focus stays inside,
+ * Escape and a tap outside close it, VoiceOver reads its name. Every close animates out before Radix lets go.
  */
 
 /** `fit`: as tall as its content, up to full; it opens at that height. `full`: the full height, for a stack of screens
@@ -33,53 +35,92 @@ const OPEN = 1;
 /** The index of a sheet's top stop, where its content scrolls. */
 const TOP = { fit: 1, full: 2 } as const;
 
-const SURFACE = 'rounded-t-sheet bg-grouped shadow-overlay';
+/** Its corners clip what's inside (a page's opaque background never squares them off). */
+const SURFACE = 'overflow-hidden rounded-t-sheet bg-grouped shadow-overlay';
 
 /** A sheet's own scrollers (a stack's pages, a picker's list) scroll only at its top stop; below it the push moves the sheet. */
 const SheetScrollsContext = createContext(true);
 /** Whether a scroller inside a sheet may scroll now (true outside any sheet). */
 export const useSheetScrolls = () => useContext(SheetScrollsContext);
 
-/** Told whether the scroller in use inside a sheet rests at its top (null outside a sheet). */
-const SheetPullContext = createContext<((atTop: boolean) => void) | null>(null);
+/** What a sheet's root tells its content: whether it is asked to show, and how its close runs. */
+interface SheetState {
+  open: boolean;
+  /** The user (or the caller) closed it; the sheet animates out. */
+  close: () => void;
+  /** Its close animation ended: Radix lets go. */
+  closed: () => void;
+  /** A sheet frame is drawn for this root (content that isn't a sheet closes at once). */
+  register: () => () => void;
+}
+const SheetStateContext = createContext<SheetState | null>(null);
 
-/** For a scroller inside a sheet, run on mount and on every scroll: at its top a pull down moves the sheet (the finger's
- *  downward pan is left to the sheet, as the library does for its own scroller); scrolled, the sheet holds still. A no-op
- *  outside a sheet. */
-export function useSheetPull(): (scroller: HTMLElement | null) => void {
-  const report = useContext(SheetPullContext);
-  return useCallback((scroller: HTMLElement | null) => {
-    if (!report || !scroller) return;
-    const atTop = scroller.scrollTop <= 0;
-    scroller.style.touchAction = atTop ? 'pan-down' : '';
-    report(atTop);
-  }, [report]);
+function useSheetState(): SheetState {
+  const state = useContext(SheetStateContext);
+  if (!state) throw new Error('[BottomSheet] SheetContent needs a SheetRoot (BottomSheet, or Dialog / Popover on a phone)');
+  return state;
+}
+
+/** A Radix Dialog root whose content is the sheet: open or closed by its caller (controlled) or its trigger, and kept open
+ *  for Radix until the sheet's close animation ends. */
+export function SheetRoot({ open: asked, defaultOpen = false, onOpenChange, children, ...props }: ComponentProps<typeof DialogPrimitive.Root>) {
+  const [own, setOwn] = useState(defaultOpen);
+  const open = asked ?? own;
+  const [shown, setShown] = useState(open);
+  const frames = useRef(0);
+  useEffect(() => {
+    if (open) setShown(true);
+  }, [open]);
+  const state = useMemo<SheetState>(() => ({
+    open,
+    close: () => {
+      if (asked === undefined) setOwn(false);
+      onOpenChange?.(false);
+      if (frames.current === 0) setShown(false);
+    },
+    closed: () => setShown(false),
+    register: () => {
+      frames.current += 1;
+      return () => { frames.current -= 1; };
+    },
+  }), [open, asked, onOpenChange]);
+  const change = (next: boolean) => {
+    if (!next) {
+      state.close();
+      return;
+    }
+    if (asked === undefined) setOwn(true);
+    onOpenChange?.(true);
+  };
+  return (
+    <SheetStateContext.Provider value={state}>
+      <DialogPrimitive.Root {...props} open={shown} onOpenChange={change}>{children}</DialogPrimitive.Root>
+    </SheetStateContext.Provider>
+  );
 }
 
 interface SheetFrameProps {
-  open: boolean;
-  /** The user closed it (a swipe down, ✕, a tap outside, Escape). */
-  onClose: () => void;
-  /** Its close animation ended. */
-  onClosed?: () => void;
+  state: SheetState;
   size: SheetSize;
-  /** A swipe down doesn't close it (unsaved edits); ✕ asks through `onClose`. */
+  /** A swipe down doesn't close it (unsaved edits); ✕ asks through `close`. */
   held?: boolean;
   children: React.ReactNode;
 }
 
 /** The moving parts: the sheet, its surface and its backdrop; `children` is the Radix dialog inside it. */
-function SheetFrame({ open, onClose, onClosed, size, held, children }: SheetFrameProps) {
+function SheetFrame({ state, size, held, children }: SheetFrameProps) {
   const reduce = useReducedMotion() ?? false;
   const [full, setFull] = useState(false);
+  const { open, close, closed, register } = state;
   const snapPoints = useMemo(() => stopsOf(size), [open, size]);
+  useEffect(register, [register]);
   return (
     <Sheet
       isOpen={open}
-      onClose={onClose}
+      onClose={close}
       onCloseEnd={() => {
         setFull(false);
-        onClosed?.();
+        closed();
       }}
       detent={DETENT[size]}
       snapPoints={snapPoints}
@@ -103,31 +144,41 @@ function SheetFrame({ open, onClose, onClosed, size, held, children }: SheetFram
   );
 }
 
-/** The grabber, then the content: below the top stop a push lifts the sheet; at it the content scrolls (its own scroller,
- *  or the sheet's) and a pull down from a scroller's top lowers the sheet; a field taking focus brings the sheet to its top
- *  stop, above the keyboard. */
-function SheetBodyFrame({ padded, size, children }: { padded?: boolean; size: SheetSize; children: React.ReactNode }) {
+interface SheetBodyFrameProps {
+  bar?: React.ReactNode;
+  padded?: boolean;
+  size: SheetSize;
+  held?: boolean;
+  children: React.ReactNode;
+}
+
+/** The grabber and the bar, fixed (they drag the sheet), then the content: below the top stop a push on it lifts the sheet;
+ *  at the top stop it scrolls, and a pull down from its top lowers the sheet; a field taking focus brings the sheet to its
+ *  top stop, above the keyboard. */
+function SheetBodyFrame({ bar, padded, size, held = false, children }: SheetBodyFrameProps) {
   const { snapTo } = Sheet.useContext();
-  // Whether the inner scroller in use (a stack's page, a picker's list) rests at its top: only then may its content drag.
-  const [pullable, setPullable] = useState(true);
   const top = TOP[size];
+  const pullRef = useSheetPullDown(top, held);
   return (
     <>
-      <Sheet.Header className="flex shrink-0 justify-center pt-1.5 pb-1">
-        <span aria-hidden className="h-1 w-9 rounded-full bg-layer-4" />
+      <Sheet.Header className="flex shrink-0 flex-col">
+        <span className="flex justify-center pt-1.5 pb-1">
+          <span aria-hidden className="h-1 w-9 rounded-full bg-layer-4" />
+        </span>
+        {bar}
       </Sheet.Header>
       <Sheet.Content
+        ref={pullRef}
         className="flex min-h-0 flex-1 flex-col"
         scrollClassName={cn('flex min-h-0 flex-1 flex-col', padded && 'px-4 pt-4 pb-sheet-end')}
         disableScroll={({ currentSnap }) => currentSnap !== top}
-        disableDrag={({ currentSnap }) => currentSnap === top && !pullable}
+        // At the top stop the content is the page's to scroll; the pull down is ours (useSheetPullDown), not the library's.
+        disableDrag={({ currentSnap }) => currentSnap === top}
         onFocusCapture={(e: React.FocusEvent) => {
           if (e.target instanceof Element && e.target.matches('input, textarea')) snapTo(top);
         }}
       >
-        <SheetPullContext.Provider value={setPullable}>
-          <div className={cn('flex min-h-0 flex-1 flex-col', NO_TOP_INSET)}>{children}</div>
-        </SheetPullContext.Provider>
+        <div className={cn('flex min-h-0 flex-1 flex-col', NO_TOP_INSET)}>{children}</div>
       </Sheet.Content>
     </>
   );
@@ -140,35 +191,55 @@ export interface SheetContentProps extends ComponentProps<typeof DialogPrimitive
   size?: SheetSize;
   /** A swipe down doesn't close it (unsaved edits). */
   held?: boolean;
+  /** The sheet's name for VoiceOver, when nothing inside it is a DialogTitle. */
+  label?: string;
+  /** The sheet's bar (SheetBar): under the grabber, it holds still while the content scrolls. */
+  bar?: React.ReactNode;
+  /** Focus lands in the first field instead of on the sheet (an edit sheet: the caret is already where you type). */
+  focusField?: boolean;
 }
 
 const DIALOG = 'flex min-h-0 flex-1 flex-col outline-none';
 
-/** A Radix Dialog's content as the sheet (a Dialog or Popover on a phone: the caller owns the open state). It animates out,
- *  then tells Radix. */
-export function SheetContent({ className, ref, padded, size = 'fit', held, children, onPointerDownOutside, onEscapeKeyDown, ...props }: SheetContentProps) {
-  const [open, setOpen] = useState(true);
-  const closeRef = useRef<HTMLButtonElement>(null);
-  const close = () => setOpen(false);
+/** The sheet under a SheetRoot: it animates out, then tells Radix. */
+export function SheetContent({ className, ref, padded, size = 'fit', held, label, bar, focusField, children, onPointerDownOutside, onEscapeKeyDown, onOpenAutoFocus, ...props }: SheetContentProps) {
+  const state = useSheetState();
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const setRef = useCallback((node: HTMLDivElement | null) => {
+    contentRef.current = node;
+    if (typeof ref === 'function') ref(node);
+    else if (ref) ref.current = node;
+  }, [ref]);
+  // Before the first frame of the rise: the field behind lets go (its own search field may keep focus).
+  useLayoutEffect(() => {
+    if (state.open) dismissKeyboard(contentRef.current);
+  }, [state.open]);
   return (
-    <SheetFrame open={open} onClose={close} onClosed={() => closeRef.current?.click()} size={size} held={held}>
+    <SheetFrame state={state} size={size} held={held}>
       <DialogPrimitive.Content
-        ref={ref}
+        {...props}
+        ref={setRef}
         className={cn(DIALOG, className)}
         onPointerDownOutside={(e) => {
           onPointerDownOutside?.(e);
           e.preventDefault();
-          if (!held) close();
+          if (!held) state.close();
         }}
         onEscapeKeyDown={(e) => {
           onEscapeKeyDown?.(e);
           e.preventDefault();
-          close();
+          state.close();
         }}
-        {...props}
+        // Focus lands on the sheet itself, without scrolling it to a control further down (it opens at its top).
+        onOpenAutoFocus={(e) => {
+          onOpenAutoFocus?.(e);
+          e.preventDefault();
+          const field = focusField ? contentRef.current?.querySelector<HTMLElement>('input, textarea') : null;
+          (field ?? contentRef.current)?.focus({ preventScroll: true });
+        }}
       >
-        <SheetBodyFrame padded={padded} size={size}>{children}</SheetBodyFrame>
-        <DialogPrimitive.Close ref={closeRef} className="sr-only">{KIT_COPY.close}</DialogPrimitive.Close>
+        {label && <DialogPrimitive.Title className="sr-only">{label}</DialogPrimitive.Title>}
+        <SheetBodyFrame bar={bar} padded={padded} size={size} held={held}>{children}</SheetBodyFrame>
       </DialogPrimitive.Content>
     </SheetFrame>
   );
@@ -184,43 +255,19 @@ export interface BottomSheetProps {
   focusField?: boolean;
   /** A swipe down doesn't close it (unsaved edits). */
   held?: boolean;
+  /** The sheet's bar, held still above the scrolling content. */
+  bar?: React.ReactNode;
   children: React.ReactNode;
 }
 
 /** iOS sheet over a dimmed page; a swipe down, a tap outside, ✕ or Escape closes it. */
-export function BottomSheet({ open, onOpenChange, title, size = 'fit', focusField, held, children }: BottomSheetProps) {
-  const contentRef = useRef<HTMLDivElement>(null);
-  // Radix stays open until the sheet's close animation ends.
-  const [shown, setShown] = useState(open);
-  useEffect(() => {
-    if (open) setShown(true);
-  }, [open]);
-  // Before the first frame of the rise: the field behind lets go (its own search field may keep focus).
-  useLayoutEffect(() => {
-    if (open) dismissKeyboard(contentRef.current);
-  }, [open]);
+export function BottomSheet({ open, onOpenChange, title, size = 'fit', focusField, held, bar, children }: BottomSheetProps) {
   return (
-    <DialogPrimitive.Root open={shown} onOpenChange={(next) => !next && onOpenChange(false)}>
-      <SheetFrame open={open} onClose={() => onOpenChange(false)} onClosed={() => setShown(false)} size={size} held={held}>
-        <DialogPrimitive.Content
-          ref={contentRef}
-          aria-describedby={undefined}
-          className={DIALOG}
-          onPointerDownOutside={(e) => {
-            if (held) e.preventDefault();
-          }}
-          // Focus lands on the sheet itself, without scrolling it to a control further down (it opens at its top).
-          onOpenAutoFocus={(e) => {
-            e.preventDefault();
-            const field = focusField ? contentRef.current?.querySelector<HTMLElement>('input, textarea') : null;
-            (field ?? contentRef.current)?.focus({ preventScroll: true });
-          }}
-        >
-          <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
-          <SheetBodyFrame size={size}>{children}</SheetBodyFrame>
-        </DialogPrimitive.Content>
-      </SheetFrame>
-    </DialogPrimitive.Root>
+    <SheetRoot open={open} onOpenChange={onOpenChange}>
+      <SheetContent aria-describedby={undefined} label={title} size={size} focusField={focusField} held={held} bar={bar}>
+        {children}
+      </SheetContent>
+    </SheetRoot>
   );
 }
 
@@ -251,7 +298,7 @@ export interface EditSheetProps {
 function SheetHeader({ title, closeLabel, onClose, trailing }: { title: string; closeLabel: string; onClose: () => void; trailing?: React.ReactNode }) {
   const close = <IconButton icon={X} label={closeLabel} size="fab" variant="bar" onClick={onClose} />;
   return (
-    <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pt-2">
+    <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pb-2">
       <div className="justify-self-start">{trailing && close}</div>
       <Text as="h2" variant="headline">{title}</Text>
       <div className="justify-self-end">{trailing ?? close}</div>
@@ -263,13 +310,21 @@ function SheetHeader({ title, closeLabel, onClose, trailing }: { title: string; 
  *  the fields below in their own card, no buttons in the content. */
 export function EditSheet({ open, onOpenChange, title, canSave, onSave, saveLabel = KIT_COPY.save, busy, held, children }: EditSheetProps) {
   return (
-    <BottomSheet open={open} onOpenChange={onOpenChange} title={title} focusField held={held}>
-      <SheetHeader
-        title={title}
-        closeLabel={KIT_COPY.cancel}
-        onClose={() => onOpenChange(false)}
-        trailing={busy ? <Spinner /> : <IconButton icon={Check} label={saveLabel} size="fab" variant="bar" disabled={!canSave} onClick={onSave} />}
-      />
+    <BottomSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={title}
+      focusField
+      held={held}
+      bar={(
+        <SheetHeader
+          title={title}
+          closeLabel={KIT_COPY.cancel}
+          onClose={() => onOpenChange(false)}
+          trailing={busy ? <Spinner /> : <IconButton icon={Check} label={saveLabel} size="fab" variant="bar" disabled={!canSave} onClick={onSave} />}
+        />
+      )}
+    >
       <SheetBody>{children}</SheetBody>
     </BottomSheet>
   );
@@ -285,8 +340,7 @@ export interface InfoSheetProps {
 /** A sheet you look at (Activity): as tall as its content, ✕ and the title in its bar, grouped cards below. */
 export function InfoSheet({ open, onOpenChange, title, children }: InfoSheetProps) {
   return (
-    <BottomSheet open={open} onOpenChange={onOpenChange} title={title}>
-      <SheetHeader title={title} closeLabel={KIT_COPY.close} onClose={() => onOpenChange(false)} />
+    <BottomSheet open={open} onOpenChange={onOpenChange} title={title} bar={<SheetHeader title={title} closeLabel={KIT_COPY.close} onClose={() => onOpenChange(false)} />}>
       <SheetBody>{children}</SheetBody>
     </BottomSheet>
   );

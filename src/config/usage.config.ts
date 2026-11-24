@@ -1,32 +1,27 @@
-/** Usage (Settings › Usage): its two tabs, time ranges, the measures charts switch between, use-case names and copy. */
+/** Usage (Settings › Usage): its periods, what its charts split by, use-case names and copy. */
 
 import type { UsageCategory } from '@extensions/usage';
 
-export type UsageRange = '7d' | '30d' | 'all';
-export type UsageTab = 'activity' | 'prices';
+/** The span Usage shows: a calendar week or month (stepped back and forward), or everything. */
+export type UsagePeriod = 'week' | 'month' | 'all';
 /** What a chart measures: money, or how many requests. */
 export type UsageMeasure = 'cost' | 'requests';
+/** What the lead chart stacks and Most Used lists: models, or use cases (Screen Time's apps and categories). */
+export type UsageSplitBy = 'model' | 'useCase';
 /** Which prices the Prices table shows. */
 export type PriceScope = 'all' | 'unknown' | 'own';
 
 export const USAGE_CONFIG = {
-  tabs: [
-    { value: 'activity', label: 'Activity' },
-    { value: 'prices', label: 'Prices' },
-  ] as const satisfies ReadonlyArray<{ value: UsageTab; label: string }>,
-  /** `period` names the window in a sentence ("Last 30 days · $0.11 · 179 requests"). */
-  ranges: [
-    { value: '7d', label: '7 days', period: 'Last 7 days' },
-    { value: '30d', label: '30 days', period: 'Last 30 days' },
-    { value: 'all', label: 'All time', period: 'All time' },
-  ] as const satisfies ReadonlyArray<{ value: UsageRange; label: string; period: string }>,
-  /** Days in each fixed range, counted back from today inclusive (local calendar days). */
-  rangeDays: { '7d': 7, '30d': 30 } as const satisfies Record<Exclude<UsageRange, 'all'>, number>,
-  defaultRange: '30d' as UsageRange,
-  measures: [
-    { value: 'cost', label: 'Cost' },
-    { value: 'requests', label: 'Requests' },
-  ] as const satisfies ReadonlyArray<{ value: UsageMeasure; label: string }>,
+  periods: [
+    { value: 'week', label: 'Week' },
+    { value: 'month', label: 'Month' },
+    { value: 'all', label: 'All' },
+  ] as const satisfies ReadonlyArray<{ value: UsagePeriod; label: string }>,
+  defaultPeriod: 'week' as UsagePeriod,
+  /** Parts the lead chart colours (the largest); the rest are drawn together as Other. */
+  coloredParts: 5,
+  /** Most Used rows before Show More. */
+  mostUsedRows: 5,
   /** What each recorded use case is called; one the app doesn't name shows under its own name. */
   useCases: {
     chat: 'Chat',
@@ -40,48 +35,59 @@ export const USAGE_CONFIG = {
     empty: 'No usage yet. Start a chat or transcribe a recording to see it here.',
     emptyPeriod: 'No usage in this period.',
     loadFailed: 'Couldn’t load usage',
+    periodLabel: 'Period',
+    /** The stepper under the period: this one, the one before, or its dates. */
+    step: {
+      current: { week: 'This Week', month: 'This Month' },
+      last: { week: 'Last Week', month: 'Last Month' },
+      earlier: 'Earlier',
+      later: 'Later',
+    },
+    allTime: 'All Time',
+    cost: 'Cost',
+    requests: 'Requests',
+    tokens: 'Tokens',
+    /** The lead figure: per day over a week or month, per month over all time. */
+    average: { day: 'Daily Average', month: 'Monthly Average' },
+    total: { cost: 'Total Cost', requests: 'Total Requests', tokens: 'Total Tokens' },
+    /** Against the period before ("12% less than the week before"). */
+    change: (share: string, more: boolean, period: 'week' | 'month') => `${share} ${more ? 'more' : 'less'} than the ${period} before`,
+    busiest: { day: 'Busiest Day', month: 'Busiest Month' },
     /** A cost that can't be worked out: a paid model with no known price (never shown as free). */
     noPrice: 'no price',
     /** Under the cost when some calls ran on cloud models with no known price (left out of the total). */
     unpriced: (calls: number) => `${calls} ${calls === 1 ? 'call has' : 'calls have'} no price`,
-    /** Against the same span before ("+18% vs previous 30 days"; "New" when nothing came before). */
-    change: (share: string, range: string) => `${share} vs previous ${range}`,
-    changeNew: (range: string) => `New vs previous ${range}`,
-    /** The tokens card's detail ("12K in · 3K out · 40% cached"). */
     tokensIn: (n: string) => `${n} in`,
     tokensOut: (n: string) => `${n} out`,
     cached: (share: string) => `${share} cached`,
-    requests: (n: string, count: number) => `${n} ${count === 1 ? 'request' : 'requests'}`,
-    /** The segmented controls' accessible names. */
-    measureLabel: 'Measure',
-    rangeLabel: 'Range',
+    other: 'Other',
+    /** A picked day (a tap on its bar) back to the whole period. */
+    wholePeriod: 'Show All',
+    mostUsed: 'Most Used',
+    show: { model: 'Show Use Cases', useCase: 'Show Models' } as const satisfies Record<UsageSplitBy, string>,
+    showMore: 'Show More',
+    showLess: 'Show Less',
+    /** A model's or use case's own page. */
+    detail: {
+      usedFor: 'Used For',
+      models: 'Models',
+      info: 'Info',
+      provider: 'Provider',
+      audio: 'Audio',
+      perRequest: 'Cost per Request',
+      price: 'Price',
+    },
     /** After a server you run, so it isn't mistaken for the same maker's cloud ("Ollama (local)"). */
     yourServer: (title: string) => `${title} (local)`,
-    splits: { model: 'By model', provider: 'By provider', useCase: 'By use case' },
-    kpis: { cost: 'Cost', requests: 'Requests', tokens: 'Tokens', perRequest: 'Cost per request', average: 'Average' },
-    trend: 'Over time',
-    /** iPhone: the page's groups, the rows that push their pages, and what a row says. */
-    phone: {
-      summary: 'Summary',
-      breakdown: 'Breakdown',
-      details: 'Details',
-      models: 'Models',
-      providers: 'Providers',
-      useCases: 'Use Cases',
-      prices: 'Prices',
-      top: (name: string, share: string) => `${name} · ${share}`,
-      noPrice: (count: number) => (count > 0 ? `${count} without a price` : ''),
-      calls: (n: string, count: number) => `${n} ${count === 1 ? 'call' : 'calls'}`,
-    },
-    columns: {
-      date: 'Date', model: 'Model', tool: 'Tool', requests: 'Requests', calls: 'Calls', failed: 'Failed', time: 'Avg time',
-      lastUsed: 'Last used', input: 'Input', cached: 'Cached', output: 'Output', audio: 'Audio', cost: 'Cost',
-      perRequest: 'Per request',
-    },
-    tables: { models: 'Models', tools: 'Tools the AI used', days: 'By day' },
+    /** The rows at the foot that open their own pages. */
+    pages: { tools: 'Tools the AI Used', prices: 'Prices' },
+    noPriceCount: (count: number) => (count > 0 ? `${count} without a price` : ''),
+    calls: (n: string, count: number) => `${n} ${count === 1 ? 'call' : 'calls'}`,
+    columns: { tool: 'Tool', calls: 'Calls', failed: 'Failed', time: 'Avg time', lastUsed: 'Last used' },
+    toolsLabel: 'Tools the AI used',
     noTools: 'No tool calls in this period.',
     noMatches: 'Nothing matches.',
-    search: { models: 'Search models or providers', tools: 'Search tools', prices: 'Search models or providers' },
+    search: { tools: 'Search tools', prices: 'Search models or providers' },
     prices: {
       label: 'Model prices',
       model: 'Model',

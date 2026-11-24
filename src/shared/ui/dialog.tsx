@@ -3,12 +3,17 @@ import type { ComponentProps, HTMLAttributes } from 'react';
 import { cn } from './utils';
 import { SCRIM, SHEET, SHEET_TITLE } from './recipes';
 import { ScrollArea } from './scroll-area';
-import { SheetContent } from './bottom-sheet';
+import { SheetContent, SheetRoot } from './bottom-sheet';
 import { useFormFactor } from '@platform/formFactor';
 
-export const Dialog = DialogPrimitive.Root;
+/** A dialog; on a phone its root is the sheet's, which keeps it open while the sheet animates out. */
+export function Dialog(props: ComponentProps<typeof DialogPrimitive.Root>) {
+  const phone = useFormFactor() === 'phone';
+  return phone ? <SheetRoot {...props} /> : <DialogPrimitive.Root {...props} />;
+}
 export const DialogPortal = DialogPrimitive.Portal;
 export const DialogClose = DialogPrimitive.Close;
+export const DialogTrigger = DialogPrimitive.Trigger;
 
 /** The dimmed page under a dialog; on a phone the dialog is the sheet, which draws its own backdrop. */
 export function DialogOverlay({ className, ...props }: ComponentProps<typeof DialogPrimitive.Overlay>) {

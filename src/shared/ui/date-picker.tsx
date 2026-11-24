@@ -18,6 +18,8 @@ interface DatePickerProps {
   disabled?: boolean;
   /** Shown instead of the field (e.g. the range on screen): a button that opens the system date picker, so one date format shows. */
   children?: React.ReactNode;
+  /** The children are the trigger as they are (a title), with no button shape around them. */
+  plain?: boolean;
 }
 
 interface TimePickerProps {
@@ -31,7 +33,7 @@ interface TimePickerProps {
 /** The system control keeps its own look; we only clear the web defaults around it and use the body text style. */
 const NATIVE = 'bg-transparent text-body text-primary outline-none disabled:opacity-50';
 
-export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, min, placeholder = 'Date', className, disabled, children }) => {
+export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, min, placeholder = 'Date', className, disabled, children, plain }) => {
   const ref = useRef<HTMLInputElement>(null);
   const field = (
     <input
@@ -50,7 +52,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, min, pl
   // The hidden field stays under its label, so the system picker opens there.
   return (
     <span className={cn('relative inline-flex', className)}>
-      <Button variant="ghost" size="sm" disabled={disabled} aria-label={placeholder} onClick={() => ref.current?.showPicker()}>
+      <Button variant={plain ? 'glyph' : 'ghost'} size={plain ? 'inline' : 'sm'} disabled={disabled} aria-label={placeholder} onClick={() => ref.current?.showPicker()}>
         {children}
       </Button>
       {field}

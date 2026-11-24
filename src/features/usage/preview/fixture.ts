@@ -2,7 +2,7 @@
  *  names (so "+N more"), a long model id, paid, unpriced and free models, a use case recorded under an older name, tools,
  *  and quiet days. Totals are summed from the rows, as the store sums them. */
 
-import type { ProviderModelBreakdown, ToolBreakdown, UsageBucket, UsageQuery, UsageSummary } from '@extensions/usage';
+import type { ModelUseCase, ProviderModelBreakdown, ToolBreakdown, UsageBucket, UsageBucketPart, UsageQuery, UsageSummary } from '@extensions/usage';
 import { addDays, localDayKey, startOfDay } from '@shared/utils/localDate';
 
 const model = (provider: string, name: string, calls: number, input: number, cached: number, output: number, cost: number, unpriced = 0): ProviderModelBreakdown => ({
@@ -48,11 +48,36 @@ function trend(now: Date): UsageBucket[] {
 
 const sum = <T,>(rows: T[], of: (r: T) => number) => rows.reduce((n, r) => n + of(r), 0);
 
+/** Each day's totals spread over `shares` (key → its share of calls and of cost), as the store splits a bucket. */
+function spread(days: UsageBucket[], shares: Array<{ part: string; calls: number; cost: number }>): UsageBucketPart[] {
+  const calls = sum(shares, (s) => s.calls) || 1;
+  const cost = sum(shares, (s) => s.cost) || 1;
+  return days.flatMap((day) => shares.map((s) => ({
+    key: day.key,
+    part: s.part,
+    calls: Math.round((day.calls * s.calls) / calls),
+    tokens: Math.round(((day.input_tokens + day.output_tokens) * s.calls) / calls),
+    estimated_cost: (day.estimated_cost * s.cost) / cost,
+  })).filter((p) => p.calls > 0 || p.estimated_cost > 0));
+}
+
+/** What each model ran for: speech models transcribe, the rest share chat, summaries and live notes. */
+function modelUseCases(models: ProviderModelBreakdown[]): ModelUseCase[] {
+  return models.flatMap((m) => {
+    const uses = m.model.includes('transcribe') || m.model.includes('parakeet') ? ['transcription'] : m.calls > 50 ? ['chat', 'summary', 'liveNotes'] : ['chat', 'summary'];
+    return uses.map((category, i) => {
+      const weight = uses.length === 1 ? 1 : [0.7, 0.2, 0.1][i] / (uses.length === 2 ? 0.9 : 1);
+      return { provider: m.provider, model: m.model, category, calls: Math.round(m.calls * weight), tokens: Math.round((m.input_tokens + m.output_tokens) * weight), estimated_cost: m.estimated_cost * weight };
+    });
+  });
+}
+
 /** The summary the store would return for `query`: this month, or (a window ending before today) a quieter one before it. */
 export function usageSummary(query: UsageQuery): UsageSummary {
   const earlier = query.until !== undefined && query.until <= startOfDay(new Date()).getTime();
   const scale = earlier ? 0.6 : 1;
   const models = MODELS.map((m) => ({ ...m, calls: Math.round(m.calls * scale), estimated_cost: m.estimated_cost * scale }));
+  const days = query.bucket ? trend(new Date()) : [];
   return {
     total_cost: sum(models, (m) => m.estimated_cost),
     total_input_tokens: sum(models, (m) => m.input_tokens),
@@ -64,6 +89,9 @@ export function usageSummary(query: UsageQuery): UsageSummary {
     by_provider_model: models,
     by_category: CATEGORIES.map((c) => ({ category: c.category, calls: c.calls, input_tokens: 0, output_tokens: 0, estimated_cost: c.cost, unpriced_calls: c.unpriced ?? 0 })),
     by_tool: TOOLS,
-    trend: query.bucket ? trend(new Date()) : [],
+    trend: days,
+    trend_by_model: spread(days, models.map((m) => ({ part: `${m.provider}/${m.model}`, calls: m.calls, cost: m.estimated_cost }))),
+    trend_by_use_case: spread(days, CATEGORIES.map((c) => ({ part: c.category, calls: c.calls, cost: c.cost }))),
+    by_model_use_case: modelUseCases(models),
   };
 }
