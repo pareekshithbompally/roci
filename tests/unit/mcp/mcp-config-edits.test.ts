@@ -126,11 +126,15 @@ describe('mcpServerForm', () => {
   });
 
   it('derives the row status, flagging enabled-but-unconnected servers', () => {
-    expect(serverStatus(true, false, true)).toBe('connecting');
-    expect(serverStatus(false, true, true)).toBe('stopping');
-    expect(serverStatus(false, false, false)).toBe('off');
-    expect(serverStatus(true, true, false)).toBe('connected');
-    expect(serverStatus(true, false, false)).toBe('offline');
+    const state = { active: true, connected: false, pending: false, online: true };
+    expect(serverStatus({ ...state, pending: true })).toBe('connecting');
+    expect(serverStatus({ ...state, active: false, connected: true, pending: true })).toBe('stopping');
+    expect(serverStatus({ ...state, active: false })).toBe('off');
+    expect(serverStatus({ ...state, connected: true })).toBe('connected');
+    expect(serverStatus(state)).toBe('notConnected');
+    // The device being offline explains an unconnected server; a connected one stays connected.
+    expect(serverStatus({ ...state, online: false })).toBe('noNetwork');
+    expect(serverStatus({ ...state, connected: true, online: false })).toBe('connected');
   });
 
   it('masks secrets for display', () => {

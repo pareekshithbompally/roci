@@ -130,13 +130,26 @@ export function serverEntries(servers: Record<string, unknown>): McpServerEntry[
 
 // ── Card status ──
 
-/** Row status; `offline` means enabled but Rust holds no connection (failed at launch, or reconnecting). */
-export type McpServerStatus = 'connected' | 'connecting' | 'stopping' | 'offline' | 'off';
+/** Row status. `noNetwork`: on but unconnected while the device is offline (it connects by itself when the network is
+ *  back); `notConnected`: on but unconnected with the network up (it failed, or is reconnecting). */
+export type McpServerStatus = 'connected' | 'connecting' | 'stopping' | 'noNetwork' | 'notConnected' | 'off';
 
-export function serverStatus(active: boolean, connected: boolean, pending: boolean): McpServerStatus {
+interface ServerState {
+  /** Turned on. */
+  active: boolean;
+  /** The app holds a live connection. */
+  connected: boolean;
+  /** A change to it is being applied. */
+  pending: boolean;
+  /** The device is online (networkStore). */
+  online: boolean;
+}
+
+export function serverStatus({ active, connected, pending, online }: ServerState): McpServerStatus {
   if (pending) return active ? 'connecting' : 'stopping';
   if (!active) return 'off';
-  return connected ? 'connected' : 'offline';
+  if (connected) return 'connected';
+  return online ? 'notConnected' : 'noNetwork';
 }
 
 // ── Display masking ──

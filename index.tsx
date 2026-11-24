@@ -5,7 +5,7 @@ import App from './src/app/App';
 import { platform } from './src/platform/index';
 import { followTextSize } from './src/platform/dynamicType';
 import { raiseSplash } from './src/app/splash';
-import { forwardConsoleToLog, loadSystemFormat } from './src/services/tauri';
+import { followNetwork, forwardConsoleToLog, loadSystemFormat } from './src/services/tauri';
 import { useSystemLocale } from './src/shared/stores/systemFormatStore';
 import './index.css';
 import './src/styles/markdown.css';
@@ -19,6 +19,8 @@ followTextSize();
 
 forwardConsoleToLog();
 raiseSplash();
+// The device's network, kept current from here on (shown when it's down; never a gate).
+void followNetwork();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

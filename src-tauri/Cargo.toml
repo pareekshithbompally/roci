@@ -60,6 +60,8 @@ objc2 = "0.6.4"
 objc2-foundation = "0.3.2"
 # Meeting recording on every platform (the audio core; iPhone's audio session and microphone consent).
 block2 = "0.6.2"
+# The device's network path (Network framework's monitor runs on its own dispatch queue).
+dispatch2 = "0.3.1"
 eyre = "0.6.12"
 tracing = { version = "0.1.44", features = ["log"] }
 

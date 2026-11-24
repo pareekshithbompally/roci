@@ -68,7 +68,7 @@ export const MCP_COPY = {
   runWithoutAsking: 'Run tools without asking',
   limitTitles: { toolCallTimeoutSeconds: 'Tool timeout', maxToolCalls: 'Max tool calls per turn', maxToolOutputChars: 'Max output' },
   /** A server row's state, under its name. */
-  status: { connected: 'Connected', connecting: 'Connecting…', stopping: 'Stopping…', offline: 'Not connected', off: 'Off' },
+  status: { connected: 'Connected', connecting: 'Connecting…', stopping: 'Stopping…', noNetwork: 'Offline', notConnected: 'Not connected', off: 'Off' },
   alwaysAllowed: 'Always allowed',
   /** "2 env vars", "1 header": how many secrets a row holds, never the secrets. */
   count: (n: number, noun: 'env var' | 'header') => `${n} ${noun}${n === 1 ? '' : 's'}`,

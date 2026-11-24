@@ -2,7 +2,7 @@
 
 use crate::{
   app_icon, app_intents, audio, call_detection, choice_menu, downloads, hex, mcp, mcp_server, meeting_reminders, meeting_spotlight, search_index,
-  menubar, mlx, models, native_alert, open_native, permissions, screenshot, shortcuts, stt, system_format, tts, updates, url_actions, window,
+  menubar, mlx, models, native_alert, network, open_native, permissions, screenshot, shortcuts, stt, system_format, tts, updates, url_actions, window,
 };
 use tauri::{App, AppHandle, Builder, Emitter, RunEvent, WebviewWindowBuilder, Wry};
 
@@ -55,6 +55,8 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       meeting_reminders::record_calendar_event,
       // The Mac's date/time formats (the web view's Intl ignores them)
       system_format::system_format,
+      // The device's network (online or not)
+      network::network_online,
       // Meetings in Spotlight (on/off)
       meeting_spotlight::configure_meeting_spotlight,
       // Hex integration (transcription models + one-way meeting sync)
@@ -151,6 +153,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
   permissions::emit_answers(app.handle().clone());
   meeting_reminders::start(app.handle().clone());
   system_format::watch(app.handle().clone());
+  // The device's network: shown when it's down; MCP servers start again when it's back.
+  network::watch(app.handle().clone());
 
   // Detected calls: offer to record when a call app takes the microphone.
   call_detection::start(app.handle().clone());

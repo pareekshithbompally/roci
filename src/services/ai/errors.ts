@@ -6,6 +6,8 @@ import { appleFailureError, isContextWindowError } from '@services/ai/apple/cont
 import { isAppleError } from '@services/ai/apple/appleIntelligence.service';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { errorMessage } from '@shared/utils/errors';
+import { networkOnline } from '@shared/stores/networkStore';
+import { NETWORK_COPY } from '@config/network.config';
 
 export type AiErrorKind = 'setup' | 'auth' | 'rateLimit' | 'contextWindow' | 'rejected' | 'network' | 'cancelled' | 'badReply' | 'device' | 'unknown';
 
@@ -56,11 +58,20 @@ function firstSentence(message: string): string {
   return first.trim();
 }
 
+/** A failure while the device is offline, worded as that; null when the device is online, or when it isn't about the
+ *  network (the provider answered with an error, or the user stopped it). The system's report decides, never a guess. */
+export function offlineError(error: unknown): AiError | null {
+  if (networkOnline() || isAbort(error) || APICallError.isInstance(error)) return null;
+  return new AiError('network', NETWORK_COPY.offline, { cause: error });
+}
+
 /** `error` as an `AiError` (an `AiError` passes through). `provider` names who failed. */
 export function toAiError(error: unknown, job: AiJob, provider: string): AiError {
   if (error instanceof AiError) return error;
   if (isAbort(error)) return new AiError('cancelled', 'Stopped.', { cause: error });
   if (APICallError.isInstance(error)) return apiCallError(error, job, provider);
+  const offline = offlineError(error);
+  if (offline) return offline;
   // the model can't do what was asked (a live-only speech model given a recording, a file-only one asked to stream)
   if (UnsupportedFunctionalityError.isInstance(error)) {
     return new AiError('setup', `${getProviderTitle(provider)} doesn't support ${error.functionality}. Choose another ${SETTING[job]} in Settings › Default Models.`, { cause: error });

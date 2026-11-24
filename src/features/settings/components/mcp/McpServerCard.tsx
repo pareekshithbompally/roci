@@ -8,6 +8,7 @@ import { META_SEPARATOR } from '@config/ui.config';
 import { CardRow, Switch } from '@shared/ui';
 import { ServerIcon } from '@shared/components';
 import { maskUrl, serverStatus } from './mcpServerForm';
+import { useNetworkOnline } from '@shared/stores/networkStore';
 
 interface McpServerCardProps {
   name: string;
@@ -50,7 +51,8 @@ function serverLine(config: McpServerConfig): string[] {
 
 export const McpServerCard: React.FC<McpServerCardProps> = (props) => {
   const { name, config, connected, icon, pending, disabled, alwaysAllowed, allowAll, onToggle, onEdit } = props;
-  const status = serverStatus(!!config.active, connected, pending);
+  const online = useNetworkOnline();
+  const status = serverStatus({ active: !!config.active, connected, pending, online });
   const line = [
     ...serverLine(config),
     MCP_COPY.status[status],

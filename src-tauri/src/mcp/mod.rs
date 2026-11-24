@@ -10,7 +10,7 @@ mod shell_path;
 mod stdio;
 
 pub use apps::AppScreens;
-pub use runtime::{start_active_servers, McpState};
+pub use runtime::{network_restored, start_active_servers, McpState};
 #[cfg(desktop)]
 pub use shell_path::login_path;
 #[cfg(desktop)]

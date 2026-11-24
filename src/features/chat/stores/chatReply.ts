@@ -12,9 +12,11 @@ import { logUsage } from '@extensions/usage';
 import { queryClient } from '@shared/query/queryClient';
 import { itemCountsQuery } from '@shared/query/items';
 import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
+import { CHAT_ERROR_COPY } from '@config/chat.config';
 import { notifyAppEvent } from '@shared/utils/appEvents';
 import { canSendDraft, chatModelOf, draftTitle } from '@features/chat/utils';
 import { errorMessage } from '@shared/utils/errors';
+import { offlineError } from '@services/ai/errors';
 import { chatPersonalization } from '@shared/utils/personalization';
 import { isShownPart, messageText } from '@shared/utils/chatParts';
 import { streamingStore } from './streamingStore';
@@ -198,7 +200,8 @@ export function createReplies(store: StoreApi<ChatStoreState>, sessions: Session
       if (!isLive(reply)) return; // Stopped: the abort surfaced as an error, and Stop already settled it.
       console.error('[ChatStore] Error sending message:', error);
       streamingStore.reset();
-      const text = errorMessage(error) || 'Failed to get response';
+      // Offline is said as that (the device's report); otherwise the provider's own words, read by the error card.
+      const text = offlineError(error)?.message ?? (errorMessage(error) || CHAT_ERROR_COPY.unknown);
       saveSession(settle(reply.sessionId, reply.messageId, [{ type: 'text', text }], { isError: true }));
       endReply(reply);
     }

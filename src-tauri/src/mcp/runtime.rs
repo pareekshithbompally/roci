@@ -16,7 +16,7 @@ use std::{
 };
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::{
-    sync::{oneshot, Mutex},
+    sync::{oneshot, Mutex, Notify},
     time::sleep,
 };
 
@@ -48,6 +48,8 @@ pub struct McpState {
     pub(super) cancellations: Mutex<HashMap<String, oneshot::Sender<()>>>,
     /// Servers being connected or reconnected now, so each has one attempt at a time.
     starting: Mutex<HashSet<String>>,
+    /// The device's network came back: a reconnect waiting out its backoff tries again at once.
+    network_back: Notify,
     /// Launched servers' process groups, for teardown (the Mac only).
     #[cfg(desktop)]
     pub(super) processes: super::stdio::Processes,
@@ -71,7 +73,8 @@ pub(super) fn emit_update(app: &AppHandle, server: &str) {
 
 // ── Boot ──
 
-/// Start every server marked `active` in the config. Called once at launch.
+/// Start every server marked `active` in the config that isn't connected or connecting: at launch, and again when the
+/// device's network comes back (`network_restored`).
 pub async fn start_active_servers(app: AppHandle) {
     let config = match config::read(&app) {
         Ok(config) => config,
@@ -86,10 +89,17 @@ pub async fn start_active_servers(app: AppHandle) {
         let app = app.clone();
         tauri::async_runtime::spawn(async move {
             if let Err(e) = start_server(&app, &name, entry).await {
-                log::error!("[mcp] {name} failed to start at launch: {e}");
+                log::error!("[mcp] {name} failed to start: {e}");
             }
         });
     }
+}
+
+/// The device's network came back (network.rs): reconnects waiting out their backoff try now, and servers that are on but
+/// failed to start while it was down start again.
+pub async fn network_restored(app: AppHandle) {
+    app.state::<McpState>().network_back.notify_waiters();
+    start_active_servers(app).await;
 }
 
 // ── Start ──
@@ -216,7 +226,10 @@ pub(super) fn reconnect<'a>(app: &'a AppHandle, name: &'a str, entry: &'a Value)
         let mut failures: u32 = 0;
         while is_still_active(app, name).await && !is_connected(app, name).await {
             let delay = state.settings.lock().await.restart_delay(failures);
-            sleep(delay).await;
+            tokio::select! {
+                () = sleep(delay) => {}
+                () = state.network_back.notified() => {}
+            }
             if !is_still_active(app, name).await {
                 break;
             }

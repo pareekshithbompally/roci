@@ -42,6 +42,7 @@ mod open_native;
 #[cfg(desktop)]
 mod downloads;
 mod mcp;
+mod network;
 mod system_format;
 #[cfg(desktop)]
 mod mcp_server;
