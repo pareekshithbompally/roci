@@ -59,6 +59,14 @@ export const ANIMATION_CONFIG = {
     resultsHidden: { opacity: 0, y: 8 },
   },
 
+  /** A round button changing what it does in place (the composer's record ⇄ send ⇄ stop): the old glyph shrinks and fades
+   *  as the new one grows in, while the fill blends (framer-motion, seconds; iOS curve). */
+  glyphSwap: {
+    transition: { duration: 0.22, ease: [0.32, 0.72, 0, 1] as const },
+    hidden: { opacity: 0, scale: 0.5 },
+    shown: { opacity: 1, scale: 1 },
+  },
+
   /** Disclosure open/close (framer-motion, seconds): height and fade together. */
   disclosure: { duration: 0.2, ease: [0.4, 0, 0.2, 1] as const },
 } as const;

@@ -268,11 +268,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // iPhone: a recording holds the one audio session, so the mic is greyed until it stops.
   const micHeld = platform.sharesAudioSession && recordingMeetingId !== null;
   const micLabel = micHeld ? DICTATION_COPY.offWhileRecording : COMPOSER_COPY.voice;
-  // Every control in the bar is one round, filled shape (neutral, the copper send, the red stop), so none outweighs
-  // another. The bar's end (one rule, Mac and phone): stop while a reply is written; send once there is a draft; with none, the
-  // other ways to start (dictate, record), and send only when neither is offered.
   const canRecord = !!onRecord && recordingMeetingId === null;
-  const offersStarts = !isLoading && !canSendDraft(value, attachments) && (canDictate || canRecord);
+  const hasDraft = canSendDraft(value, attachments);
 
   const textField = (
     <Text as="div" variant="reading" className={phone ? 'min-w-0 flex-1 self-center py-2.5' : 'px-3 pt-3 pb-1'}>
@@ -294,21 +291,20 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     </Text>
   );
 
-  // Every item in the row is one control height, so the toolbar (or, on a phone, +, the text line) and send share a centre line.
-  // A phone's bar holds 44 pt controls (Messages); a Mac's toolbar the compact size.
-  const controlSize = phone ? 'md' : 'sm';
-  const sendControls = (
-    <div className="flex shrink-0 items-center gap-1">
-      {isLoading ? (
-        <IconButton icon={Square} label={COMPOSER_COPY.stop} variant="danger" filled size={controlSize} onClick={onStop} />
-      ) : offersStarts ? (
-        <>
-          {canDictate && <IconButton icon={Mic} label={micLabel} variant="outline" size={controlSize} onClick={onSpeechStart} disabled={disabled || micHeld} />}
-          {canRecord && <IconButton icon={Circle} filled label={COMPOSER_ADD_COPY.record} variant="record" size={controlSize} onClick={onRecord} />}
-        </>
-      ) : (
-        <IconButton icon={ArrowUp} label={COMPOSER_COPY.send} variant="primary" size={controlSize} onClick={onSend} disabled={!canSend} />
-      )}
+  // One rule, Mac and phone (Messages): + and the mic are bare glyphs that never leave; one round button at the end changes
+  // in place — stop while a reply is written, record (home) while there is no draft, send once there is one. Only the size
+  // differs: a phone's bar holds 44 pt glyphs, a Mac's toolbar the compact size.
+  const glyphSize = phone ? 'md' : 'sm';
+  const endButton = isLoading
+    ? <IconButton morph icon={Square} filled label={COMPOSER_COPY.stop} variant="danger" size="sm" onClick={onStop} />
+    : !hasDraft && canRecord
+      ? <IconButton morph icon={Circle} filled label={COMPOSER_ADD_COPY.record} variant="record" size="sm" onClick={onRecord} />
+      : <IconButton morph icon={ArrowUp} label={COMPOSER_COPY.send} variant="primary" size="sm" onClick={onSend} disabled={!canSend} />;
+  const endControls = (
+    <div className="flex shrink-0 items-center">
+      {canDictate && <IconButton icon={Mic} label={micLabel} variant="glyph" size={glyphSize} onClick={onSpeechStart} disabled={disabled || micHeld} />}
+      {/* A glyph's height, so the round button sits on the row's centre line, inset evenly from the box's rounded end. */}
+      <div className={cn('flex items-center justify-center', phone ? 'size-control-md' : 'size-control-sm')}>{endButton}</div>
     </div>
   );
 
@@ -325,7 +321,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         {/* Context-window gauge (hides when the limit is unknown or no usage yet). */}
         <ContextRing usage={contextUsage ?? null} tools={toolsShare(toolCatalog)} cost={chatCost ?? undefined} />
       </div>
-      {sendControls}
+      {endControls}
     </div>
   );
 
@@ -371,11 +367,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               <AttachmentStrip attachments={attachments} onRemove={onRemoveAttachment} />
               <Input ref={fileInputRef} type="file" multiple accept={attach.accept} onChange={handleFileChange} className="hidden" />
               {phone ? (
-                // Phone: one bar — + at its start (the Add sheet), the field, its end controls.
+                // Phone: one bar — + at its start (the Add sheet), the field, the mic and the round end button.
                 <div className="flex items-end gap-1 p-1">
-                  <IconButton icon={Plus} label={COMPOSER_ADD_COPY.title} variant="outline" size={controlSize} onClick={() => setAddOpen(true)} />
+                  <IconButton icon={Plus} label={COMPOSER_ADD_COPY.title} variant="glyph" size="md" onClick={() => setAddOpen(true)} />
                   {textField}
-                  {sendControls}
+                  {endControls}
                 </div>
               ) : (
                 <>

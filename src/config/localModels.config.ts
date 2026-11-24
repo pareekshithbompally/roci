@@ -23,7 +23,7 @@ export const LOCAL_MODELS_CONFIG = {
     ],
   },
   /** What each kind of model is for, in Settings › Providers › On this device. */
-  kindLabels: { chat: 'Chat', speech: 'Speech recognition', voice: 'Read aloud voice', embedding: 'Meeting search' },
+  kindLabels: { chat: 'Chat', speech: 'Transcription', voice: 'Speech', embedding: 'Search' },
   /** Chat models' recommended sampling with thinking off (their model cards), used unless a call sets its own. */
   chatSampling: {
     'qwen3.5-9b': { temperature: 0.7, topP: 0.8, topK: 20 },

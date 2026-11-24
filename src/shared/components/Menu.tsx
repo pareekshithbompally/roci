@@ -1,14 +1,12 @@
 /**
- * A menu of actions on one trigger: the native menu on a Mac (NSMenu, SF Symbol icons), an action sheet on a phone (iOS), a drawn
- * dropdown only in a browser. Features give entries as data; how they show is decided here once.
+ * A menu of actions on one trigger: the native menu on a Mac (NSMenu, SF Symbol icons); elsewhere (iPhone, a browser) a drawn
+ * menu beside its trigger, as iOS shows a button's menu. Features give entries as data; how they show is decided here once.
  */
 
 import React, { useState } from 'react';
-import { Check } from 'lucide-react';
-import { CardRow, DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, Icon, InfoSheet, Section } from '@shared/ui';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@shared/ui';
 import { nativeMenu, type MenuEntry, type NativeMenuEntry } from '@services/tauri';
 import { MENU_GAP_PT } from '@config/ui.config';
-import { useFormFactor } from '@platform/formFactor';
 import { platform } from '@platform/index';
 
 export type { MenuEntry };
@@ -16,7 +14,7 @@ export type { MenuEntry };
 type Trigger = React.ReactElement<{ onClick?: React.MouseEventHandler<HTMLElement> }>;
 
 interface MenuProps {
-  /** What the menu is for (the sheet's name for VoiceOver). */
+  /** What the menu is for (its name for VoiceOver). */
   label: string;
   trigger: Trigger;
   /** The entries, or a builder run as the menu opens (a native menu can't change once shown: windows to capture). */
@@ -34,35 +32,6 @@ function withClick(trigger: Trigger, open: (e: React.MouseEvent<HTMLElement>) =>
     },
   });
 }
-
-/** Action-sheet groups: separators split them, a label or a submenu titles one. */
-function sheetGroups(items: MenuEntry[]): Array<{ title?: string; rows: MenuEntry[] }> {
-  const groups: Array<{ title?: string; rows: MenuEntry[] }> = [{ rows: [] }];
-  for (const entry of items) {
-    if (entry.type === 'separator') groups.push({ rows: [] });
-    else if (entry.type === 'label') groups.push({ title: entry.label, rows: [] });
-    else if (entry.type === 'submenu') groups.push({ title: entry.label, rows: entry.items.filter((e) => e.type === 'item' || e.type === 'check') }, { rows: [] });
-    else groups[groups.length - 1].rows.push(entry);
-  }
-  return groups.filter((g) => g.rows.length > 0);
-}
-
-const SheetRow: React.FC<{ entry: MenuEntry; done: () => void }> = ({ entry, done }) => {
-  if (entry.type !== 'item' && entry.type !== 'check') return null;
-  const run = () => {
-    done();
-    entry.onSelect();
-  };
-  return (
-    <CardRow
-      title={entry.label}
-      // iOS: actions are tinted (red when destructive); a checkable option is plain text with its checkmark.
-      tone={entry.type === 'check' ? undefined : entry.destructive ? 'danger' : 'accent'}
-      onPress={entry.disabled ? undefined : run}
-      actions={entry.type === 'check' && entry.checked ? <Icon icon={Check} size="sm" tone="accent" /> : undefined}
-    />
-  );
-};
 
 const DrawnEntries: React.FC<{ items: MenuEntry[] }> = ({ items }) => (
   <>
@@ -120,10 +89,9 @@ async function showNative(items: MenuEntry[], x: number, y: number): Promise<voi
 const entriesOf = async (items: MenuProps['items']): Promise<MenuEntry[]> => (typeof items === 'function' ? items() : items);
 
 export function Menu({ label, trigger, items: source, align = 'end' }: MenuProps) {
-  const phone = useFormFactor() === 'phone';
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<MenuEntry[]>(() => (typeof source === 'function' ? [] : source));
-  /** Builds the entries, then shows them (sheet / drawn) once they are in. */
+  /** Builds the entries, then shows the drawn menu once they are in. */
   const prepare = (then: () => void) => {
     entriesOf(source)
       .then((built) => { setItems(built); then(); })
@@ -139,25 +107,10 @@ export function Menu({ label, trigger, items: source, align = 'end' }: MenuProps
     });
   }
 
-  if (phone) {
-    return (
-      <>
-        {withClick(trigger, () => prepare(() => setOpen(true)))}
-        <InfoSheet open={open} onOpenChange={setOpen} title={label}>
-          {sheetGroups(items).map((group, i) => (
-            <Section key={i} title={group.title}>
-              {group.rows.map((entry, j) => <SheetRow key={j} entry={entry} done={() => setOpen(false)} />)}
-            </Section>
-          ))}
-        </InfoSheet>
-      </>
-    );
-  }
-
   return (
     <DropdownMenu open={open} onOpenChange={(next) => (next ? prepare(() => setOpen(true)) : setOpen(false))}>
       <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-      <DropdownMenuContent align={align}><DrawnEntries items={items} /></DropdownMenuContent>
+      <DropdownMenuContent align={align} aria-label={label}><DrawnEntries items={items} /></DropdownMenuContent>
     </DropdownMenu>
   );
 }

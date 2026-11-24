@@ -3,7 +3,15 @@ import { Check, ChevronRight } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { cn } from './utils';
 import { Icon } from './icon';
-import { MENU_LIST, MENU_ITEM, MENU_LABEL, MENU_SEPARATOR } from './recipes';
+import { MENU_LIST, MENU_ITEM, MENU_LABEL, MENU_SEPARATOR, MENU_TOUCH } from './recipes';
+import { platform } from '@platform/index';
+import { UI_CONFIG } from '@config/ui.config';
+
+/** A finger picks from it (iPhone): iOS's menu proportions over the Mac's compact ones. */
+const touch = platform.hasTouchScreen;
+const LIST = touch ? MENU_TOUCH.list : MENU_LIST;
+const ITEM = touch ? MENU_TOUCH.item : MENU_ITEM;
+const SEPARATOR = touch ? MENU_TOUCH.separator : MENU_SEPARATOR;
 
 export const DropdownMenu = DropdownMenuPrimitive.Root;
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
@@ -12,7 +20,7 @@ export const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 export function DropdownMenuContent({ className, sideOffset = 4, ...props }: ComponentProps<typeof DropdownMenuPrimitive.Content>) {
   return (
     <DropdownMenuPrimitive.Portal>
-      <DropdownMenuPrimitive.Content sideOffset={sideOffset} className={cn(MENU_LIST, className)} {...props} />
+      <DropdownMenuPrimitive.Content sideOffset={sideOffset} collisionPadding={UI_CONFIG.picker.collisionPadding} className={cn(LIST, className)} {...props} />
     </DropdownMenuPrimitive.Portal>
   );
 }
@@ -24,7 +32,7 @@ export interface DropdownMenuItemProps extends ComponentProps<typeof DropdownMen
 export function DropdownMenuItem({ variant = 'default', className, ...props }: DropdownMenuItemProps) {
   return (
     <DropdownMenuPrimitive.Item
-      className={cn(MENU_ITEM, variant === 'danger' && 'text-danger data-[highlighted]:bg-danger-subtle', className)}
+      className={cn(ITEM, variant === 'danger' && 'text-danger data-[highlighted]:bg-danger-subtle', className)}
       {...props}
     />
   );
@@ -34,7 +42,7 @@ export function DropdownMenuItem({ variant = 'default', className, ...props }: D
 export function DropdownMenuCheckboxItem({ className, children, onSelect, ...props }: ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>) {
   return (
     <DropdownMenuPrimitive.CheckboxItem
-      className={cn(MENU_ITEM, className)}
+      className={cn(ITEM, className)}
       onSelect={(event) => {
         event.preventDefault();
         onSelect?.(event);
@@ -50,7 +58,7 @@ export function DropdownMenuCheckboxItem({ className, children, onSelect, ...pro
 }
 
 export function DropdownMenuSeparator({ className, ...props }: ComponentProps<typeof DropdownMenuPrimitive.Separator>) {
-  return <DropdownMenuPrimitive.Separator className={cn(MENU_SEPARATOR, className)} {...props} />;
+  return <DropdownMenuPrimitive.Separator className={cn(SEPARATOR, className)} {...props} />;
 }
 
 export function DropdownMenuLabel({ className, ...props }: ComponentProps<typeof DropdownMenuPrimitive.Label>) {
@@ -59,7 +67,7 @@ export function DropdownMenuLabel({ className, ...props }: ComponentProps<typeof
 
 export function DropdownMenuSubTrigger({ className, children, ...props }: ComponentProps<typeof DropdownMenuPrimitive.SubTrigger>) {
   return (
-    <DropdownMenuPrimitive.SubTrigger className={cn(MENU_ITEM, 'data-[state=open]:bg-hover', className)} {...props}>
+    <DropdownMenuPrimitive.SubTrigger className={cn(ITEM, 'data-[state=open]:bg-hover', className)} {...props}>
       {children}
       <ChevronRight className="ml-auto h-4 w-4 text-faint" />
     </DropdownMenuPrimitive.SubTrigger>
@@ -69,7 +77,7 @@ export function DropdownMenuSubTrigger({ className, children, ...props }: Compon
 export function DropdownMenuSubContent({ className, ...props }: ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
   return (
     <DropdownMenuPrimitive.Portal>
-      <DropdownMenuPrimitive.SubContent className={cn(MENU_LIST, className)} {...props} />
+      <DropdownMenuPrimitive.SubContent className={cn(LIST, className)} {...props} />
     </DropdownMenuPrimitive.Portal>
   );
 }

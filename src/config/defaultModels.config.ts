@@ -4,9 +4,9 @@ export const DEFAULT_MODELS_CONFIG = {
   jobs: {
     chat: { title: 'Chat' },
     chatExtras: { title: 'Model' },
-    transcription: { title: 'Speech recognition' },
+    transcription: { title: 'Transcription' },
     summaries: { title: 'Summaries' },
-    meetingSearch: { title: 'Meeting search' },
+    meetingSearch: { title: 'Search' },
     readAloud: { title: 'Read aloud' },
     images: { title: 'Image generation' },
     voice: { title: 'Voice' },

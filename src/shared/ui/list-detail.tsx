@@ -39,7 +39,7 @@ export function ListDetail({ title, list, listClassName, detail, detailTitle, on
           <Surface edge={['top', 'left', 'right']} radius="lg" className="min-w-0 flex-1 overflow-y-auto custom-scrollbar">{detail}</Surface>
         )}
       </ViewBody>
-      {!beside && detail && <PushedPage title={detailTitle ?? ''} onBack={onCloseDetail}>{detail}</PushedPage>}
+      {!beside && <PushedPage open={!!detail} title={detailTitle ?? ''} onBack={onCloseDetail}>{detail}</PushedPage>}
     </div>
   );
 }

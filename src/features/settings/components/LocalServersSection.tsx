@@ -1,4 +1,4 @@
-/** "Your Servers": model servers the user runs (Ollama, LM Studio, llama-server), here or on another computer: the section
+/** "OpenAI-Compatible": servers that speak the OpenAI API, local (Ollama, LM Studio, llama-server) or hosted: the section
  *  on the Providers list, and the Add Server form its page shows. */
 
 import React, { useEffect, useState } from 'react';
@@ -11,7 +11,7 @@ import { platform } from '@platform/index';
 import { ProviderStatus, type ProviderRowState } from './ProviderStatus';
 import { serverHost } from '@services/providers/localServers';
 import type { LocalRow } from '@services/providers/localServers';
-import { Button, CardRow, ICON_TILE_PX, Input, Section } from '@shared/ui';
+import { CardRow, ICON_TILE_PX, Input, Section, Spinner } from '@shared/ui';
 import { FormDialog } from '@shared/components';
 import { PROVIDER_COPY } from '@config/settingsCopy.config';
 
@@ -109,7 +109,8 @@ interface ServersSectionProps {
   onAdd: () => void;
 }
 
-/** "Your Servers": one row per server (a detected one is saved as it opens), Add Server, and Rescan where servers run here. */
+/** "OpenAI-Compatible": one row per server (a detected one is saved as it opens), then its commands as rows: Add Server, and
+ *  Rescan where servers run here. */
 export const ServersSection: React.FC<ServersSectionProps> = ({ onOpen, onAdd }) => {
   const { showToast } = useToast();
   const { rows, isScanning, enable, rescan } = useLocalServers();
@@ -126,12 +127,8 @@ export const ServersSection: React.FC<ServersSectionProps> = ({ onOpen, onAdd })
     });
   };
 
-  const rescanAction = platform.runsLocalServers && (
-    <Button variant="outline" size="sm" loading={isScanning} onClick={handleRescan}>{LOCAL_RESCAN}</Button>
-  );
-
   return (
-    <Section title={LOCAL_SERVERS_GROUP} accessory={rescanAction} footer={rows.length === 0 ? LOCAL_EMPTY_HINT : LOCAL_SERVERS_FOOTER}>
+    <Section title={LOCAL_SERVERS_GROUP} footer={rows.length === 0 ? LOCAL_EMPTY_HINT : LOCAL_SERVERS_FOOTER}>
       {rows.map((row) => (
         <CardRow
           key={row.id}
@@ -143,6 +140,10 @@ export const ServersSection: React.FC<ServersSectionProps> = ({ onOpen, onAdd })
         />
       ))}
       <CardRow title={ADD_SERVER.title} tone="accent" onPress={onAdd} />
+      {/* The list's commands are its tinted rows (Settings, Mac and iPhone): Rescan beside Add Server, a spinner while it looks. */}
+      {platform.runsLocalServers && (
+        <CardRow title={LOCAL_RESCAN} tone="accent" onPress={isScanning ? undefined : handleRescan} status={isScanning ? <Spinner /> : undefined} />
+      )}
     </Section>
   );
 };

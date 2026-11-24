@@ -1,13 +1,14 @@
 /** iPhone shell: a plain chatbot — top bar (sidebar · model · New chat), the content; opening the sidebar slides the view aside
  *  to reveal it, Settings rises as a sheet. A place opened from the sidebar (To-dos, Gallery…) is a pushed page instead: its
- *  own bar with ‹ back to the sidebar, sliding in over home. The model picker is a chat's, so only the chat screens show it. */
+ *  own bar with ‹ back to the sidebar (the same slide as a swipe), sliding in over home. The model picker is a chat's, so
+ *  only the chat screens show it. */
 
 import React, { useCallback } from 'react';
 import { PanelLeft, SquarePen, X } from 'lucide-react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
-import { useAppActions, useAppStatus, useAppStore, useCurrentView } from '@shared/stores/appStore';
+import { useAppActions, useAppStatus, useAppStore, useCurrentView, useSelectedHistoryId } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
-import { ModelPicker, startNewChat } from '@features/chat';
+import { ModelPicker, startNewChat, useChatStore } from '@features/chat';
 import { SettingsHome, settingsScreen } from '@features/settings';
 import { BottomSheet, IconButton, NavStack, RevealLayout, Surface, TopBar, ViewBackContext, cn } from '@shared/ui';
 import { SearchScreen } from '@features/palette';
@@ -28,11 +29,13 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children }) => {
   const place = view !== 'home' && !inSettings;
   const status = useAppStatus();
   const chatting = status === AppStatus.IDLE || status === AppStatus.CHAT;
-  const { leaveSettings, setCurrentView } = useAppActions();
-  const backToSidebar = useCallback(() => {
-    setCurrentView('home');
-    setLeftPanel(true);
-  }, [setCurrentView, setLeftPanel]);
+  // New chat only leaves something: hidden on a new chat already (no chat or meeting open).
+  const sessionOpen = useChatStore((s) => s.currentSessionId) !== null;
+  const historyOpen = useSelectedHistoryId() !== null;
+  const canStartNew = sessionOpen || historyOpen;
+  const { leaveSettings } = useAppActions();
+  // ‹ on a place does what a swipe does: the place slides aside to reveal the sidebar it was opened from.
+  const backToSidebar = useCallback(() => setLeftPanel(true), [setLeftPanel]);
   const settingsRequest = useAppStore((s) => s.settingsRequest);
 
   return (
@@ -43,7 +46,7 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children }) => {
           <TopBar
             leading={<IconButton icon={PanelLeft} size="fab" variant="bar" label={SHELL_COPY.openSidebar} onClick={() => setLeftPanel(true)} />}
             title={chatting ? <ModelPicker compact bar /> : undefined}
-            trailing={<IconButton icon={SquarePen} size="fab" variant="bar" label={SHELL_COPY.newChat} onClick={startNewChat} />}
+            trailing={canStartNew ? <IconButton icon={SquarePen} size="fab" variant="bar" label={SHELL_COPY.newChat} onClick={startNewChat} /> : undefined}
           />
         )}
         {/* Clear of the home indicator once, for every screen; a place slides in as a pushed page with ‹ back to the sidebar. */}

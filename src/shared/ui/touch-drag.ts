@@ -44,6 +44,10 @@ export function inSidewaysControl(target: Element, within: Element): boolean {
   return false;
 }
 
+/** Marks a pushed page: a sideways swipe on it is its own (back), never a screen-wide drag's (the sidebar's). */
+export const PUSHED_PAGE_MARK = { 'data-pushed-page': '' } as const;
+export const inPushedPage = (target: Element): boolean => target.closest('[data-pushed-page]') !== null;
+
 /** A move of `moved` px along a travel of `size` px, past `share` of it or faster than a flick, goes all the way. */
 export function commits(moved: number, speed: number, size: number, share: number): boolean {
   return moved > size * share || speed > commitSpeed;

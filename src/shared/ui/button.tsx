@@ -1,15 +1,17 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from './utils';
 import { platform } from '@platform/index';
 import { Icon, type IconSize } from './icon';
 import { LIST_ART_PX } from './icon-tile';
 import { UI_CONFIG } from '@config/ui.config';
+import { ANIMATION_CONFIG } from '@config/animations.config';
 
 /** Canonical button: colour lives in `variant`, shape in `size`; call sites never pass colour or padding classes. Square
  *  sizes never shrink: a crowded row can't squeeze a round button into a pill. */
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'record' | 'dangerTint' | 'success' | 'accentTint' | 'ghost' | 'dangerGhost' | 'link' | 'ai' | 'bar';
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'record' | 'dangerTint' | 'success' | 'accentTint' | 'ghost' | 'glyph' | 'dangerGhost' | 'link' | 'ai' | 'bar';
 
 export type ButtonSize = 'inline' | 'toolbar' | 'sm' | 'md' | 'lg' | 'icon' | 'iconSm' | 'iconXs' | 'fab';
 
@@ -28,6 +30,8 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   /** The next step, called out quietly (Resume a paused recording). */
   accentTint: 'bg-accent-wash text-accent hover:opacity-80',
   ghost: 'text-muted hover:text-primary hover:bg-hover',
+  /** A standalone glyph with no shape behind it (iOS bar items: the composer's + and mic); it dims under the finger. */
+  glyph: 'text-primary',
   /** Quiet destructive (trash icons, Remove) — red only on hover */
   dangerGhost: 'text-faint hover:text-danger hover:bg-danger-subtle',
   /** Inline text action (Update, Explore models) — pair with size="inline" */
@@ -105,6 +109,8 @@ export type IconButtonProps = Omit<ButtonProps, 'size' | 'children'> & {
   filled?: boolean;
   /** Rotate the glyph while work runs (Rescan, Sync) */
   spin?: boolean;
+  /** One button that changes what it does in place (record ⇄ send ⇄ stop): a new glyph cross-fades in as the fill blends. */
+  morph?: boolean;
 } & (
   | { icon: LucideIcon; image?: never; appIcon?: never }
   /** An image instead of a glyph (an app's icon, Show in Finder), at list-art size; `appIcon`: a macOS app icon, whose body
@@ -122,14 +128,27 @@ const ICON_BUTTON_SIZES: Record<NonNullable<IconButtonProps['size']>, { button: 
   fab: { button: 'fab', icon: 'md' },
 };
 
-export function IconButton({ icon, image, appIcon, label, size = 'md', variant = 'ghost', filled, spin, ...props }: IconButtonProps) {
+/** The glyph of a `morph` button: keyed by what the button does, so a change swaps the old glyph out as the new one comes in. */
+function SwappedGlyph({ id, children }: { id: string; children: React.ReactNode }) {
+  const reduce = useReducedMotion() ?? false;
+  const { transition, hidden, shown } = ANIMATION_CONFIG.glyphSwap;
+  const from = reduce ? { opacity: 0 } : hidden;
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.span key={id} className="flex" initial={from} animate={shown} exit={from} transition={transition}>{children}</motion.span>
+    </AnimatePresence>
+  );
+}
+
+export function IconButton({ icon, image, appIcon, label, size = 'md', variant = 'ghost', filled, spin, morph, className, ...props }: IconButtonProps) {
   const shape = ICON_BUTTON_SIZES[size];
   const imagePx = appIcon ? Math.round(LIST_ART_PX / UI_CONFIG.appIconBody) : LIST_ART_PX;
+  const glyph = icon && <Icon icon={icon} size={shape.icon} className={cn(filled && 'fill-current', spin && 'animate-spin')} />;
   return (
-    <Button variant={variant} size={shape.button} aria-label={label} title={label} {...props}>
+    <Button variant={variant} size={shape.button} aria-label={label} title={label} className={cn(morph && 'relative', className)} {...props}>
       {image
         ? <img src={image} alt="" aria-hidden width={imagePx} height={imagePx} className="max-w-none shrink-0" />
-        : icon && <Icon icon={icon} size={shape.icon} className={cn(filled && 'fill-current', spin && 'animate-spin')} />}
+        : morph ? <SwappedGlyph id={label}>{glyph}</SwappedGlyph> : glyph}
     </Button>
   );
 }

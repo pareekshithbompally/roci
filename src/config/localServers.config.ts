@@ -111,16 +111,16 @@ export const LOCAL_SERVERS: readonly LocalServerEntry[] = [
 /** Logo for a server whose app isn't named (a custom URL, or port 8080 serving MLX/LocalAI). */
 export const LOCAL_GENERIC_LOGO = GENERIC_LOGO;
 
-/** The Providers group of model servers the user runs (vs models built into this device). */
-export const LOCAL_SERVERS_GROUP = 'Your Servers';
+/** The Providers group of servers that speak the OpenAI API, local or hosted (vs models built into this device). */
+export const LOCAL_SERVERS_GROUP = 'OpenAI-Compatible';
 
-/** Your Servers' header command: look again for servers running on this device. */
+/** The OpenAI-Compatible group's command row: look again for servers running on this device. */
 export const LOCAL_RESCAN = 'Rescan';
 
-/** Under the Your Servers list: what it is and why to use it. */
-export const LOCAL_SERVERS_FOOTER = 'Model servers you run, here or on another computer (Ollama, LM Studio, llama-server): private, and nothing to pay per use.';
+/** Under the OpenAI-Compatible list: what belongs in it. */
+export const LOCAL_SERVERS_FOOTER = 'OpenAI-compatible servers, local or hosted.';
 
-/** Hint under the Your Servers list when there are none: start one here, or add one elsewhere by its address. */
+/** Hint under the OpenAI-Compatible list when there are none: start one here, or add one elsewhere by its address. */
 export const LOCAL_EMPTY_HINT = platform.runsLocalServers
   ? 'Nothing running? Start Ollama or LM Studio, then rescan, or add a server by its address.'
   : 'Add a server you run, such as one on your Mac over Tailscale, by its address.';

@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { cn, dismissKeyboard } from './utils';
 import { Surface } from './surface';
 import { UI_CONFIG } from '@config/ui.config';
-import { commits, inSidewaysControl, useTouchDrag } from './touch-drag';
+import { commits, inPushedPage, inSidewaysControl, useTouchDrag } from './touch-drag';
 import { KIT_COPY } from '@config/kitCopy.config';
 
 export interface RevealLayoutProps {
@@ -26,9 +26,10 @@ export interface RevealLayoutProps {
  *  pane's width or with a flick and it opens or closes, otherwise it slides back. */
 function useRevealDrag(main: HTMLDivElement | null, paneRef: React.RefObject<HTMLElement | null>, open: boolean, onOpen: () => void, onClose: () => void): void {
   useTouchDrag(main, {
-    // From anywhere on the view, not only the edge (a phone's sidebar), except on something that drags sideways itself.
+    // From anywhere on the view, not only the edge (a phone's sidebar), except on something that drags sideways itself or a
+    // pushed page (its swipe is back), so one swipe never moves two layers.
     axis: 'x',
-    ignores: (target) => !main || inSidewaysControl(target, main),
+    ignores: (target) => !main || inSidewaysControl(target, main) || inPushedPage(target),
     onMove: (dx) => {
       const pane = paneRef.current;
       if (!main || !pane) return;

@@ -3,8 +3,9 @@
 import { cn } from './utils';
 
 /** Floating panel: base surface, floating elevation (its 0.5px ring is the edge). */
-export const FLOATING_SURFACE =
-  'z-popover bg-base rounded-lg shadow-floating outline-none data-[state=open]:animate-content-show data-[state=closed]:animate-content-hide';
+/** A floating layer's surface and its open / close motion, without its corners. */
+const FLOATING = 'z-popover bg-base shadow-floating outline-none data-[state=open]:animate-content-show data-[state=closed]:animate-content-hide';
+export const FLOATING_SURFACE = `${FLOATING} rounded-lg`;
 
 /** Dialog and AlertDialog sheets. */
 export const SCRIM =
@@ -21,8 +22,16 @@ export const SHEET_DESCRIPTION = 'text-body text-muted mt-1';
 
 /** Menu list and row — DropdownMenu, Select, Command. */
 export const MENU_LIST = `${FLOATING_SURFACE} min-w-36 p-1`;
-export const MENU_ITEM =
-  'relative flex items-center gap-2 px-2 py-1.5 rounded text-body text-primary cursor-default select-none outline-none transition-colors data-[highlighted]:bg-hover aria-disabled:opacity-50';
+/** A menu row's look, without its box. */
+const MENU_ROW = 'relative flex items-center gap-2 text-body text-primary cursor-default select-none outline-none transition-colors data-[highlighted]:bg-hover aria-disabled:opacity-50';
+export const MENU_ITEM = `${MENU_ROW} px-2 py-1.5 rounded`;
+/** The drawn menu on a touch screen (iOS's button menu): wider, a card's corners, 44 pt rows edge to edge, a press shading
+ *  the row. Whole recipes, not additions: classes don't merge. */
+export const MENU_TOUCH = {
+  list: `${FLOATING} rounded-card min-w-60 overflow-hidden`,
+  item: `${MENU_ROW} min-h-11 px-4`,
+  separator: 'h-px bg-separator',
+} as const;
 /** The grouped card surface (System Settings): what every card, table and KPI tile sits on. */
 export const GROUPED_SURFACE = 'rounded-card bg-grouped-card';
 

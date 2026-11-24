@@ -7,7 +7,7 @@ import { PageScroll, TitlebarSpacer } from './page-scroll';
 import { Text } from './text';
 import { cn } from './utils';
 import { UI_CONFIG } from '@config/ui.config';
-import { commits, slideOff, useTouchDrag } from './touch-drag';
+import { commits, PUSHED_PAGE_MARK, slideOff, useTouchDrag } from './touch-drag';
 import { KIT_COPY } from '@config/kitCopy.config';
 
 export interface NavScreen {
@@ -213,24 +213,46 @@ export function BackBar({ title, onBack, action }: { title: string; onBack: () =
 }
 
 export interface PushedPageProps {
+  /** Pushed; false slides it back out. */
+  open: boolean;
   title: string;
   /** The user went Back (the bar's button or a swipe from the left edge). */
   onBack: () => void;
   children: React.ReactNode;
 }
 
-/** One page pushed over a view that is not a stack (a list's open item on iPhone): the stack's own bar and push, and a
- *  swipe from the left edge to go back. It covers the view it was opened from. */
-export function PushedPage({ title, onBack, children }: PushedPageProps) {
+/** One page pushed over a view that is not a stack (a list's open item on iPhone): the stack's own bar, push and pop, and a
+ *  swipe from the left edge to go back. It covers the view it was opened from, and leaves showing what it last showed. */
+export function PushedPage({ open, title, onBack, children }: PushedPageProps) {
   const [node, setNode] = useState<HTMLDivElement | null>(null);
-  useEdgeSwipeBack(node, onBack);
+  // Mounted while open and while it slides out.
+  const [shown, setShown] = useState(open);
+  const last = useRef({ title, children });
+  if (open) last.current = { title, children };
+  useEffect(() => {
+    if (open) setShown(true);
+  }, [open]);
+  // A swipe has already carried it off the screen: it goes at once, with no second slide.
+  useEdgeSwipeBack(node, () => {
+    setShown(false);
+    onBack();
+  });
+  if (!shown) return null;
   return (
-    <div ref={setNode} className="absolute inset-0 z-10 animate-push-in transition-[translate] duration-ios ease-ios data-[dragging]:transition-none">
-      {/* Over a whole place (the shell's bar gone), so it clears the status bar itself. */}
+    <div
+      ref={setNode}
+      {...PUSHED_PAGE_MARK}
+      className={cn('absolute inset-0 z-10 transition-[translate] duration-ios ease-ios data-[dragging]:transition-none', open ? 'animate-push-in' : 'animate-push-out')}
+      onAnimationEnd={(e) => {
+        if (e.target === e.currentTarget && !open) setShown(false);
+      }}
+    >
+      {/* Over a whole place (the shell's bar gone), so it clears the status bar itself; the shell already clears the home
+          indicator. */}
       <Surface className="absolute inset-0 flex flex-col pt-safe-top">
         <TitlebarSpacer />
-        <BackBar title={title} onBack={onBack} />
-        <PageScroll underTitlebar={false} className="flex-1 pb-safe-bottom">{children}</PageScroll>
+        <BackBar title={last.current.title} onBack={onBack} />
+        <PageScroll underTitlebar={false} className="flex-1">{last.current.children}</PageScroll>
       </Surface>
     </div>
   );

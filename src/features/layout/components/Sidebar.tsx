@@ -27,8 +27,8 @@ import { useDestinations } from '@features/layout/hooks/useDestinations';
 
 interface SidebarProps {
   shouldOffsetMacControls: boolean;
-  /** `column` (Mac): window sidebar with its header and rows. `sheet` (phone): the app name with Search and New chat at
-   *  the top, Search and Settings at the bottom. The list is the same. */
+  /** `column` (Mac): window sidebar with its header and rows. `sheet` (phone): the app name and New chat fixed at the top,
+   *  the places and recents scrolling under it, Search and Settings at the bottom. The list is the same. */
   variant?: 'column' | 'sheet';
 }
 
@@ -111,8 +111,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <Text as="h1" variant="title" className="flex-1">{APP_CONFIG.name}</Text>
           <IconButton icon={SquarePen} size="fab" variant="bar" onClick={handleHomeClick} label={SHELL_COPY.newChat} />
         </header>
-        <div className="shrink-0 px-2">{destinations}</div>
-        <FadeScroll ref={listContainerRef} fill className="flex-1 px-2 pb-2">{list}</FadeScroll>
+        {/* Only the app's name holds still; its places and the recents scroll together under it. */}
+        <FadeScroll ref={listContainerRef} fill className="flex-1 px-2 pb-2">
+          {destinations}
+          {list}
+        </FadeScroll>
         {/* Bottom right: Activity while work runs (downloads, model loads), Search, then Settings. Search grows out of its
             button into the full screen (SearchScreen shares its layout id), so the button leaves while the screen is open. */}
         <footer className="flex shrink-0 items-center justify-end gap-2 px-4 pt-2 pb-4">

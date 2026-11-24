@@ -1,5 +1,5 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { Sheet } from 'react-modal-sheet';
 import { cn, dismissKeyboard } from './utils';
@@ -12,30 +12,49 @@ import { UI_CONFIG } from '@config/ui.config';
 import { KIT_COPY } from '@config/kitCopy.config';
 
 /**
- * The one iOS sheet (BottomSheet, and Dialog / Popover on a phone). react-modal-sheet moves it: it rises to half the screen,
- * follows the finger 1:1 and settles at half or full (or closes) by distance and speed, with resistance past full; at half a
- * push on the content lifts the sheet, at full the content scrolls, and a pull down from the content's top lowers it again.
+ * The one iOS sheet (BottomSheet, and Dialog / Popover on a phone). react-modal-sheet moves it: it follows the finger 1:1 and
+ * settles at a stop (or closes) by distance and speed, with resistance past full. A `fit` sheet stops only at its own height
+ * (a short one sits on the bottom edge); a `full` one at half the screen, where a push on the content lifts it, and full. At
+ * its top stop the content scrolls, and a pull down from the top of whichever scroller is under the finger lowers it.
  * Radix keeps it a dialog: focus stays inside, Escape and a tap outside close it, VoiceOver reads its name. Every close
  * animates out before Radix lets go.
  */
 
-/** Sheet heights, react-modal-sheet's way (ascending; above 1 is px from the bottom; 1 is the sheet's full height): closed,
- *  half the screen, full. */
-const REST = 1;
-const FULL = 2;
-const detents = () => [0, Math.round(window.innerHeight * UI_CONFIG.sheet.restShare), 1];
-
-/** `fit`: as tall as its content, up to full. `full`: the full height, for a stack of screens (Settings: a pushed page never
- *  changes it) or a wide viewer. Both open at half. */
+/** `fit`: as tall as its content, up to full; it opens at that height. `full`: the full height, for a stack of screens
+ *  (Settings: a pushed page never changes it) or a wide viewer; it opens at half the screen. */
 type SheetSize = 'fit' | 'full';
 const DETENT = { fit: 'content', full: 'default' } as const;
 
+/** A sheet's stops, react-modal-sheet's way (ascending; above 1 is px from the bottom; 1 is the sheet's full height): closed,
+ *  then (`full` only) half the screen, then its full height. It opens at the first stop above closed. */
+const stopsOf = (size: SheetSize): number[] =>
+  (size === 'fit' ? [0, 1] : [0, Math.round(window.innerHeight * UI_CONFIG.sheet.restShare), 1]);
+const OPEN = 1;
+/** The index of a sheet's top stop, where its content scrolls. */
+const TOP = { fit: 1, full: 2 } as const;
+
 const SURFACE = 'rounded-t-sheet bg-grouped shadow-overlay';
 
-/** A sheet's own scrollers (a stack's pages, a picker's list) scroll only at full height; below it the push moves the sheet. */
+/** A sheet's own scrollers (a stack's pages, a picker's list) scroll only at its top stop; below it the push moves the sheet. */
 const SheetScrollsContext = createContext(true);
 /** Whether a scroller inside a sheet may scroll now (true outside any sheet). */
 export const useSheetScrolls = () => useContext(SheetScrollsContext);
+
+/** Told whether the scroller in use inside a sheet rests at its top (null outside a sheet). */
+const SheetPullContext = createContext<((atTop: boolean) => void) | null>(null);
+
+/** For a scroller inside a sheet, run on mount and on every scroll: at its top a pull down moves the sheet (the finger's
+ *  downward pan is left to the sheet, as the library does for its own scroller); scrolled, the sheet holds still. A no-op
+ *  outside a sheet. */
+export function useSheetPull(): (scroller: HTMLElement | null) => void {
+  const report = useContext(SheetPullContext);
+  return useCallback((scroller: HTMLElement | null) => {
+    if (!report || !scroller) return;
+    const atTop = scroller.scrollTop <= 0;
+    scroller.style.touchAction = atTop ? 'pan-down' : '';
+    report(atTop);
+  }, [report]);
+}
 
 interface SheetFrameProps {
   open: boolean;
@@ -53,7 +72,7 @@ interface SheetFrameProps {
 function SheetFrame({ open, onClose, onClosed, size, held, children }: SheetFrameProps) {
   const reduce = useReducedMotion() ?? false;
   const [full, setFull] = useState(false);
-  const snapPoints = useMemo(detents, [open]);
+  const snapPoints = useMemo(() => stopsOf(size), [open, size]);
   return (
     <Sheet
       isOpen={open}
@@ -64,8 +83,8 @@ function SheetFrame({ open, onClose, onClosed, size, held, children }: SheetFram
       }}
       detent={DETENT[size]}
       snapPoints={snapPoints}
-      initialSnap={REST}
-      onSnap={(index) => setFull(index === FULL)}
+      initialSnap={OPEN}
+      onSnap={(index) => setFull(index === TOP[size])}
       disableDismiss={held}
       // Radix locks the page; the keyboard is cleared by --safe-bottom (tokens.css), which the native view keeps in step.
       disableScrollLocking
@@ -84,10 +103,14 @@ function SheetFrame({ open, onClose, onClosed, size, held, children }: SheetFram
   );
 }
 
-/** The grabber, then the content: at half a push lifts the sheet, at full the content scrolls (its own scroller, or the
- *  sheet's); a field taking focus brings the sheet to full, above the keyboard. */
+/** The grabber, then the content: below the top stop a push lifts the sheet; at it the content scrolls (its own scroller,
+ *  or the sheet's) and a pull down from a scroller's top lowers the sheet; a field taking focus brings the sheet to its top
+ *  stop, above the keyboard. */
 function SheetBodyFrame({ padded, size, children }: { padded?: boolean; size: SheetSize; children: React.ReactNode }) {
   const { snapTo } = Sheet.useContext();
+  // Whether the inner scroller in use (a stack's page, a picker's list) rests at its top: only then may its content drag.
+  const [pullable, setPullable] = useState(true);
+  const top = TOP[size];
   return (
     <>
       <Sheet.Header className="flex shrink-0 justify-center pt-1.5 pb-1">
@@ -96,14 +119,15 @@ function SheetBodyFrame({ padded, size, children }: { padded?: boolean; size: Sh
       <Sheet.Content
         className="flex min-h-0 flex-1 flex-col"
         scrollClassName={cn('flex min-h-0 flex-1 flex-col', padded && 'px-4 pt-4 pb-sheet-end')}
-        disableScroll={({ currentSnap }) => currentSnap !== FULL}
-        // A stack scrolls its own pages: at full its content never drags the sheet (the grabber does).
-        disableDrag={({ currentSnap }) => size === 'full' && currentSnap === FULL}
+        disableScroll={({ currentSnap }) => currentSnap !== top}
+        disableDrag={({ currentSnap }) => currentSnap === top && !pullable}
         onFocusCapture={(e: React.FocusEvent) => {
-          if (e.target instanceof Element && e.target.matches('input, textarea')) snapTo(FULL);
+          if (e.target instanceof Element && e.target.matches('input, textarea')) snapTo(top);
         }}
       >
-        <div className={cn('flex min-h-0 flex-1 flex-col', NO_TOP_INSET)}>{children}</div>
+        <SheetPullContext.Provider value={setPullable}>
+          <div className={cn('flex min-h-0 flex-1 flex-col', NO_TOP_INSET)}>{children}</div>
+        </SheetPullContext.Provider>
       </Sheet.Content>
     </>
   );
