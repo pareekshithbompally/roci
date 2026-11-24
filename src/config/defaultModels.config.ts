@@ -7,7 +7,7 @@ export const DEFAULT_MODELS_CONFIG = {
     transcription: { title: 'Transcription' },
     summaries: { title: 'Summaries' },
     meetingSearch: { title: 'Search' },
-    readAloud: { title: 'Read aloud' },
+    readAloud: { title: 'Speech' },
     images: { title: 'Image generation' },
     voice: { title: 'Voice' },
   },
