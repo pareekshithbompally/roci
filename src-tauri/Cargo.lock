@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "Roci"
-version = "1.11.0"
+version = "1.11.1"
 dependencies = [
  "apple-build",
  "base64 0.22.1",
