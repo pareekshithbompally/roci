@@ -16,6 +16,10 @@ export interface LocalModel {
   kind: LocalModelKind;
   /** Transcribes audio while it's still arriving (live dictation). */
   streams: boolean;
+  /** A speech model's languages, as it spells them (BCP 47); empty for other kinds. */
+  languages: string[];
+  /** A speech model tells the language itself. */
+  detectsLanguage: boolean;
   bytes: number;
   installed: boolean;
   downloading: boolean;
@@ -48,7 +52,7 @@ export interface ModelLoad {
 
 /** Mirrors the Rust `LocalError` (`{ code, detail? }`), shared by every local-model command. */
 export interface LocalErrorPayload {
-  code: 'unknown-model' | 'not-downloaded' | 'bad-input' | 'download' | 'engine' | 'io';
+  code: 'unknown-model' | 'not-downloaded' | 'bad-input' | 'download' | 'engine' | 'needs-language' | 'io';
   detail?: string;
 }
 

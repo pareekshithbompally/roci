@@ -1,7 +1,7 @@
 /** Roci's own STT engine (transcribe.cpp in Rust): error copy, per-part adapter and live engine. */
 
 import { invoke } from '@tauri-apps/api/core';
-import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { savedSpokenLanguage } from '@shared/utils/personalization';
 import { errorMessage, isCodedError } from '@shared/utils/errors';
 import type { LocalErrorPayload } from '@services/localModels.service';
 import { transcribeNatively } from './native';
@@ -16,13 +16,14 @@ function onDeviceErrorMessage(error: unknown, model: string): string {
   switch (error.code) {
     case 'not-downloaded': return `${model} isn't downloaded. Download it in Settings › Default Models.`;
     case 'unknown-model': return 'Choose a speech model in Settings › Default Models.';
+    case 'needs-language': return `${model} doesn't take this language. Choose the one you speak in Settings › Personalization › Vocabulary.`;
     default: return `Couldn't transcribe this audio on this ${platform.deviceName} (${error.detail ?? error.code}).`;
   }
 }
 
 /** One WAV part → text with timestamps, on this device. */
 export const onDeviceTranscribePart: TranscribePart = ({ wav, model }) =>
-  transcribeNatively('stt_transcribe', wav, { 'x-stt-model': model, 'x-stt-language': TRANSCRIPTION_CONFIG.language })
+  transcribeNatively('stt_transcribe', wav, { 'x-stt-model': model, 'x-stt-language': savedSpokenLanguage() })
     .catch((error: unknown) => {
       throw new Error(onDeviceErrorMessage(error, model), { cause: error });
     });

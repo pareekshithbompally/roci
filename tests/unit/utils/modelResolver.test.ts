@@ -181,7 +181,7 @@ describe('models from integrations', () => {
   it('a downloaded chat model reports its context window and tool calling, as a server does', async () => {
     const { modelSources } = await import('@shared/utils/modelResolver');
     const gemma = {
-      id: 'gemma-4-e2b', name: 'Gemma 4', maker: 'google', kind: 'chat' as const, streams: false, bytes: 1,
+      id: 'gemma-4-e2b', name: 'Gemma 4', maker: 'google', kind: 'chat' as const, streams: false, languages: [], detectsLanguage: false, bytes: 1,
       installed: true, downloading: false, partial: false, contextTokens: 131_072, tools: true, vision: true,
     };
     const [onDevice] = modelSources([], {} as never, [gemma]);

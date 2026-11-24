@@ -34,10 +34,10 @@ describe('integration gate', () => {
 
   it('Apple Speech appears only while Apple Intelligence is on, ready once allowed and downloaded', () => {
     const apple = (status: { available: boolean; authorization: 'authorized' | 'not_determined'; installed: boolean }) =>
-      speechModelOptions([], { appleSpeech: { status } }).find((o) => o.provider === 'apple-intelligence');
+      speechModelOptions([], { appleSpeech: { status: { ...status, languages: ['en-US'] } } }).find((o) => o.provider === 'apple-intelligence');
     expect(speechModelOptions([], {}).some((o) => o.provider === 'apple-intelligence')).toBe(false);
     expect(apple({ available: true, authorization: 'authorized', installed: true })).toMatchObject({ ready: true, hint: null });
     expect(apple({ available: true, authorization: 'not_determined', installed: true })?.hint).toBe('Allow Speech Recognition');
-    expect(apple({ available: true, authorization: 'authorized', installed: false })?.hint).toBe('Download the English speech model');
+    expect(apple({ available: true, authorization: 'authorized', installed: false })?.hint).toBe('Download the speech model for your spoken language');
   });
 });

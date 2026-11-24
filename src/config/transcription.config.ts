@@ -27,8 +27,6 @@ export const TRANSCRIPTION_CONFIG = {
     chunks: 'With your speech model, words appear every few seconds.',
     mark: 'Live',
   },
-  /** Spoken language sent to engines that take one; a language setting is out of scope. */
-  language: 'en',
   /** A whole recording with no speech: nothing to summarize. */
   noSpeech: 'No speech detected in this recording — transcription skipped.',
   /** Plain-text transcripts reflow into paragraphs of about this many characters (ends on a sentence). */

@@ -5,6 +5,7 @@ import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import type { AppSettings, Personalization } from '@shared/types';
 import type { PromptPersonalization } from '@core/ai';
+import { deviceLanguage } from '@shared/utils/spokenLanguage';
 import { memoriesQuery } from '@shared/query/memories';
 import { memoryLines } from '@shared/utils/memories';
 import type { MemoryGraph } from '@shared/types/native';
@@ -16,6 +17,11 @@ export function savedPersonalization(): Personalization {
 /** The custom vocabulary's terms, in priority order (speech recognition reads them). */
 export function savedTerms(): string[] {
   return (savedPersonalization().vocabulary ?? []).map(({ term }) => term);
+}
+
+/** The language speech recognition is told you speak, as saved now: the chosen one, else the device's (BCP 47). */
+export function savedSpokenLanguage(): string {
+  return savedPersonalization().spokenLanguage ?? deviceLanguage();
 }
 
 /** What prompts state from Personalization, as saved now. */

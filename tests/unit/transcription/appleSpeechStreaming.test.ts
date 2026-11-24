@@ -60,7 +60,7 @@ describe('Apple Speech streaming engine', () => {
   });
 
   it('Apple Speech is offered live and streams a meeting', () => {
-    const status = { available: true, authorization: 'authorized' as const, installed: true };
+    const status = { available: true, authorization: 'authorized' as const, installed: true, languages: ['en-US'] };
     const option = speechModelOptions([], { appleSpeech: { status } }).find((o) => o.provider === 'apple-intelligence');
     expect(option?.live).toBe(true);
     expect(option && runsLive(option, [], 2)).toBe(true);

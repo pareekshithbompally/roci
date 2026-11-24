@@ -99,6 +99,8 @@ pub struct SpeechStatus {
     pub authorization: String,
     /// The language's model is downloaded.
     pub installed: bool,
+    /// The languages Apple speech transcribes on this device (BCP 47).
+    pub languages: Vec<String>,
 }
 
 #[derive(Deserialize)]

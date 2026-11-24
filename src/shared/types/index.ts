@@ -207,6 +207,8 @@ export interface Personalization {
   vocabulary?: VocabularyEntry[];
   /** How strongly on-device speech recognition favours the vocabulary; unset = the default. */
   recognitionBoost?: RecognitionBoost;
+  /** The language speech recognition is told you speak (BCP 47); unset = the device's. */
+  spokenLanguage?: string;
   /** On-device chat models' tuning, by model id: only what the user changed. */
   modelTuning?: Record<string, ModelTuning>;
   /** Who the user is (Prompts › About You). */

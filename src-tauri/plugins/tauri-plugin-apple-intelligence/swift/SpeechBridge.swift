@@ -12,15 +12,22 @@ private struct SpeechFailure: Error {
     let message: String
 }
 
-/// `{"available": bool, "authorization": "authorized"|"denied"|"not_determined"|"restricted", "installed": bool}`
+/// `{"available": bool, "authorization": "authorized"|"denied"|"not_determined"|"restricted", "installed": bool,
+/// "languages": [BCP 47]}`
 @_cdecl("apple_speech_status")
 public func appleSpeechStatus(_ language: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
     let code = String(cString: language)
     guard SpeechTranscriber.isAvailable else {
-        return speechJSON(["available": false, "authorization": authorizationName(), "installed": false])
+        return speechJSON(["available": false, "authorization": authorizationName(), "installed": false, "languages": [String]()])
     }
     let installed = speechBlocking { await installedTranscriber(code) != nil }
-    return speechJSON(["available": true, "authorization": authorizationName(), "installed": (try? installed.get()) ?? false])
+    let languages = speechBlocking { await SpeechTranscriber.supportedLocales.map { $0.identifier(.bcp47) } }
+    return speechJSON([
+        "available": true,
+        "authorization": authorizationName(),
+        "installed": (try? installed.get()) ?? false,
+        "languages": (try? languages.get()) ?? [String](),
+    ])
 }
 
 /// `{"granted"}`; asks only from the `.app` (else `unavailable`): macOS aborts a responsible process lacking the key.

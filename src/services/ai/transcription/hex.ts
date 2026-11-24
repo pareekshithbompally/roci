@@ -2,7 +2,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';
-import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { savedSpokenLanguage } from '@shared/utils/personalization';
 import type { TranscribePart } from './types';
 import { errorMessage, isCodedError } from '@shared/utils/errors';
 
@@ -61,7 +61,7 @@ export async function defaultHexModel(): Promise<string> {
 export const hexTranscribePart: TranscribePart = async ({ wav, model }) => {
   try {
     const text = await invoke<string>('hex_transcribe', wav, {
-      headers: { 'x-hex-model': model, 'x-hex-language': TRANSCRIPTION_CONFIG.language },
+      headers: { 'x-hex-model': model, 'x-hex-language': savedSpokenLanguage().split('-')[0] },
     });
     return { text: text.trim(), segments: [] };
   } catch (error: unknown) {

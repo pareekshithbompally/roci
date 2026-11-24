@@ -34,6 +34,8 @@ export interface AppleSpeechStatus {
   authorization: 'authorized' | 'denied' | 'not_determined' | 'restricted';
   /** The language's speech model is downloaded. */
   installed: boolean;
+  /** The languages Apple speech transcribes on this device (BCP 47). */
+  languages: string[];
 }
 
 /** A chat for the on-device model: instructions, then turns ending with the user's. */

@@ -28,7 +28,7 @@ pub fn local_models_set_idle(minutes: u64) {
     IDLE_MINUTES.store(minutes, Ordering::Relaxed);
 }
 
-/// The default speak/transcribe language; mirrors `TRANSCRIPTION_CONFIG.language` in the webview.
+/// The read-aloud voices' language, and a transcription's when the webview sends none.
 pub const LANGUAGE: &str = "en";
 
 /// Runs blocking work (a model, the disk) off the async runtime.
@@ -56,6 +56,8 @@ pub enum LocalError {
     Download(String),
     /// The engine refused the model or the input.
     Engine(String),
+    /// The speech model neither takes the spoken language nor tells one itself.
+    NeedsLanguage,
     /// App data couldn't be read or written.
     Io(String),
 }
@@ -65,6 +67,7 @@ impl std::fmt::Display for LocalError {
         match self {
             LocalError::UnknownModel(id) => write!(f, "unknown model {id}"),
             LocalError::NotDownloaded => f.write_str("the model isn't downloaded"),
+            LocalError::NeedsLanguage => f.write_str("the model doesn't take the spoken language"),
             LocalError::BadInput(detail) | LocalError::Download(detail) | LocalError::Engine(detail) | LocalError::Io(detail) => {
                 f.write_str(detail)
             }

@@ -52,6 +52,10 @@ pub struct LocalModel {
     pub loads_as: Option<&'static str>,
     /// A speech model's longest audio per run (ms) when trained on clips shorter than it accepts; None: its own.
     pub max_run_ms: Option<usize>,
+    /// The languages a speech model takes, as it spells them (the engine's catalog); empty for other kinds.
+    pub languages: &'static [&'static str],
+    /// A speech model can tell the language itself, so it runs without being told one.
+    pub detects_language: bool,
 }
 
 /// A voice model's speaker: the name the model knows it by, and the name Roci shows.
@@ -87,6 +91,8 @@ pub const MODELS: &[LocalModel] = &[
         voices: &[],
         loads_as: None,
         max_run_ms: None,
+        languages: &[],
+        detects_language: false,
         source: Source { repository: "mlx-community/Qwen3.5-9B-4bit", revision: "8b2b98c00a6b4d291155e4890773ca8f769aee53" },
         files: &[
             ModelFile { name: "chat_template.jinja", bytes: 7_756, sha256: "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715", source: None },
@@ -111,6 +117,8 @@ pub const MODELS: &[LocalModel] = &[
         voices: &[],
         loads_as: None,
         max_run_ms: None,
+        languages: &[],
+        detects_language: false,
         source: Source { repository: "openbmb/MiniCPM5-2B-MLX", revision: "c8c072dbfbc5ce9c8faf3fbff9665b86fdc29c62" },
         files: &[
             ModelFile { name: "chat_template.jinja", bytes: 9_060, sha256: "cc945752db555d60949b16989df4ccfeb52a313d6b4b5c5229dd786e2e9fcf1c", source: None },
@@ -131,6 +139,8 @@ pub const MODELS: &[LocalModel] = &[
         voices: &[],
         loads_as: None,
         max_run_ms: None,
+        languages: &[],
+        detects_language: false,
         source: Source { repository: "ibm-granite/granite-4.2-3b-q4-mlx", revision: "0c6f39b1827afd5eb2c1c3b13751929857434953" },
         files: &[
             ModelFile { name: "chat_template.jinja", bytes: 9_013, sha256: "f0ba43f79b3cabca5e5a7584c77aec92f49feae45cdf7779c87d9fc54cd90258", source: None },
@@ -150,6 +160,8 @@ pub const MODELS: &[LocalModel] = &[
         voices: &[],
         loads_as: None,
         max_run_ms: None,
+        languages: &[],
+        detects_language: false,
         source: Source { repository: "prism-ml/Ternary-Bonsai-2-4B-mlx-2bit", revision: "dff2caaa23fa8706164c44c10f1b58feb405f76a" },
         files: &[
             ModelFile { name: "chat_template.jinja", bytes: 7_756, sha256: "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715", source: None },
@@ -170,6 +182,8 @@ pub const MODELS: &[LocalModel] = &[
         voices: &[],
         loads_as: None,
         max_run_ms: None,
+        languages: &[],
+        detects_language: false,
         source: Source { repository: "mlx-community/Qwen3-Embedding-0.6B-8bit", revision: "407ad2329cd30702720aafe83f74a1ba30fdfbca" },
         files: &[
             ModelFile { name: "added_tokens.json", bytes: 707, sha256: "c0284b582e14987fbd3d5a2cb2bd139084371ed9acbae488829a1c900833c680", source: None },
@@ -196,6 +210,8 @@ pub const MODELS: &[LocalModel] = &[
         voices: &[],
         loads_as: None,
         max_run_ms: None,
+        languages: &["en"],
+        detects_language: false,
         source: Source { repository: "handy-computer/parakeet-unified-en-0.6b-gguf", revision: "7e948f21b7bdbac698d3318db9d350f1096f3b6c" },
         files: &[ModelFile {
             name: "parakeet-unified-en-0.6b-Q8_0.gguf",
@@ -213,6 +229,8 @@ pub const MODELS: &[LocalModel] = &[
         voices: &[],
         loads_as: None,
         max_run_ms: None,
+        languages: &["en-US", "en-GB", "es-US", "es-ES", "fr-FR", "fr-CA", "it-IT", "pt-BR", "pt-PT", "nl-NL", "de-DE", "tr-TR", "ru-RU", "ar-AR", "hi-IN", "ja-JP", "ko-KR", "vi-VN", "uk-UA", "pl-PL", "sv-SE", "cs-CZ", "nb-NO", "da-DK", "bg-BG", "fi-FI", "hr-HR", "sk-SK", "zh-CN", "hu-HU", "ro-RO", "et-EE"],
+        detects_language: true,
         source: Source { repository: "handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf", revision: "53ce288f69326b415aeef030cfcb02a08a8096dd" },
         files: &[ModelFile {
             name: "nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf",
@@ -230,6 +248,8 @@ pub const MODELS: &[LocalModel] = &[
         voices: &[],
         loads_as: None,
         max_run_ms: None,
+        languages: &["af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "haw", "ha", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo", "yue", "zh"],
+        detects_language: true,
         source: Source { repository: "handy-computer/whisper-large-v3-turbo-gguf", revision: "d222c9f621c1128299248f2ded4d8a1820519780" },
         files: &[ModelFile {
             name: "whisper-large-v3-turbo-Q8_0.gguf",
@@ -247,6 +267,8 @@ pub const MODELS: &[LocalModel] = &[
         voices: &[],
         loads_as: None,
         max_run_ms: None,
+        languages: &["af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "haw", "ha", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo", "zh"],
+        detects_language: true,
         source: Source { repository: "handy-computer/whisper-small-gguf", revision: "4afdc7942ecf1997f359deae48a63506b062eac4" },
         files: &[ModelFile {
             name: "whisper-small-Q8_0.gguf",
@@ -264,6 +286,8 @@ pub const MODELS: &[LocalModel] = &[
         voices: &[],
         loads_as: None,
         max_run_ms: None,
+        languages: &["en", "fr", "de", "es", "it", "pt", "nl", "pl", "el", "ar", "ja", "zh", "vi", "ko"],
+        detects_language: false,
         source: Source { repository: "handy-computer/cohere-transcribe-03-2026-gguf", revision: "dfa4adebb64f3076b7b6b90b721275cc069cb421" },
         files: &[ModelFile {
             name: "cohere-transcribe-03-2026-Q8_0.gguf",
@@ -282,6 +306,8 @@ pub const MODELS: &[LocalModel] = &[
         loads_as: None,
         // Trained on clips of up to 30 s; its encoder would take 400 s, more than its decoder can write out.
         max_run_ms: Some(30_000),
+        languages: &["as", "bgc", "bhb", "bho", "bn", "brx", "doi", "en", "gu", "hi", "hne", "kn", "kok", "ks", "mai", "ml", "mni", "mr", "ne", "or", "pa", "sa", "sat", "sd", "ta", "te", "ur"],
+        detects_language: false,
         source: Source { repository: "paribompally/indic-transcribe-flex-gguf", revision: "63c619e5b16cca525294143a679a5a74b3c8f5b9" },
         files: &[ModelFile {
             name: "indic-transcribe-flex-Q8_0.gguf",
@@ -309,6 +335,8 @@ pub const MODELS: &[LocalModel] = &[
         ],
         loads_as: Some("phonon"),
         max_run_ms: None,
+        languages: &[],
+        detects_language: false,
         source: Source { repository: "gradium/phonon-31m-en", revision: "8f7a37c94a4c58b04c8287300c53f11d2e208eae" },
         files: &[
             ModelFile { name: "config.json", bytes: 4_634, sha256: "b5d0f88353638370d94035b7d73d7d6577c0554d78f8d7ecfd40490aae39ae85", source: None },
@@ -336,6 +364,8 @@ pub const MODELS: &[LocalModel] = &[
         ],
         loads_as: None,
         max_run_ms: None,
+        languages: &[],
+        detects_language: false,
         source: Source { repository: "mlx-community/Ming-3.0-tts-0.5B-8bit", revision: "d0d1da6f627e4b3f20cc2db6ba4aee86d45343ad" },
         files: &[
             ModelFile { name: "added_tokens.json", bytes: 1_785, sha256: "34394b1e16d7da2db16618bd43a0f970902ade0075480bcd812fe62d559ec319", source: None },
@@ -364,6 +394,8 @@ pub const MODELS: &[LocalModel] = &[
         ],
         loads_as: Some("kokoro"),
         max_run_ms: None,
+        languages: &[],
+        detects_language: false,
         source: Source { repository: "mlx-community/Kokoro-82M-bf16", revision: "a71e4d38b236d968966a2002c4c895dbd12b1c3c" },
         files: &[
             ModelFile { name: "config.json", bytes: 2_351, sha256: "5abb01e2403b072bf03d04fde160443e209d7a0dad49a423be15196b9b43c17f", source: None },

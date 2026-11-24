@@ -1,6 +1,6 @@
 /** Apple Speech (SpeechAnalyzer, macOS 26+) via the apple-intelligence plugin: status, error copy, adapter, live engine. */
 
-import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { savedSpokenLanguage } from '@shared/utils/personalization';
 import { INTEGRATION_SETTINGS_PATH } from '@config/integrations.config';
 import { appleIntelligence, isAppleError, type AppleSpeechStatus } from '@services/ai/apple/appleIntelligence.service';
 import { transcribeNatively } from './native';
@@ -27,7 +27,7 @@ export function appleSpeechStep(status: AppleSpeechStatus | undefined): AppleSpe
 const STEP_HINTS: Record<AppleSpeechStep, string> = {
   ask: 'Allow Speech Recognition',
   denied: 'Allow Speech Recognition',
-  download: 'Download the English speech model',
+  download: 'Download the speech model for your spoken language',
 };
 
 /** The next step when Apple Speech can't run yet; null when ready. */
@@ -38,13 +38,13 @@ export function appleSpeechHint(status: AppleSpeechStatus | undefined): string |
 }
 
 export const getAppleSpeechStatus = (): Promise<AppleSpeechStatus> =>
-  appleIntelligence.speechStatus(TRANSCRIPTION_CONFIG.language);
+  appleIntelligence.speechStatus(savedSpokenLanguage());
 
 /** The system Speech Recognition prompt; only shows while undecided. */
 export const requestAppleSpeechAccess = (): Promise<boolean> => appleIntelligence.speechRequestAccess();
 
-/** Downloads the speech model for the transcription language. */
-export const downloadAppleSpeechModel = (): Promise<void> => appleIntelligence.speechPrepare(TRANSCRIPTION_CONFIG.language);
+/** Downloads the speech model for the spoken language (Personalization › Vocabulary). */
+export const downloadAppleSpeechModel = (): Promise<void> => appleIntelligence.speechPrepare(savedSpokenLanguage());
 
 /** Asks while undecided, then downloads the model; whether Apple Speech can transcribe afterwards (a denial stays). */
 export async function prepareAppleSpeech(): Promise<boolean> {
@@ -77,7 +77,7 @@ function speechFailure(error: unknown): never {
 
 /** One WAV part → text with timestamps (Rust writes a temporary file for SpeechAnalyzer). */
 export const appleSpeechTranscribePart: TranscribePart = ({ wav }) =>
-  transcribeNatively('plugin:apple-intelligence|speech_transcribe', wav, { 'x-language': TRANSCRIPTION_CONFIG.language })
+  transcribeNatively('plugin:apple-intelligence|speech_transcribe', wav, { 'x-language': savedSpokenLanguage() })
     .catch(speechFailure);
 
 /** Streaming with Apple Speech: each stream is its own analyzer under its own id, so a meeting runs two (you and the call). */

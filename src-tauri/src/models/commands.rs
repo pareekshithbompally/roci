@@ -15,6 +15,10 @@ pub struct LocalModelStatus {
     maker: &'static str,
     kind: Kind,
     streams: bool,
+    /// A speech model's languages, as it spells them; empty for other kinds.
+    languages: &'static [&'static str],
+    /// A speech model tells the language itself.
+    detects_language: bool,
     bytes: u64,
     installed: bool,
     downloading: bool,
@@ -42,6 +46,8 @@ pub fn local_models(app: AppHandle, state: State<'_, ModelsState>) -> Result<Vec
                 maker: m.maker,
                 kind: m.kind,
                 streams: m.streams,
+                languages: m.languages,
+                detects_language: m.detects_language,
                 bytes: m.bytes(),
                 installed,
                 downloading: state.downloads.is_active(m.id),

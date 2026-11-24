@@ -90,6 +90,11 @@ export const PERSONALIZATION_CONFIG = {
     recognition: {
       section: 'Recognition',
       boost: 'Recognition Boost',
+      language: 'Spoken Language',
+      /** The menu's first choice: the device's language ("Automatic (English)"). */
+      automatic: (name: string) => `Automatic (${name})`,
+      writes: (model: string) => `${model} writes your transcripts in this language and its script.`,
+      needsChoice: (model: string) => `${model} doesn't take your device's language. Choose the one you speak.`,
       footer: 'How strongly on-device speech recognition favours your terms. Stronger catches more names but can replace words that were said correctly.',
     },
   },

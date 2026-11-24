@@ -45,26 +45,33 @@ pub struct Loaded {
     pub streams: bool,
     /// The language codes the model takes (`en`, or locales like `en-US`); empty = any.
     languages: Vec<String>,
+    /// The model can tell the language itself, so it runs untold when it doesn't take the user's.
+    detects_language: bool,
     /// How runs take the custom vocabulary.
     vocabulary: VocabularySlot,
 }
 
 impl Loaded {
     /// Run options in the model's own spelling of `language`, with the custom vocabulary as of now (a stream takes only
-    /// Parakeet's bias, a whole-clip run the context prompt too).
-    pub fn run_options(&self, language: &str, stream: bool) -> RunOptions {
-        let options = RunOptions { language: hint_for(&self.languages, language), ..RunOptions::default() };
-        self.vocabulary.apply(options, stream)
+    /// Parakeet's bias, a whole-clip run the context prompt too); refused when the model neither takes it nor detects one.
+    pub fn run_options(&self, language: &str, stream: bool) -> Result<RunOptions, LocalError> {
+        let hint = hint_for(&self.languages, language);
+        if hint.is_none() && !self.detects_language {
+            return Err(LocalError::NeedsLanguage);
+        }
+        Ok(self.vocabulary.apply(RunOptions { language: hint, ..RunOptions::default() }, stream))
     }
 }
 
-/// `language` as the model advertises it (itself, else its first locale); None lets the model detect.
+/// `language` as the model advertises it (itself, else its base language or that language's first locale: `en-IN` →
+/// `en` or `en-US`); None when it takes neither.
 fn hint_for(advertised: &[String], language: &str) -> Option<String> {
     if advertised.is_empty() || advertised.iter().any(|l| l == language) {
         return Some(language.to_string());
     }
-    let prefix = format!("{language}-");
-    advertised.iter().find(|l| l.starts_with(&prefix)).cloned()
+    let base = language.split('-').next().unwrap_or(language);
+    let prefix = format!("{base}-");
+    advertised.iter().find(|l| *l == base || l.starts_with(&prefix)).cloned()
 }
 
 #[derive(Default)]
@@ -116,7 +123,7 @@ impl Engine {
         for window in windows(pcm, max_samples) {
             let span = (seconds(window.start), seconds(window.end));
             let transcript = self.with_loaded(id, path, |loaded| {
-                let options = loaded.run_options(language, false);
+                let options = loaded.run_options(language, false)?;
                 let mut transcript = gpu::run(Priority::Realtime, || loaded.session.run(&pcm[window], &options)).map_err(engine_error)?;
                 if let Some(prompt) = &options.prompt {
                     drop_prompt_echo(&mut transcript, prompt);
@@ -163,6 +170,7 @@ fn load(id: &'static str, path: &Path) -> Result<Loaded, LocalError> {
         max_samples: max_ms * SAMPLE_RATE / 1000,
         streams: capabilities.supports_streaming,
         languages: capabilities.languages,
+        detects_language: capabilities.supports_language_detect,
         vocabulary,
     })
 }
@@ -268,6 +276,8 @@ mod tests {
         assert_eq!(hint_for(&locales, "en"), Some("en-US".into()));
         assert_eq!(hint_for(&["en".to_string()], "en"), Some("en".into()));
         assert_eq!(hint_for(&[], "en"), Some("en".into()));
+        assert_eq!(hint_for(&locales, "en-IN"), Some("en-US".into()));
+        assert_eq!(hint_for(&["en".to_string(), "hi".to_string()], "hi-IN"), Some("hi".into()));
         assert_eq!(hint_for(&locales, "ja"), None);
     }
 
