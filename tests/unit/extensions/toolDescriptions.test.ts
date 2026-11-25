@@ -5,6 +5,12 @@ import { CONFIRMED_ON_A_CARD } from '@extensions/tools/contract';
 const description = (name: string) => toolRegistry.getTools().find((t) => t.name === name)?.description ?? '';
 
 describe('tool descriptions work together', () => {
+  it('find and read are always sent; a to-do change loads through tool_search, found by "todo" or "task"', () => {
+    const deferred = (name: string) => toolRegistry.getTools().find((t) => t.name === name)?.deferLoading === true;
+    expect([deferred('find'), deferred('read'), deferred('suggest_todo')]).toEqual([false, false, true]);
+    expect(description('suggest_todo')).toContain('task');
+  });
+
   it('every to-do change is confirmed the same way, scoped to chat (MCP agents read these too)', () => {
     expect(description('suggest_todo')).toContain(CONFIRMED_ON_A_CARD);
     expect(CONFIRMED_ON_A_CARD).toContain("In Roci's chat");

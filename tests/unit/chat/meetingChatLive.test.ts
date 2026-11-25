@@ -51,3 +51,14 @@ describe('a meeting chat', () => {
     expect(resolve.mock.calls[2][0].meetingIds).toEqual([]);
   });
 });
+
+describe('a meeting chat\'s thinking', () => {
+  it('starts Off while its meeting records, so answers come quickly, and at the default otherwise', () => {
+    meetingLiveActions.start('m1');
+    useChatStore.getState().startMeetingChat({ id: 'm1', title: 'Sync', timestamp: 0 });
+    expect(useChatStore.getState().draftReasoningEffort).toBe('none');
+    meetingLiveActions.end();
+    useChatStore.getState().startMeetingChat({ id: 'm1', title: 'Sync', timestamp: 0 });
+    expect(useChatStore.getState().draftReasoningEffort).toBe('provider-default');
+  });
+});

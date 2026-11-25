@@ -57,8 +57,8 @@ const wordsFor = (modalities: readonly Modality[]): string[] =>
 
 /** The tools that load through `tool_search`, as the prompt names them: their groups, then each connected app. The words
  *  are ones their descriptions carry, so a search for one finds it. */
-function deferredToolNames({ views, image, memory, apps }: ChatToolset): string[] {
-  return [views && 'charts', image && 'images', memory && 'memory', ...apps].filter((name): name is string => !!name);
+function deferredToolNames({ meetings, views, image, memory, apps }: ChatToolset): string[] {
+  return [meetings && 'to-dos', views && 'charts', image && 'images', memory && 'memory', ...apps].filter((name): name is string => !!name);
 }
 
 const hasTools = (tools: ChatToolset): boolean => tools.meetings || tools.webSearch || deferredToolNames(tools).length > 0;

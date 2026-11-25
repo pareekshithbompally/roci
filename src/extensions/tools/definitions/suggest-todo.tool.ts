@@ -93,6 +93,7 @@ export const suggestTodoTool = defineTool({
     `give only what changes (done=true finishes it). delete: remove it for good. todo_id comes from find. ${CONFIRMED_ON_A_CARD}`,
   input,
   writes: true,
+  deferLoading: true,
   async execute(args, context) {
     if (args.action !== 'add' && !args.todo_id) return fail(`${args.action} needs todo_id: get it from find in todos.`);
     const past = args.reminder_at ? pastReminder(args.reminder_at) : null;

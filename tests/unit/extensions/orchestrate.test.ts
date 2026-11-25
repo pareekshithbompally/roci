@@ -100,7 +100,7 @@ beforeEach(() => {
   listStyleOf.mockResolvedValue('openai');
   resolved.current = { provider: 'openai', modelId: 'gpt', baseUrl: '', model: { id: 'gpt' } };
   askChatExtras.mockResolvedValue({ suggestions: [] });
-  registry.tools = [shape('find'), shape('read'), shape('suggest_todo')];
+  registry.tools = [shape('find'), shape('read'), shape('suggest_todo', true)];
   loadMcpTools.mockResolvedValue([]);
   contextTokensFor.mockResolvedValue(null);
   replyOnce();
@@ -118,18 +118,23 @@ const takesTools = () => { resolved.current = { provider: 'openai', modelId: 'gp
 
 describe('orchestrate — tool search', () => {
   beforeEach(takesTools);
-  it('sends find, read, suggest_todo and web search whole; charts, memory and every connected app load through tool_search', async () => {
+  it('sends find, read and web search whole; to-dos, charts, memory and every connected app load through tool_search', async () => {
     loadMcpTools.mockResolvedValue([{ ...shape('web_search_exa', true), source: 'Exa' }]);
     await run({});
     const { tools = {}, instructions } = sent();
     expect(Object.keys(tools)).toEqual(['find', 'read', 'suggest_todo', 'show', 'suggest_memory', 'web_search_exa', 'tool_search', 'webSearch']);
-    expect(Object.entries(tools).filter(([, t]) => t.deferLoading).map(([name]) => name)).toEqual(['show', 'suggest_memory', 'web_search_exa']);
-    expect(instructions).toContain('e.g. charts, memory, Exa. Call `tool_search`');
+    expect(Object.entries(tools).filter(([, t]) => t.deferLoading).map(([name]) => name)).toEqual(['suggest_todo', 'show', 'suggest_memory', 'web_search_exa']);
+    expect(instructions).toContain('e.g. to-dos, charts, memory, Exa. Call `tool_search`');
+  });
+
+  it('with meeting tools alone, loads to-do changes through tool_search', async () => {
+    await run(MEETINGS_ONLY);
+    expect(Object.keys(sent().tools ?? {})).toEqual(['find', 'read', 'suggest_todo', 'tool_search']);
   });
 
   it('sends no tool_search when nothing is deferred', async () => {
-    await run(MEETINGS_ONLY);
-    expect(Object.keys(sent().tools ?? {})).toEqual(['find', 'read', 'suggest_todo']);
+    await run({ ...MEETINGS_ONLY, chatTools: { ...MEETINGS_ONLY.chatTools!, meetingTools: false, webSearch: true } });
+    expect(Object.keys(sent().tools ?? {})).toEqual(['webSearch']);
     expect(sent().instructions).not.toContain('tool_search');
   });
 });

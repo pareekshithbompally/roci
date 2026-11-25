@@ -13,6 +13,8 @@ import { CHAT_MAX_ATTACHMENTS } from '@config/chat.config';
 import { UI_CONFIG } from '@config/ui.config';
 import { chatModelOf } from '@features/chat/utils';
 import type { ModelRef } from '@services/ai/models';
+// the live store alone (a light module), not the whole recording feature
+import { runningTranscript } from '@features/recording/live/meetingLiveStore';
 import { attachmentPart } from './chatMessages';
 import { attachmentMediaType } from '@shared/utils/chatParts';
 import { createSessions } from './chatSessions';
@@ -77,7 +79,8 @@ export interface ChatStoreState {
   addAttachment: (file: File) => Promise<void>;
   removeAttachment: (index: number) => void;
   addScreenshotAttachment: (base64: string, name: string) => void;
-  /** A fresh, unsaved chat about `meeting`, with the meeting attached as context. */
+  /** A fresh, unsaved chat about `meeting`, with the meeting attached as context; thinking Off while the meeting records, so
+   *  answers come quickly (the picker still raises it). */
   startMeetingChat: (meeting: MeetingListItem) => void;
   /** Writes a session to disk and its row to the chat list; never rejects. */
   persistSession: (session: ChatSession) => Promise<void>;
@@ -207,7 +210,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
       selectedMeetingRefs: [meeting],
       input: '',
       pendingAttachments: [],
-      draftReasoningEffort: 'provider-default',
+      draftReasoningEffort: runningTranscript(meeting.id) === null ? 'provider-default' : 'none',
     }),
 
   // ── Sending ──
