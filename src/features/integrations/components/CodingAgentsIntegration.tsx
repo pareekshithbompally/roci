@@ -1,85 +1,81 @@
-/** Coding agents rows: Roci's MCP server, one switch per agent's `roci` config entry, then a manual command. */
+/** Coding agents: Roci's MCP server on its own, then one block that adds Roci to every agent found on this Mac, with the
+ *  command for any other agent. */
 
 import React from 'react';
 import { Copy } from 'lucide-react';
 import { SiModelcontextprotocol } from '@icons-pack/react-simple-icons';
-import { Button, CardRow, Code, IconButton, IconTile, Status, Switch } from '@shared/ui';
+import { Button, CardRow, Code, IconButton, IconTile, Section, Status, Switch, Text, markGlyph } from '@shared/ui';
 import { useToast } from '@shared/contexts/ToastContext';
 import { copyRichText } from '@shared/utils/clipboard';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
-import { useCodingAgents } from '@features/integrations/hooks/useCodingAgents';
+import { isAvailable, useCodingAgents } from '@features/integrations/hooks/useCodingAgents';
 import type { CodingAgentStatus, McpHostStatus } from '@services/mcpHost.service';
-import { IntegrationIcon } from './IntegrationIcon';
 
 const COPY = INTEGRATIONS_CONFIG.codingAgents;
+const ALL = COPY.all;
+/** Every supported agent's mark as a one-colour glyph, in config order. */
+const AGENT_MARKS = Object.entries(COPY.agents).map(([id, agent]) => ({ id, title: agent.title, Glyph: markGlyph(agent.mark) }));
 
 export const CodingAgentsIntegration: React.FC = () => {
-  const { agents, server, setRegistered, pendingId } = useCodingAgents();
+  const { agents, server, setAll, pending } = useCodingAgents();
   return (
     <>
-      <CardRow
-        leading={<IconTile icon={SiModelcontextprotocol} />}
-        title={COPY.server.title}
-        description={server?.error}
-        status={<ServerStatus server={server} />}
-      />
-      {agents.map((agent) => (
-        <AgentRow
-          key={agent.id}
-          agent={agent}
-          pending={pendingId === agent.id}
-          setRegistered={(on) => setRegistered(agent.id, on)}
+      <Section footer={COPY.server.description}>
+        <CardRow
+          leading={<IconTile icon={SiModelcontextprotocol} />}
+          title={COPY.server.title}
+          description={server?.error ?? <ServerStatus server={server} />}
         />
-      ))}
-      <ManualSetupRow server={server} />
+      </Section>
+      <Section title={<AgentMarks />}>
+        <AgentsRow agents={agents.filter(isAvailable)} pending={pending} setAll={setAll} />
+        <ManualSetupRow server={server} />
+      </Section>
     </>
   );
 };
 
 const ServerStatus: React.FC<{ server: McpHostStatus | undefined }> = ({ server }) => {
-  if (server?.error) return null;
   if (!server?.listening || !server.ready) return <Status tone="muted">{COPY.server.starting}</Status>;
   if (server.clients > 0) return <Status tone="success">{COPY.server.connected(server.clients)}</Status>;
   return <Status tone="success">{COPY.server.ready}</Status>;
 };
 
-interface AgentRowProps {
-  agent: CodingAgentStatus;
-  pending: boolean;
-  setRegistered: (on: boolean) => void;
+/** "Claude Code, Codex and OpenCode". */
+function namesOf(agents: CodingAgentStatus[]): string {
+  const names = agents.map((agent) => COPY.agents[agent.id].title);
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names.join('');
 }
 
-const AgentRow: React.FC<AgentRowProps> = ({ agent, pending, setRegistered }) => {
-  const copy = COPY.agents[agent.id];
-  const blocked = agent.problem !== null || !agent.installed;
+/** The supported agents' marks side by side on the page, heading the agents' card, in the text's muted colour. */
+const AgentMarks: React.FC = () => (
+  <Text tone="muted" className="flex items-center gap-3">
+    {AGENT_MARKS.map(({ id, title, Glyph }) => <span key={id} title={title} className="inline-flex"><Glyph /></span>)}
+  </Text>
+);
+
+interface AgentsRowProps {
+  agents: CodingAgentStatus[];
+  pending: boolean;
+  setAll: (registered: boolean) => void;
+}
+
+/** One switch for every available agent: on once Roci is added to any of them; Update when an entry points at a moved Roci. */
+const AgentsRow: React.FC<AgentsRowProps> = ({ agents, pending, setAll }) => {
+  const on = agents.some((agent) => agent.registration !== 'none');
+  const outdated = agents.some((agent) => agent.registration === 'outdated');
+  const names = namesOf(agents);
+  const description = agents.length === 0 ? ALL.none : outdated ? COPY.outdated.description : on ? ALL.on(names) : ALL.off(names);
   return (
     <CardRow
-      leading={<IntegrationIcon src={copy.icon} />}
-      title={copy.title}
-      description={describe(agent)}
-      status={agent.registration === 'outdated' && (
-        <Button variant="outline" size="sm" loading={pending} onClick={() => setRegistered(true)}>{COPY.outdated.action}</Button>
-      )}
-      actions={
-        <Switch
-          checked={agent.registration !== 'none'}
-          disabled={blocked || pending}
-          onCheckedChange={setRegistered}
-          aria-label={`Use Roci in ${copy.title}`}
-        />
-      }
+      title={ALL.title}
+      description={description}
+      wrap
+      status={outdated && <Button variant="outline" size="sm" loading={pending} onClick={() => setAll(true)}>{COPY.outdated.action}</Button>}
+      actions={<Switch checked={on} disabled={agents.length === 0 || pending} onCheckedChange={setAll} aria-label={ALL.label} />}
     />
   );
 };
-
-/** One line that says what's true now: why it can't switch, or what being on means. */
-function describe(agent: CodingAgentStatus): string {
-  if (agent.problem) return agent.problem;
-  if (!agent.installed) return COPY.notInstalled;
-  if (agent.registration === 'outdated') return COPY.outdated.description;
-  if (agent.registration === 'current') return COPY.added;
-  return COPY.agents[agent.id].description;
-}
 
 const ManualSetupRow: React.FC<{ server: McpHostStatus | undefined }> = ({ server }) => {
   const { showToast } = useToast();

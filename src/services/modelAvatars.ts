@@ -19,13 +19,6 @@ export function getAvatarUrl(org: string): string {
   return `${MODEL_AVATARS_CONFIG.avatarsUrl}/${encodeURIComponent(org.replace(/^~/, ''))}`;
 }
 
-/** Stable hue (0–359) for an org's monogram. */
-export function orgHue(org: string): number {
-  let hash = 0;
-  for (const ch of org) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
-  return Math.abs(hash) % 360;
-}
-
 /** Org avatar for a local model (maker on this device, repo org on a local server) while model icons are on; else null. */
 export function modelAvatarOrg(provider: string, modelId: string | undefined, enabled: boolean): string | null {
   if (!enabled || !modelId) return null;

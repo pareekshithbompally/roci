@@ -4,7 +4,7 @@ import React from 'react';
 import { AppleIntelligenceIntegration } from '@features/integrations';
 import { JOB_GLYPH, ModelDownloadButton, ModelIcon, ModelLabel, ModelSize } from '@shared/components';
 import { History, Layers, MemoryStick, Timer } from 'lucide-react';
-import { Button, CardRow, ICON_TILE_PX, IconTile, Section, Status, type TileGlyph } from '@shared/ui';
+import { Button, CardRow, IconTile, Section, Status, type TileGlyph } from '@shared/ui';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { dialogService } from '@services/tauri';
@@ -34,7 +34,7 @@ const profileOfRow = (model: LocalModel) =>
 /** A downloadable model: its maker's icon, name and chips, then its size and Download / progress / Delete in fixed columns. */
 const DownloadRow: React.FC<{ model: LocalModel; control: OnDeviceModel }> = ({ model, control }) => (
   <CardRow
-    leading={<ModelIcon provider={ON_DEVICE.id} modelId={model.id} size={ICON_TILE_PX} />}
+    leading={<ModelIcon provider={ON_DEVICE.id} modelId={model.id} />}
     title={<ModelLabel name={model.name} profile={profileOfRow(model)} />}
     actions={
       <>

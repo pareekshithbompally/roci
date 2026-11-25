@@ -1,7 +1,7 @@
 /** First-run: the online providers Roci has chat defaults for; a row opens its key step. */
 
 import React from 'react';
-import { CardRow, ICON_SIZE_PX, Section, WelcomeStep } from '@shared/ui';
+import { CardRow, Section, WelcomeStep } from '@shared/ui';
 import { ProvidersAvatar } from '@shared/components';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { getProviderTitle, providerSetting } from '@shared/utils/provider.utils';
@@ -24,7 +24,7 @@ export const ProvidersStep: React.FC = () => {
         {offered.map((p) => (
           <CardRow
             key={p.provider}
-            leading={<ProvidersAvatar provider={p.provider} size={ICON_SIZE_PX.lg} />}
+            leading={<ProvidersAvatar provider={p.provider} />}
             title={getProviderTitle(p.provider)}
             // A provider with no key yet is simply not set up: nothing to warn about.
             status={providerSetting(p, 'api-key') ? <ProviderStatus state={cloudRowState(p)} /> : undefined}

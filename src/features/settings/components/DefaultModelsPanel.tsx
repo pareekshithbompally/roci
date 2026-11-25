@@ -21,9 +21,10 @@ import { useSpeechModelOptions } from '@features/settings/hooks/useSpeechModels'
 import { downloadSetup, useLocalModelControls } from '@features/settings/hooks/useLocalModels';
 import { useLocalModels } from '@shared/hooks/useLocalModels';
 import { useAppleSpeechSetup } from '@features/integrations';
-import { CardRow, Section, Switch, Text } from '@shared/ui';
+import { CardRow, IconTile, Section, Switch, Text } from '@shared/ui';
+import { ProviderDefaultsPage, ProviderDefaultsSection } from './ProviderDefaultsSection';
 import type { LocalModel } from '@services/localModels.service';
-import { CapabilityRow, LIVE_TRANSCRIPTION_MARK, ModelSelect, SettingsPage } from './shared';
+import { CapabilityRow, LIVE_TRANSCRIPTION_MARK, ModelSelect, SettingsPage, usePaneDrill } from './shared';
 import { ReadAloudVoiceRow } from './ReadAloudVoiceRow';
 import { platform } from '@platform/index';
 
@@ -117,10 +118,12 @@ const ChatExtrasSection: React.FC = () => {
   return (
     <Section title={EXTRAS.section} footer={FOOTERS.chatExtras}>
       <CardRow
+        leading={<IconTile icon={JOB_GLYPH.chatTitles} />}
         title={EXTRAS.titles}
         actions={<Switch checked={titles} onCheckedChange={(chatTitles) => setSettings({ chatTitles })} aria-label={EXTRAS.titles} />}
       />
       <CardRow
+        leading={<IconTile icon={JOB_GLYPH.followUps} />}
         title={EXTRAS.followUps}
         actions={<Switch checked={followUps} onCheckedChange={(on) => setSettings({ followUps: on })} aria-label={EXTRAS.followUps} />}
       />
@@ -142,6 +145,7 @@ const MeetingSearchRow: React.FC<{ localModels: LocalModel[]; controls: Controls
 
 export const DefaultModelsPanel: React.FC = () => {
   const { settings, setSettings, providers } = useSettings();
+  const drill = usePaneDrill();
 
   const { data: localModels = [] } = useLocalModels();
   const catalogLoaded = useModelCatalog();
@@ -163,8 +167,14 @@ export const DefaultModelsPanel: React.FC = () => {
     if (choice) setSettings({ transcriptionProvider: choice.provider, transcriptionModel: choice.modelId });
   };
 
+  if (drill.view) return drill.view;
+  const openDefaults = ({ key, title }: { key: string; title: string }) =>
+    drill.open({ title, render: (close) => <ProviderDefaultsPage rowKey={key} onBack={close} /> });
+
   return (
-    <SettingsPage pane="defaultModels">
+    <SettingsPage pane="defaultModels" onForward={drill.forward}>
+      <ProviderDefaultsSection onOpen={openDefaults} />
+
       <Section title="Conversation" footer={FOOTERS.conversation}>
         <CapabilityRow icon={JOB_GLYPH.chat} job={JOBS.chat}>
           <ModelSelect value={settings.chatModel || undefined} choices={textChoices} onChange={(chatModel) => setSettings({ chatModel })} />

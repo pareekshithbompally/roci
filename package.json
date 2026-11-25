@@ -21,7 +21,8 @@
     "audit:design": "scripts/design-audit.sh",
     "notices": "node scripts/generate-notices.ts",
     "security": "scripts/security-scan.sh",
-    "hooks:install": "git config core.hooksPath .githooks"
+    "hooks:install": "git config core.hooksPath .githooks",
+    "logos": "node scripts/build-logo-tiles.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.105",

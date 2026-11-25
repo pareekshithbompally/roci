@@ -11,7 +11,7 @@ import { modalitiesService } from '@services/modalities';
 import type { ListedModel } from '@services/ai/models';
 import { confirm } from '@shared/stores/confirmStore';
 import { getModelDisplayName } from '@shared/utils/provider.utils';
-import { CardRow, CommandGroup, CommandPopover, CommandRow, ICON_TILE_PX, Icon, Section } from '@shared/ui';
+import { CardRow, CommandGroup, CommandPopover, CommandRow, Icon, Section } from '@shared/ui';
 import type { Model, ModelOverrides, ModelProvider } from '@shared/types/modelProviders';
 import type { ConnectionStatus, ProviderConnection } from '@features/settings/hooks/useProviderConnection';
 import { ModelRowMenu } from './ModelRowMenu';
@@ -146,7 +146,7 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
         {models.map((model) => (
           <CardRow
             key={model.id}
-            leading={<ModelIcon provider={id} modelId={model.id} size={ICON_TILE_PX} />}
+            leading={<ModelIcon provider={id} modelId={model.id} />}
             title={<ModelLabel name={getModelDisplayName(model)} profile={shownProfile(profileOf(id, model))} />}
             actions={
               <ModelRowMenu

@@ -2,6 +2,7 @@
 
 /** Apple Notes folder in the default account; created on first save. */
 import { CalendarDays, ListChecks, Search, StickyNote } from 'lucide-react';
+import { AI_LOGO } from '@config/providerLogos.config';
 import { platform } from '@platform/index';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 
@@ -22,9 +23,9 @@ export const INTEGRATIONS_CONFIG = {
   },
   appleIntelligence: {
     title: 'Apple Intelligence',
-    description: 'On-device AI. Nothing leaves this device.',
+    description: 'Uses Apple’s on-device Foundation Models. Nothing leaves this device.',
     deniedHint: `Apple Intelligence is off in ${platform.settingsAppName} › Apple Intelligence & Siri.`,
-    icon: '/images/apple-intelligence-sm.png',
+    icon: AI_LOGO,
     /** The welcome screen's third option: every basic job on Apple's models in one click. */
     onboarding: {
       needsSettings: `Turn it on in ${platform.settingsAppName}`,
@@ -84,13 +85,18 @@ export const INTEGRATIONS_CONFIG = {
       starting: 'Starting',
       connected: (count: number) => `${count} ${count === 1 ? 'agent' : 'agents'} connected`,
     },
-    /** Agent row description once Roci is added. */
-    added: 'Added. Start a new session to use Roci’s tools.',
+    /** The one agents row: a switch for every agent found on this Mac. */
+    all: {
+      title: 'Add Roci to available agents',
+      off: (names: string) => `Adds Roci’s MCP server to ${names}.`,
+      on: (names: string) => `Added to ${names}. Start a new session to use Roci’s tools.`,
+      none: 'No supported agent on this Mac: Claude Code, Codex or OpenCode.',
+      label: 'Add Roci to available agents',
+    },
     outdated: {
       description: 'Added for a copy of Roci that has moved. Update to fix.',
       action: 'Update',
     },
-    notInstalled: 'Not installed on this Mac.',
     manual: {
       title: 'Other agents',
       description: 'Add a local (stdio) MCP server named “roci” that runs:',
@@ -98,9 +104,9 @@ export const INTEGRATIONS_CONFIG = {
       copied: 'Command copied',
     },
     agents: {
-      'claude-code': { title: 'Claude Code', description: 'Added with Claude Code’s own command, for every project.', icon: '/images/model-provider/anthropic.svg' },
-      codex: { title: 'Codex', description: 'Added with Codex’s own command.', icon: '/images/model-provider/openai.svg' },
-      opencode: { title: 'OpenCode', description: 'Adds one entry to OpenCode’s global config; nothing else changes.', icon: '/images/opencode-app-sm.png' },
+      'claude-code': { title: 'Claude Code', mark: '/images/marks/claudecode.svg' },
+      codex: { title: 'Codex', mark: '/images/marks/codex.svg' },
+      opencode: { title: 'OpenCode', mark: '/images/marks/opencode.svg' },
     },
   },
   /** `roci://` links (src-tauri/src/url_actions.rs) for Shortcuts, Raycast, Alfred and notes. */

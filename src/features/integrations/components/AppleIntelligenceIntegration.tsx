@@ -11,7 +11,7 @@ const COPY = INTEGRATIONS_CONFIG.appleIntelligence;
 export const AppleIntelligenceIntegration: React.FC = () => (
   <IntegrationRow
     {...useAppleIntelligenceControls()}
-    icon={<IntegrationIcon glyph={COPY.icon} />}
+    icon={<IntegrationIcon logo={COPY.icon} />}
     title={COPY.title}
     description={COPY.description}
     deniedHint={COPY.deniedHint}

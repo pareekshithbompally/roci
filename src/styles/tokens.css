@@ -247,8 +247,8 @@
   --veil-fade: 32px;
   --veil-mask: linear-gradient(to bottom, transparent, black var(--veil-fade));
 
-  /* Monochrome-black brand logos (e.g. some HF orgs) invert to stay visible in dark */
-  --logo-filter: none;
+  /* Logo tiles: a hairline so a white or black tile still shows its edge on any surface. */
+  --logo-tile-edge: color-mix(in srgb, var(--grey-1000) 10%, transparent);
 
 }
 
@@ -385,5 +385,5 @@ html.platform-ios.dark {
   --horizon-work: var(--teal-500);
   --horizon-work-core: var(--teal-300);
 
-  --logo-filter: invert(1);
+  --logo-tile-edge: color-mix(in srgb, var(--grey-50) 12%, transparent);
 }

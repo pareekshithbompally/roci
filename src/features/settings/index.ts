@@ -27,4 +27,5 @@ export { useProviderDefaults } from './hooks';
 export type { DetectedProvider, ProviderDefaultsSetup } from './hooks';
 // Job rows, shared with onboarding's list of defaults
 export { CapabilityRow } from './components/shared';
+export { DefaultsList } from './components/DefaultsList';
 export { useChatModelDownload } from './hooks/useLocalModels';

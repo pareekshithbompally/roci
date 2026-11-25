@@ -44,6 +44,7 @@ apps that show them) are each built into one self-contained page in `public/scre
 npx tsc --noEmit                 # types
 npm test                         # unit tests
 npm run audit:design             # design-system rules
+npm run logos                    # rebuild public/images/logos/ after changing docs/design/logo-tiles/ (needs Xcode's Icon Composer and cwebp)
 (cd src-tauri && cargo build)    # Rust, with no warnings
 ```
 

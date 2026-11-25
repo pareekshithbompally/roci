@@ -11,7 +11,7 @@ import { platform } from '@platform/index';
 import { ProviderStatus, type ProviderRowState } from './ProviderStatus';
 import { serverHost } from '@services/providers/localServers';
 import type { LocalRow } from '@services/providers/localServers';
-import { CardRow, ICON_TILE_PX, Input, Section, Spinner } from '@shared/ui';
+import { CardRow, Input, Section, Spinner } from '@shared/ui';
 import { FormDialog } from '@shared/components';
 import { PROVIDER_COPY } from '@config/settingsCopy.config';
 
@@ -133,7 +133,7 @@ export const ServersSection: React.FC<ServersSectionProps> = ({ onOpen, onAdd })
         <CardRow
           key={row.id}
           title={getProviderTitle(row.id)}
-          leading={<ProvidersAvatar provider={row.id} size={ICON_TILE_PX} />}
+          leading={<ProvidersAvatar provider={row.id} />}
           description={rowAddress(row)}
           status={<ProviderStatus state={rowState(row)} label={modelCount(row)} />}
           onOpen={() => openRow(row)}

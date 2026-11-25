@@ -4,12 +4,23 @@
 export const ACKNOWLEDGEMENTS_COPY = {
   title: 'Acknowledgements',
   licences: 'Licences',
-  open: (name: string) => `Open ${name}`,
+  trademarks: 'Trademarks',
+  licence: 'Licence',
+  openWebsite: 'Open Website',
 } as const;
 
-/** Trademark notice for the provider and app logos Roci shows. */
-export const TRADEMARK_NOTICE =
-  'All product names, logos and brands are property of their respective owners. They are used for identification only; their use does not imply endorsement.';
+/** Trademark notice for every name and logo Roci shows: the end of About and the top of Acknowledgements, one paragraph each. */
+export const TRADEMARKS: readonly string[] = [
+  'Apple, the Apple logo, Apple Intelligence, Mac, macOS, iPhone, iPad, iOS and iPadOS are trademarks of Apple Inc., '
+    + 'registered in the U.S. and other countries and regions.',
+  'Google, Gemini and Gemma are trademarks of Google LLC. OpenAI, ChatGPT and Codex are trademarks of OpenAI. Claude and '
+    + 'Claude Code are trademarks of Anthropic, PBC. Meta and Llama are trademarks of Meta Platforms, Inc. NVIDIA and '
+    + 'Nemotron are trademarks of NVIDIA Corporation. Qwen is a trademark of Alibaba Group. Mistral AI is a trademark of '
+    + 'Mistral AI SAS. DeepSeek is a trademark of DeepSeek. Hugging Face is a trademark of Hugging Face, Inc.',
+  'All other product names, logos and brands are the property of their respective owners.',
+  'Roci is an independent app. It is not affiliated with, sponsored by or endorsed by any of these companies. Their names '
+    + 'and logos are used only to identify their products and services, and Roci claims no ownership of them.',
+];
 
 /** Licences whose full text ships with Roci (src/config/licenses/<id>.txt). */
 export const LICENSE_TEXT_IDS = ['MIT', 'Apache-2.0', 'BSD-3-Clause', 'ISC'] as const;
@@ -92,6 +103,7 @@ export const ACKNOWLEDGEMENTS: readonly AcknowledgementGroup[] = [
       { name: 'wavesurfer.js', url: 'https://github.com/katspaugh/wavesurfer.js', license: 'BSD-3-Clause', text: 'BSD-3-Clause', copyright: 'Copyright (c) 2012-2023, katspaugh and contributors' },
       { name: 'React Simple Icons', url: 'https://github.com/icons-pack/react-simple-icons', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2019 Jorge Luis Calleja A.' },
       { name: 'Simple Icons', url: 'https://github.com/simple-icons/simple-icons', license: 'CC0-1.0' },
+      { name: 'LobeHub Icons', url: 'https://github.com/lobehub/lobe-icons', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2023 LobeHub' },
     ],
   },
   {

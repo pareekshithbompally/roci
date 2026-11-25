@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { getProviderTitle, isLocalProviderId } from '@shared/utils/provider.utils';
 import { ProvidersAvatar } from '@shared/components';
-import { CardRow, ICON_TILE_PX, Section } from '@shared/ui';
+import { CardRow, Section } from '@shared/ui';
 import { ProviderStatus, cloudRowState } from './ProviderStatus';
 import { AddServerForm, ServersSection } from './LocalServersSection';
 import { ProviderDetail } from './ProviderDetail';
@@ -30,7 +30,7 @@ const providerRow = (id: string, open: (id: string) => void, status?: React.Reac
   <CardRow
     key={id}
     title={getProviderTitle(id)}
-    leading={<ProvidersAvatar provider={id} size={ICON_TILE_PX} />}
+    leading={<ProvidersAvatar provider={id} />}
     status={status}
     onOpen={() => open(id)}
   />

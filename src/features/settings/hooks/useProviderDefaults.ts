@@ -12,6 +12,7 @@ import { defaultsFor, isAppleSpeech, settingsOfDefaults, speechSettings, withDef
 import type { ListedModel, ModelRef, SetupDefaults } from '@services/ai/models';
 import { prepareAppleSpeech } from '@services/ai/transcription';
 import { platform } from '@platform/index';
+import type { ProviderDefaultModels } from '@config/providerDefaults.config';
 import type { LocalModel } from '@services/localModels.service';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { useLocalModelControls } from './useLocalModels';
@@ -23,6 +24,8 @@ export interface DetectedProvider {
   id: string;
   listed: ListedModel[];
   provider?: ModelProvider;
+  /** Which of its sets, where it has several (this device: Western or Indic). */
+  set?: ProviderDefaultModels;
 }
 
 export interface ProviderDefaultsSetup {
@@ -33,24 +36,19 @@ export interface ProviderDefaultsSetup {
   apply: () => void;
 }
 
-/** Null until a provider is detected. */
-export function useProviderDefaults(detected: DetectedProvider | null): ProviderDefaultsSetup | null {
+/** The defaults still to download to this device: `defaults`' chat and speech models on `provider`, not yet installed. */
+function pendingDownloads(defaults: SetupDefaults | null, provider: string | undefined, localModels: LocalModel[] | undefined, controls: Record<string, unknown>): LocalModel[] {
+  const ids = new Set([defaults?.chat, defaults?.transcription].filter((ref) => ref?.provider === provider).map((ref) => ref?.model));
+  return (localModels ?? []).filter((m) => ids.has(m.id) && m.id in controls && !m.installed);
+}
+
+/** Saves `detected`'s defaults: its models, the settings, downloads, Apple Speech. The one apply, for setup and Settings. */
+export function useApplyDefaults(): (detected: DetectedProvider) => SetupDefaults {
   const { providers, setSettings, addProvider, updateProvider } = useSettings();
   const queryClient = useQueryClient();
   const { data: speech } = useAppleSpeechStatus(platform.hasAppleIntelligence);
   const { data: localModels } = useLocalModels();
   const controls = useLocalModelControls();
-  // Re-renders when the catalog arrives: a server's models are told apart by what it says of them.
-  const catalogLoaded = useModelCatalog();
-
-  const defaults = useMemo(
-    () => (detected ? defaultsFor(detected.id, detected.listed, !!speech?.available) : null),
-    [detected, speech?.available, catalogLoaded],
-  );
-  const downloads = useMemo(() => {
-    const ids = new Set([defaults?.chat, defaults?.transcription].filter((ref) => ref?.provider === detected?.id).map((ref) => ref?.model));
-    return (localModels ?? []).filter((m) => ids.has(m.id) && m.id in controls && !m.installed);
-  }, [localModels, controls, defaults, detected]);
 
   const saveProvider = useCallback((provider: ModelProvider, listed: ListedModel[], picks: SetupDefaults) => {
     const models = (saved: ModelProvider) => withDefaultModels(saved.models ?? [], picks, provider.provider, listed);
@@ -71,14 +69,33 @@ export function useProviderDefaults(detected: DetectedProvider | null): Provider
       .catch(report('speech setup'));
   }, [setSettings, queryClient]);
 
-  if (!detected || !defaults) return null;
-
-  const apply = () => {
+  return (detected) => {
+    const defaults = defaultsFor(detected.id, detected.listed, !!speech?.available, detected.set);
     if (detected.provider) saveProvider(detected.provider, detected.listed, defaults);
     setSettings(settingsOfDefaults(defaults));
-    downloads.filter((m) => controls[m.id].status === 'idle').forEach((m) => controls[m.id].download());
+    pendingDownloads(defaults, detected.id, localModels, controls)
+      .filter((m) => controls[m.id].status === 'idle')
+      .forEach((m) => controls[m.id].download());
     if (defaults.transcription && isAppleSpeech(defaults.transcription)) switchToAppleSpeech(defaults.transcription);
+    return defaults;
   };
+}
 
-  return { defaults, downloads, apply };
+/** Null until a provider is detected. */
+export function useProviderDefaults(detected: DetectedProvider | null): ProviderDefaultsSetup | null {
+  const { data: speech } = useAppleSpeechStatus(platform.hasAppleIntelligence);
+  const { data: localModels } = useLocalModels();
+  const controls = useLocalModelControls();
+  const applyDefaults = useApplyDefaults();
+  // Re-renders when the catalog arrives: a server's models are told apart by what it says of them.
+  const catalogLoaded = useModelCatalog();
+
+  const defaults = useMemo(
+    () => (detected ? defaultsFor(detected.id, detected.listed, !!speech?.available, detected.set) : null),
+    [detected, speech?.available, catalogLoaded],
+  );
+  const downloads = useMemo(() => pendingDownloads(defaults, detected?.id, localModels, controls), [localModels, controls, defaults, detected]);
+
+  if (!detected || !defaults) return null;
+  return { defaults, downloads, apply: () => { applyDefaults(detected); } };
 }

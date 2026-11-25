@@ -1,51 +1,17 @@
-import { getProviderApp, getProviderLogo, getProviderTitle } from '@shared/utils/provider.utils'
-import { useAppIcon } from './AppIcon'
-import { DeviceIcon } from './DeviceIcon'
-import { LOCAL_MODELS_CONFIG } from '@config/localModels.config'
+/** A provider's logo tile (this device's by form factor), in the one tile shape. */
+
+import { IconTile } from '@shared/ui';
+import { getProviderTitle, logoOf } from '@shared/utils/provider.utils';
+import { useFormFactor } from '@platform/formFactor';
 
 interface ProvidersAvatarProps {
   provider: string;
+  /** Px; a list row's list-art size when left out. */
   size?: number;
+  /** Its model is working: a light runs round the tile. */
+  working?: boolean;
 }
 
-export const ProvidersAvatar = ({ provider, size = 24 }: ProvidersAvatarProps) => {
-  if (provider === LOCAL_MODELS_CONFIG.provider.id) return <DeviceIcon size={size} />
-  return <ProviderLogo provider={provider} size={size} />
-}
-
-/** A provider's logo: its local server's Mac app icon when installed, else its logo, else its initial. */
-const ProviderLogo = ({ provider, size }: Required<ProvidersAvatarProps>) => {
-  // A local server's own Mac app icon when it's installed (drawn by macOS), else the provider's logo.
-  const appIcon = useAppIcon(getProviderApp(provider))
-  const logo = appIcon ?? getProviderLogo(provider)
-  const title = getProviderTitle(provider)
-
-  return logo ? (
-    <img
-      src={logo}
-      alt={`${title} - Logo`}
-      className={appIcon ? 'object-contain' : 'object-contain rounded-full'}
-      style={{
-        imageRendering: '-webkit-optimize-contrast',
-        width: `${size}px`,
-        height: `${size}px`,
-      }}
-      loading="eager"
-      decoding="sync"
-      draggable={false}
-    />
-  ) : (
-    <div
-      className="flex rounded-full items-center justify-center bg-layer-2 shadow-input"
-      style={{
-        width: `${size}px`,
-        height: `${size}px`,
-      }}
-    >
-      <p className="text-callout font-semibold leading-none capitalize text-muted">
-        {title.charAt(0)}
-      </p>
-    </div>
-  )
-}
-
+export const ProvidersAvatar = ({ provider, size, working }: ProvidersAvatarProps) => (
+  <IconTile logo={logoOf(provider, useFormFactor())} size={size} label={getProviderTitle(provider)} working={working} />
+);

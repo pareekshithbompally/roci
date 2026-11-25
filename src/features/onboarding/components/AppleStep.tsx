@@ -11,7 +11,7 @@ import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { ONBOARDING_CONFIG } from '@config/onboarding.config';
 import { useGoWithDefaults } from '@features/onboarding/hooks/useGoWithDefaults';
 import { useOnboardingBack } from '@features/onboarding/stores/onboardingStore';
-import { DefaultsList } from './DefaultsList';
+import { DefaultsList } from '@features/settings';
 
 const COPY = ONBOARDING_CONFIG.setup;
 const APPLE = INTEGRATIONS_CONFIG.appleIntelligence;

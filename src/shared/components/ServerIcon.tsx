@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SiModelcontextprotocol } from '@icons-pack/react-simple-icons';
-import { cn, ICON_SIZE_PX, ICON_TILE_PX, IconTile } from '@shared/ui';
+import { cn, ICON_SIZE_PX, IconTile, LIST_ART_PX } from '@shared/ui';
 import { useCachedImage } from '@shared/hooks/useCachedImage';
 import { useIconArt } from '@shared/hooks/useIconArt';
 
@@ -15,7 +15,7 @@ interface ServerIconProps {
   className?: string;
 }
 
-const PX = { xs: ICON_SIZE_PX.xs, sm: ICON_SIZE_PX.sm, md: ICON_SIZE_PX.md, tile: ICON_TILE_PX } as const;
+const PX = { xs: ICON_SIZE_PX.xs, sm: ICON_SIZE_PX.sm, md: ICON_SIZE_PX.md, tile: LIST_ART_PX } as const;
 
 /** No icon of its own (or not connected yet): Settings' server art on a row tile, so a row keeps its shape whatever its
  *  state; the MCP mark, muted, inline elsewhere. */
@@ -32,6 +32,7 @@ export const ServerIcon: React.FC<ServerIconProps> = ({ name, icon, size = 'xs',
   const { src, failed } = useCachedImage(icon);
   const box = { width: PX[size], height: PX[size] };
   if (!icon || failed) return <Fallback size={size} className={className} />;
+  if (size === 'tile' && src) return <IconTile logo={src} />;
   // Holds the space while the first load runs, so nothing shifts when the icon arrives.
   if (!src) return <span aria-hidden className={cn('shrink-0', className)} style={box} />;
   return (

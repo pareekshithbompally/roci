@@ -1,6 +1,6 @@
 import { afterEach, describe, it, expect } from 'vitest';
-import { getProviderApp, getProviderTitle, getProviderLogo, isLocalProviderId } from '@shared/utils/provider.utils';
-import { LOCAL_GENERIC_LOGO } from '@config/localServers.config';
+import { getProviderTitle, isLocalProviderId, logoOf } from '@shared/utils/provider.utils';
+import { AI_LOGO, DEVICE_LOGOS, LOGOS } from '@config/providerLogos.config';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 
@@ -25,10 +25,17 @@ describe('getProviderTitle', () => {
   });
 });
 
-describe('getProviderLogo', () => {
-  it('uses the engine logo for known local servers and the generic one otherwise', () => {
-    expect(getProviderLogo('local:jan')).toBe('/images/model-provider/jan.png');
-    expect(getProviderLogo('local:127.0.0.1:9000')).toBe(LOCAL_GENERIC_LOGO);
+describe('logoOf', () => {
+  it("a cloud provider's tile, a server app's tile, the generic server tile for an unnamed server", () => {
+    expect(logoOf('openai')).toBe(LOGOS.openai);
+    expect(logoOf('local:jan')).toBe(LOGOS.jan);
+    expect(logoOf('local:127.0.0.1:9000')).toBe(LOGOS.server);
+  });
+
+  it("this device by form factor, and the AI tile for Apple's and anything unknown", () => {
+    expect(logoOf('on-device', 'phone')).toBe(DEVICE_LOGOS.phone);
+    expect(logoOf('apple-intelligence')).toBe(AI_LOGO);
+    expect(logoOf('somebody-new')).toBe(AI_LOGO);
   });
 });
 
@@ -42,13 +49,12 @@ describe('isLocalProviderId', () => {
 describe('a server the user named', () => {
   afterEach(() => queryClient.removeQueries({ queryKey: queryKeys.storeSettings() }));
 
-  it("takes its app's name, logo and Mac app everywhere", () => {
+  it("takes its app's name and logo everywhere", () => {
     const id = 'local:localhost:9931';
     queryClient.setQueryData(queryKeys.storeSettings(), {
       providers: [{ provider: id, active: true, settings: [], models: [], server_app: 'llama' }],
     });
     expect(getProviderTitle(id)).toBe('Llama');
-    expect(getProviderLogo(id)).toBe('/images/model-provider/llama-cpp.png');
-    expect(getProviderApp(id)).toBe('app.llama.Llama');
+    expect(logoOf(id)).toBe(LOGOS.llama);
   });
 });

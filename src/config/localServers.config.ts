@@ -54,28 +54,23 @@ export const REMOTE_PROBE_TIMEOUT_MS = 10_000;
 export interface ServerApp {
   id: string;
   label: string;
-  logo: string;
-  /** Bundle id of its Mac app: when it's installed, macOS draws its icon (else `logo`). */
-  bundleId?: string;
   /** Takes a JSON schema but some of its models don't hold replies to it: the schema also goes into the instructions
    *  (`schemaInPromptMiddleware`). */
   ignoresSchema?: boolean;
 }
 
-const GENERIC_LOGO = '/images/model-provider/local-server.png';
-const LLAMA_CPP_LOGO = '/images/model-provider/llama-cpp.png';
 
 /** Every server app a user can name their server as, in picker order. */
 export const SERVER_APPS: readonly ServerApp[] = [
-  { id: 'llama', label: 'Llama', logo: LLAMA_CPP_LOGO, bundleId: 'app.llama.Llama' },
-  { id: 'llamacpp', label: 'llama.cpp', logo: LLAMA_CPP_LOGO },
+  { id: 'llama', label: 'Llama' },
+  { id: 'llamacpp', label: 'llama.cpp' },
   // Its cloud and MLX-engine models ignore a schema; its docs advise putting the schema in the prompt too.
-  { id: 'ollama', label: 'Ollama', logo: '/images/model-provider/ollama.png', ignoresSchema: true },
-  { id: 'lmstudio', label: 'LM Studio', logo: '/images/model-provider/lm-studio.png', bundleId: 'ai.elementlabs.lmstudio' },
-  { id: 'vllm', label: 'vLLM', logo: '/images/model-provider/vllm.svg' },
-  { id: 'jan', label: 'Jan', logo: '/images/model-provider/jan.png', bundleId: 'jan.ai.app' },
-  { id: 'koboldcpp', label: 'KoboldCpp', logo: GENERIC_LOGO },
-  { id: 'sglang', label: 'SGLang', logo: '/images/model-provider/sglang.png' },
+  { id: 'ollama', label: 'Ollama', ignoresSchema: true },
+  { id: 'lmstudio', label: 'LM Studio' },
+  { id: 'vllm', label: 'vLLM' },
+  { id: 'jan', label: 'Jan' },
+  { id: 'koboldcpp', label: 'KoboldCpp' },
+  { id: 'sglang', label: 'SGLang' },
 ];
 
 /** The server app a list format proves, so an added server starts named (the user can change it). */
@@ -109,7 +104,6 @@ export const LOCAL_SERVERS: readonly LocalServerEntry[] = [
 ];
 
 /** Logo for a server whose app isn't named (a custom URL, or port 8080 serving MLX/LocalAI). */
-export const LOCAL_GENERIC_LOGO = GENERIC_LOGO;
 
 /** The Providers group of servers that speak the OpenAI API, local or hosted (vs models built into this device). */
 export const LOCAL_SERVERS_GROUP = 'OpenAI-Compatible';

@@ -1,4 +1,5 @@
-import { LOCAL_PROVIDER_PREFIX, LOCAL_SERVERS, LOCAL_GENERIC_LOGO, SERVER_APPS } from '@config/localServers.config'
+import { LOCAL_PROVIDER_PREFIX, LOCAL_SERVERS, SERVER_APPS } from '@config/localServers.config'
+import { AI_LOGO, DEVICE_LOGOS, LOGOS } from '@config/providerLogos.config'
 import type { ServerApp } from '@config/localServers.config'
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config'
 import type { Model, ModelProvider } from '@shared/types/modelProviders'
@@ -31,39 +32,11 @@ export function isKnownPortServer(provider: string): boolean {
 
 const ON_DEVICE = LOCAL_MODELS_CONFIG.provider
 
-/** The Mac app behind a local server, when its entry names one (its icon is drawn by macOS). */
-export function getProviderApp(provider: string): string | undefined {
-  return serverAppOf(provider)?.bundleId
-}
-
-export function getProviderLogo(provider: string) {
-  if (isLocalProviderId(provider)) return serverAppOf(provider)?.logo ?? LOCAL_GENERIC_LOGO
-  switch (provider) {
-    case 'hex':
-      return '/images/model-provider/hex.png'
-    case 'apple':
-      return '/images/model-provider/apple.svg'
-    case 'anthropic':
-      return '/images/model-provider/anthropic.svg'
-    case 'mistral':
-      return '/images/model-provider/mistral.svg'
-    case 'openrouter':
-      return '/images/model-provider/open-router.svg'
-    case 'groq':
-      return '/images/model-provider/groq.svg'
-    case 'gemini':
-      return '/images/model-provider/gemini.svg'
-    case 'apple-intelligence':
-      return '/images/apple-intelligence-sm.png'
-    case 'openai':
-      return '/images/model-provider/openai.svg'
-    case 'deepgram':
-      return '/images/model-provider/deepgram.png'
-    case 'elevenlabs':
-      return '/images/model-provider/elevan-labs.png'
-    default:
-      return undefined
-  }
+/** A provider's logo tile: its brand's, this device's (by form factor), else the generic AI tile (Apple's included). */
+export function logoOf(provider: string, device: keyof typeof DEVICE_LOGOS = 'desktop'): string {
+  if (provider === ON_DEVICE.id) return DEVICE_LOGOS[device]
+  const brand = isLocalProviderId(provider) ? serverAppOf(provider)?.id ?? 'server' : provider
+  return LOGOS[brand] ?? AI_LOGO
 }
 
 export const getProviderTitle = (provider: string | undefined | null) => {

@@ -35,7 +35,6 @@ export const UI_CONFIG = {
   },
 
   /** A glyph on an app-icon-sized tile, so a bare glyph weighs the same as the app icons beside it. */
-  glyphTile: { tile: 34, glyph: 24 },
   /** A Settings pane's header: its icon's edge (px). */
   paneHero: { tile: 64, compactTile: 44 },
   /** Settings pane icons (Icon Composer renders), one per pane and appearance: `{dir}/{pane}-{light|dark}.webp`. */
@@ -44,7 +43,7 @@ export const UI_CONFIG = {
    *  saturated and `minBrightness` bright; under `minShare` of the logo coloured, it counts as mono (no tint). */
   logoTint: { samplePx: 24, minSaturation: 0.3, minBrightness: 0.2, minShare: 0.08 },
   /** A list row's icon image, larger than a line glyph as Apple's are (macOS sidebar 20 pt, iOS Settings 29 pt). */
-  listArt: { desktop: 20, touch: 27, radius: 0.22 },
+  listArt: { desktop: 20, touch: 27, radius: 0.22, workingRingPx: 2 },
   /** Bar chart (usage trends): plot height (taller on touch), bar cap and gap, data-end radius, axis gutters, label density, dimmed bars. */
   /** Data tables: rows shown before the table scrolls inside its card (its header stays). */
   table: {
@@ -100,7 +99,7 @@ export const UI_CONFIG = {
   appIconBody: 824 / 1024,
   /** Provider logos fanned like cards: each tile slides out and tilts about its base, middle on top, every logo in view. */
   /** Logos fanned in one icon slot: tiles turned about a point `pivotPercent` of a tile below their tops (a hand of cards). */
-  iconFan: { width: 64, height: 44, tile: 26, logo: 'sm', shiftPx: 6, spreadDeg: 16, pivotPercent: 200 },
+  iconFan: { width: 64, height: 44, tile: 26, shiftPx: 6, spreadDeg: 16, pivotPercent: 200 },
 
   /** How long a copy button shows its "Copied" tick */
   copiedFeedbackMs: 2_000,

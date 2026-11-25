@@ -1,5 +1,6 @@
 /** First-run flow copy and the icons it shows: welcome, permissions (the Mac), then AI setup. */
 
+import { LOGOS } from '@config/providerLogos.config';
 import { Bell, CalendarDays, SquareTerminal, Volume2, type LucideIcon } from 'lucide-react';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { IMAGE_GENERATION_CONFIG } from '@config/imageGeneration.config';
@@ -19,12 +20,9 @@ export interface ThemedImage {
  *  provider logos or of the on-device engines' logos. */
 export type OnboardingIconSource =
   | { app: string; symbol: LucideIcon; art?: string }
-  | { glyph: string }
+  | { logo: string }
   | { image: ThemedImage }
-  | { providers: readonly string[] }
-  | { engines: readonly (ThemedImage & { name: string })[] };
-
-const GGML_LOGO = '/images/model-provider/llama-cpp.png';
+  | { providers: readonly string[] };
 
 /** macOS has no current microphone icon to draw, so that one is bundled in the same style (SF Symbol mic.fill on the icon tile). */
 export const ONBOARDING_ICONS = {
@@ -32,14 +30,11 @@ export const ONBOARDING_ICONS = {
   'system-audio': { app: `${SETTINGS_PANES}/Sound.appex`, symbol: Volume2 },
   notifications: { app: `${SETTINGS_PANES}/NotificationsSettings.appex`, symbol: Bell },
   calendar: { app: INTEGRATIONS_CONFIG.calendar.app, symbol: CalendarDays },
-  // Apple Intelligence's own mark is a bare glyph: on a tile it weighs the same as the app icons beside it.
-  appleIntelligence: { glyph: INTEGRATIONS_CONFIG.appleIntelligence.icon },
+  appleIntelligence: { logo: INTEGRATIONS_CONFIG.appleIntelligence.icon },
   // iPhone can't read the Terminal's icon: the bundled server art stands in (docs/design/pane-icons).
   local: { app: 'com.apple.Terminal', symbol: SquareTerminal, art: 'server' },
   // The engine models run on here: ggml, through llama.cpp (chat, voices, search) and transcribe.cpp (speech recognition).
-  onDevice: {
-    engines: [{ name: 'llama.cpp', light: GGML_LOGO, dark: GGML_LOGO }],
-  },
+  onDevice: { logo: LOGOS.llamacpp },
   remote: { providers: ['gemini', 'openai', 'anthropic'] },
 } satisfies Record<string, OnboardingIconSource>;
 
@@ -116,6 +111,7 @@ export const ONBOARDING_CONFIG = {
       title: `On this ${platform.deviceName}`,
       description: 'Private, free and offline',
       subtitle: `Private and offline. Nothing leaves this ${platform.deviceName}, nothing is charged.`,
+      languages: 'Languages',
       size: (size: string) => `${size} to download. It carries on while you use Roci.`,
       noSpace: (size: string) => `Not enough space: these need ${size} free.`,
       unavailable: `Models can’t run on this ${platform.deviceName}.`,

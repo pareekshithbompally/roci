@@ -41,6 +41,7 @@ interface ModelsDevCost {
 
 interface ModelsDevModel {
   id: string;
+  name?: string;
   modalities?: ModelsDevModalities;
   tool_call?: boolean;
   reasoning?: boolean;
@@ -212,6 +213,13 @@ class ModalitiesService {
     }
 
     return null;
+  }
+
+  /** A model's name as the catalog writes it ("Gemini 3.1 Flash Lite"): its own entry, else one with a similar name (a
+   *  server's packaged `ggml-org/LFM3-Omni-2B-GGUF:Q8_0`); null when neither. */
+  catalogName(providerName: string, modelId: string): string | null {
+    const similar = () => (cachedData ? modelsByNameKey(cachedData).get(nameKey(modelId))?.name : undefined);
+    return this.findModel(providerName, modelId)?.name ?? similar() ?? null;
   }
 
   /** What the catalog says about a model: its own entry (`exact`), else one with a similar name; null when neither. */

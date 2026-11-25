@@ -38,9 +38,10 @@ function serverModels(provider: string, listed: ListedModel[]): Partial<Provider
   };
 }
 
-/** The defaults `provider` offers now: only models it lists; Apple Speech stands in where the device has it. */
-export function defaultsFor(provider: string, listed: ListedModel[], hasAppleSpeech: boolean): SetupDefaults {
-  const models = isLocalProviderId(provider) ? serverModels(provider, listed) : PROVIDER_DEFAULTS[provider] ?? {};
+/** The defaults `provider` offers now (or its `set`, where it has several): only models it lists; Apple Speech stands in
+ *  where the device has it. */
+export function defaultsFor(provider: string, listed: ListedModel[], hasAppleSpeech: boolean, set?: ProviderDefaultModels): SetupDefaults {
+  const models = set ?? (isLocalProviderId(provider) ? serverModels(provider, listed) : PROVIDER_DEFAULTS[provider] ?? {});
   const ids = new Set(listed.map((m) => m.id));
   const pick = (id: string | undefined): ModelRef | null => (id && ids.has(id) ? { provider, model: id } : null);
   return {
@@ -49,6 +50,23 @@ export function defaultsFor(provider: string, listed: ListedModel[], hasAppleSpe
     readAloud: pick(models.readAloud),
     images: pick(models.images),
   };
+}
+
+/** A provider's set as Settings shows it: a provider with its own set on that set; a server on its saved models. */
+export function offeredDefaults(provider: string, saved: ListedModel[], hasAppleSpeech: boolean, set?: ProviderDefaultModels): SetupDefaults {
+  const own = set ?? PROVIDER_DEFAULTS[provider];
+  const listed = own && !isLocalProviderId(provider) ? Object.values(own).map((id) => ({ id, report: {} })) : saved;
+  return defaultsFor(provider, listed, hasAppleSpeech, set);
+}
+
+/** Whether `defaults` is what the settings hold now: every field accepting it saves, speech included. */
+export function defaultsInUse(settings: AppSettings, defaults: SetupDefaults): boolean {
+  if (!defaults.chat) return false;
+  const { transcriptionProvider, transcriptionModel } = speechSettings(defaults.transcription);
+  const expected: Partial<AppSettings> = { ...settingsOfDefaults(defaults), transcriptionProvider, transcriptionModel };
+  return (Object.keys(expected) as (keyof AppSettings)[])
+    .filter((key) => key !== 'appleIntelligenceIntegration' && key !== 'readAloudVoice')
+    .every((key) => (settings[key] ?? undefined) === (expected[key] ?? undefined));
 }
 
 /** Speech recognition on `ref`; Apple Speech comes with the integration that offers it. */

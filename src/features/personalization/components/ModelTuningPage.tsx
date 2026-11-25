@@ -5,7 +5,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { AlignLeft, Brain, Cpu, Gauge, Palette, Repeat, Shrink, Zap } from 'lucide-react';
-import { Button, CardRow, Chip, ChoiceControl, IconTile, LIST_ART_PX, Picker, Section, Slider, Switch, Text, type TileGlyph } from '@shared/ui';
+import { Button, CardRow, Chip, ChoiceControl, IconTile, Picker, Section, Slider, Switch, Text, type TileGlyph } from '@shared/ui';
 import { FormDialog, HelpLabel, ModelIcon, ModelLabel, ScreenState } from '@shared/components';
 import { EngineRestartRow, ModelSelect, NumberPicker, SettingsPage } from '@features/settings/components/shared';
 import { useSettings } from '@shared/contexts/SettingsContext';
@@ -207,7 +207,7 @@ const ModelCard: React.FC<{ model: LocalModel; choice: ModelChoice; choices: Mod
   return (
     <Section title={COPY.model} footer={COPY.modelFooter}>
       <CardRow
-        leading={<ModelIcon provider={ON_DEVICE} modelId={model.id} size={LIST_ART_PX} />}
+        leading={<ModelIcon provider={ON_DEVICE} modelId={model.id} />}
         title={<ModelLabel name={model.name} profile={profile} />}
         description={
           <span className="flex min-w-0 items-center gap-1">

@@ -6,7 +6,7 @@ import { META_SEPARATOR, MENU_GAP_PT } from '@config/ui.config';
 import { nativeMenu, type NativeMenuEntry } from '@services/tauri';
 import { cachedImage } from '@services/imageCache';
 import { getAvatarUrl, modelAvatarOrg } from '@services/modelAvatars';
-import { getProviderLogo, getProviderTitle } from '@shared/utils/provider.utils';
+import { getProviderTitle, logoOf } from '@shared/utils/provider.utils';
 import { groupChoices, type ChoiceSetup, type ModelChoice } from '@shared/utils/modelResolver';
 import { featuresOf } from '@services/ai/models';
 
@@ -46,7 +46,7 @@ export function modelRowText(choice: ModelChoice): string {
 
 /** A model's icon as ModelIcon draws it: the maker's avatar when shown and known, else the provider's logo. */
 async function modelIconUrl(choice: ModelChoice, showAvatars: boolean): Promise<string | null> {
-  const logo = getProviderLogo(choice.provider) ?? null;
+  const logo = logoOf(choice.provider);
   const org = modelAvatarOrg(choice.provider, choice.modelId, showAvatars);
   return org ? cachedImage(getAvatarUrl(org)).catch(() => logo) : logo;
 }

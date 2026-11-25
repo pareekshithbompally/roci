@@ -30,8 +30,6 @@ export { ShowInFinderButton } from './ShowInFinderButton';
 export { SearchIndexActivity } from './SearchIndexActivity';
 export { ProvidersAvatar } from './ProvidersAvatar';
 export { IconFan } from './IconFan';
-export type { FanTile } from './IconFan';
-export { GlyphTile } from './GlyphTile';
 export { JOB_GLYPH } from './jobGlyphs';
 export { RenameModal } from './RenameModal';
 export { ServerIcon } from './ServerIcon';

@@ -3,9 +3,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const catalogReport = vi.hoisted(() => vi.fn());
 vi.mock('@services/modalities', () => ({ modalitiesService: { catalogReport } }));
 
-import { defaultsFor, isAppleSpeech, settingsOfDefaults, withDefaultModels } from '@services/ai/models';
+import { defaultsFor, defaultsInUse, isAppleSpeech, offeredDefaults, settingsOfDefaults, speechSettings, withDefaultModels } from '@services/ai/models';
+import type { SetupDefaults } from '@services/ai/models';
+import type { AppSettings } from '@shared/types';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
-import { PROVIDER_DEFAULTS } from '@config/providerDefaults.config';
+import { ON_DEVICE_SETS, PROVIDER_DEFAULTS } from '@config/providerDefaults.config';
 
 const list = (...ids: string[]) => ids.map((id) => ({ id, report: {} }));
 beforeEach(() => catalogReport.mockReset().mockReturnValue(null));
@@ -60,5 +62,35 @@ describe('accepting them', () => {
     const listed = list('openai/gpt-oss-20b', 'whisper-large-v3-turbo');
     const models = withDefaultModels([], defaultsFor('groq', listed, false), 'groq', listed);
     expect(models.every((m) => !m.overrides)).toBe(true);
+  });
+});
+
+describe('in Settings › Default Models', () => {
+  const settingsOf = (defaults: SetupDefaults) => ({ ...settingsOfDefaults(defaults), ...speechSettings(defaults.transcription) }) as AppSettings;
+
+  it('judges a provider with a set on that set, a server on its saved models', () => {
+    expect(offeredDefaults('gemini', [], false).images?.model).toBe('gemini-3.1-flash-lite-image');
+    expect(offeredDefaults('local:ollama', list('gemma4'), false).chat?.model).toBe('gemma4');
+  });
+
+  it('is in use once applied, and not after one job changes', () => {
+    const gemini = offeredDefaults('gemini', [], false);
+    expect(defaultsInUse(settingsOf(gemini), gemini)).toBe(true);
+    expect(defaultsInUse({ ...settingsOf(gemini), analyzeModel: 'openai::gpt-6-luna' }, gemini)).toBe(false);
+    expect(defaultsInUse(settingsOf(gemini), offeredDefaults('openai', [], false))).toBe(false);
+  });
+
+  it('a set with no chat model is never in use', () => {
+    const none = offeredDefaults('local:ollama', [], false);
+    expect(defaultsInUse(settingsOf(none), none)).toBe(false);
+  });
+
+  it('this device offers a Western and an Indic set, each judged on its own', () => {
+    const device = LOCAL_MODELS_CONFIG.provider.id;
+    const indic = offeredDefaults(device, [], false, ON_DEVICE_SETS.indic);
+    expect(indic.chat?.model).toBe('gemma-4-e4b');
+    expect(indic.transcription?.model).toBe('indic-transcribe-flex');
+    expect(defaultsInUse(settingsOf(indic), offeredDefaults(device, [], false, ON_DEVICE_SETS.western))).toBe(false);
+    expect(defaultsInUse(settingsOf(indic), indic)).toBe(true);
   });
 });

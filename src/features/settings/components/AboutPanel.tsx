@@ -8,6 +8,7 @@ import { APP_CONFIG } from '@config/app.config';
 import { useRunSetupAgain } from '@features/onboarding/stores/onboardingStore';
 import { platform } from '@platform/index';
 import { ACKNOWLEDGEMENTS_COPY } from '@config/acknowledgements.config';
+import { TrademarkNotice } from './TrademarkNotice';
 import { useSystemInfo } from '@features/settings/hooks/useSystemInfo';
 import { useAppUpdate } from '@features/settings/hooks/useAppUpdate';
 import { AcknowledgementsPage } from './AcknowledgementsPage';
@@ -50,6 +51,7 @@ export const AboutPanel: React.FC = () => {
         />
         <CardRow title={COPY.runSetupAgain} tone="accent" onPress={runSetupAgain} />
       </Section>
+      <TrademarkNotice />
     </SettingsPage>
   );
 };

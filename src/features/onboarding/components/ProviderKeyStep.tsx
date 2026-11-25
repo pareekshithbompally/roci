@@ -11,7 +11,7 @@ import type { DetectedProvider } from '@features/settings';
 import { ONBOARDING_CONFIG } from '@config/onboarding.config';
 import { useGoWithDefaults } from '@features/onboarding/hooks/useGoWithDefaults';
 import { useOnboardingBack, useOnboardingProviderId } from '@features/onboarding/stores/onboardingStore';
-import { DefaultsList } from './DefaultsList';
+import { DefaultsList } from '@features/settings';
 
 const KeyStep: React.FC<{ provider: ModelProvider }> = ({ provider }) => {
   const connection = useProviderConnection(provider);

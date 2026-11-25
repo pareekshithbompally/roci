@@ -1,9 +1,9 @@
 import React, { memo, useMemo, useRef } from 'react';
-import { AnimatedProviderIcon } from '@features/chat/components/AnimatedProviderIcon';
 import { useStreamingMessage } from '@features/chat/stores/streamingStore';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { useModelLabel } from '@shared/hooks/useModelLabel';
 import { GlyphSlot, ICON_SIZE_PX, Progress, Text } from '@shared/ui';
+import { ModelIcon } from '@shared/components';
 import { useReadAloud } from '@shared/hooks/useReadAloud';
 import { useSpeechHighlight } from '@shared/hooks/useSpeechHighlight';
 import { meetingCitationsOf, messageText, webCitationsOf } from '@shared/utils/chatParts';
@@ -66,7 +66,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
     <div className="w-full min-h-15">
       {/* Provider/Model Header — always visible, consistent across all states */}
       <div className="flex items-center gap-2 mb-2">
-        <GlyphSlot><AnimatedProviderIcon provider={provider || 'unknown'} modelId={model} size={ICON_SIZE_PX.sm} isAnimating={isLoading || isStreaming} /></GlyphSlot>
+        <GlyphSlot><ModelIcon provider={provider || 'unknown'} modelId={model} size={ICON_SIZE_PX.sm} working={isLoading || isStreaming} /></GlyphSlot>
         <Text variant="helper" tone="muted">
           {/* The model, always: a running tool shows in its own row below, not here too. */}
           {isLoading ? status.label : <ProviderModelLabel provider={provider} model={model} />}

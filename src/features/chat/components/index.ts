@@ -7,5 +7,4 @@ export { ChatInput } from './ChatInput';
 export { MeetingMentionPopup } from './MeetingMentionPopup';
 export { ContextChips } from './ContextChips';
 export { ModelPicker } from './ModelPicker';
-export { AnimatedProviderIcon } from './AnimatedProviderIcon';
 export { MediaPartRenderer } from './MediaPartRenderer';

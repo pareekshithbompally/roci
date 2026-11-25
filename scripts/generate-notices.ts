@@ -1,6 +1,6 @@
 // Writes THIRD_PARTY_NOTICES.md from src/config/acknowledgements.config.ts; run with `npm run notices`.
 import { readFileSync, writeFileSync } from 'node:fs';
-import { ACKNOWLEDGEMENTS, LICENSE_TEXT_IDS, TRADEMARK_NOTICE, type Acknowledgement } from '../src/config/acknowledgements.config.ts';
+import { ACKNOWLEDGEMENTS, LICENSE_TEXT_IDS, TRADEMARKS, type Acknowledgement } from '../src/config/acknowledgements.config.ts';
 
 const ROOT = new URL('../', import.meta.url);
 const licenseText = (id: string) => readFileSync(new URL(`src/config/licenses/${id}.txt`, ROOT), 'utf8').trimEnd();
@@ -27,7 +27,7 @@ const document = [
   'This file is generated from `src/config/acknowledgements.config.ts` by `npm run notices`. Do not edit it by hand.',
   ...sections,
   '## Trademarks',
-  TRADEMARK_NOTICE,
+  ...TRADEMARKS,
   '## Licence texts',
   ...texts,
 ].join('\n\n');

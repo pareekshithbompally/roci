@@ -180,6 +180,12 @@ Controls, icons, animation, chat formatting, charts, the knowledge graph and aud
 - Licence: CC0-1.0
 - Source: <https://github.com/simple-icons/simple-icons>
 
+### LobeHub Icons
+
+- Licence: MIT
+- Source: <https://github.com/lobehub/lobe-icons>
+- Copyright (c) 2023 LobeHub
+
 ## AI and speech
 
 Calling AI providers, running models on this device, transcribing speech and serving tools to coding agents.
@@ -189,6 +195,12 @@ Calling AI providers, running models on this device, transcribing speech and ser
 - Licence: Apache-2.0
 - Source: <https://github.com/vercel/ai>
 - Copyright 2023 Vercel, Inc.
+
+### llama.cpp
+
+- Licence: MIT
+- Source: <https://github.com/ggml-org/llama.cpp>
+- Copyright (c) 2023-2026 The ggml authors
 
 ### transcribe.cpp
 
@@ -287,26 +299,27 @@ Recording audio, the roci.db database with its search and knowledge graph, and t
 
 Roci downloads these from Hugging Face only when you choose to use them.
 
-### Qwen3.5 9B
+### Gemma 4 E2B
 
 - Licence: Apache-2.0
-- Source: <https://huggingface.co/Qwen/Qwen3.5-9B>
+- Source: <https://huggingface.co/google/gemma-4-E2B-it>
 
-### MiniCPM5 2B
-
-- Licence: Apache-2.0
-- Source: <https://huggingface.co/openbmb/MiniCPM5-2B>
-
-### Granite 4.2 3B
+### Gemma 4 E4B
 
 - Licence: Apache-2.0
-- Source: <https://huggingface.co/ibm-granite/granite-4.2-3b>
+- Source: <https://huggingface.co/google/gemma-4-E4B-it>
 
-### Ternary Bonsai 2 4B
+### LFM3 Omni 2B
 
-- Licence: Apache-2.0
-- Source: <https://huggingface.co/prism-ml/Ternary-Bonsai-2-4B-mlx-2bit>
-- Created using Bonsai by Prism ML. Built from Qwen3.5-4B, Copyright 2026 Alibaba Cloud, Apache-2.0.
+- Licence: LFM Open License v1.0
+- Source: <https://huggingface.co/LiquidAI/LFM3-Omni-2B>
+- LFM3 Omni 2B by Liquid AI, under the LFM Open License v1.0.
+
+### Nemotron 3.5 Bolt E4B
+
+- Licence: OpenMDW 1.1
+- Source: <https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Bolt-E4B-4GB>
+- Nemotron 3.5 Bolt E4B by NVIDIA, under the OpenMDW License 1.1.
 
 ### Qwen3 Embedding 0.6B
 
@@ -331,25 +344,16 @@ Roci downloads these from Hugging Face only when you choose to use them.
 - Source: <https://huggingface.co/bodhan-ai/indic-transcribe-flex>
 - Built with Indic-Transcribe-Flex from Bodhan AI / AI4Bharat. Built on NVIDIA Canary 1B v2, CC-BY-4.0.
 
-### Kokoro 82M
-
-- Licence: Apache-2.0
-- Source: <https://huggingface.co/hexgrad/Kokoro-82M>
-
-### Kokoro English pronunciation data
+### Chatterbox Turbo
 
 - Licence: MIT
-- Source: <https://huggingface.co/beshkenadze/kitten-tts-g2p>
+- Source: <https://huggingface.co/ResembleAI/chatterbox-turbo>
+- Copyright (c) 2025 Resemble AI
 
-### Phonon and voices
+### Soprano 1.1
 
 - Licence: Apache-2.0
-- Source: <https://huggingface.co/gradium/phonon-31m-en>
-
-### Ming 3.0 TTS
-
-- Licence: MIT
-- Source: <https://huggingface.co/inclusionAI/Ming-3.0-tts-0.5B>
+- Source: <https://huggingface.co/ekwek/Soprano-1.1-80M>
 
 ### Silero VAD
 
@@ -359,7 +363,13 @@ Roci downloads these from Hugging Face only when you choose to use them.
 
 ## Trademarks
 
-All product names, logos and brands are property of their respective owners. They are used for identification only; their use does not imply endorsement.
+Apple, the Apple logo, Apple Intelligence, Mac, macOS, iPhone, iPad, iOS and iPadOS are trademarks of Apple Inc., registered in the U.S. and other countries and regions.
+
+Google, Gemini and Gemma are trademarks of Google LLC. OpenAI, ChatGPT and Codex are trademarks of OpenAI. Claude and Claude Code are trademarks of Anthropic, PBC. Meta and Llama are trademarks of Meta Platforms, Inc. NVIDIA and Nemotron are trademarks of NVIDIA Corporation. Qwen is a trademark of Alibaba Group. Mistral AI is a trademark of Mistral AI SAS. DeepSeek is a trademark of DeepSeek. Hugging Face is a trademark of Hugging Face, Inc.
+
+All other product names, logos and brands are the property of their respective owners.
+
+Roci is an independent app. It is not affiliated with, sponsored by or endorsed by any of these companies. Their names and logos are used only to identify their products and services, and Roci claims no ownership of them.
 
 ## Licence texts
 

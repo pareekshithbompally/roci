@@ -5,9 +5,4 @@ export const MODEL_AVATARS_CONFIG = {
   avatarsUrl: 'https://huggingface.co/api/avatars',
   /** Host prefixes Ollama/LM Studio put in front of HF repo ids (`hf.co/unsloth/...`). */
   hostPrefixes: ['hf.co/', 'huggingface.co/'],
-  /** Orgs whose avatar is black-on-transparent; inverted in dark mode. */
-  darkLogoOrgs: ['openai', 'prism-ml'],
-  /** Monogram background: hue from the org name, fixed saturation/lightness. */
-  monogramSaturation: 45,
-  monogramLightness: 45,
 } as const;

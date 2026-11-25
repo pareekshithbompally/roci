@@ -1,6 +1,6 @@
 /** Each AI job's list glyph (Default Models rows, Usage pages, on-device models): Lucide line icons. */
 
-import { Captions, Image, Megaphone, MessageCircle, Quote, Search, AudioLines } from 'lucide-react';
+import { Captions, Heading, Image, Megaphone, MessageCircle, MessageCircleQuestion, Quote, Search, AudioLines } from 'lucide-react';
 
 export const JOB_GLYPH = {
   chat: MessageCircle,
@@ -13,4 +13,8 @@ export const JOB_GLYPH = {
   images: Image,
   summaries: Quote,
   meetingSearch: Search,
+  /** A chat named for you. */
+  chatTitles: Heading,
+  /** Questions offered after a reply. */
+  followUps: MessageCircleQuestion,
 } as const;

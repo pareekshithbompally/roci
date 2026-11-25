@@ -16,10 +16,14 @@ interface SetVars {
 export interface CodingAgents {
   agents: CodingAgentStatus[];
   server: McpHostStatus | undefined;
-  setRegistered: (id: CodingAgentId, registered: boolean) => void;
-  /** The agent whose config is being written right now. */
-  pendingId: CodingAgentId | null;
+  /** Every agent found on this Mac and free to change, added or removed in one step. */
+  setAll: (registered: boolean) => void;
+  /** An agent's config is being written right now. */
+  pending: boolean;
 }
+
+/** An agent Roci can add itself to now: installed, nothing in the way. */
+export const isAvailable = (agent: CodingAgentStatus): boolean => agent.installed && agent.problem === null;
 
 export function useCodingAgents(): CodingAgents {
   const queryClient = useQueryClient();
@@ -50,7 +54,9 @@ export function useCodingAgents(): CodingAgents {
   return {
     agents,
     server,
-    setRegistered: (id, registered) => mutation.mutate({ id, registered }),
-    pendingId: mutation.isPending ? mutation.variables.id : null,
+    setAll: (registered) => agents
+      .filter((agent) => isAvailable(agent) && (registered ? agent.registration !== 'current' : agent.registration !== 'none'))
+      .forEach((agent) => mutation.mutate({ id: agent.id, registered })),
+    pending: mutation.isPending,
   };
 }

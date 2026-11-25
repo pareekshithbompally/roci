@@ -10,6 +10,15 @@ export interface ProviderDefaultModels {
   images?: string;
 }
 
+/** This device's sets: Western (English and European languages) and Indic (Indian languages). Indic reads aloud in the
+ *  system voices until Indic-Speak is on this device (docs/plans/PENDING/indic-speak-voice.md). */
+export const ON_DEVICE_SETS = {
+  western: { chat: 'gemma-4-e2b', transcription: 'whisper-small' },
+  indic: { chat: 'gemma-4-e4b', transcription: 'indic-transcribe-flex' },
+} as const satisfies Record<string, ProviderDefaultModels>;
+
+export type OnDeviceSet = keyof typeof ON_DEVICE_SETS;
+
 export const PROVIDER_DEFAULTS: Readonly<Record<string, ProviderDefaultModels>> = {
   openai: { chat: 'gpt-6-luna', transcription: 'gpt-4o-mini-transcribe', readAloud: 'gpt-4o-mini-tts' },
   anthropic: { chat: 'claude-haiku-5-5' },
@@ -23,5 +32,5 @@ export const PROVIDER_DEFAULTS: Readonly<Record<string, ProviderDefaultModels>> 
   mistral: { chat: 'mistral-small-latest' },
   groq: { chat: 'openai/gpt-oss-20b', transcription: 'whisper-large-v3-turbo' },
   [APPLE_INTELLIGENCE.provider]: { chat: APPLE_INTELLIGENCE.model },
-  'on-device': { chat: 'gemma-4-e2b', transcription: 'whisper-small' },
+  'on-device': ON_DEVICE_SETS.western,
 };

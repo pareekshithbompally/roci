@@ -1,7 +1,7 @@
 /** First-run server option: one found on this device (where servers run), or one by address; its defaults show once it answers. */
 
 import React, { useMemo, useState } from 'react';
-import { Button, Callout, CardRow, ICON_SIZE_PX, Input, Section, Status, WelcomeStep } from '@shared/ui';
+import { Button, Callout, CardRow, Input, Section, Status, WelcomeStep } from '@shared/ui';
 import { ProvidersAvatar } from '@shared/components';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { errorMessage } from '@shared/utils/errors';
@@ -13,7 +13,7 @@ import { useOnboardingBack } from '@features/onboarding/stores/onboardingStore';
 import { normalizeLocalUrl, toLocalProvider } from '@services/providers/localServers';
 import type { LocalServer } from '@services/providers/localServers';
 import { platform } from '@platform/index';
-import { DefaultsList } from './DefaultsList';
+import { DefaultsList } from '@features/settings';
 
 const COPY = ONBOARDING_CONFIG.setup.local;
 const ACTIONS = ONBOARDING_CONFIG.actions;
@@ -96,7 +96,7 @@ export const LocalSetup: React.FC = () => {
           {running.map((row) => (
             <CardRow
               key={row.id}
-              leading={<ProvidersAvatar provider={row.id} size={ICON_SIZE_PX.lg} />}
+              leading={<ProvidersAvatar provider={row.id} />}
               title={getProviderTitle(row.id)}
               description={row.baseUrl}
               status={row.id === detected?.id && <Status tone="success">{COPY.connected}</Status>}

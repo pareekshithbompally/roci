@@ -35,19 +35,16 @@ export function useAppIcon(app: string | undefined): string | null {
 /** A kit icon size, or `tile`: a settings row, where the icon's visible body is list-art size (like the Settings pane icons). */
 type AppIconSize = IconSize | 'tile';
 
-/** macOS draws an app icon's body inside padding, so at tile size the image is scaled up and overflows its list-art box evenly. */
-const TILE_IMAGE_PX = Math.round(LIST_ART_PX / UI_CONFIG.appIconBody);
-
-const TileImage: React.FC<{ src?: string | null }> = ({ src }) => (
-  <span aria-hidden className="inline-flex shrink-0 items-center justify-center" style={{ width: LIST_ART_PX, height: LIST_ART_PX }}>
-    {src && <img src={src} alt="" width={TILE_IMAGE_PX} height={TILE_IMAGE_PX} className="max-w-none shrink-0" />}
-  </span>
-);
+/** A row tile: macOS's own icon, else a logo tile; an empty slot when neither. */
+const TileImage: React.FC<{ src?: string | null; system: boolean }> = ({ src, system }) => {
+  if (!src) return <span aria-hidden className="shrink-0 inline-block" style={{ width: LIST_ART_PX, height: LIST_ART_PX }} />;
+  return system ? <IconTile app={src} /> : <IconTile logo={src} />;
+};
 
 /** An app's icon image at a kit icon size; an empty slot of the same size when there is none, so rows line up. `bare`:
  *  art with no padding of its own, drawn at an app icon's visible size so it matches the system icons beside it. */
 export const AppImage: React.FC<{ src?: string | null; size: AppIconSize; bare?: boolean }> = ({ src, size, bare }) => {
-  if (size === 'tile') return <TileImage src={src} />;
+  if (size === 'tile') return <TileImage src={src} system={!bare} />;
   const px = ICON_SIZE_PX[size];
   if (!src) return <span aria-hidden className="shrink-0 inline-block" style={{ width: px, height: px }} />;
   const drawn = bare ? Math.round(px * UI_CONFIG.appIconBody) : px;
