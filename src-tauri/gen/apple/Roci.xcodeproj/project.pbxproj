@@ -7,9 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		16D7BDBC8278E04D0BBAC3C1 /* RociMLX in Frameworks */ = {isa = PBXBuildFile; productRef = 614A6A9A83F36A9829E17129 /* RociMLX */; };
 		1EFEE7AF964BFA7F1F543DA6 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 586B2EE9A6170302C98C1BE9 /* QuartzCore.framework */; };
-		2D41710AC0BEDC9CAD13E8DA /* RociMLX in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 614A6A9A83F36A9829E17129 /* RociMLX */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		3FB4023EDD06879D2E0EAE1E /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CF00E02C9C00CA7B134C0BAA /* CoreGraphics.framework */; };
 		443CF6E4E6F55E535397895E /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23ABD3F8CB4D15458D24F377 /* MetalKit.framework */; };
 		4464187B51B30CB2D5CFA03D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9E572AA8F78F7086164FE19A /* PrivacyInfo.xcprivacy */; };
@@ -24,20 +22,6 @@
 		F396D3A77B454374A0A89BC5 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 445C84815E35DD391D4EE750 /* UIKit.framework */; };
 		FE2C6E4C04FD4350C2FD3676 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2395637022B5084022F6416B /* WebKit.framework */; };
 /* End PBXBuildFile section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		2ECA53CF24F68967D37C8416 /* Embed Frameworks */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 10;
-			files = (
-				2D41710AC0BEDC9CAD13E8DA /* RociMLX in Embed Frameworks */,
-			);
-			name = "Embed Frameworks";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		004078DA0B0B4B7A6B6E4DFA /* menu.rs */ = {isa = PBXFileReference; path = menu.rs; sourceTree = "<group>"; };
@@ -106,7 +90,6 @@
 		9AF9F844EF5D2D145EB30DFE /* live.rs */ = {isa = PBXFileReference; path = live.rs; sourceTree = "<group>"; };
 		9D4AAB0EE03036BBBE04C1AE /* commands.rs */ = {isa = PBXFileReference; path = commands.rs; sourceTree = "<group>"; };
 		9E572AA8F78F7086164FE19A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		9E8D183E8C386F4D0D5DD42D /* RociMLX */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RociMLX; path = ../../RociMLX; sourceTree = SOURCE_ROOT; };
 		9F60979F37E4E1A5B8F19FAC /* app_icon.rs */ = {isa = PBXFileReference; path = app_icon.rs; sourceTree = "<group>"; };
 		A1821632BA1B1C6C9C09637B /* stdio.rs */ = {isa = PBXFileReference; path = stdio.rs; sourceTree = "<group>"; };
 		A1E3CB077A831E8190898A49 /* wake_lock.rs */ = {isa = PBXFileReference; path = wake_lock.rs; sourceTree = "<group>"; };
@@ -116,7 +99,6 @@
 		B75368D24A8F5E42C051C988 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		C1AF1CBE83F08E5EEABF62AF /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		C25DA3899607C95B9F6BA91B /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
-		C6A3E3C4A235EFAF9BF057C4 /* mlx.rs */ = {isa = PBXFileReference; path = mlx.rs; sourceTree = "<group>"; };
 		C95AEB220F589CC35D23B90D /* tracks.rs */ = {isa = PBXFileReference; path = tracks.rs; sourceTree = "<group>"; };
 		C99AA4A35F988F686C0FADC1 /* microphone.rs */ = {isa = PBXFileReference; path = microphone.rs; sourceTree = "<group>"; };
 		CADE100E76A3CAD5CF28C451 /* voice_model.rs */ = {isa = PBXFileReference; path = voice_model.rs; sourceTree = "<group>"; };
@@ -145,7 +127,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				8617190EC975D0EE797AC645 /* libapp.a in Frameworks */,
-				16D7BDBC8278E04D0BBAC3C1 /* RociMLX in Frameworks */,
 				3FB4023EDD06879D2E0EAE1E /* CoreGraphics.framework in Frameworks */,
 				C88EB87B04786F28FDBDE102 /* Metal.framework in Frameworks */,
 				443CF6E4E6F55E535397895E /* MetalKit.framework in Frameworks */,
@@ -188,7 +169,6 @@
 				B75368D24A8F5E42C051C988 /* LaunchScreen.storyboard */,
 				A3CC5AE4573D254A12783D07 /* Externals */,
 				9F7B76F0213933F8B566D192 /* icons */,
-				55927C13B4B7CA3341D1D013 /* Packages */,
 				9495DC7B25C5FFF23A47C292 /* Roci_iOS */,
 				8EEC8DB146A788F71B7E4EDD /* Sources */,
 				C6C77187BF891F4AC3311A73 /* src */,
@@ -269,14 +249,6 @@
 				81BCAFD9A4977A05F9A14D8D /* scheduler.rs */,
 			);
 			path = meeting_reminders;
-			sourceTree = "<group>";
-		};
-		55927C13B4B7CA3341D1D013 /* Packages */ = {
-			isa = PBXGroup;
-			children = (
-				9E8D183E8C386F4D0D5DD42D /* RociMLX */,
-			);
-			name = Packages;
 			sourceTree = "<group>";
 		};
 		5EAB220E378053B89F142BA8 /* permissions */ = {
@@ -395,7 +367,6 @@
 				1E7338697C76C07A725F1F7F /* ipc.rs */,
 				80AD68EAD28302FC5A40475B /* lib.rs */,
 				4A389386D09EB05D888B8921 /* main.rs */,
-				C6A3E3C4A235EFAF9BF057C4 /* mlx.rs */,
 				66F0F9F5A98E0A23C906C844 /* mobile.rs */,
 				1C50A7EDD221B636EEBB08D6 /* open_native.rs */,
 				45A2303A79ACA6D4A0395661 /* screenshot.rs */,
@@ -465,16 +436,12 @@
 				42228B2F3D5A3972CF25C3C1 /* Sources */,
 				B44BF2930AB51A3D8F09A75C /* Resources */,
 				F065C30D2E80DB59F8BE7797 /* Frameworks */,
-				2ECA53CF24F68967D37C8416 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			name = Roci_iOS;
-			packageProductDependencies = (
-				614A6A9A83F36A9829E17129 /* RociMLX */,
-			);
 			productName = Roci_iOS;
 			productReference = 78701B8BCB209DA93DFE37C5 /* Roci_iOS.app */;
 			productType = "com.apple.product-type.application";
@@ -502,9 +469,6 @@
 			);
 			mainGroup = 0671F47CBFC2CA9938B0DB11;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = (
-				1C72A03D84F579B3C47921E2 /* XCLocalSwiftPackageReference "../../RociMLX" */,
-			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C8388D3DD80AB7A9B2CBC1FB /* Products */;
 			projectDirPath = "";
@@ -771,20 +735,6 @@
 			defaultConfigurationName = debug;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCLocalSwiftPackageReference section */
-		1C72A03D84F579B3C47921E2 /* XCLocalSwiftPackageReference "../../RociMLX" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../RociMLX;
-		};
-/* End XCLocalSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		614A6A9A83F36A9829E17129 /* RociMLX */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = RociMLX;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 19EBFF16C7428D36491AF874 /* Project object */;
 }

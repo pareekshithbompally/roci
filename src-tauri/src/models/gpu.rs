@@ -1,8 +1,7 @@
-//! One GPU turn at a time across Roci's on-device engines (speech-to-text on Metal, MLX): Metal has no priority between
-//! engines, so it is decided here. Speech-to-text goes first, then work someone waits for (a chat reply, read-aloud), then
+//! One GPU turn at a time across Roci's in-app engines (speech-to-text, llama.cpp on iPhone and iPad): Metal has no
+//! priority between engines, so it is decided here. Speech-to-text goes first, then work someone waits for (a chat reply, read-aloud), then
 //! background work (embeddings). Turns are handed over when one ends (Condvar), never polled. A long reply steps aside
-//! between pieces while more urgent work waits; meanwhile only that work runs, never another MLX call (MLX isn't
-//! thread-safe).
+//! between pieces while more urgent work waits; meanwhile only that work runs.
 
 use std::sync::{Condvar, LazyLock, Mutex, MutexGuard};
 
@@ -92,7 +91,8 @@ pub fn run<T>(priority: Priority, work: impl FnOnce() -> T) -> T {
 }
 
 /// Called by running `priority` work between pieces (a reply's next tokens): when more urgent work waits, it runs now and
-/// this resumes after it. Cheap when nothing waits.
+/// this resumes after it. Cheap when nothing waits. Only the in-app chat engine (iPhone, iPad) generates in pieces.
+#[cfg(any(mobile, test))]
 pub fn step_aside(priority: Priority) {
     let mut state = lock(&QUEUE.state);
     if !state.more_urgent_waiting(priority) {
@@ -225,7 +225,7 @@ mod tests {
         let (go_on, resume) = mpsc::channel::<()>();
         let reply = {
             let order = Arc::clone(&order);
-            // The turn is held here while the engine generates on a thread of its own (MLX's generation thread).
+            // The turn is held here while the engine generates on a thread of its own.
             thread::spawn(move || {
                 run(Priority::Interactive, || {
                     let engine = thread::spawn(move || {

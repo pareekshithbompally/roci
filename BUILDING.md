@@ -7,12 +7,11 @@ by `.github/workflows/release.yml`.
 
 | Tool | Version | Why |
 |---|---|---|
-| macOS on Apple silicon | 26 or later | The app's minimum, and MLX needs Apple silicon |
-| Xcode (full app, not just the Command Line Tools) | 26 or later | Swift plugins, the MLX framework, signing |
-| Xcode's Metal Toolchain | — | MLX compiles Metal shaders; `scripts/build-mlx.sh` downloads it if it's missing |
+| macOS on Apple silicon | 26 or later | The app's minimum; on-device models run on the Apple silicon GPU |
+| Xcode (full app, not just the Command Line Tools) | 26 or later | Swift plugins, signing |
 | Rust, through [rustup](https://rustup.rs) | 1.91 or later (edition 2024) | The app's core |
 | Node.js and npm | Node 22 or later | The interface; use npm, not pnpm or yarn |
-| CMake | any recent | Builds [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) for on-device speech (`brew install cmake`) |
+| CMake | any recent | Builds [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) for on-device speech and llama.cpp's `llama-server` (`brew install cmake`) |
 
 After installing Xcode, select it and accept its licence:
 
@@ -31,12 +30,10 @@ npm run tauri:dev      # run the app in development
 npm run tauri:build    # build Roci.app and a .dmg
 ```
 
-Both commands first run `scripts/build-mlx.sh`, which builds `RociMLX.framework` (MLX Swift; leaving in Phase 3 of
-the on-device engine move) into `src-tauri/frameworks`, then `scripts/build-llama-server.sh`, which builds llama.cpp's
-`llama-server` from Roci's copy (`src-tauri/engines/llama.cpp`) into `src-tauri/binaries`: the Mac bundles it and runs
-on-device chat, search and read aloud in it, one process per model. Each is rebuilt only when its sources change; the
-first time takes a few minutes. The first Rust build also takes a while, as it compiles transcribe.cpp, llama.cpp's
-library and SQLite's extensions.
+Both commands first run `scripts/build-llama-server.sh`, which builds llama.cpp's `llama-server` from Roci's copy
+(`src-tauri/engines/llama.cpp`) into `src-tauri/binaries`: the Mac bundles it and runs on-device chat, search and read
+aloud in it, one process per model. It is rebuilt only when its sources change; the first time takes a few minutes.
+The first Rust build also takes a while, as it compiles transcribe.cpp, llama.cpp's library and SQLite's extensions.
 
 `npm run dev` and `npm run build` first run `npm run build:screens`: Roci's MCP App screens (`src/screens`, for agents'
 apps that show them) are each built into one self-contained page in `public/screens` (generated, not committed).

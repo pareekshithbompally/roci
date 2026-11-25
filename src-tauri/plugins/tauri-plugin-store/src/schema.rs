@@ -5,7 +5,7 @@ use rusqlite::Connection;
 pub const SCHEMA_VERSION: u32 = 16;
 
 /// Default embedding model and dimension.
-pub const DEFAULT_MODEL: &str = "mlx-community/Qwen3-Embedding-0.6B-8bit";
+pub const DEFAULT_MODEL: &str = "qwen3-embedding-0.6b";
 pub const DEFAULT_DIM: u32 = 1024;
 
 extern "C" {

@@ -46,7 +46,7 @@ tokio = { version = "1", features = ["process", "io-util", "time", "sync", "macr
 reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
 sha2 = "0.10"
 # On-device speech: transcription (transcribe.cpp, ggml on Metal; Roci's copy via [patch.crates-io] below) and read aloud
-# (system voices via AVSpeechSynthesis, MLX voices' samples as base64, played through cpal at the device's rate);
+# (system voices via AVSpeechSynthesis, on-device voices' samples as base64, played through cpal at the device's rate);
 # hound reads the WAVs transcription takes.
 transcribe-cpp = "=0.4.2"
 # Chat, search and read aloud on device: llama.cpp built on transcribe.cpp's ggml (engines/llama-sys).

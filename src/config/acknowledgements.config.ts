@@ -99,12 +99,8 @@ export const ACKNOWLEDGEMENTS: readonly AcknowledgementGroup[] = [
     description: 'Calling AI providers, running models on this device, transcribing speech and serving tools to coding agents.',
     items: [
       { name: 'Vercel AI SDK', url: 'https://github.com/vercel/ai', license: 'Apache-2.0', text: 'Apache-2.0', copyright: 'Copyright 2023 Vercel, Inc.' },
-      { name: 'MLX Swift', url: 'https://github.com/ml-explore/mlx-swift', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2023 ml-explore' },
-      { name: 'MLX Swift LM', url: 'https://github.com/ml-explore/mlx-swift-lm', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2024 ml-explore' },
-      { name: 'swift-transformers', url: 'https://github.com/huggingface/swift-transformers', license: 'Apache-2.0', text: 'Apache-2.0' },
       { name: 'llama.cpp', url: 'https://github.com/ggml-org/llama.cpp', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2023-2026 The ggml authors' },
       { name: 'transcribe.cpp', url: 'https://github.com/handy-computer/transcribe.cpp', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2026 The transcribe.cpp authors' },
-      { name: 'MLX Audio Swift', url: 'https://github.com/Neywa-Labs/mlx-audio-swift', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2025 Prince Canuma' },
       { name: 'MCP Rust SDK (rmcp)', url: 'https://github.com/modelcontextprotocol/rust-sdk', license: 'Apache-2.0', text: 'Apache-2.0', copyright: 'Copyright (c) 2024-2025 Model Context Protocol a Series of LF Projects, LLC.' },
     ],
   },

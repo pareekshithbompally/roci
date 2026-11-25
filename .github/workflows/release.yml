@@ -24,7 +24,7 @@ jobs:
           persist-credentials: false
 
       - name: Select Xcode 26
-        # Xcode 26: macOS 26 SDK, Metal Toolchain (MLX), and actool that compiles AppIcon.icon (older ones skip it).
+        # Xcode 26: macOS 26 SDK, and actool that compiles AppIcon.icon (older ones skip it).
         run: |
           XCODE="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)"
           if [ -z "$XCODE" ]; then echo "ERROR: no Xcode 26 on this runner"; ls -d /Applications/Xcode*.app; exit 1; fi
@@ -55,9 +55,9 @@ jobs:
           echo "$APPLE_API_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/notary-key.p8"
           echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/notary-key.p8" >> "$GITHUB_ENV"
 
-      - name: Build on-device engine (RociMLX.framework)
-        # MLX Swift for on-device chat, meeting search and voices; Rust links it and Tauri bundles it.
-        run: scripts/build-mlx.sh
+      - name: Build on-device engine (llama-server)
+        # llama.cpp's server for on-device chat, meeting search and voices; Tauri bundles it.
+        run: scripts/build-llama-server.sh
 
       - name: Build Tauri app
         run: npm run tauri build -- --target aarch64-apple-darwin

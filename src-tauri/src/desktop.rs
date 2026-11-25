@@ -2,7 +2,7 @@
 
 use crate::{
   app_icon, app_intents, audio, call_detection, choice_menu, downloads, hex, mcp, mcp_server, meeting_reminders, meeting_spotlight, search_index,
-  llama_server, menubar, mlx, models, native_alert, network, open_native, permissions, screenshot, shortcuts, stt, system_format, tts, updates, url_actions, window,
+  llama_server, menubar, models, native_alert, network, open_native, permissions, screenshot, shortcuts, stt, system_format, tts, updates, url_actions, window,
 };
 use tauri::{App, AppHandle, Builder, Emitter, RunEvent, WebviewWindowBuilder, Wry};
 
@@ -29,7 +29,6 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
     .manage(models::ModelsState::default())
     .manage(stt::SttState::default())
     .manage(tts::TtsState::default())
-    .manage(mlx::MlxState::default())
     .invoke_handler(tauri::generate_handler![
       // Shortcut commands
       shortcuts::register_shortcut,
@@ -88,8 +87,6 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       tts::commands::tts_speak,
       tts::commands::tts_stop,
       tts::commands::tts_chunks,
-      mlx::mlx_chat,
-      mlx::mlx_cancel,
       llama_server::local_server_address,
       llama_server::local_server_restart,
       llama_server::local_server_configure,
@@ -140,10 +137,6 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
   // Backend-owned menubar: tray icon, menu, visibility, quit path.
   menubar::setup(app.handle());
-
-  // On-device model loads show in the activity tray.
-  mlx::connect(app.handle());
-
 
   // MCP: connect the servers the user left enabled.
   tauri::async_runtime::spawn(mcp::start_active_servers(app.handle().clone()));

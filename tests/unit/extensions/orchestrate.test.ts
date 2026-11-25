@@ -31,7 +31,6 @@ vi.mock('@services/ai/llamaServer', () => ({
   generationStats: () => null,
   promptProgress: () => null,
 }));
-vi.mock('@services/mlx.service', () => ({ followMlxLoad: async () => () => undefined }));
 const shape = (name: string, deferLoading?: boolean) => ({ name, description: `${name} does it`, parameters: { type: 'object', properties: {} }, deferLoading });
 const registry = vi.hoisted(() => ({ tools: [] as object[] }));
 const loadMcpTools = vi.hoisted(() => vi.fn());

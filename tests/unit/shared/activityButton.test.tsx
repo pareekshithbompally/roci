@@ -20,7 +20,7 @@ describe('iPhone activity button', () => {
     act(() => activityStore.add(item({})));
     expect(screen.getByRole('button', { name: /Importing call\.m4a · 40%/ })).toBeInTheDocument();
 
-    act(() => activityStore.add(item({ id: 'mlx-model:chat', type: 'processing', label: 'Loading Gemma…', percent: null })));
+    act(() => activityStore.add(item({ id: 'local-model:chat', type: 'processing', label: 'Loading Gemma…', percent: null })));
     fireEvent.click(screen.getByRole('button', { name: /2 tasks/ }));
     // The sheet rises before it is shown to assistive tech.
     expect(await screen.findByRole('dialog', { name: 'Activity' })).toBeInTheDocument();

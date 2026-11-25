@@ -2,7 +2,6 @@ fn main() {
     // Build scripts run on the host: the target OS comes from Cargo, not from `cfg`.
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
         link_macos_swift_runtime();
-        link_mlx();
         link_clang_runtime();
         compile_permission_guide();
         compile_choice_menu();
@@ -61,16 +60,6 @@ fn link_clang_runtime() {
     assert!(output.status.success(), "xcrun clang --print-file-name failed");
     let runtime = String::from_utf8(output.stdout).expect("clang prints a UTF-8 path");
     println!("cargo:rustc-link-arg={}", runtime.trim());
-}
-
-/// RociMLX.framework (scripts/build-mlx.sh): found in `frameworks/` when developing, in the app's Frameworks once bundled.
-fn link_mlx() {
-    let frameworks = std::path::Path::new(&std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR")).join("frameworks");
-    println!("cargo:rerun-if-changed=frameworks/RociMLX.framework");
-    println!("cargo:rustc-link-search=framework={}", frameworks.display());
-    println!("cargo:rustc-link-lib=framework=RociMLX");
-    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", frameworks.display());
-    println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../Frameworks");
 }
 
 /// The iOS web view's keyboard behaviour (native/RociWebView.swift): pinned page, resized above the keyboard, no form bar.

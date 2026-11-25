@@ -36,7 +36,6 @@ mod models;
 mod stt;
 mod sync;
 mod tts;
-mod mlx;
 mod engine_readings;
 #[cfg(mobile)]
 mod llama;

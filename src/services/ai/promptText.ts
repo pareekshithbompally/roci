@@ -1,4 +1,4 @@
-/** How the on-device adapters (Apple Intelligence, MLX) read AI SDK prompt content. */
+/** How the on-device adapters (Apple Intelligence, llama.cpp in the app) read AI SDK prompt content. */
 
 import type { LanguageModelV4Prompt } from '@ai-sdk/provider';
 

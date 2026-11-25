@@ -23,7 +23,7 @@ describe('activity model', () => {
     expect(activityMark(item({ type: 'recording', actions: [action('play'), action('square')] }))).toEqual({ kind: 'dot', tone: 'warning', pulse: false });
     expect(activityMark(item({ type: 'recording', actions: [action('sparkles')] }))).toEqual({ kind: 'dot', tone: 'info', pulse: false });
     expect(activityMark(item({ type: 'download', status: 'waiting' }))).toEqual({ kind: 'glyph', glyph: 'download' });
-    expect(activityMark(item({ id: 'mlx-model:chat', status: 'active' }))).toEqual({ kind: 'spinner' });
+    expect(activityMark(item({ id: 'local-model:chat', status: 'active' }))).toEqual({ kind: 'spinner' });
     expect(activityMark(item({ status: 'error' }))).toEqual({ kind: 'glyph', glyph: 'failed' });
     expect(activityMark(item({ status: 'complete' }))).toEqual({ kind: 'glyph', glyph: 'done' });
   });

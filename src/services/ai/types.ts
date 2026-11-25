@@ -54,11 +54,11 @@ export function mergeTokenUsage(a?: TokenUsage, b?: TokenUsage): TokenUsage {
   };
 }
 
-/** What happens before the reply starts: the model list's first download, then what a local runtime reports (llama-server, MLX). */
+/** What happens before the reply starts: the model list's first download, then what a local runtime reports (llama-server, llama.cpp in the app). */
 export interface StreamProgress {
   /** Getting the models.dev list; loading the model's main weights, its draft model or its vision/audio projector; then reading the prompt. */
   stage: 'loading-catalog' | 'loading-weights' | 'loading-draft' | 'loading-projector' | 'reading-prompt';
-  /** 0–100; null when the runtime reports the stage but no fraction (MLX maps weights in one step). */
+  /** 0–100; null when the runtime reports the stage but no fraction (llama.cpp in the app reports only the load's start). */
   percent: number | null;
   /** Seconds left reading the prompt, once enough of it has been read to tell. */
   secondsLeft?: number;

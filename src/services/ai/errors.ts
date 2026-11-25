@@ -1,5 +1,5 @@
 /** Every AI failure as one kind and one plain sentence saying what happened and what to do — whatever the provider (cloud
- *  SDK, Apple Intelligence, MLX). The sentence is what the user sees; the kind names the failure for logs and tests. */
+ *  SDK, Apple Intelligence, on-device). The sentence is what the user sees; the kind names the failure for logs and tests. */
 
 import { APICallError, NoObjectGeneratedError, UnsupportedFunctionalityError } from 'ai';
 import { appleFailureError, isContextWindowError } from '@services/ai/apple/contextWindow';

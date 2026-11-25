@@ -190,34 +190,11 @@ Calling AI providers, running models on this device, transcribing speech and ser
 - Source: <https://github.com/vercel/ai>
 - Copyright 2023 Vercel, Inc.
 
-### MLX Swift
-
-- Licence: MIT
-- Source: <https://github.com/ml-explore/mlx-swift>
-- Copyright (c) 2023 ml-explore
-
-### MLX Swift LM
-
-- Licence: MIT
-- Source: <https://github.com/ml-explore/mlx-swift-lm>
-- Copyright (c) 2024 ml-explore
-
-### swift-transformers
-
-- Licence: Apache-2.0
-- Source: <https://github.com/huggingface/swift-transformers>
-
 ### transcribe.cpp
 
 - Licence: MIT
 - Source: <https://github.com/handy-computer/transcribe.cpp>
 - Copyright (c) 2026 The transcribe.cpp authors
-
-### MLX Audio Swift
-
-- Licence: MIT
-- Source: <https://github.com/Neywa-Labs/mlx-audio-swift>
-- Copyright (c) 2025 Prince Canuma
 
 ### MCP Rust SDK (rmcp)
 

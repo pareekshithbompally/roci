@@ -3,10 +3,7 @@ node_modules
 dist
 *.local
 src-tauri/**/target
-src-tauri/frameworks
 src-tauri/binaries
-src-tauri/RociMLX/.build
-src-tauri/RociMLX/.swiftpm
 
 # Logs
 logs

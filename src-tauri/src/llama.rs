@@ -544,7 +544,7 @@ mod tests {
     }
 
 
-    /// Qwen3 Embedding through the llama shim against Qwen's published scores (as the MLX build was checked):
+    /// Qwen3 Embedding through the llama shim against Qwen's published scores:
     /// `ROCI_EMBED_GGUF` is the model file.
     #[test]
     #[ignore = "needs a downloaded model"]

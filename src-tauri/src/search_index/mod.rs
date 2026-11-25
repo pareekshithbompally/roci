@@ -1,4 +1,4 @@
-//! The search index, owned here end to end: meetings and chats are split into pieces from the store and embedded on MLX (the
+//! The search index, owned here end to end: meetings and chats are split into pieces from the store and embedded on device (the
 //! GPU's background queue) when they're saved — never at launch — and only pieces without a vector are embedded. The webview
 //! only asks: search, a recording's new stretch, a rebuild. No piece or vector crosses to it.
 
