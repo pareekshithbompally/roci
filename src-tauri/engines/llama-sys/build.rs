@@ -26,6 +26,9 @@ fn main() {
     println!("cargo:rerun-if-changed=shim/roci_llama.cpp");
     println!("cargo:rerun-if-changed=CMakeLists.txt");
     println!("cargo:rerun-if-changed=../llama.cpp/src");
+    println!("cargo:rerun-if-changed=../llama.cpp/common");
+    println!("cargo:rerun-if-changed=../llama.cpp/include");
+    println!("cargo:rerun-if-changed=../llama.cpp/tools/mtmd");
 }
 
 /// Every `lib*.a` the build produced, linked statically (the folder layout differs between CMake generators).

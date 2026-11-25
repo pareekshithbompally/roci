@@ -5,6 +5,7 @@ vi.mock('@services/tauri', async (importOriginal) => ({ ...(await importOriginal
 
 import { modelMenuEntries, modelRowText, modelSubtitle } from '@shared/components/modelMenu';
 import type { ModelChoice } from '@shared/utils/modelResolver';
+import type { ModelProfile } from '@services/ai/models/profile';
 
 const choice = (over: Partial<ModelChoice>): ModelChoice => ({
   value: 'v', provider: 'on-device', modelId: 'm', label: 'Whisper Small', ready: true, hint: null, ...over,
@@ -13,8 +14,11 @@ const setup = (over: Partial<NonNullable<ModelChoice['setup']>>) => ({ kind: 'do
 
 describe('the one model menu (chat and Settings)', () => {
   it('the grey line: what a model takes in and can do, its marks, whether it is loaded', () => {
-    const info = { modalities: { input: ['text', 'image'], output: ['text'] }, capabilities: { toolCall: true, reasoning: true } };
-    expect(modelSubtitle(choice({ info }))).toBe('Vision · Tools · Thinking');
+    const profile: ModelProfile = {
+      input: ['text', 'image'], output: ['text'], tools: true, reasoning: true, contextTokens: null, known: true, correctedInputs: [],
+      sourceOf: { input: 'provider', output: 'provider', tools: 'provider', reasoning: 'provider', contextTokens: 'provider' },
+    };
+    expect(modelSubtitle(choice({ profile }))).toBe('Vision · Tools · Thinking');
     expect(modelSubtitle(choice({ marks: [{ icon: Mic, label: 'Real-time' }] }))).toBe('Real-time');
     expect(modelSubtitle(choice({}), true)).toBe('Loaded');
     expect(modelSubtitle(choice({}))).toBe('');

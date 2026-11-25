@@ -7,3 +7,5 @@ export { LIVE_TRANSCRIPTION_MARK, PENDING } from './marks';
 export { usePaneDrill } from './usePaneDrill';
 export type { DrillPage } from './usePaneDrill';
 export { EngineRestartRow } from './EngineRestartRow';
+export { NumberPicker } from './NumberPicker';
+export type { NumberChoice } from './NumberPicker';

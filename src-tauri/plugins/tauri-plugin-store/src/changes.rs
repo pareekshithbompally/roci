@@ -84,6 +84,23 @@ pub fn meeting_ids<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<String>, StoreE
     Ok(ids)
 }
 
+/// Blocking; never on the main thread. A setting's saved JSON text (`null` once cleared); `None` when it was never saved or
+/// the database is not open yet.
+pub fn setting<R: Runtime>(app: &AppHandle<R>, key: &str) -> Result<Option<String>, StoreError> {
+    let state = app.state::<StoreState>();
+    let guard = state
+        .conn
+        .lock()
+        .map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+    let Some(db) = guard.as_ref() else {
+        return Ok(None);
+    };
+    let value = db
+        .query_row("SELECT value FROM settings WHERE key = ?1", [key], |row| row.get(0))
+        .optional()?;
+    Ok(value)
+}
+
 /// Blocking; never on the main thread. `None` when the meeting is missing or the database is not open yet.
 pub fn meeting_detail<R: Runtime>(
     app: &AppHandle<R>,

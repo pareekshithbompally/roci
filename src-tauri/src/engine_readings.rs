@@ -19,7 +19,8 @@ pub fn model_info(path: &Path) -> (Option<u64>, Option<String>) {
 }
 
 /// The bytes llama.cpp projects for the model file at `path` run as llama-server runs it, with a context of `tokens` and
-/// a KV cache of `kv_type` (f16, q8_0, q4_0): weights, KV cache and compute, measured with no weights read (blocking).
+/// a KV cache of `kv_type` (f16, q8_0, q4_0): its KV cache and compute buffers, measured with no weights read (the
+/// weights are memory-mapped, read from disk as needed, and not counted) (blocking).
 pub fn projected_memory(path: &Path, tokens: u32, kv_type: &str) -> Result<u64, LocalError> {
     let path = to_c_path(path)?;
     let kv_type = CString::new(kv_type).map_err(|e| LocalError::BadInput(e.to_string()))?;

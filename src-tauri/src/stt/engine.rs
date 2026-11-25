@@ -311,27 +311,38 @@ mod tests {
     }
 
     /// Both engines in one process on the one ggml: Parakeet (transcribe.cpp) transcribes a recording, then a chat GGUF
-    /// (llama.cpp) continues a sentence. `ROCI_STT_GGUF` is a Parakeet model file, `ROCI_STT_WAV` a 16 kHz mono WAV,
+    /// (llama.cpp) answers a question. `ROCI_STT_GGUF` is a Parakeet model file, `ROCI_STT_WAV` a 16 kHz mono WAV,
     /// `ROCI_LLAMA_GGUF` a chat model file.
     #[test]
     #[ignore = "needs downloaded models"]
     fn speech_and_chat_share_one_process() {
-        use std::ffi::{CStr, CString};
+        use std::ffi::{c_char, c_void, CStr, CString};
+        use std::sync::Mutex;
+        extern "C" fn collect(user: *mut c_void, event: *const c_char) {
+            // SAFETY: `user` is the test's Mutex<String>; `event` is valid for this call.
+            let (text, event) = unsafe { (&*(user as *const Mutex<String>), CStr::from_ptr(event)) };
+            let event: serde_json::Value = serde_json::from_slice(event.to_bytes()).unwrap();
+            text.lock().unwrap().push_str(event["text"].as_str().unwrap_or_default());
+        }
         let pcm = decode_wav(&std::fs::read(std::env::var("ROCI_STT_WAV").unwrap()).unwrap()).unwrap();
         let model = Model::load(std::env::var("ROCI_STT_GGUF").unwrap()).unwrap();
         let mut session = model.session_with(&SessionOptions::default()).unwrap();
         let heard = session.run(&pcm[..pcm.len().min(SAMPLE_RATE * 20)], &RunOptions::default()).unwrap();
         println!("PARAKEET: {}", heard.text);
         assert!(!heard.text.trim().is_empty());
-        // SAFETY: static C string from llama.cpp.
-        println!("LLAMA BACKENDS: {}", unsafe { CStr::from_ptr(roci_llama_sys::roci_llama_system_info()) }.to_string_lossy());
         let path = CString::new(std::env::var("ROCI_LLAMA_GGUF").unwrap()).unwrap();
-        let prompt = CString::new("The capital of France is").unwrap();
-        // SAFETY: valid C strings for the call; the returned string is ours to free.
-        let reply = unsafe { roci_llama_sys::roci_llama_probe(path.as_ptr(), prompt.as_ptr(), 12) };
-        assert!(!reply.is_null());
-        let text = unsafe { CStr::from_ptr(reply) }.to_string_lossy().into_owned();
-        unsafe { roci_llama_sys::roci_llama_free_string(reply) };
+        let mut error = std::ptr::null_mut();
+        // SAFETY: a valid C string; the handle is closed below.
+        let chat = unsafe { roci_llama_sys::roci_llama_chat_open(path.as_ptr(), 2048, &mut error) };
+        assert!(!chat.is_null(), "open failed");
+        let body = serde_json::json!({ "stream_id": 1, "max_tokens": 32, "messages": [{ "role": "user", "content": "What is the capital of France? One word." }] });
+        let body = CString::new(body.to_string()).unwrap();
+        let text = Mutex::new(String::new());
+        // SAFETY: `text` outlives the call; the result string is freed below.
+        let result = unsafe { roci_llama_sys::roci_llama_chat_reply(chat, body.as_ptr(), collect, &text as *const _ as *mut c_void) };
+        unsafe { roci_llama_sys::roci_llama_free_string(result) };
+        unsafe { roci_llama_sys::roci_llama_chat_close(chat) };
+        let text = text.into_inner().unwrap();
         println!("LLAMA: {text}");
         assert!(text.contains("Paris"), "got: {text}");
     }

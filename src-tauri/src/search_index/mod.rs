@@ -87,7 +87,7 @@ pub fn start(app: AppHandle) {
 }
 
 /// Whether search's embedding model is downloaded.
-fn embedder_installed(app: &AppHandle) -> bool {
+pub fn embedder_installed(app: &AppHandle) -> bool {
     crate::models::catalog::search_embedder().is_ok_and(|model| crate::models::store::is_installed(app, model))
 }
 

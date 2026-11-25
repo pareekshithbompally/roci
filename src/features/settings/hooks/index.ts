@@ -15,7 +15,7 @@ export { useMenubarReports } from './useMenubarReports';
 export { useStorageRetention } from './useStorageRetention';
 export { useOnDeviceRestart } from './useOnDeviceRestart';
 export type { OnDeviceRestart } from './useOnDeviceRestart';
-export { useLocalModelIdle, useLocalModelDirectory, useOnDeviceServerConfig, engineSettingsOf, useLocalModelControls, useLocalModelDownloads, useLocalModelResume, downloadSetup } from './useLocalModels';
+export { useLocalModelIdle, useOnDeviceServerConfig, engineSettingsOf, useLocalModelControls, useLocalModelDownloads, useLocalModelResume, downloadSetup } from './useLocalModels';
 export {
   useMcpConfig,
   useMcpConnectedServers,

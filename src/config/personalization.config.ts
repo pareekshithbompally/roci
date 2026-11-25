@@ -332,7 +332,7 @@ export const PERSONALIZATION_CONFIG = {
       speedUpChip: 'Speed-up',
       writing: 'How It Writes',
       memory: 'Memory and Speed',
-      memoryFooter: 'Memory figures are llama.cpp’s own estimate for this model: its weights, its memory of the conversation and its working space.',
+      memoryFooter: 'Memory figures are llama.cpp’s own estimate for this model’s conversation memory and working space (the model file itself is read from disk as needed).',
       /** The pane's button that opens the sheet of exact values (System Settings' "Advanced…"). */
       advanced: 'Advanced…',
       /** The same, as an iPhone drill-down row. */

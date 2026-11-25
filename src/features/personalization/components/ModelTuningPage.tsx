@@ -7,7 +7,7 @@ import React, { useMemo, useState } from 'react';
 import { AlignLeft, Brain, Cpu, Gauge, Palette, Repeat, Shrink, Zap } from 'lucide-react';
 import { Button, CardRow, Chip, ChoiceControl, IconTile, LIST_ART_PX, Picker, Section, Slider, Switch, Text, type TileGlyph } from '@shared/ui';
 import { FormDialog, HelpLabel, ModelIcon, ModelLabel, ScreenState } from '@shared/components';
-import { EngineRestartRow, ModelSelect, SettingsPage } from '@features/settings/components/shared';
+import { EngineRestartRow, ModelSelect, NumberPicker, SettingsPage } from '@features/settings/components/shared';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { useFormFactor } from '@platform/formFactor';
@@ -77,24 +77,6 @@ const SettingRow: React.FC<{ icon: TileGlyph; label: string; help: string; line?
   children,
 }) => <CardRow leading={<IconTile icon={icon} />} title={<HelpLabel label={label} help={help} />} description={line} status={status} actions={children} />;
 
-/** A pop-up of numbered choices (tokens), as the setting stores them. */
-const NumberPicker: React.FC<{ label: string; value: number | undefined; options: Array<{ value: number; label: string }>; onChange: (value: number) => void }> = ({
-  label,
-  value,
-  options,
-  onChange,
-}) => (
-  <div className={LAYOUT.capabilityPicker}>
-    <Picker
-      label={label}
-      value={value === undefined ? undefined : String(value)}
-      onChange={(next) => onChange(Number(next))}
-      placeholder={COPY.custom}
-      groups={[{ options: options.map((o) => ({ value: String(o.value), label: o.label })) }]}
-    />
-  </div>
-);
-
 const PresetRow: React.FC<TuningProps & { preset: TuningPreset; icon: TileGlyph }> = ({ preset, icon, model, saved, resolved, onChange }) => {
   const { label, help, options } = TUNING.presets[preset];
   const choice = presetChoice(preset, saved, resolved);
@@ -112,7 +94,7 @@ const LimitRow: React.FC<TuningProps & { limit: 'n-predict' | 'reasoning-budget'
   return (
     <SettingRow icon={icon} label={label} help={help} line={rowLine(sourceOf(model.id, [limit], saved))}>
       <NumberPicker label={label} value={resolved[limit]} options={options.map((o) => ({ value: o.tokens, label: o.label }))}
-        onChange={(tokens) => onChange({ ...saved, [limit]: tokens })} />
+        placeholder={COPY.custom} onChange={(tokens) => onChange({ ...saved, [limit]: tokens })} />
     </SettingRow>
   );
 };
@@ -127,7 +109,8 @@ const ContextRow: React.FC<TuningProps> = ({ model, saved, resolved, onChange })
   const options = sizes.map((tokens, i) => ({ value: tokens, label: choice(tokens / tokensPerK, memory[i] && formatFileSize(memory[i])) }));
   return (
     <SettingRow icon={Gauge} label={label} help={help} line={rowLine(sourceOf(model.id, ['ctx-size'], saved))}>
-      <NumberPicker label={label} value={resolved['ctx-size']} options={options} onChange={(tokens) => onChange({ ...saved, 'ctx-size': tokens })} />
+      <NumberPicker label={label} value={resolved['ctx-size']} options={options} placeholder={COPY.custom}
+        onChange={(tokens) => onChange({ ...saved, 'ctx-size': tokens })} />
     </SettingRow>
   );
 };

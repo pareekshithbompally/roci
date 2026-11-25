@@ -4,20 +4,18 @@ import React from 'react';
 import { AppleIntelligenceIntegration } from '@features/integrations';
 import { JOB_GLYPH, ModelDownloadButton, ModelIcon, ModelLabel, ModelSize } from '@shared/components';
 import { History, Layers, MemoryStick, Timer } from 'lucide-react';
-import { Button, CardRow, ICON_TILE_PX, IconTile, Picker, Section, Status, type TileGlyph } from '@shared/ui';
+import { Button, CardRow, ICON_TILE_PX, IconTile, Section, Status, type TileGlyph } from '@shared/ui';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { dialogService } from '@services/tauri';
-import { setLocalModelDirectory } from '@services/localModels.service';
-import { LAYOUT } from '@config/layout.config';
 import { formatFileSize } from '@shared/utils/formatters';
 import { isIntegrationAvailable } from '@shared/utils/integrations';
 import type { OnDeviceModel } from '@shared/utils/onDeviceModel';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import { READ_ALOUD_CONFIG } from '@config/readAloud.config';
 import type { LocalModel, LocalModelKind } from '@services/localModels.service';
-import { engineSettingsOf, useLocalModelControls } from '@features/settings/hooks/useLocalModels';
-import { EngineRestartRow } from '@features/settings/components/shared';
+import { engineSettingsOf, useApplyModelDirectory, useLocalModelControls } from '@features/settings/hooks/useLocalModels';
+import { EngineRestartRow, NumberPicker, type NumberChoice } from '@features/settings/components/shared';
 import type { OnDeviceEngineSettings } from '@shared/types';
 import { useLocalModels } from '@shared/hooks/useLocalModels';
 import { onDeviceChatModel } from '@shared/utils/modelResolver';
@@ -64,28 +62,14 @@ const BuiltIn: React.FC = () => (
 );
 
 /** A memory setting: its icon, its name, and a pop-up of its choices (numbers, as Settings stores them). */
-const MemoryRow: React.FC<{ icon: TileGlyph; title: string; value: number; options: Array<{ value: number; label: string }>; onChange: (value: number) => void }> = ({
+const MemoryRow: React.FC<{ icon: TileGlyph; title: string; value: number; options: NumberChoice[]; onChange: (value: number) => void }> = ({
   icon,
   title,
   value,
   options,
   onChange,
 }) => (
-  <CardRow
-    leading={<IconTile icon={icon} />}
-    title={title}
-    actions={
-      <div className={LAYOUT.capabilityPicker}>
-        <Picker
-          label={title}
-          value={String(value)}
-          onChange={(next) => onChange(Number(next))}
-          placeholder=""
-          groups={[{ options: options.map((o) => ({ value: String(o.value), label: o.label })) }]}
-        />
-      </div>
-    }
-  />
+  <CardRow leading={<IconTile icon={icon} />} title={title} actions={<NumberPicker label={title} value={value} options={options} onChange={onChange} />} />
 );
 
 /** The Mac's engine (llama.cpp's server): memory it keeps free, each model's prompt cache, models at once, and the
@@ -122,19 +106,21 @@ const Memory: React.FC = () => {
 
 /** Where downloaded models are stored (Mac): Roci's folder, or one the user picks; a folder Roci can't use is refused. */
 const ModelDirectory: React.FC = () => {
-  const { settings, setSettings } = useSettings();
+  const { settings } = useSettings();
   const { showToast } = useToast();
+  const applyDirectory = useApplyModelDirectory();
   const dir = settings.modelDirectory;
-  const choose = async () => {
-    const picked = await dialogService.open({ directory: true, title: DIRECTORY.pickerTitle, defaultPath: dir });
-    if (typeof picked !== 'string') return;
+  const apply = async (next: string | undefined) => {
     try {
-      await setLocalModelDirectory(picked);
-      setSettings({ modelDirectory: picked });
+      await applyDirectory(next);
     } catch (error: unknown) {
       console.error('[ModelDirectory] refused:', error);
       showToast(DIRECTORY.refused, 'error');
     }
+  };
+  const choose = async () => {
+    const picked = await dialogService.open({ directory: true, title: DIRECTORY.pickerTitle, defaultPath: dir });
+    if (typeof picked === 'string') await apply(picked);
   };
   return (
     <Section footer={DIRECTORY.footer}>
@@ -143,7 +129,7 @@ const ModelDirectory: React.FC = () => {
         description={dir ?? DIRECTORY.rociFolder}
         actions={
           <>
-            {dir && <Button variant="outline" onClick={() => setSettings({ modelDirectory: undefined })}>{DIRECTORY.reset}</Button>}
+            {dir && <Button variant="outline" onClick={() => void apply(undefined)}>{DIRECTORY.reset}</Button>}
             <Button variant="outline" onClick={() => void choose()}>{DIRECTORY.choose}</Button>
           </>
         }

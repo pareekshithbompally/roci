@@ -14,7 +14,7 @@ export {
 // Hooks
 export { useLocalServers } from './hooks/useLocalServers';
 export { useProviderConnection } from './hooks/useProviderConnection';
-export { useSettings, useAppUpdate, useUpdateRuntime, useMenubarSpeechModels, useMenubarReports, useStorageRetention, useLocalModelDownloads, useLocalModelResume, useLocalModelIdle, useLocalModelDirectory, useOnDeviceServerConfig, useLiveDictation, useSelectedSpeechOption, freshSpeechSources } from './hooks';
+export { useSettings, useAppUpdate, useUpdateRuntime, useMenubarSpeechModels, useMenubarReports, useStorageRetention, useLocalModelDownloads, useLocalModelResume, useLocalModelIdle, useOnDeviceServerConfig, useLiveDictation, useSelectedSpeechOption, freshSpeechSources } from './hooks';
 export type { LiveDictation, AIReadiness } from './hooks';
 export { aiSetupStep, useAIReadiness, useOpenAISetup } from './hooks';
 

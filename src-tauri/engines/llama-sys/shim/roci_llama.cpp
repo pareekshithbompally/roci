@@ -9,48 +9,6 @@
 
 extern "C" {
 
-// The backends llama.cpp sees (ggml's, shared with transcribe.cpp), as text.
-const char * roci_llama_system_info(void) {
-    llama_backend_init();
-    return llama_print_system_info();
-}
-
-// Loads the GGUF at `path`, greedily continues `prompt` for up to `n_predict` tokens and returns the text (NULL on failure).
-char * roci_llama_probe(const char * path, const char * prompt, int n_predict) {
-    llama_backend_init();
-    llama_model * model = llama_model_load_from_file(path, llama_model_default_params());
-    if (model == nullptr) {
-        return nullptr;
-    }
-    llama_context_params cparams = llama_context_default_params();
-    cparams.n_ctx = 512;
-    llama_context * ctx = llama_init_from_model(model, cparams);
-    const llama_vocab * vocab = llama_model_get_vocab(model);
-    std::vector<llama_token> tokens(512);
-    const int n = llama_tokenize(vocab, prompt, (int) std::strlen(prompt), tokens.data(), (int) tokens.size(), true, true);
-    std::string text;
-    if (ctx != nullptr && n > 0) {
-        llama_sampler * sampler = llama_sampler_chain_init(llama_sampler_chain_default_params());
-        llama_sampler_chain_add(sampler, llama_sampler_init_greedy());
-        llama_batch batch = llama_batch_get_one(tokens.data(), n);
-        for (int i = 0; i < n_predict && llama_decode(ctx, batch) == 0; ++i) {
-            llama_token next = llama_sampler_sample(sampler, ctx, -1);
-            if (llama_vocab_is_eog(vocab, next)) {
-                break;
-            }
-            char piece[128];
-            const int len = llama_token_to_piece(vocab, next, piece, sizeof(piece), 0, false);
-            text.append(piece, len > 0 ? len : 0);
-            tokens[0] = next;
-            batch = llama_batch_get_one(tokens.data(), 1);
-        }
-        llama_sampler_free(sampler);
-    }
-    llama_free(ctx);
-    llama_model_free(model);
-    return strdup(text.c_str());
-}
-
 void roci_llama_free_string(char * value) {
     std::free(value);
 }

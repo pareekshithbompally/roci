@@ -1,6 +1,6 @@
 /** Local models for every surface: list query, per-model download/delete controls, picker step, download events. */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { isTauriEnvironment } from '@services/tauri';
 import { platform } from '@platform/index';
@@ -168,16 +168,15 @@ export function useLocalModelIdle(): void {
   }, [minutes]);
 }
 
-/** Keeps the model directory in step with Settings (sent at launch and on every change); which models are downloaded is
- *  read again from the directory now in use. */
-export function useLocalModelDirectory(): void {
-  const dir = useSettings().settings.modelDirectory;
-  useEffect(() => {
-    if (!platform.canChooseModelDirectory || !isTauriEnvironment()) return;
-    setLocalModelDirectory(dir)
-      .then(() => queryClient.invalidateQueries({ queryKey: modelsKey }))
-      .catch(report('directory'));
-  }, [dir]);
+/** Applies a model directory the user chose (undefined: Roci's own folder) and saves it; rejects, saving nothing, when
+ *  Roci can't use it. Which models are downloaded is read again from it. At launch Rust applies the saved one itself. */
+export function useApplyModelDirectory(): (dir: string | undefined) => Promise<void> {
+  const { setSettings } = useSettings();
+  return useCallback(async (dir: string | undefined) => {
+    await setLocalModelDirectory(dir);
+    setSettings({ modelDirectory: dir });
+    void queryClient.invalidateQueries({ queryKey: modelsKey });
+  }, [setSettings]);
 }
 
 /** The Mac's engine flags as Settings holds them: each unset one its default. */

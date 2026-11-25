@@ -5,6 +5,7 @@ pub mod commands;
 pub mod gpu;
 pub mod store;
 
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
@@ -28,14 +29,47 @@ pub fn local_models_set_idle(minutes: u64) {
     IDLE_MINUTES.store(minutes, Ordering::Relaxed);
 }
 
-/// Applies the Settings model directory (None: Roci's own folder); refused when the folder can't be read or written,
-/// and the one in use stays.
+/// The setting that holds the model directory the user chose (`modelDirectory`, JSON text).
+#[cfg(desktop)]
+const DIRECTORY_SETTING: &str = "modelDirectory";
+
+/// Applies the Settings model directory (None: Roci's own folder); refused when the folder can't be used, and the one in
+/// use stays. A new folder restarts the engine with its models, and search catches up when its model is there.
 #[tauri::command]
-pub fn local_models_set_directory(dir: Option<String>) -> Result<(), LocalError> {
-    store::set_directory(dir.map(std::path::PathBuf::from))?;
-    #[cfg(desktop)]
-    crate::llama_server::models_changed();
-    Ok(())
+pub async fn local_models_set_directory(app: tauri::AppHandle, dir: Option<String>) -> Result<(), LocalError> {
+    blocking(move || {
+        if store::set_directory(dir.map(PathBuf::from))? {
+            #[cfg(desktop)]
+            crate::llama_server::models_changed();
+            if crate::search_index::embedder_installed(&app) {
+                crate::search_index::embedder_ready();
+            }
+        }
+        Ok(())
+    })
+    .await
+}
+
+/// Applies the saved model directory as the database opens, before anything lists, loads or indexes a model (called
+/// before search's own handler is registered, and handlers run in that order). A folder that can't be used is logged and
+/// Roci's own stays.
+#[cfg(desktop)]
+pub fn follow_saved_directory(app: tauri::AppHandle) {
+    tauri_plugin_store::on_database_open(move || {
+        let Some(dir) = saved_directory(&app) else { return };
+        if let Err(error) = store::set_directory(Some(dir.clone())) {
+            log::error!("[models] the saved model folder {} can't be used, Roci's own stays: {error}", dir.display());
+        }
+    });
+}
+
+/// The model directory Settings saved; None when it holds Roci's own (never set, or cleared to `null`).
+#[cfg(desktop)]
+fn saved_directory(app: &tauri::AppHandle) -> Option<PathBuf> {
+    let text = tauri_plugin_store::setting(app, DIRECTORY_SETTING)
+        .inspect_err(|error| log::error!("[models] the saved model folder couldn't be read: {error}"))
+        .ok()??;
+    serde_json::from_str::<Option<String>>(&text).ok().flatten().map(PathBuf::from)
 }
 
 /// The read-aloud voices' language, and a transcription's when the webview sends none.

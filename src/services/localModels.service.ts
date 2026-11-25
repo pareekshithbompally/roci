@@ -3,6 +3,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { KvType } from '@config/personalization.config';
 import { isTauriEnvironment } from '@services/tauri';
+import { store } from '@services/db';
 import { platform } from '@platform/index';
 
 /** Mirrors the Rust `Kind`: speech-to-text, a read-aloud voice, text embeddings (meeting search), or chat. */
@@ -61,8 +62,10 @@ export interface LocalErrorPayload {
   detail?: string;
 }
 
+/** Once the database is open: Rust applies the saved model directory as it opens, so the list reads the folder in use. */
 export async function getLocalModels(): Promise<LocalModel[]> {
   if (!platform.hasLocalModels || !isTauriEnvironment()) return [];
+  await store.initialize();
   return invoke<LocalModel[]>('local_models');
 }
 

@@ -36,15 +36,20 @@ pub struct LocalModelStatus {
     drafts: bool,
 }
 
-/// Every curated model: downloaded, downloading, or neither.
+/// Every curated model: downloaded, downloading, or neither (off the main thread: it reads the model files).
 #[tauri::command]
-pub fn local_models(app: AppHandle, state: State<'_, ModelsState>) -> Result<Vec<LocalModelStatus>, LocalError> {
+pub async fn local_models(app: AppHandle) -> Result<Vec<LocalModelStatus>, LocalError> {
+    blocking(move || statuses(&app)).await
+}
+
+fn statuses(app: &AppHandle) -> Result<Vec<LocalModelStatus>, LocalError> {
+    let state = app.state::<ModelsState>();
     MODELS
         .iter()
         .map(|m| {
-            let installed = store::is_installed(&app, m);
+            let installed = store::is_installed(app, m);
             let (context, template) = if installed && m.kind == Kind::Chat {
-                crate::engine_readings::model_info(&store::file_path(&app, m, m.main_file())?)
+                crate::engine_readings::model_info(&store::file_path(app, m, m.main_file())?)
             } else {
                 (None, None)
             };
@@ -59,7 +64,7 @@ pub fn local_models(app: AppHandle, state: State<'_, ModelsState>) -> Result<Vec
                 bytes: m.bytes(),
                 installed,
                 downloading: state.downloads.is_active(m.id),
-                partial: !installed && store::is_started(&app, m),
+                partial: !installed && store::is_started(app, m),
                 context_tokens: context,
                 tools: template.as_deref().map(|t| jinja_uses(t, "tools")),
                 // Images reach a model once the shim passes them (mtmd vision); until then none takes them.
@@ -132,10 +137,10 @@ pub fn local_model_download(app: AppHandle, state: State<'_, ModelsState>, id: S
     Ok(())
 }
 
-/// Bytes free for downloads on the volume that keeps the models.
+/// Bytes free for downloads on the volume that keeps the models (off the main thread: it asks the volume).
 #[tauri::command]
-pub fn local_model_free_space(app: AppHandle) -> Result<u64, LocalError> {
-    store::free_space(&app)
+pub async fn local_model_free_space(app: AppHandle) -> Result<u64, LocalError> {
+    blocking(move || store::free_space(&app)).await
 }
 
 /// Stops a download; what arrived is kept and resumed next time.
@@ -145,7 +150,9 @@ pub fn local_model_cancel(state: State<'_, ModelsState>, id: String) -> Result<(
     Ok(())
 }
 
-/// Deletes a model's files, after its engine lets go of it (off the main thread: a server may still be loading it).
+/// Deletes a model's files, after its engine lets go of it (off the main thread: a server may still be loading it). The
+/// Mac's engine, for a model it serves, stops before the files go and again after, so one started in between doesn't
+/// keep listing it.
 #[tauri::command]
 pub async fn local_model_remove(app: AppHandle, id: String) -> Result<(), LocalError> {
     let model = catalog::find(&id)?;
@@ -160,8 +167,11 @@ pub async fn local_model_remove(app: AppHandle, id: String) -> Result<(), LocalE
             Kind::Embedding | Kind::Chat => {}
         }
         #[cfg(desktop)]
-        crate::llama_server::models_changed();
-        store::remove(&app, model)
+        crate::llama_server::model_changed(model.kind);
+        let removed = store::remove(&app, model);
+        #[cfg(desktop)]
+        crate::llama_server::model_changed(model.kind);
+        removed
     })
     .await
 }

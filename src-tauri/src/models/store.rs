@@ -88,15 +88,23 @@ enum Layout {
     HuggingFace,
 }
 
-/// Uses `dir` as the model directory from now on (None: Roci's own); refused when it can't be read or written, so the
-/// one in use stays.
-pub fn set_directory(dir: Option<PathBuf>) -> Result<(), LocalError> {
+/// Characters a model path can't hold: the engine's preset file ends a value at `;` or `#`, and a line at a line break.
+const UNWRITABLE: &[char] = &[';', '#', '\n', '\r'];
+
+/// Uses `dir` as the model directory from now on (None: Roci's own); true when that changed it. Refused when it can't be
+/// read or written, or its path can't go into the engine's presets, so the one in use stays.
+pub fn set_directory(dir: Option<PathBuf>) -> Result<bool, LocalError> {
     if let Some(dir) = &dir {
+        if dir.to_string_lossy().contains(UNWRITABLE) {
+            return Err(LocalError::BadInput(format!("a model folder's path can't contain ; # or a line break: {}", dir.display())));
+        }
         fs::create_dir_all(dir)?;
         fs::read_dir(dir)?;
     }
-    *lock(&DIRECTORY) = dir;
-    Ok(())
+    let mut current = lock(&DIRECTORY);
+    let changed = *current != dir;
+    *current = dir;
+    Ok(changed)
 }
 
 fn root(app: &AppHandle) -> Result<PathBuf, LocalError> {
@@ -231,7 +239,8 @@ pub async fn download(app: &AppHandle, model: &'static LocalModel, cancel: &Atom
         Ok(state) => {
             #[cfg(desktop)]
             if matches!(state, DownloadState::Done) {
-                crate::llama_server::models_changed();
+                let kind = model.kind;
+                let _ = tauri::async_runtime::spawn_blocking(move || crate::llama_server::model_changed(kind)).await;
             }
             reporter.emit(state, model.bytes(), None);
             // Search's model is in: the meetings and chats without vectors get them now.
@@ -404,6 +413,15 @@ mod tests {
         for model in catalog::MODELS {
             let have = model.files.iter().filter(|f| fs::metadata(path_in(&root, model, f)).is_ok_and(|m| m.len() == f.bytes)).count();
             println!("MODEL {:<24} {have}/{} files", model.id, model.files.len());
+        }
+    }
+
+    #[test]
+    fn a_folder_the_presets_cant_hold_is_refused() {
+        for name in ["a;b", "a#b", "a\nb", "a\rb"] {
+            let dir = std::env::temp_dir().join(name);
+            assert!(matches!(set_directory(Some(dir.clone())), Err(LocalError::BadInput(_))), "{name:?}");
+            assert!(!dir.exists());
         }
     }
 

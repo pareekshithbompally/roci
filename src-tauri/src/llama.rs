@@ -598,10 +598,9 @@ mod tests {
         unsafe { sys::roci_llama_free_bytes(wav) };
         unsafe { sys::roci_llama_voice_close(voice) };
         std::fs::write(std::env::var("ROCI_VOICE_WAV").unwrap(), &bytes).unwrap();
-        let reader = hound::WavReader::new(Cursor::new(&bytes)).unwrap();
-        let spec = reader.spec();
-        let seconds = reader.duration() as f32 / spec.sample_rate as f32;
-        println!("VOICE: {seconds:.1}s of audio at {} Hz in {:.2}s", spec.sample_rate, started.elapsed().as_secs_f32());
+        let (samples, rate) = crate::tts::voice_model::samples_of(&bytes).unwrap();
+        let seconds = samples.len() as f32 / rate as f32;
+        println!("VOICE: {seconds:.1}s of audio at {rate} Hz in {:.2}s", started.elapsed().as_secs_f32());
         assert!(seconds > 2.0);
     }
 }

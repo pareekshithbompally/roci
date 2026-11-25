@@ -170,6 +170,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
   // Meetings in Spotlight: follows meeting writes; idle until the frontend turns it on.
   meeting_spotlight::start(app.handle().clone());
+  // The saved model folder, applied as the database opens: before search's catch-up looks for its model.
+  models::follow_saved_directory(app.handle().clone());
   // Search: meetings and chats are indexed in Rust as they're saved.
   search_index::start(app.handle().clone());
 

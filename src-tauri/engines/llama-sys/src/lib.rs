@@ -28,8 +28,6 @@ pub type CheckpointFn = extern "C" fn();
 pub type PressureFn = extern "C" fn(level: c_int);
 
 unsafe extern "C" {
-    pub fn roci_llama_system_info() -> *const c_char;
-    pub fn roci_llama_probe(path: *const c_char, prompt: *const c_char, n_predict: c_int) -> *mut c_char;
     pub fn roci_llama_free_string(value: *mut c_char);
     pub fn roci_llama_set_checkpoint(hook: CheckpointFn);
     pub fn roci_llama_chat_open(path: *const c_char, n_ctx: c_int, error: *mut *mut c_char) -> *mut RociLlamaChat;
