@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { dialogService, isTauriEnvironment } from '@services/tauri';
 import { KIT_COPY } from '@config/kitCopy.config';
+import { haptic } from '@platform/haptics';
 
 export interface ConfirmRequest {
   title: string;
@@ -25,6 +26,8 @@ const useConfirmStore = create<ConfirmState>()(() => ({ request: null, resolve: 
 
 /** Ask the user: the system alert in the app; the drawn prompt (ConfirmHost) in a browser. A newer request supersedes an open one, which resolves `false`. */
 export function confirm(request: ConfirmRequest): Promise<boolean> {
+  // About to do something that can't be undone: felt as the question appears.
+  if (request.tone === 'danger') haptic('warn');
   if (isTauriEnvironment()) {
     return dialogService.confirm(request.title, request.description ?? '', {
       okLabel: request.confirmLabel,

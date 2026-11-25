@@ -29,6 +29,7 @@ import { platform } from '@platform/index';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import type { FileUIPart } from '@shared/types';
 import type { SpeechState } from '@features/chat/hooks/useSpeechInput';
+import type { VoiceEnding } from '@features/chat/hooks/useVoiceCapture';
 import type { LiveText } from '@services/ai/transcription';
 import { useFormFactor } from '@platform/formFactor';
 import { AttachmentStrip } from './AttachmentStrip';
@@ -66,6 +67,14 @@ interface ChatInputProps {
   showSpeechInput?: boolean;
   /** Current speech state — drives recording UI */
   speechState?: SpeechState;
+  /** How the dictation ended — sets how the pill leaves (settle into the box, lift off as sent, shake on failure) */
+  speechEnding?: VoiceEnding;
+  /** The live stream dropped mid-dictation: its words stay, the recording is transcribed on stop */
+  speechLiveLost?: boolean;
+  /** The voice area has finished leaving — a waiting Send goes out now */
+  onVoiceGone?: () => void;
+  /** The composer sits over a conversation: the voice area gets a backdrop so its words never sit on messages */
+  overContent?: boolean;
   /** Live mic stream for waveform visualization */
   micStream?: MediaStream | null;
   /** Dictation's text so far when it's live (shown under the pill); null otherwise. */
@@ -74,7 +83,8 @@ interface ChatInputProps {
   speechElapsed?: number;
   onSpeechStart?: () => void;
   onSpeechStop?: () => void;
-  onSpeechTogglePause?: () => void;
+  /** Dictation's Send: transcribe, then send the draft */
+  onSpeechSend?: () => void;
   onSpeechCancel?: () => void;
   /** The field's hint in place of the rotating ones (the meeting chat: "Ask about this meeting…"). */
   placeholder?: string;
@@ -103,12 +113,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onScreenshot,
   showSpeechInput = false,
   speechState = 'idle',
+  speechEnding = 'box',
+  speechLiveLost = false,
+  onVoiceGone,
+  overContent = false,
   micStream = null,
   liveText = null,
   speechElapsed = 0,
   onSpeechStart,
   onSpeechStop,
-  onSpeechTogglePause,
+  onSpeechSend,
   onSpeechCancel,
   placeholder,
   scopeMeetingId,
@@ -251,17 +265,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const canSend = !isLoading && !disabled && canSendDraft(value, attachments);
   const reduceMotion = useReducedMotion() ?? false;
   // The pill owns the slot from capture start until the handoff beat after transcription.
-  const pill = useVoicePill(speechState, onSpeechCancel);
+  const pill = useVoicePill(speechState, speechEnding, onSpeechCancel);
   const voiceActive = pill.active;
 
-  // Return the caret to the textarea once the box has expanded back.
+  // Return the caret to the textarea once the box is back: after Stop (the words are there to edit), and on a Mac after any
+  // ending. A phone keeps its keyboard down otherwise, so a sent message or a cancel never raises it.
   const wasVoiceActive = useRef(false);
+  const endedInBox = pill.ending === 'box';
   useEffect(() => {
-    if (wasVoiceActive.current && !voiceActive) {
+    if (wasVoiceActive.current && !voiceActive && (endedInBox || !platform.hasTouchScreen)) {
       inputRef.current?.focus();
     }
     wasVoiceActive.current = voiceActive;
-  }, [voiceActive]);
+  }, [voiceActive, endedInBox]);
 
   // The field and the send controls, arranged by the layout below (Mac: box + toolbar; phone: one row).
   const canDictate = showSpeechInput && !!onSpeechStart && !isLoading;
@@ -335,9 +351,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             data-testid="composer-frame"
             variant={voiceActive ? 'plain' : 'bar'}
             radius={phone ? 'composer' : 'xl'}
-            className="relative transition-[background-color,box-shadow] duration-300 ease-out"
+            className="relative transition-[background-color,box-shadow] duration-fade"
           >
-            <AnimatePresence initial={false}>
+            {/* The ending rides on `custom`, so the leaving pill knows which way to go. */}
+            <AnimatePresence initial={false} custom={pill.ending} onExitComplete={onVoiceGone}>
               {voiceActive && (
                 <VoicePill
                   key="voice"
@@ -348,7 +365,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   elapsed={speechElapsed}
                   reduceMotion={reduceMotion}
                   onStop={onSpeechStop}
-                  onTogglePause={onSpeechTogglePause}
+                  onSend={onSpeechSend}
+                  canSend={!isLoading}
+                  liveLost={speechLiveLost}
+                  backdrop={overContent}
+                  controlSize={glyphSize}
                   onCancel={onSpeechCancel}
                 />
               )}

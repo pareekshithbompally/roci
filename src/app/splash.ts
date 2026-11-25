@@ -1,6 +1,6 @@
 /** Startup splash painted by index.html before JS loads; raised on boot, faded out once the app first renders. */
 
-import { ANIMATION_CONFIG } from '@config/animations.config';
+import { MOTION } from '@config/motion.config';
 
 const SPLASH_ID = 'splash';
 
@@ -17,10 +17,9 @@ export function dismissSplash(): void {
   splash.dataset.dismissed = 'true';
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const { duration, easing } = ANIMATION_CONFIG.transition.opacity;
   const fade = splash.animate([{ opacity: 1 }, { opacity: 0 }], {
-    duration: reduceMotion ? 0 : duration,
-    easing,
+    duration: (reduceMotion ? MOTION.reduced : MOTION.fade.out) * 1000,
+    easing: `cubic-bezier(${MOTION.curve.out.join(', ')})`,
     fill: 'forwards',
   });
   fade.finished

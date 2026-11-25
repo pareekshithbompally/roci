@@ -2,6 +2,7 @@ import React, { useId, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
 import { ANIMATION_CONFIG } from '@config/animations.config';
+import { motionFor } from './motion';
 import { cn } from './utils';
 import { Icon } from './icon';
 import { rowClasses } from './row';
@@ -35,7 +36,7 @@ export function Disclosure({ summary, children, open, defaultOpen = false, onOpe
   const [innerOpen, setInnerOpen] = useState(defaultOpen);
   const isOpen = open ?? innerOpen;
   const regionId = useId();
-  const transition = useReducedMotion() ? { duration: 0 } : ANIMATION_CONFIG.disclosure;
+  const transition = motionFor(ANIMATION_CONFIG.disclosure, useReducedMotion() ?? false);
 
   const toggle = () => {
     const next = !isOpen;

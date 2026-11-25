@@ -251,6 +251,8 @@ export interface AppSettings {
   onDeviceEngine?: OnDeviceEngineSettings;
   /** Hide the per-call tool blocks in chat answers (shown by default). */
   hideToolCalls?: boolean;
+  /** iPhone: haptics on (default) or off (platform/haptics.ts). */
+  haptics?: boolean;
   /** Settings › General › Capture: show dictation as it's spoken, with a speech model that streams. */
   liveTranscription?: boolean;
   chatModel: string;

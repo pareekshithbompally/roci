@@ -127,10 +127,9 @@ export const UI_CONFIG = {
   gesture: { commitSpeed: 0.5, edgePx: 24, edgeShare: 0.35 },
 
   /** A bottom sheet (iPhone, react-modal-sheet): it opens at `restShare` of the screen's height, and opens, closes and
-   *  settles on the iOS presentation curve. */
+   *  settles on the `follow` spring (motion.config.ts). */
   sheet: {
     restShare: 0.56,
-    tween: { ease: [0.32, 0.72, 0, 1] as [number, number, number, number], duration: 0.35 },
     /** A pull down from the content's top at full height (bottom-sheet-pull.ts). */
     pull: {
       /** How far (px) a finger moves before the pull or the scroll is decided. */

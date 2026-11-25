@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from './utils';
 import { useFormFactor } from '@platform/formFactor';
+import { haptic } from '@platform/haptics';
 
 export interface TabItem<T extends string> {
   value: T;
@@ -40,7 +41,10 @@ export function Tabs<T extends string>({ items, value, onValueChange, fill: fill
             type="button"
             role="tab"
             aria-selected={active}
-            onClick={() => onValueChange(item.value)}
+            onClick={() => {
+              if (item.value !== value) haptic('select');
+              onValueChange(item.value);
+            }}
             className={cn(
               // a segment's label stays on one line: it truncates rather than wrap
               'h-control-xs min-w-0 truncate whitespace-nowrap rounded-full text-segment font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-focus',

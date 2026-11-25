@@ -36,6 +36,7 @@ const TOKEN_STYLE: Readonly<Record<string, AppleStyle>> = {
   title1: 'title1',
   title2: 'title2',
   greeting: 'title2',
+  spoken: 'title2',
   title3: 'title3',
   body: 'body',
   reading: 'body',
@@ -47,8 +48,9 @@ const TOKEN_STYLE: Readonly<Record<string, AppleStyle>> = {
 };
 
 /** Long-form text (a reply's paragraphs and lists) is Body with roomier leading: Apple's Body leading (22 on 17) is set for
- *  single lines (rows, buttons) and reads cramped over a paragraph. Its line is this many times its size. */
-const LOOSE_LEADING: Readonly<Record<string, number>> = { prose: 1.5 };
+ *  single lines (rows, buttons) and reads cramped over a paragraph; live dictation is Title 2 opened up the same way, so
+ *  fresh words stay easy to follow. Its line is this many times its size. */
+const LOOSE_LEADING: Readonly<Record<string, number>> = { prose: 1.5, spoken: 1.45 };
 
 /** The Text Size setting whose Body is `bodyPx` (the nearest standard one at or below it; accessibility sizes → xxxLarge). */
 export function contentSizeFor(bodyPx: number): ContentSize {

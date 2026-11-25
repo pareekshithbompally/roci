@@ -8,6 +8,7 @@ import { Icon, type IconSize } from './icon';
 import { LIST_ART_PX } from './icon-tile';
 import { UI_CONFIG } from '@config/ui.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
+import { motionFor } from './motion';
 
 /** Canonical button: colour lives in `variant`, shape in `size`; call sites never pass colour or padding classes. Square
  *  sizes never shrink: a crowded row can't squeeze a round button into a pill. */
@@ -137,7 +138,8 @@ const ICON_BUTTON_SIZES: Record<NonNullable<IconButtonProps['size']>, { button: 
 /** The glyph of a `morph` button: keyed by what the button does, so a change swaps the old glyph out as the new one comes in. */
 function SwappedGlyph({ id, children }: { id: string; children: React.ReactNode }) {
   const reduce = useReducedMotion() ?? false;
-  const { transition, hidden, shown } = ANIMATION_CONFIG.glyphSwap;
+  const { motion: name, hidden, shown } = ANIMATION_CONFIG.glyphSwap;
+  const transition = motionFor(name, reduce);
   const from = reduce ? { opacity: 0 } : hidden;
   return (
     <AnimatePresence mode="popLayout" initial={false}>

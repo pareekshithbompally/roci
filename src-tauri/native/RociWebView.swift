@@ -1,8 +1,8 @@
 // iOS / iPadOS: the app's web view behaves like a native screen around the keyboard.
 // - The page never scrolls as a whole (screens scroll inside it), so the top bar stays put, even when a field takes focus.
 // - The keyboard floats over the page, as over a native screen: the web view keeps the whole screen (its content shows
-//   beside the keyboard's rounded corners) and the page is told the keyboard's height and timing (`--keyboard-inset`,
-//   `--keyboard-duration`), so the composer and sheets lift above it.
+//   beside the keyboard's rounded corners) and the page is told the keyboard's height (`--keyboard-inset`), so the
+//   composer and sheets lift above it on the app's own spring.
 // - No form toolbar (˄ ˅ ✓) above the keyboard: a chat field has nothing to step between.
 // - The area behind the web view, and the window, take the page colour from launch and on every light/dark change, so
 //   nothing black shows beside the keyboard's rounded corners or as it moves.
@@ -40,10 +40,8 @@ private final class KeyboardFollower: NSObject {
         let end = (info[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect) ?? .zero
         let keyboard = container.convert(end, from: nil)
         let covered = hiding ? 0 : max(0, container.bounds.maxY - keyboard.minY)
-        let duration = (info[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
         Self.paintBehind(webView)
-        let script = "document.documentElement.style.setProperty('--keyboard-duration','\(duration)s');"
-            + "document.documentElement.style.setProperty('--keyboard-inset','\(Int(covered.rounded()))px');"
+        let script = "document.documentElement.style.setProperty('--keyboard-inset','\(Int(covered.rounded()))px');"
         webView.evaluateJavaScript(script) { _, error in
             if let error { NSLog("[RociWebView] keyboard inset failed: %@", error.localizedDescription) }
         }

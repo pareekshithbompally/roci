@@ -7,7 +7,10 @@ import { PageScroll, TitlebarSpacer } from './page-scroll';
 import { Text } from './text';
 import { cn } from './utils';
 import { UI_CONFIG } from '@config/ui.config';
-import { commits, PUSHED_PAGE_MARK, slideOff, useTouchDrag } from './touch-drag';
+import { useReducedMotion } from 'framer-motion';
+import type { AnimationPlaybackControls } from 'framer-motion';
+import { commits, PUSHED_PAGE_MARK, release, useTouchDrag } from './touch-drag';
+import { MOTION } from '@config/motion.config';
 import { KIT_COPY } from '@config/kitCopy.config';
 
 export interface NavScreen {
@@ -60,12 +63,14 @@ interface StackEntry extends NavScreen {
   id: number;
   leaving?: boolean;
   still?: boolean;
+  /** Its slide in has played: it never plays again when the screen's other motion (parallax) ends. */
+  entered?: boolean;
 }
 
 /** One screen: its header, then its own scrolling body. `covered`: a screen is pushed over it, so it is inert. */
-function Screen({ header, covered, children }: { header: React.ReactNode; covered: boolean; children: React.ReactNode }) {
+function Screen({ header, covered, className, children }: { header: React.ReactNode; covered: boolean; className?: string; children: React.ReactNode }) {
   return (
-    <Surface variant="grouped" inert={covered || undefined} className="absolute inset-0 flex flex-col">
+    <Surface variant="grouped" inert={covered || undefined} className={cn('absolute inset-0 flex flex-col', className)}>
       {header}
       {/* The kit's one page scroller: vertical only, and its top edge fades under the bar once content scrolls. */}
       <PageScroll className="flex-1 pb-safe-bottom">{children}</PageScroll>
@@ -99,6 +104,22 @@ function PushedTitle({ title }: { title: string }) {
 /** The screen in view: the last one not sliding out. */
 const topOf = (stack: StackEntry[]): StackEntry | undefined => [...stack].reverse().find((e) => !e.leaving);
 
+/** A screen's one slide at a time (one CSS animation, so changing it never replays another): out while it leaves, the
+ *  parallax while the screen above it moves, in once when pushed. */
+function slideOf(screen: StackEntry, beneath: string | undefined): string | undefined {
+  if (screen.leaving) return 'animate-push-out';
+  if (beneath) return beneath;
+  return screen.still || screen.entered ? undefined : 'animate-push-in';
+}
+
+/** How the screen just beneath the last one moves with it (iOS parallax): aside as it is pushed, back as it leaves; none
+ *  under a screen the stack opened on. */
+function beneathMotion(stack: StackEntry[]): string | undefined {
+  const last = stack.at(-1);
+  if (!last || last.still) return undefined;
+  return last.leaving ? 'animate-push-uncover' : 'animate-push-under';
+}
+
 export function NavStack({ title, action, initial, children }: NavStackProps) {
   const nextId = useRef(0);
   const entry = useCallback((screen: NavScreen): StackEntry => ({ ...screen, id: nextId.current++ }), []);
@@ -120,14 +141,22 @@ export function NavStack({ title, action, initial, children }: NavStackProps) {
     if (!asksFirst(top, leave)) leave();
   }, [stack, remove]);
   const drop = useCallback((id: number) => setStack((s) => s.filter((e) => e.id !== id)), []);
+  const entered = useCallback((id: number) => setStack((s) => s.map((e) => (e.id === id ? { ...e, entered: true } : e))), []);
   const api = useMemo(() => ({ push, pop, remove }), [push, pop, remove]);
   const top = topOf(stack);
   const [topNode, setTopNode] = useState<HTMLDivElement | null>(null);
-  useSwipeBack(topNode, top, drop, remove);
+  const [rootNode, setRootNode] = useState<HTMLDivElement | null>(null);
+  // The screen beneath the top one: the one before it, or the root.
+  const topIndex = top ? stack.indexOf(top) : -1;
+  const [beneathNode, setBeneathNode] = useState<HTMLDivElement | null>(null);
+  useSwipeBack(topNode, topIndex > 0 ? beneathNode : rootNode, top, drop, remove);
+  const beneath = beneathMotion(stack);
+  const beneathIndex = stack.length - 2;
 
   return (
     <NavStackContext.Provider value={api}>
       <div className="relative min-h-0 flex-1 overflow-hidden">
+        <div ref={setRootNode} className={cn('absolute inset-0', beneathIndex === -1 && beneath)}>
         <Screen
           covered={!!top}
           header={
@@ -139,18 +168,22 @@ export function NavStack({ title, action, initial, children }: NavStackProps) {
         >
           {children}
         </Screen>
-        {stack.map((screen) => (
+        </div>
+        {stack.map((screen, index) => (
           <div
             key={screen.id}
-            ref={screen === top ? setTopNode : undefined}
+            ref={screen === top ? setTopNode : index === topIndex - 1 ? setBeneathNode : undefined}
             className={cn(
-              'absolute inset-0 transition-[translate] duration-ios ease-ios data-[dragging]:transition-none',
-              screen.leaving ? 'animate-push-out' : !screen.still && 'animate-push-in',
+              'absolute inset-0 shadow-overlay',
+              slideOf(screen, index === beneathIndex ? beneath : undefined),
             )}
             onAnimationEnd={(e) => {
+              // Its own slide only: the parallax of a screen pushed over it ends here too.
               if (e.target !== e.currentTarget) return;
-              if (screen.leaving) drop(screen.id);
-              else focusField(e.currentTarget);
+              if (e.animationName === 'push-out') drop(screen.id);
+              if (e.animationName !== 'push-in') return;
+              entered(screen.id);
+              focusField(e.currentTarget);
             }}
           >
             <PushedScreenFrame screen={screen} covered={screen !== top} onBack={pop} />
@@ -166,36 +199,50 @@ function focusField(page: HTMLElement): void {
   page.querySelector<HTMLElement>('[data-autofocus]')?.focus({ preventScroll: true });
 }
 
-/** Swipe from the left edge to go back (iOS): the top screen follows the finger; let go far or fast enough and it slides
- *  off and leaves the stack, otherwise (or when it asks first) it slides back. */
-function useSwipeBack(node: HTMLDivElement | null, top: StackEntry | undefined, drop: (id: number) => void, remove: (id: number) => void): void {
+/** Swipe from the left edge to go back (iOS): the top screen follows the finger, the one beneath with it; let go far or
+ *  fast enough and it slides off and leaves the stack, otherwise (or when it asks first) it slides back. */
+function useSwipeBack(node: HTMLDivElement | null, beneath: HTMLDivElement | null, top: StackEntry | undefined, drop: (id: number) => void, remove: (id: number) => void): void {
   const leave = (take: (id: number) => void) => () => {
     if (!top) return;
     top.onPop?.();
     take(top.id);
   };
-  useEdgeSwipeBack(node, leave(drop), () => !!top && asksFirst(top, leave(remove)));
+  useEdgeSwipeBack(node, leave(drop), () => !!top && asksFirst(top, leave(remove)), beneath);
 }
 
-/** The page follows a swipe from the left edge; let go far or fast enough and it slides off, then `back` runs. `stays`:
- *  asked at that point; true slides it back instead. */
-function useEdgeSwipeBack(node: HTMLDivElement | null, back: () => void, stays?: () => boolean): void {
+/** Where the screen beneath sits while the top one is `moved` px along a travel of `width` (iOS parallax). */
+const beneathAt = (moved: number, width: number) => -MOTION.parallax * (width - moved);
+
+/** Puts a dragged screen back to rest once its spring ends (no inline offset left over for a later slide). */
+const rest = (node: HTMLElement) => () => { node.style.transform = ''; };
+
+/** The page follows a swipe from the left edge, and `beneath` (the screen it covers) a share of the way; let go far or fast
+ *  enough and both spring on from the finger's speed, then `back` runs; otherwise they spring back. `stays`: asked at
+ *  that point; true springs it back instead. */
+function useEdgeSwipeBack(node: HTMLDivElement | null, back: () => void, stays?: () => boolean, beneath?: HTMLDivElement | null): void {
+  const reduce = useReducedMotion() ?? false;
+  /** A spring-back still under way: a new swipe stops it and takes over. */
+  const settling = useRef<AnimationPlaybackControls[]>([]);
   useTouchDrag(node, {
     axis: 'x',
     edgeOnly: true,
     onMove: (dx) => {
       if (!node) return;
-      node.dataset.dragging = '';
-      node.style.translate = `${Math.max(0, dx)}px 0`;
+      settling.current.forEach((move) => move.stop());
+      settling.current = [];
+      const moved = Math.max(0, dx);
+      node.style.transform = `translateX(${moved}px)`;
+      if (beneath) beneath.style.transform = `translateX(${beneathAt(moved, node.offsetWidth)}px)`;
     },
     onEnd: (dx, speed) => {
       if (!node) return;
-      delete node.dataset.dragging;
-      if (!commits(dx, speed, node.offsetWidth, UI_CONFIG.gesture.edgeShare) || stays?.()) {
-        node.style.translate = '';
-        return;
-      }
-      slideOff(node, '100% 0', back);
+      const width = node.offsetWidth;
+      const moved = Math.max(0, dx);
+      const goes = commits(dx, speed, width, UI_CONFIG.gesture.edgeShare) && !stays?.();
+      const moves = [release(node, moved, goes ? width : 0, speed, reduce, goes ? back : rest(node))];
+      if (beneath) moves.push(release(beneath, beneathAt(moved, width), goes ? 0 : beneathAt(0, width), speed * MOTION.parallax, reduce, rest(beneath)));
+      // Leaving always finishes (the stack drops the screen at its end); only a spring-back can be taken over.
+      settling.current = goes ? [] : moves;
     },
   });
 }
@@ -242,7 +289,7 @@ export function PushedPage({ open, title, onBack, children }: PushedPageProps) {
     <div
       ref={setNode}
       {...PUSHED_PAGE_MARK}
-      className={cn('absolute inset-0 z-10 transition-[translate] duration-ios ease-ios data-[dragging]:transition-none', open ? 'animate-push-in' : 'animate-push-out')}
+      className={cn('absolute inset-0 z-10 shadow-overlay', open ? 'animate-push-in' : 'animate-push-out')}
       onAnimationEnd={(e) => {
         if (e.target === e.currentTarget && !open) setShown(false);
       }}

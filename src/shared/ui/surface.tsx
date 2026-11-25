@@ -33,6 +33,8 @@ const VARIANT = {
   field: 'bg-base shadow-input',
   /** Modal backdrop (small-screen sidebar) */
   scrim: 'bg-scrim',
+  /** The window's own glass behind an overlay on content (live dictation's words), fading out at its top edge */
+  veil: 'bg-base-glass backdrop-blur-xl [mask-image:var(--veil-mask)]',
   /** A calendar event block (Upcoming), filled with its calendar's colour (`tint`) as Calendar.app does */
   event: 'bg-event',
   /** An event block's leading bar, in its calendar's colour (`tint`) */

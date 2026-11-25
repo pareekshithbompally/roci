@@ -19,6 +19,8 @@ export const TYPOGRAPHY_CLASSES = {
   headline: 'text-body font-semibold',
   /** 14 — long-form reading: chat messages, transcript, summary */
   reading: 'text-reading font-normal',
+  /** Title 2 with open leading — live dictation: the words as they're spoken, larger than the reply text they'll become */
+  spoken: 'text-spoken font-normal',
   /** 15 — a summary's opening paragraph, read before anything else on the page */
   lead: 'text-title3 font-normal',
   /** 15 / 600 — panel and section titles */

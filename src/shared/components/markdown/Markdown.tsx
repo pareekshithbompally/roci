@@ -8,6 +8,7 @@ import { mermaid } from '@streamdown/mermaid';
 import 'katex/dist/katex.min.css';
 import remarkGfm from 'remark-gfm';
 import { normalizeMath } from '@shared/utils/mathMarkup';
+import { MOTION } from '@config/motion.config';
 import { MarkdownTable } from './MarkdownTable';
 import { MarkdownLink } from './MarkdownLink';
 import { mermaidTheme } from './mermaidTheme';
@@ -53,7 +54,7 @@ const MarkdownInner: React.FC<MarkdownProps> = ({
       <Streamdown
         mode={streaming ? 'streaming' : 'static'}
         parseIncompleteMarkdown={streaming}
-        animated={streaming ? false : { animation: 'fadeIn', duration: 500 }}
+        animated={streaming ? false : { animation: 'fadeIn', duration: MOTION.ambient.textReveal * 1000 }}
         className="size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
         remarkPlugins={REMARK_PLUGINS}
         rehypePlugins={REHYPE_PLUGINS}

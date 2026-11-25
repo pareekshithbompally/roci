@@ -55,7 +55,7 @@ export function Drawer({ open, onClose, label, side = 'end', children }: DrawerP
           variant="scrim"
           aria-hidden="true"
           onClick={onClose}
-          className={cn('absolute inset-0 transition-opacity duration-300', !open && 'opacity-0')}
+          className={cn('absolute inset-0 transition-opacity duration-fade', !open && 'opacity-0')}
         />
         <DialogPrimitive.Content
           asChild

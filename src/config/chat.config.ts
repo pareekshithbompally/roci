@@ -78,6 +78,26 @@ export const DICTATION_COPY = {
   transcribeFailed: 'Couldn’t transcribe dictation',
   /** The greyed mic's label while a recording holds iPhone's one audio session. */
   offWhileRecording: 'Voice input is off while recording',
+  /** The dictation row's controls and status. */
+  stop: 'Stop and put the words in the box',
+  send: 'Send',
+  cancel: 'Cancel voice input',
+  transcribing: 'Transcribing…',
+  failed: 'Couldn’t transcribe',
+  empty: 'Didn’t catch anything',
+  /** The live stream dropped mid-way: its words stay, the recording is transcribed on stop. */
+  liveLost: 'Live text stopped — the recording will be transcribed',
+  /** The voice area's accessible label, by capture state and then by how it ended. */
+  label: {
+    starting: 'Starting',
+    recording: 'Recording',
+    transcribing: 'Transcribing',
+    box: 'Transcribed',
+    send: 'Sent',
+    empty: 'Nothing heard',
+    failed: 'Transcription failed',
+    quiet: 'Cancelled',
+  },
 } as const;
 
 /** What a reply's header says before its first word, in the order it's checked. */

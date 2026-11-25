@@ -29,4 +29,8 @@ describe("type tokens from Apple's table", () => {
     expect([t['--fs-body'], t['--lh-body'], t['--tr-body']]).toEqual(['17px', '22px', '-0.43px']);
     expect([t['--fs-large-title'], t['--lh-large-title']]).toEqual(['34px', '41px']);
   });
+  it('D17 live dictation is Title 2 with open leading at every Text Size, so its lines never overlap', () => {
+    expect([typeTokensFor('large')['--fs-spoken'], typeTokensFor('large')['--lh-spoken']]).toEqual(['22px', '32px']);
+    expect([typeTokensFor('xxxLarge')['--fs-spoken'], typeTokensFor('xxxLarge')['--lh-spoken']]).toEqual(['28px', '41px']);
+  });
 });

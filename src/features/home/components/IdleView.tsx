@@ -13,7 +13,7 @@ import { aiSetupStep, useAIReadiness, useChatModelDownload, useOpenAISetup } fro
 import { ONBOARDING_CONFIG } from '@config/onboarding.config';
 import { LAYOUT } from '@config/layout.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
-import { AppMark, Button, cn, Icon, ProgressRing, Text, TitlebarSpacer } from '@shared/ui';
+import { AppMark, Button, cn, Icon, motionFor, ProgressRing, Text, TitlebarSpacer } from '@shared/ui';
 import { LoadingPane } from '@shared/components';
 import { motion } from 'framer-motion';
 import { platform } from '@platform/index';
@@ -60,7 +60,8 @@ export const IdleView: React.FC<IdleViewProps> = () => {
     setInput(currentInput ? `${currentInput} ${text}` : text);
   }, [setInput]);
 
-  const voice = useVoiceCapture({ settings, providers, appendTranscript });
+  // Send from dictation: the transcript is already in the draft, so ask with it in a new chat.
+  const voice = useVoiceCapture({ settings, providers, appendTranscript, send: askInNewChat });
 
 
   const aiReady = useAIReadiness();
@@ -95,9 +96,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
               {/* Stays mounted and only fades, so the column never reflows under the voice pill. */}
               <motion.div
                 className={cn('relative isolate flex flex-col items-center gap-4 text-center', phone && 'flex-1 justify-center')}
-                initial={false}
-                animate={voice.isVoiceActive ? { opacity: 0, y: -8 } : { opacity: 1, y: 0 }}
-                transition={voice.isVoiceActive ? { duration: 0.2 } : voice.chromeEnter}
+                {...voice.chrome.stay('above')}
                 aria-hidden={voice.isVoiceActive || undefined}
               >
                 <LandingGlow paused={voice.isVoiceActive} />
@@ -110,7 +109,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                 layout={ANIMATION_CONFIG.chat.composerLayout}
                 layoutId={ANIMATION_CONFIG.chat.composerLayoutId}
                 layoutDependency={ANIMATION_CONFIG.chat.composerLayoutDependency.idle}
-                transition={ANIMATION_CONFIG.chat.composerGlide}
+                transition={motionFor(ANIMATION_CONFIG.chat.composerGlide)}
               >
                 <ChatInput
                   value={chatInput}
@@ -126,12 +125,15 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                   onScreenshot={addScreenshotAttachment}
                   showSpeechInput={showSpeechInput}
                   speechState={voice.speech.state}
+                  speechEnding={voice.ending}
+                  speechLiveLost={voice.speech.liveLost}
+                  onVoiceGone={voice.handleVoiceGone}
                   micStream={voice.speech.stream}
                   liveText={voice.speech.liveText}
                   speechElapsed={voice.speech.elapsed}
                   onSpeechStart={voice.speech.start}
                   onSpeechStop={voice.handleSpeechStop}
-                  onSpeechTogglePause={voice.speech.togglePause}
+                  onSpeechSend={voice.handleSpeechSend}
                   onSpeechCancel={voice.speech.cancel}
                   onRecord={platform.canRecord ? record : undefined}
                 />
@@ -142,9 +144,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
               {recordingMeetingId && (
                 <motion.div
                   className="flex justify-center"
-                  initial={false}
-                  animate={voice.isVoiceActive ? { opacity: 0, y: 8 } : { opacity: 1, y: 0 }}
-                  transition={voice.isVoiceActive ? { duration: 0.2 } : voice.chromeEnter}
+                  {...voice.chrome.stay('below')}
                   aria-hidden={voice.isVoiceActive || undefined}
                   inert={voice.isVoiceActive || undefined}
                 >

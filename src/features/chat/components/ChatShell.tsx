@@ -25,7 +25,7 @@ import { LAYOUT } from '@config/layout.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { MeetingCitation, WebCitation } from '@shared/types';
-import { IconButton, PageScroll, Text, cn } from '@shared/ui';
+import { IconButton, PageScroll, Text, cn, motionFor } from '@shared/ui';
 import { LoadingPane } from '@shared/components';
 
 const ScrollToBottomBtn: React.FC<{ onClick: () => void }> = ({ onClick }) => (
@@ -150,7 +150,8 @@ export const ChatShell: React.FC<ChatShellProps> = ({
     setInput(currentInput ? `${currentInput} ${text}` : text);
   }, [setInput]);
 
-  const voice = useVoiceCapture({ settings, providers, appendTranscript });
+  const sendDraft = useCallback(() => void sendMessage(), [sendMessage]);
+  const voice = useVoiceCapture({ settings, providers, appendTranscript, send: sendDraft });
 
   // ── Actions ──
 
@@ -200,10 +201,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
       {!voice.isVoiceActive && emptyStateMessage && (
         <motion.div
           key="empty-state"
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, transition: { duration: 0.2 } }}
-          transition={voice.chromeEnter}
+          {...voice.chrome.presence('below')}
         >
           <Text as="p" variant="helper" tone="faint">{emptyStateMessage}</Text>
         </motion.div>
@@ -254,7 +252,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
         layout={ANIMATION_CONFIG.chat.composerLayout}
         layoutId={composerLayoutId}
         layoutDependency={ANIMATION_CONFIG.chat.composerLayoutDependency.chat}
-        transition={ANIMATION_CONFIG.chat.composerGlide}
+        transition={motionFor(ANIMATION_CONFIG.chat.composerGlide)}
       >
         <ChatInput
           above={(
@@ -279,12 +277,16 @@ export const ChatShell: React.FC<ChatShellProps> = ({
           onScreenshot={addScreenshotAttachment}
           showSpeechInput={showSpeechInput}
           speechState={voice.speech.state}
+          speechEnding={voice.ending}
+          speechLiveLost={voice.speech.liveLost}
+          onVoiceGone={voice.handleVoiceGone}
+          overContent
           micStream={voice.speech.stream}
           liveText={voice.speech.liveText}
           speechElapsed={voice.speech.elapsed}
           onSpeechStart={voice.speech.start}
           onSpeechStop={voice.handleSpeechStop}
-          onSpeechTogglePause={voice.speech.togglePause}
+          onSpeechSend={voice.handleSpeechSend}
           onSpeechCancel={voice.speech.cancel}
           placeholder={placeholder}
           scopeMeetingId={scopeMeetingId}

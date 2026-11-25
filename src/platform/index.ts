@@ -16,6 +16,8 @@ export const platform = {
   hasTouchScreen: ios,
   /** Text follows the phone's Text Size setting (Dynamic Type), as native apps do (platform/dynamicType.ts). */
   followsTextSize: ios,
+  /** Plays haptics (UIKit's feedback generators); a Mac has none for apps (platform/haptics.ts). */
+  hasHaptics: ios,
   /** How copy names this device, its system and its settings app ("this Mac", "macOS asks once", "System Settings › …"). */
   deviceName: mac ? 'Mac' : 'device',
   systemName: mac ? 'macOS' : ios ? 'iOS' : 'the system',

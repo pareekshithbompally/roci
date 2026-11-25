@@ -7,12 +7,16 @@ import { create } from 'zustand';
 interface SearchState {
   active: boolean;
   query: string;
+  /** Counts finished searches. iPhone's search grows out of its button through a shared layout id that carries this, so
+   *  a closing search never pulls the button back through the screen: the button returns as a new element, in place. */
+  round: number;
 }
 
-const useSearchStore = create<SearchState>()(() => ({ active: false, query: '' }));
+const useSearchStore = create<SearchState>()(() => ({ active: false, query: '', round: 0 }));
 
 export const useSearchActive = () => useSearchStore((s) => s.active);
 export const useSearchQuery = () => useSearchStore((s) => s.query);
+export const useSearchRound = () => useSearchStore((s) => s.round);
 
 export function startSearch(): void {
   useSearchStore.setState({ active: true });
@@ -24,7 +28,7 @@ export function setSearchQuery(query: string): void {
 
 /** Closed, and the query cleared for the next search. */
 export function endSearch(): void {
-  useSearchStore.setState({ active: false, query: '' });
+  useSearchStore.setState((s) => ({ active: false, query: '', round: s.round + 1 }));
 }
 
 /** ⌘K: start, or end when already searching. */

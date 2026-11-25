@@ -88,6 +88,15 @@ export const GeneralPanel: React.FC = () => {
 
       </Section>
 
+      {platform.hasHaptics && (
+        <Section title={COPY.haptics} footer={COPY.hapticsFooter}>
+          <CardRow
+            title={COPY.haptics}
+            actions={<Switch checked={settings.haptics !== false} onCheckedChange={(checked) => setSettings({ haptics: checked })} aria-label={COPY.haptics} />}
+          />
+        </Section>
+      )}
+
       <Section title={COPY.imports} footer={COPY.importsFooter}>
         <CardRow
           title={COPY.audioProcessing}

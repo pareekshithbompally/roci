@@ -1,6 +1,8 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { useReducedMotion } from 'framer-motion';
+import type { SheetTweenConfig } from 'react-modal-sheet';
+import { spring } from './motion';
 import { Sheet } from 'react-modal-sheet';
 import { cn, dismissKeyboard } from './utils';
 import { NO_TOP_INSET } from './recipes';
@@ -32,6 +34,9 @@ const DETENT = { fit: 'content', full: 'default' } as const;
 const stopsOf = (size: SheetSize): number[] =>
   (size === 'fit' ? [0, 1] : [0, Math.round(window.innerHeight * UI_CONFIG.sheet.restShare), 1]);
 const OPEN = 1;
+/** Opens, closes and settles on the `follow` spring, from the finger's speed: the library spreads this over its own
+ *  `type: 'tween'`, and its `y` tracks the drag's velocity, so a release carries on instead of restarting. */
+const SHEET_MOTION = spring('follow') as unknown as SheetTweenConfig;
 /** The index of a sheet's top stop, where its content scrolls. */
 const TOP = { fit: 1, full: 2 } as const;
 
@@ -131,7 +136,7 @@ function SheetFrame({ state, size, held, children }: SheetFrameProps) {
       disableScrollLocking
       avoidKeyboard={false}
       prefersReducedMotion={reduce}
-      tweenConfig={UI_CONFIG.sheet.tween}
+      tweenConfig={SHEET_MOTION}
       unstyled
       // The app's modal layer (tokens.css), under popovers and menus opened from inside the sheet (the library's own is 9999).
       style={{ zIndex: 'var(--z-modal)' }}

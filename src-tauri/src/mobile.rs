@@ -16,6 +16,7 @@ pub fn extend_window(window: WebviewWindowBuilder<'_, Wry, AppHandle>) -> Webvie
 /// Meeting recording (microphone) and calendar meeting reminders, on-device models (llama.cpp chat, meeting search and voices; transcribe.cpp speech) and remote MCP servers.
 pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
   builder
+    .plugin(tauri_plugin_haptics::init())
     .manage(mcp::McpState::default())
     .manage(mcp::AppScreens::default())
     .manage(models::ModelsState::default())

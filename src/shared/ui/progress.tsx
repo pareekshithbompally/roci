@@ -1,13 +1,16 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import type { ReactNode } from 'react';
-import { ANIMATION_CONFIG } from '@config/animations.config';
+import { MOTION } from '@config/motion.config';
+import { motionFor } from './motion';
 import { META_SEPARATOR } from '@config/ui.config';
 import { Text } from './text';
 import { cn } from './utils';
 
 const FILL = { neutral: 'bg-inverse', success: 'bg-success', warning: 'bg-warning', error: 'bg-danger' } as const;
 
-const { fill, sweep, appear } = ANIMATION_CONFIG.progress;
+/** The fill eases linearly, so bursts of updates read as one steady ramp; the indeterminate segment sweeps on a loop. */
+const fill = { duration: MOTION.ambient.progressFill, ease: 'linear' } as const;
+const sweep = { duration: MOTION.ambient.progressSweep, repeat: Infinity, ease: MOTION.curve.loop };
 
 export interface ProgressProps {
   /** 0–100, or null for indeterminate */
@@ -58,7 +61,7 @@ function CompactProgress({ percent, detail, className, children }: { percent: nu
       className={cn('inline-flex items-center gap-2', className)}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={reduceMotion ? { duration: 0 } : appear}
+      transition={motionFor('fadeIn', reduceMotion ?? false)}
     >
       {children}
       {facts && <Text variant="figureSmall" tone="faint">{facts}</Text>}

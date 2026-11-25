@@ -10,6 +10,8 @@ export const GENERAL_COPY = {
   toolActivity: 'Tool Activity',
   showToolActivity: 'Show tool activity',
   appearanceFooter: 'Tool Activity shows the tools used in each answer. Model icons load from huggingface.co.',
+  haptics: 'Haptics',
+  hapticsFooter: 'A light tap when dictated words land, a choice changes or something fails. Turning off System Haptics in Settings › Sounds & Haptics also silences them.',
   imports: 'Imports',
   audioProcessing: 'Audio Processing',
   importsFooter: 'How many imported audio files Roci processes at the same time.',

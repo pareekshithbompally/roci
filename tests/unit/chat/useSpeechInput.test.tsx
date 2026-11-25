@@ -5,9 +5,15 @@ import type { AppSettings } from '@shared/types';
 vi.mock('@services/unifiedAIService', () => ({
   audioToRawText: vi.fn(),
 }));
+vi.mock('@services/dictations.service', () => ({
+  startDictation: () => ({ id: 'd1', model: null }),
+  keepDictation: vi.fn(async () => undefined),
+}));
 
 // eslint-disable-next-line import/first
 import { useSpeechInput } from '@features/chat/hooks/useSpeechInput';
+// eslint-disable-next-line import/first
+import { audioToRawText } from '@services/unifiedAIService';
 
 /** Minimal MediaRecorder stand-in — jsdom ships none. */
 class MockMediaRecorder {
@@ -20,12 +26,7 @@ class MockMediaRecorder {
   }
   stop() {
     this.state = 'inactive';
-  }
-  pause() {
-    this.state = 'paused';
-  }
-  resume() {
-    this.state = 'recording';
+    this.onstop?.();
   }
 }
 
@@ -175,5 +176,104 @@ describe('useSpeechInput warm-up', () => {
       await started;
     });
     expect(result.current.state).toBe('idle');
+  });
+});
+
+/** How each dictation ends (docs/plans/IN-PROGRESS/dictation-flow.md): set in the same render as `idle`. */
+describe('useSpeechInput endings', () => {
+  const getUserMedia = vi.fn();
+  const transcribe = vi.mocked(audioToRawText);
+
+  beforeEach(() => {
+    vi.stubGlobal('MediaRecorder', MockMediaRecorder);
+    Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia }, configurable: true });
+    getUserMedia.mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] } as unknown as MediaStream);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+  });
+
+  /** A dictation that has reached recording. */
+  async function recording() {
+    const hook = renderHook(() => useSpeechInput({} as AppSettings, [], null));
+    await act(async () => {
+      await hook.result.current.start();
+    });
+    expect(hook.result.current.state).toBe('recording');
+    expect(hook.result.current.ended).toBeNull();
+    return hook;
+  }
+
+  it.each([
+    ['words come back', 'Ship it Friday.', 'text', 'Ship it Friday.'],
+    ['nothing was heard (D13)', '   ', 'empty', ''],
+  ] as const)('stop when %s ends as %s', async (_case, heard, ended, returned) => {
+    transcribe.mockResolvedValue(heard);
+    const { result } = await recording();
+    let text = 'unset';
+    await act(async () => {
+      text = await result.current.stop();
+    });
+    expect(text).toBe(returned);
+    expect(result.current.state).toBe('idle');
+    expect(result.current.ended).toBe(ended);
+  });
+
+  it('a transcription error ends as failed (D14)', async () => {
+    transcribe.mockRejectedValue(new Error('offline'));
+    const { result } = await recording();
+    await act(async () => {
+      await result.current.stop();
+    });
+    expect(result.current.ended).toBe('failed');
+  });
+
+  it('cancel while transcribing ends as aborted, and the late words are dropped (D15)', async () => {
+    let finish!: (text: string) => void;
+    transcribe.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    const { result } = await recording();
+    let stopped: Promise<string> | undefined;
+    act(() => {
+      stopped = result.current.stop();
+    });
+    expect(result.current.state).toBe('transcribing');
+    act(() => result.current.cancel());
+    await act(async () => {
+      finish('too late');
+      expect(await stopped).toBe('');
+    });
+    expect(result.current.ended).toBe('aborted');
+  });
+
+  it('a cancelled transcription that returns late never ends the next dictation (D15)', async () => {
+    let finish!: (text: string) => void;
+    transcribe.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    const { result } = await recording();
+    let stopped: Promise<string> | undefined;
+    act(() => {
+      stopped = result.current.stop();
+    });
+    act(() => result.current.cancel());
+    await act(async () => {
+      await result.current.start();
+    });
+    expect(result.current.state).toBe('recording');
+    await act(async () => {
+      finish('the old words');
+      expect(await stopped).toBe('');
+    });
+    expect(result.current.state).toBe('recording');
+  });
+
+  it('a mic that never opens ends as aborted (D3)', async () => {
+    getUserMedia.mockRejectedValue(new Error('denied'));
+    const { result } = renderHook(() => useSpeechInput({} as AppSettings, [], null));
+    await act(async () => {
+      await result.current.start();
+    });
+    expect(result.current.state).toBe('idle');
+    expect(result.current.ended).toBe('aborted');
   });
 });

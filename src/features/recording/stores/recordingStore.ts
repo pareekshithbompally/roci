@@ -16,6 +16,7 @@ import { useAppStore } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { showToast } from '@shared/ui';
 import { meetingPipeline } from '@features/recording/pipeline/meetingPipeline';
+import { haptic } from '@platform/haptics';
 
 interface RecordingState {
   /** The meeting being recorded; null when idle. */
@@ -116,6 +117,7 @@ export const recording = {
         calendarMeta: calendar ? calendarMetaOf(calendar) : undefined,
         liveStreaming,
       });
+      haptic('pressed');
       useAppStore.getState().setSelectedHistoryId(meetingId);
       useAppStore.getState().setActiveResultTab('transcript');
       useAppStore.getState().setStatus(AppStatus.RESULTS);
@@ -136,6 +138,7 @@ export const recording = {
     try {
       const meetingId = await coreAudioService.stopCapture();
       if (meetingId) {
+        haptic('landed');
         useRecordingStore.setState({ justStopped: meetingId });
         useAppStore.getState().setSelectedHistoryId(meetingId);
         useAppStore.getState().setActiveResultTab('transcript');

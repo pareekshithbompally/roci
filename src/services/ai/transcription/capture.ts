@@ -5,8 +5,6 @@ import { tapPcm } from './pcmTap';
 import type { LiveStream, LiveText } from './streaming';
 
 export interface DictationCapture {
-  pause(): void;
-  resume(): void;
   /** Ends capture → the transcript. */
   finish(): Promise<string>;
   /** Ends capture and discards it. */
@@ -24,12 +22,6 @@ export function recordedCapture(stream: MediaStream, transcribe: (audio: Blob) =
     recorder.onstop = () => resolve();
   });
   return {
-    pause: () => {
-      if (recorder.state === 'recording') recorder.pause();
-    },
-    resume: () => {
-      if (recorder.state === 'paused') recorder.resume();
-    },
     finish: async () => {
       recorder.stop();
       await stopped;
@@ -43,19 +35,23 @@ export function recordedCapture(stream: MediaStream, transcribe: (audio: Blob) =
 }
 
 /** Feeds the mic to one live stream and shows the engine's own text as it comes (settled words, then the ones still being
- *  revised); the dictation is the engine's final text. The clip is recorded beside it: a stream the model refuses or that
- *  breaks gives way to the clip, transcribed whole, so nothing said is lost. */
+ *  revised); the dictation is the engine's final text. The clip is recorded beside it: if the stream is refused or breaks,
+ *  `onLost` says so once and `finish` transcribes the clip whole, so nothing said is lost. */
 export async function liveCapture(
   stream: MediaStream,
   open: () => Promise<LiveStream>,
   onText: (text: LiveText) => void,
   transcribe: (audio: Blob) => Promise<string>,
+  onLost: () => void,
 ): Promise<DictationCapture> {
   const clip = recordedCapture(stream, transcribe);
-  let paused = false;
+  let lost = false;
   let failure: unknown = null;
   const failed = (error: unknown) => {
-    failure ??= error;
+    if (lost) return;
+    lost = true;
+    failure = error;
+    onLost();
   };
   const engine = open().catch((error: unknown) => {
     failed(error);
@@ -64,10 +60,10 @@ export async function liveCapture(
   // feeds run one at a time, in order
   let feeding = Promise.resolve();
   const tap = await tapPcm(stream, (pcm) => {
-    if (paused || failure) return;
+    if (lost) return;
     feeding = feeding.then(async () => {
       const live = await engine;
-      if (!live || failure) return;
+      if (!live || lost) return;
       const text = await live.feed(pcm);
       onText({ committed: text.committed.trimStart(), tentative: text.tentative });
     }).catch(failed);
@@ -76,21 +72,13 @@ export async function liveCapture(
   const finalText = async (): Promise<string | null> => {
     await feeding;
     const live = await engine;
-    if (!live || failure) return null;
+    if (!live || lost) return null;
     return live.finish().catch((error: unknown) => {
       failed(error);
       return null;
     });
   };
   return {
-    pause: () => {
-      paused = true;
-      clip.pause();
-    },
-    resume: () => {
-      paused = false;
-      clip.resume();
-    },
     finish: async () => {
       tap.stop();
       const text = await finalText();

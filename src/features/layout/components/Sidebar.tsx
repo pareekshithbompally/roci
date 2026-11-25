@@ -10,13 +10,13 @@ import { UnifiedList } from '@features/history';
 import { SettingsNav } from '@features/settings/components/SettingsNav';
 import { useOpenSession, useUnifiedSidebar } from '@features/history/hooks';
 import { LAYOUT } from '@config/layout.config';
-import { AppMark, FadeScroll, IconButton, Icon, Row, RowGroupLabel, Keycaps, Text } from '@shared/ui';
+import { AppMark, FadeScroll, IconButton, Icon, Row, RowGroupLabel, Keycaps, Text, motionFor } from '@shared/ui';
 import { motion } from 'framer-motion';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { APP_CONFIG } from '@config/app.config';
 import { SHELL_COPY } from '@config/shell.config';
 import {
-  endSearch, startSearch, useSearchActive,
+  endSearch, startSearch, useSearchActive, useSearchRound,
 } from '@shared/stores/searchStore';
 import { ActivityTray, ActivityButton } from '@shared/components';
 import { shortcutKeys } from '@features/shortcuts';
@@ -47,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const listContainerRef = useRef<HTMLDivElement>(null);
   const openSession = useOpenSession();
   const searchActive = useSearchActive();
+  const searchRound = useSearchRound();
   // Search is its own screen: iPhone's full-screen search (SearchScreen) from the magnifier, a column sidebar's ⌘K palette.
   const sheet = variant === 'sheet';
 
@@ -122,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <ActivityButton />
           <div className="size-11">
             {!searchActive && (
-              <motion.div layoutId={ANIMATION_CONFIG.search.morphId} transition={ANIMATION_CONFIG.search.morph}>
+              <motion.div layoutId={ANIMATION_CONFIG.search.morphId(searchRound)} transition={motionFor(ANIMATION_CONFIG.search.morph)}>
                 <IconButton icon={Search} size="fab" variant="bar" onClick={startSearch} label={SHELL_COPY.search} />
               </motion.div>
             )}

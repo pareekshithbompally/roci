@@ -31,6 +31,7 @@
     "store:default",
     "apple-intelligence:default",
     "notifications:default",
+    "haptics:default",
     "calendar:default",
     {
       "identifier": "opener:allow-open-url",

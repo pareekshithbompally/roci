@@ -34,6 +34,8 @@
   --fs-prose: 14px;        --lh-prose: 22px;
   --fs-title3: 15px;       --lh-title3: 20px;
   --fs-title2: 17px;       --lh-title2: 22px;
+  /* Live dictation: Title 2 with open leading, so several lines of fresh words stay easy to follow */
+  --fs-spoken: var(--fs-title2); --lh-spoken: 26px; --tr-spoken: var(--tr-title2);
   --fs-title1: 22px;       --lh-title1: 26px;
   --fs-large-title: 26px;  --lh-large-title: 32px;
   /* The home screen's greeting: a Mac's large title; a phone's Title 2 (a large title is for a screen's navigation title). */
@@ -216,7 +218,7 @@
   --brand-ship-shade: #a9461f;
   /* FadeScroll (kit): how far an edge fades, and how fast the fade eases in and out (read by index.css .fade-scroll) */
   --scroll-fade-size: 24px;
-  --scroll-fade-timing: 150ms ease-out;
+  --scroll-fade-timing: var(--motion-quick);
   /* FadeScroll (kit): how far an edge fades, and how fast the fade eases in and out */
   /* Calendar events, as Calendar.app tints them: a light wash of the calendar's colour (`--event-tint`, set per event) and
      text in a deep shade of it (the colour mixed into the primary text), the title deeper than the time under it */
@@ -231,18 +233,23 @@
   --bg-glow-core: color-mix(in srgb, var(--copper-500) 38%, transparent);
   --bg-glow-companion: color-mix(in srgb, var(--copper-400) 30%, transparent);
   --bg-glow-wash: color-mix(in srgb, var(--copper-400) 24%, transparent);
-  /* Recording pill (DotScope canvas, read live): voice in copper, processing in sand, failure in danger red. */
-  --scope-you: var(--copper-600);
-  --scope-you-core: var(--copper-400);
-  --scope-agent: var(--sand-700);
-  --scope-agent-core: var(--sand-800);
-  --scope-fail: var(--danger-solid);
-  --scope-fail-core: var(--danger-fg);
-  --scope-plate: var(--grey-50);
-  --scope-rim: var(--grey-1200);
+  /* Dictation line (Horizon canvas, read live): your voice in copper ribbons (low, mid, high band), Roci working in teal,
+     failure in danger red. */
+  --horizon-low: var(--copper-600);
+  --horizon-mid: var(--copper-400);
+  --horizon-high: var(--sand-700);
+  --horizon-line: var(--copper-600);
+  --horizon-work: var(--teal-600);
+  --horizon-work-core: var(--teal-800);
+  --horizon-fail: var(--danger-solid);
+  --horizon-fail-core: var(--danger-fg);
+  /* Surface `veil`: an overlay's backdrop that fades out over its top edge, so content above dissolves rather than cuts */
+  --veil-fade: 32px;
+  --veil-mask: linear-gradient(to bottom, transparent, black var(--veil-fade));
 
   /* Monochrome-black brand logos (e.g. some HF orgs) invert to stay visible in dark */
   --logo-filter: none;
+
 }
 
 /* ─── iOS text styles at Apple's default Text Size (HIG, Large): footnote 13, subhead 15, body 17 — reading text is Body
@@ -256,6 +263,7 @@ html.platform-ios {
   --fs-prose: 17px;        --lh-prose: 26px;
   --fs-title3: 20px;       --lh-title3: 25px;
   --fs-title2: 22px;       --lh-title2: 28px;
+  --lh-spoken: 32px;       /* Title 2 × 1.45; the phone's Text Size resets it (dynamicType.config.ts) */
   --fs-title1: 28px;       --lh-title1: 34px;
   --fs-large-title: 34px;  --lh-large-title: 41px;
   --fs-greeting: 22px;     --lh-greeting: 28px;
@@ -281,7 +289,9 @@ html.platform-ios {
   --row-icon-gap: 14px;
   --section-gap: 24px;
   --top-bar-height: 4rem;
-  transition: --keyboard-inset var(--keyboard-duration, 0.25s) cubic-bezier(0.32, 0.72, 0, 1);
+  /* The composer and sheets ride the keyboard on the `follow` spring (motion.config.ts): its inertia, not a short tween
+     that lands before the keyboard does. */
+  transition: --keyboard-inset var(--motion-follow);
 }
 
 html.platform-ios.dark {
@@ -368,12 +378,12 @@ html.platform-ios.dark {
   --bg-glow-core: color-mix(in srgb, var(--copper-500) 20%, transparent);
   --bg-glow-companion: color-mix(in srgb, var(--copper-400) 16%, transparent);
   --bg-glow-wash: color-mix(in srgb, var(--copper-600) 16%, transparent);
-  --scope-you: var(--copper-400);
-  --scope-you-core: var(--copper-200);
-  --scope-agent: var(--sand-300);
-  --scope-agent-core: var(--sand-100);
-  --scope-plate: var(--grey-1100);
-  --scope-rim: var(--grey-50);
+  --horizon-low: var(--copper-400);
+  --horizon-mid: var(--sand-300);
+  --horizon-high: var(--sand-100);
+  --horizon-line: var(--copper-200);
+  --horizon-work: var(--teal-500);
+  --horizon-work-core: var(--teal-300);
 
   --logo-filter: invert(1);
 }

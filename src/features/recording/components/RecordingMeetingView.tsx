@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { Clock, Pause, Play, Square } from 'lucide-react';
 import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { CommandBar, Dot, IconButton, Text, TitleBlock, cn, useCommandBarSize } from '@shared/ui';
+import { CommandBar, Dot, IconButton, Text, TitleBlock, cn, motionFor, useCommandBarSize } from '@shared/ui';
 import { MeetingStatus, ModelCreditLine } from '@shared/components';
 import type { MeetingPhase } from '@shared/types/meetingPhase';
 import { LAYOUT } from '@config/layout.config';
@@ -120,7 +120,7 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
   };
 
   return (
-    <motion.div className="h-full flex flex-col overflow-hidden" initial={VIEW.hidden} animate={VIEW.shown} transition={VIEW.enter}>
+    <motion.div className="h-full flex flex-col overflow-hidden" initial={VIEW.hidden} animate={VIEW.shown} transition={motionFor(VIEW.enter)}>
       {/* One line, cut short (the full name is in the sidebar and Details). */}
       <TitleBlock title={<Text as="h1" variant="pageTitle" truncate>{title}</Text>}>
         {/* A Mac's header bar: status, clock and the models at work, then the controls. A phone has none: its toolbar

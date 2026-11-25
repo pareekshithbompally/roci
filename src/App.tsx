@@ -36,6 +36,7 @@ import { isSpeechSelectionReady } from '@services/ai/transcription';
 import { parseModelKey } from '@services/ai/models';
 import { windowService } from '@services/window.service';
 import { dismissSplash } from '@/src/app/splash';
+import { setHapticsEnabled } from '@platform/haptics';
 import { shortcutsService } from '@services/shortcuts.service';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import { reminderService } from '@services/reminder.service';
@@ -112,6 +113,9 @@ const App: React.FC = () => {
   useEffect(() => reminderService.onViewMeeting((id) => {
     windowService.show().then(() => openMeeting({ id })).catch((error: unknown) => console.error('[App] Opening meeting failed:', error));
   }), [openMeeting]);
+
+  // Haptics follow Settings › General › Haptics (on unless turned off)
+  useEffect(() => setHapticsEnabled(settings.haptics !== false), [settings.haptics]);
 
   // Fade the startup splash once the first screen renders with real settings
   useEffect(() => {

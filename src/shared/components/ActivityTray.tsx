@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
-import { Icon, IconButton, Row, Separator, Surface, Text } from '@shared/ui';
+import { Icon, IconButton, Row, Separator, Surface, Text, motionFor } from '@shared/ui';
 import { UI_CONFIG } from '@config/ui.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { ActivityList } from './activity/ActivityList';
@@ -26,7 +26,7 @@ export const ActivityTray: React.FC = () => {
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
-          transition={ANIMATION_CONFIG.activityTray}
+          transition={motionFor(ANIMATION_CONFIG.activityTray)}
           className="mx-2 mb-1.5 shrink-0 overflow-hidden"
         >
           <Surface variant="card" radius="lg" className="overflow-hidden">

@@ -1,100 +1,68 @@
-/** Shared voice-pill choreography; tweens only, since springs overshoot and bounce against a morphing frame. */
+/** Shared voice-pill choreography: which motion each part takes (the app's one vocabulary, `motionFor`) and when, as beats.
+ *  Arrivals move on the `move` spring or fade in; everything leaving fades out, so an exit is done when it looks done. */
 
-import type { Transition } from 'framer-motion';
-import { DOT_SCOPE_CONFIG } from '@config/dotScope.config';
+import type { MotionProps, Transition } from 'framer-motion';
+import { motionFor } from '@shared/ui';
+import type { MotionName } from '@shared/ui';
+import { ANIMATION_CONFIG } from '@config/animations.config';
+import { MOTION } from '@config/motion.config';
 
-/** Ease-out for entrances (fast attack, soft landing). */
-export const VOICE_EASE_OUT: [number, number, number, number] = [0, 0, 0.2, 1];
-/** Ease-in for exits (gentle release, decisive departure). */
-export const VOICE_EASE_IN: [number, number, number, number] = [0.4, 0, 1, 1];
+const { beats: VOICE_BEATS, pill: PILL, beat: BEAT, chrome: CHROME } = ANIMATION_CONFIG.voice;
 
-/** Handoff beat (seconds) after transcription lands before the box expands back. */
-export const VOICE_HANDOFF_S = DOT_SCOPE_CONFIG.composer.handoff;
+/** Min mic-press → recording-UI delay (ms): the pill's entrance (`move`), so the flip never lands mid-enter; capture starts
+ *  at once. */
+export const VOICE_ENTER_BEAT_MS = MOTION.spring.move.visualDuration * 1000;
 
-/** Min mic-press → recording-UI delay (ms) so the flip never lands mid-enter; capture starts at once. */
-export const VOICE_ENTER_BEAT_MS = 350;
+type VoicePhase = 'pillIn' | 'pillOut' | 'composerIn' | 'composerOut' | 'controlIn' | 'controlOut';
 
-/** Seconds. Enter and return use the same magnitudes — mirrored, not matched. */
-export const VOICE_TIMING = {
-  /** Pill scales up into its slot on capture start. */
-  pillIn: 0.3,
-  /** Pill sinks back into the box on return (mirror of pillIn). */
-  pillOut: 0.3,
-  /** Composer fades flat in once the pill has cleared. */
-  composerIn: 0.3,
-  /** Offset so the frame lands before the content fills it. */
-  composerInDelay: 0.1,
-  /** Composer fades flat out on capture start (mirror of composerIn). */
-  composerOut: 0.15,
-  /** Titles above + buttons below land as the second beat. */
-  chromeIn: 0.3,
-  /** Offset so the pill owns the return before the chrome trails in. */
-  chromeInDelay: 0.6,
-  /** Stop/Pause ⇄ X swap inside the reserved slot. */
-  controlIn: 0.2,
-  controlOut: 0.15,
-} as const;
-
-type VoicePhase =
-  | 'pillIn'
-  | 'pillOut'
-  | 'composerIn'
-  | 'composerOut'
-  | 'controlIn'
-  | 'controlOut';
-
-const PHASE_DURATION: Record<VoicePhase, number> = {
-  pillIn: VOICE_TIMING.pillIn,
-  pillOut: VOICE_TIMING.pillOut,
-  composerIn: VOICE_TIMING.composerIn,
-  composerOut: VOICE_TIMING.composerOut,
-  controlIn: VOICE_TIMING.controlIn,
-  controlOut: VOICE_TIMING.controlOut,
+const PHASE_MOTION: Record<VoicePhase, MotionName> = {
+  pillIn: 'move',
+  pillOut: 'fadeOut',
+  composerIn: 'fadeIn',
+  composerOut: 'fadeOut',
+  controlIn: 'fadeIn',
+  controlOut: 'fadeOut',
 };
 
-const PHASE_EASE: Record<VoicePhase, [number, number, number, number]> = {
-  pillIn: VOICE_EASE_OUT,
-  pillOut: VOICE_EASE_IN,
-  composerIn: VOICE_EASE_OUT,
-  composerOut: VOICE_EASE_IN,
-  controlIn: VOICE_EASE_OUT,
-  controlOut: VOICE_EASE_IN,
-};
+const PHASE_BEAT: Partial<Record<VoicePhase, number>> = { composerIn: VOICE_BEATS.composerIn, controlIn: VOICE_BEATS.controlIn };
 
-const PHASE_DELAY: Partial<Record<VoicePhase, number>> = {
-  composerIn: VOICE_TIMING.composerInDelay,
-  controlIn: 0.1,
-};
-
-/** Transition for one phase; reduced motion collapses every phase to a fast fade. */
+/** Transition for one phase; Reduce Motion makes every phase the one short fade. */
 export function voiceTransition(reduceMotion: boolean, phase: VoicePhase): Transition {
-  if (reduceMotion) return { duration: 0.16 };
-  const transition: Transition = {
-    duration: PHASE_DURATION[phase],
-    ease: PHASE_EASE[phase],
-  };
-  const delay = PHASE_DELAY[phase];
-  if (delay) transition.delay = delay;
-  return transition;
+  return motionFor(PHASE_MOTION[phase], reduceMotion, PHASE_BEAT[phase]);
 }
 
 /** Second-beat transition for surrounding chrome, delayed only on the pass where the pill hands back. */
-export function voiceChromeEnter(returning: boolean, reduceMotion: boolean): Transition {
-  if (reduceMotion) return { duration: 0.16 };
-  if (returning) {
-    return {
-      delay: VOICE_TIMING.chromeInDelay,
-      duration: VOICE_TIMING.chromeIn,
-      ease: VOICE_EASE_OUT,
-    };
-  }
-  return { duration: VOICE_TIMING.chromeIn, ease: VOICE_EASE_OUT };
+function voiceChromeEnter(returning: boolean, reduceMotion: boolean): Transition {
+  return motionFor('fadeIn', reduceMotion, returning ? VOICE_BEATS.chromeIn : undefined);
 }
 
-/** Pill content: resting pose. */
-export const voicePillSettled = { opacity: 1, scale: 1, y: 0 } as const;
-/** Pill content: collapsed below its slot — enter-from and exit-to pose. */
-export const voicePillCollapsed = { opacity: 0, scale: 0.55, y: 14 } as const;
-/** Chrome (titles, chips): gentle rise. */
-export const voiceChromeHidden = { opacity: 0, y: 8 } as const;
-export const voiceChromeSettled = { opacity: 1, y: 0 } as const;
+export const voicePillSettled = PILL.settled;
+export const voicePillCollapsed = PILL.collapsed;
+export const voiceFaded = PILL.faded;
+export const voicePillLifted = PILL.lifted;
+export const voiceBeatShown = BEAT.shown;
+export function voiceBeatAway(side: 'in' | 'out', reduceMotion: boolean) {
+  if (reduceMotion) return BEAT.faded;
+  return side === 'in' ? BEAT.enterFrom : BEAT.leaveTo;
+}
+
+export type ChromeSide = 'above' | 'below';
+
+/** Motion for the chrome around the composer while dictating: it steps aside as the pill rises and trails back in once the
+ *  pill has handed back. One choreography for home and an open chat. */
+export interface VoiceChrome {
+  /** Chrome that stays mounted (it only fades), so nothing reflows under the pill. */
+  stay: (side: ChromeSide) => MotionProps;
+  /** Chrome that unmounts while the pill is up (inside AnimatePresence). */
+  presence: (side: ChromeSide) => MotionProps;
+}
+
+export function voiceChrome(active: boolean, returning: boolean, reduceMotion: boolean): VoiceChrome {
+  const away = (side: ChromeSide) => (reduceMotion ? PILL.faded : CHROME[side]);
+  const leave = motionFor('fadeOut', reduceMotion);
+  const enter = voiceChromeEnter(returning, reduceMotion);
+  return {
+    stay: (side) => ({ initial: false, animate: active ? away(side) : CHROME.settled, transition: active ? leave : enter }),
+    presence: (side) => ({ initial: away(side), animate: CHROME.settled, exit: { ...away(side), transition: leave }, transition: enter }),
+  };
+}

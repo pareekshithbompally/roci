@@ -63,6 +63,8 @@ export type { ProgressRingProps } from './progress-ring';
 export { Surface, Separator, Dot, Status } from './surface';
 export { ScrollArea } from './scroll-area';
 export { edgeFade } from './fade';
+export { motionFor, spring, useMotion } from './motion';
+export type { MotionName } from './motion';
 export { FadeScroll } from './fade-scroll';
 export { PageScroll, TitlebarSpacer, TitlebarDragRegion, ViewBody, ViewScroll, VIEW_FADE_PX } from './page-scroll';
 export { ViewBackContext, ViewHeader } from './view-header';

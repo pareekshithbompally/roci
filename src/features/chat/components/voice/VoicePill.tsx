@@ -1,21 +1,22 @@
-/** The composer's voice pill: the scope, the live words under it, then Stop + Pause (and the clock) while recording, or only
- *  Cancel while transcribing. An overlay that moves no layout; it rises in and sinks back mirrored. */
+/** The composer while dictating: the words as they're spoken, and under them the Horizon line with the clock, Stop (the words go
+ *  into the box) and Send (they're sent). An overlay that moves no layout; how it leaves is set by its ending
+ *  (docs/plans/IN-PROGRESS/dictation-flow.md). */
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Pause, Play, Square, X } from 'lucide-react';
-import { IconButton, Text } from '@shared/ui';
-import { DotScope } from '@features/chat/components/dot-scope';
-import { DOT_SCOPE_CONFIG } from '@config/dotScope.config';
+import { ArrowUp, Square, X } from 'lucide-react';
+import { IconButton, Surface, Text } from '@shared/ui';
+import { Horizon } from '@features/chat/components/horizon';
+import { DICTATION_COPY } from '@config/chat.config';
 import { formatClock } from '@shared/utils/formatters';
 import type { LiveText } from '@services/ai/transcription';
 import type { SpeechState } from '@features/chat/hooks/useSpeechInput';
+import type { VoiceEnding } from '@features/chat/hooks/useVoiceCapture';
 import { LiveTranscript } from './LiveTranscript';
-import { voiceTransition, voicePillSettled, voicePillCollapsed } from './voiceTransition';
+import { voiceTransition, voicePillSettled, voicePillCollapsed, voicePillLifted, voiceFaded, voiceBeatAway, voiceBeatShown } from './voiceTransition';
 import type { VoicePillState } from './useVoicePill';
 
-const COMPOSER_SCOPE = DOT_SCOPE_CONFIG.composer;
-const SCOPE_ZOOM = COMPOSER_SCOPE.plateHeight / DOT_SCOPE_CONFIG.tuning.height;
+type ControlSize = 'sm' | 'md';
 
 interface VoicePillProps {
   pill: VoicePillState;
@@ -25,19 +26,38 @@ interface VoicePillProps {
   /** Seconds recorded so far. */
   elapsed: number;
   reduceMotion: boolean;
+  /** Send is offered only while a message can go out (not while a reply is being written). */
+  canSend: boolean;
+  /** The live stream dropped: its words stay and finishing says "Transcribing…". */
+  liveLost: boolean;
+  /** Over a conversation: a backdrop keeps the words off the messages behind. */
+  backdrop: boolean;
+  /** The composer's own control size (44 pt on a phone). */
+  controlSize: ControlSize;
   onStop?: () => void;
-  onTogglePause?: () => void;
+  onSend?: () => void;
   onCancel?: () => void;
 }
 
-/** One beat of controls under the pill; a swap fades the old out before the new comes in. */
-function ControlBeat({ reduceMotion, children }: { reduceMotion: boolean; children: React.ReactNode }) {
+/** What sits at the line's end: the clock with Stop and Send while recording, "Transcribing…" while the words aren't on
+ *  screen yet, the ending's message while it holds, and nothing while the mic warms up or the pill leaves. */
+type Beat = 'controls' | 'working' | 'failed' | 'empty' | null;
+
+function beatOf(speechState: SpeechState, ending: VoiceEnding): Beat {
+  if (speechState === 'recording') return 'controls';
+  if (speechState === 'transcribing') return 'working';
+  if (speechState !== 'idle') return null;
+  return ending === 'failed' || ending === 'empty' ? ending : null;
+}
+
+/** One beat at the line's end; a swap fades the old out before the new comes in. */
+function EndBeat({ reduceMotion, children }: { reduceMotion: boolean; children: React.ReactNode }) {
   return (
     <motion.div
-      className="flex flex-col items-center gap-1.5"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -4, transition: voiceTransition(reduceMotion, 'controlOut') }}
+      className="flex items-center gap-2"
+      initial={voiceBeatAway('in', reduceMotion)}
+      animate={voiceBeatShown}
+      exit={{ ...voiceBeatAway('out', reduceMotion), transition: voiceTransition(reduceMotion, 'controlOut') }}
       transition={voiceTransition(reduceMotion, 'controlIn')}
     >
       {children}
@@ -45,65 +65,102 @@ function ControlBeat({ reduceMotion, children }: { reduceMotion: boolean; childr
   );
 }
 
-type Controls = Pick<VoicePillProps, 'speechState' | 'elapsed' | 'onStop' | 'onTogglePause' | 'onCancel'>;
+interface EndProps extends Pick<VoicePillProps, 'elapsed' | 'canSend' | 'controlSize' | 'onStop' | 'onSend'> {
+  beat: Exclude<Beat, null>;
+  /** Finishing needs a "Transcribing…" label: the words aren't on screen yet (recorded, or the live stream dropped). */
+  announce: boolean;
+}
 
-/** The controls' beat: Stop + Pause while recording or paused (one beat, so pausing doesn't swap them), Cancel while
- *  transcribing, none while starting. */
-const beatOf = (speechState: SpeechState): 'controls' | 'cancel' | null => {
-  if (speechState === 'recording' || speechState === 'paused') return 'controls';
-  return speechState === 'transcribing' ? 'cancel' : null;
-};
-
-function RecordingControls({ speechState, elapsed, onStop, onTogglePause }: Controls) {
-  const paused = speechState === 'paused';
+function EndContent({ beat, announce, elapsed, canSend, controlSize, onStop, onSend }: EndProps) {
+  if (beat === 'failed') return <Text variant="figureSmall" tone="danger">{DICTATION_COPY.failed}</Text>;
+  if (beat === 'empty') return <Text variant="figureSmall" tone="muted">{DICTATION_COPY.empty}</Text>;
+  if (beat === 'working') return announce ? <Text variant="figureSmall" tone="info">{DICTATION_COPY.transcribing}</Text> : null;
   return (
     <>
-      <div className="flex items-center gap-2">
-        {/* Stop ends the capture; transcription takes over. */}
-        <IconButton icon={Square} label="Stop recording" variant="danger" filled onClick={onStop} />
-        <IconButton icon={paused ? Play : Pause} filled label={paused ? 'Resume recording' : 'Pause recording'} variant="outline" onClick={onTogglePause} />
-      </div>
-      <Text variant="caption" tone="muted" className="tabular-nums leading-none">{formatClock(elapsed)}</Text>
+      <Text variant="figureSmall" tone="muted">{formatClock(elapsed)}</Text>
+      <IconButton icon={Square} filled label={DICTATION_COPY.stop} variant="outline" size={controlSize} onClick={onStop} />
+      <IconButton icon={ArrowUp} label={DICTATION_COPY.send} variant="primary" size={controlSize} onClick={onSend} disabled={!canSend} />
     </>
   );
 }
 
-export const VoicePill: React.FC<VoicePillProps> = ({ pill, speechState, stream, liveText, reduceMotion, ...controls }) => {
-  const beat = beatOf(speechState);
+/** Enter from just below; leave lifted toward the conversation when sent, else settle back down. The ending arrives through
+ *  AnimatePresence `custom`, so it's the one in force when the pill leaves. Reduce Motion: fades only. */
+function usePillVariants(reduceMotion: boolean) {
+  return useMemo(() => ({
+    hidden: reduceMotion ? voiceFaded : voicePillCollapsed,
+    shown: voicePillSettled,
+    leave: (ending: VoiceEnding) => ({
+      ...(reduceMotion ? voiceFaded : ending === 'send' ? voicePillLifted : voicePillCollapsed),
+      transition: voiceTransition(reduceMotion, 'pillOut'),
+    }),
+  }), [reduceMotion]);
+}
+
+/** The last live words, kept while the pill leaves so they go with it (state set during render: the previous-value pattern). */
+function useLastWords(liveText: LiveText | null): LiveText | null {
+  const [last, setLast] = useState(liveText);
+  if (liveText && liveText !== last) setLast(liveText);
+  return liveText ?? last;
+}
+
+export const VoicePill: React.FC<VoicePillProps> = ({
+  pill, speechState, stream, liveText, elapsed, reduceMotion, canSend, liveLost, backdrop, controlSize, onStop, onSend, onCancel,
+}) => {
+  const beat = beatOf(speechState, pill.ending);
+  const words = useLastWords(liveText);
+  const listening = speechState === 'starting' || speechState === 'recording';
+  // Cancel: from the mic press until the words are in, on every platform (a phone has no Escape); red, since it discards them.
+  const cancellable = speechState !== 'idle';
+  const slot = controlSize === 'md' ? 'flex size-control-md shrink-0 items-center justify-center' : 'flex size-control-sm shrink-0 items-center justify-center';
+  const variants = usePillVariants(reduceMotion);
   return (
     <motion.div
       data-testid="voice-pill"
       role="region"
       aria-label={pill.label}
-      className="absolute inset-x-0 bottom-0 z-10 flex flex-col items-center px-4 py-4"
-      initial={voicePillCollapsed}
-      animate={voicePillSettled}
-      exit={{ ...voicePillCollapsed, transition: voiceTransition(reduceMotion, 'pillOut') }}
+      className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-1 px-3 pb-1 pt-8"
+      variants={variants}
+      custom={pill.ending}
+      initial="hidden"
+      animate="shown"
+      exit="leave"
       transition={voiceTransition(reduceMotion, 'pillIn')}
     >
-      <DotScope
-        stage={pill.stage}
-        stream={speechState === 'paused' ? null : stream}
-        label={pill.label}
-        zoom={SCOPE_ZOOM}
-        margins={{ x: COMPOSER_SCOPE.marginX, y: COMPOSER_SCOPE.marginY }}
-      />
-      {/* Live words sit right under the pill; the controls go below them, so neither squeezes the other on a phone. */}
-      {liveText && <LiveTranscript text={liveText} />}
-      {/* Fixed height keeps the pill pinned while its controls swap. */}
-      <div className="mt-3 flex h-16 items-start justify-center">
-        <AnimatePresence initial={false} mode="wait">
-          {beat && (
-            <ControlBeat key={beat} reduceMotion={reduceMotion}>
-              {beat === 'controls' ? (
-                <RecordingControls speechState={speechState} {...controls} />
-              ) : (
-                // The pill already reads "Transcribing", so cancel is the only control.
-                <IconButton icon={X} label="Cancel voice input" variant="danger" onClick={controls.onCancel} />
-              )}
-            </ControlBeat>
-          )}
-        </AnimatePresence>
+      {backdrop && <Surface variant="veil" aria-hidden data-testid="voice-backdrop" className="absolute inset-0 -z-10" />}
+      <LiveTranscript text={words} listening={listening} settled={!listening} liveLost={liveLost} />
+      <div className="flex items-center gap-2">
+        {/* A fixed slot, so the line never moves as Cancel comes and goes. */}
+        <div className={slot}>
+          <AnimatePresence initial={false}>
+            {cancellable && (
+              <EndBeat key="cancel" reduceMotion={reduceMotion}>
+                <IconButton icon={X} label={DICTATION_COPY.cancel} variant="dangerTint" size={controlSize} onClick={onCancel} />
+              </EndBeat>
+            )}
+          </AnimatePresence>
+        </div>
+        <div className="min-w-0 flex-1">
+          <Horizon stage={pill.stage} stream={stream} label={pill.label} />
+        </div>
+        {/* The composer's control height, so the row never jumps as its end swaps. */}
+        <div className={controlSize === 'md' ? 'flex h-control-md shrink-0 items-center' : 'flex h-control-sm shrink-0 items-center'}>
+          <AnimatePresence initial={false} mode="wait">
+            {beat && (
+              <EndBeat key={beat} reduceMotion={reduceMotion}>
+                <EndContent
+                  beat={beat}
+                  announce={words === null || liveLost}
+                  elapsed={elapsed}
+                  canSend={canSend}
+                  controlSize={controlSize}
+                  onStop={onStop}
+                  onSend={onSend}
+                />
+              </EndBeat>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </motion.div>
   );

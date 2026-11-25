@@ -7,11 +7,23 @@ import { cn } from './utils';
 import { MENU_LABEL } from './recipes';
 import { keepClick, MENU_PARTS, MenuRowBody } from './menu-parts';
 import { platform } from '@platform/index';
+import { haptic } from '@platform/haptics';
 import { UI_CONFIG } from '@config/ui.config';
 
 const { list: LIST, item: ITEM, separator: SEPARATOR } = MENU_PARTS;
 
-export const ContextMenu = ContextMenuPrimitive.Root;
+/** Opening on a long press is felt, as iOS's own context menus are. */
+export function ContextMenu({ onOpenChange, ...props }: ComponentProps<typeof ContextMenuPrimitive.Root>) {
+  return (
+    <ContextMenuPrimitive.Root
+      {...props}
+      onOpenChange={(open) => {
+        if (open) haptic('pressed');
+        onOpenChange?.(open);
+      }}
+    />
+  );
+}
 
 /** What a long press opens the menu on; on a touch screen the press opens the menu, not text selection or the callout. */
 export function ContextMenuTrigger({ className, ...props }: ComponentProps<typeof ContextMenuPrimitive.Trigger>) {

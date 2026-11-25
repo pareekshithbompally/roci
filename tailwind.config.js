@@ -1,12 +1,40 @@
+import { spring as springCurve, generateLinearEasing } from 'framer-motion';
+import { MOTION } from './src/config/motion.config.ts';
+
 /** Maps role names to the CSS variables in src/styles/tokens.css: roles('bg', ['base']) → { base: 'var(--bg-base)' } */
 const roles = (prefix, names) => Object.fromEntries(names.map((n) => [n, `var(--${prefix}-${n})`]));
 const STATES = ['danger', 'warning', 'success', 'info'];
 const stateRoles = (part, suffix = '') =>
   Object.fromEntries(STATES.map((s) => [`${s}${suffix}`, `var(--${s}-${part})`]));
 
-/** One enter/exit timing for every transient surface (scrim, sheets, palette, popovers, tooltips). */
-const ENTER = '150ms ease-out';
-const EXIT = '120ms ease-in';
+// ─── Motion: every CSS timing is made from the one vocabulary (src/config/motion.config.ts) ───
+const ms = (seconds) => `${Math.round(seconds * 1000)}ms`;
+const bezier = (curve) => `cubic-bezier(${curve.join(', ')})`;
+/** How close to its end a spring counts as there: an entrance settles fully; an exit ends once the rest is off-screen. */
+const SETTLED = { enter: 0.002, exit: 0.02 };
+const SAMPLE_MS = 5;
+/** A spring as CSS (`<duration> linear(…)`): framer-motion's own spring, sampled until it stays within `rest` of its end,
+ *  so CSS and framer-motion move on one curve. */
+function springCss(spec, rest = SETTLED.enter) {
+  const curve = springCurve({ keyframes: [0, 1], ...spec });
+  const away = (t) => Math.abs(1 - curve.next(t).value);
+  let last = 0;
+  for (let t = 0; t <= 3000; t += SAMPLE_MS) if (away(t) >= rest) last = t;
+  const duration = last + SAMPLE_MS;
+  const end = curve.next(duration).value;
+  return `${duration}ms ${generateLinearEasing((p) => curve.next(p * duration).value / end, duration)}`;
+}
+const MOVE = springCss(MOTION.spring.move);
+const MOVE_AWAY = springCss(MOTION.spring.move, SETTLED.exit);
+const FOLLOW = springCss(MOTION.spring.follow);
+const POP = springCss(MOTION.spring.pop);
+/** Appearing and disappearing (scrim, popovers, menus, tooltips, a view mounting). */
+const ENTER = `${ms(MOTION.fade.in)} ${bezier(MOTION.curve.in)}`;
+const EXIT = `${ms(MOTION.fade.out)} ${bezier(MOTION.curve.out)}`;
+const QUICK = `${ms(MOTION.quick)} ${bezier(MOTION.curve.in)}`;
+const LOOP = bezier(MOTION.curve.loop);
+const { ambient } = MOTION;
+
 /** Fade + short drop on the standalone `translate` property: composes with centring transforms, never rescales text. */
 const slide = (offset) => ({
   show: { from: { opacity: '0', translate: `0 ${offset}` }, to: { opacity: '1', translate: '0 0' } },
@@ -14,16 +42,6 @@ const slide = (offset) => ({
 });
 const FLOAT_SLIDE = slide('-4px');
 const SHEET_SLIDE = slide('-8px');
-/** iOS sheet rising from the bottom edge: a full slide on the iOS curve, not the short fade above. */
-const RISE = {
-  show: { from: { translate: '0 100%' }, to: { translate: '0 0' } },
-  hide: { from: { translate: '0 0' }, to: { translate: '0 100%' } },
-};
-/** The iOS presentation curve and time (sheets rising, screens pushing, the sidebar sliding). */
-const IOS_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
-const IOS_DURATION = '350ms';
-const RISE_ENTER = `${IOS_DURATION} ${IOS_EASE}`;
-const RISE_EXIT = '250ms ease-in';
 /** A drawer sliding in from its edge (kit Drawer): from the left (`start`) or the right (`end`). */
 const edgeSlide = (from) => ({
   show: { from: { translate: `${from} 0` }, to: { translate: '0 0' } },
@@ -31,11 +49,6 @@ const edgeSlide = (from) => ({
 });
 const SLIDE_START = edgeSlide('-100%');
 const SLIDE_END = edgeSlide('100%');
-const DRAWER_ENTER = '300ms ease-out';
-const DRAWER_EXIT = '250ms ease-in';
-/** A touch menu popping out of its button (UIMenu): grows from the button with a slight spring, shrinks back faster. */
-const MENU_POP_ENTER = '320ms cubic-bezier(0.2, 1.2, 0.35, 1)';
-const MENU_POP_EXIT = '180ms ease-in';
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -108,8 +121,9 @@ export default {
       minHeight: { row: 'var(--row-min-h)' },
       // A table cell takes its row's height as a minimum (tables ignore min-height on cells).
       height: { row: 'var(--row-min-h)' },
-      transitionTimingFunction: { ios: IOS_EASE },
-      transitionDuration: { ios: IOS_DURATION },
+      // `transition` alone answers the pointer (quick); `duration-fade` is a fade's length.
+      transitionTimingFunction: { DEFAULT: bezier(MOTION.curve.in) },
+      transitionDuration: { DEFAULT: ms(MOTION.quick), fade: ms(MOTION.fade.in) },
       // ─── macOS text styles (SF Pro). `reading` is the one exception: long-form chat/transcript ───
       /** Plain `border` / `divide` lines are one hairline (tokens.css `--hairline`). */
       borderWidth: { DEFAULT: 'var(--hairline)' },
@@ -125,6 +139,7 @@ export default {
         reading: ['var(--fs-reading)', { lineHeight: 'var(--lh-reading)', letterSpacing: 'var(--tr-reading)' }],
         title3: ['var(--fs-title3)', { lineHeight: 'var(--lh-title3)', letterSpacing: 'var(--tr-title3)' }],
         title2: ['var(--fs-title2)', { lineHeight: 'var(--lh-title2)', letterSpacing: 'var(--tr-title2)' }],
+        spoken: ['var(--fs-spoken)', { lineHeight: 'var(--lh-spoken)', letterSpacing: 'var(--tr-spoken)' }],
         title1: ['var(--fs-title1)', { lineHeight: 'var(--lh-title1)', letterSpacing: 'var(--tr-title1)' }],
         largeTitle: ['var(--fs-large-title)', { lineHeight: 'var(--lh-large-title)', letterSpacing: 'var(--tr-large-title)' }],
         greeting: ['var(--fs-greeting)', { lineHeight: 'var(--lh-greeting)', letterSpacing: 'var(--tr-greeting)' }],
@@ -149,8 +164,9 @@ export default {
         'menu-pop-hide': { from: { opacity: '1', scale: '1' }, to: { opacity: '0', scale: '0.85' } },
         'push-in': { from: { translate: '100% 0' }, to: { translate: '0 0' } },
         'push-out': { from: { translate: '0 0' }, to: { translate: '100% 0' } },
-        'rise-show': RISE.show,
-        'rise-hide': RISE.hide,
+        // The screen beneath moves a share of the way (iOS parallax): aside as one is pushed over it, back as that one leaves.
+        'push-under': { from: { translate: '0 0' }, to: { translate: `${-MOTION.parallax * 100}% 0` } },
+        'push-uncover': { from: { translate: `${-MOTION.parallax * 100}% 0` }, to: { translate: '0 0' } },
         'drawer-start-show': SLIDE_START.show,
         'drawer-start-hide': SLIDE_START.hide,
         'drawer-end-show': SLIDE_END.show,
@@ -185,23 +201,33 @@ export default {
         'content-hide': `content-hide ${EXIT}`,
         'sheet-show': `sheet-show ${ENTER}`,
         'sheet-hide': `sheet-hide ${EXIT}`,
-        'menu-pop-show': `menu-pop-show ${MENU_POP_ENTER}`,
-        'menu-pop-hide': `menu-pop-hide ${MENU_POP_EXIT} both`,
-        'push-in': `push-in ${IOS_DURATION} ${IOS_EASE}`,
-        'push-out': `push-out ${IOS_DURATION} ${IOS_EASE} both`,
-        'rise-show': `rise-show ${RISE_ENTER}`,
-        'rise-hide': `rise-hide ${RISE_EXIT}`,
-        'drawer-start-show': `drawer-start-show ${DRAWER_ENTER}`,
-        'drawer-start-hide': `drawer-start-hide ${DRAWER_EXIT}`,
-        'drawer-end-show': `drawer-end-show ${DRAWER_ENTER}`,
-        'drawer-end-hide': `drawer-end-hide ${DRAWER_EXIT}`,
-        'text-shimmer': 'text-shimmer 2s linear infinite',
-        'ai-sweep': 'text-shimmer 1.6s linear infinite',
-        'ai-arrive': 'ai-arrive 1.8s ease-out',
-        'glow-drift-1': 'glow-drift-1 22s ease-in-out infinite',
-        'glow-drift-2': 'glow-drift-2 28s ease-in-out infinite',
-        'glow-drift-3': 'glow-drift-3 36s ease-in-out infinite',
+        'menu-pop-show': `menu-pop-show ${POP}`,
+        'menu-pop-hide': `menu-pop-hide ${EXIT} both`,
+        'push-in': `push-in ${MOVE}`,
+        'push-out': `push-out ${MOVE_AWAY} both`,
+        'push-under': `push-under ${MOVE}`,
+        'push-uncover': `push-uncover ${MOVE_AWAY}`,
+        'drawer-start-show': `drawer-start-show ${MOVE}`,
+        'drawer-start-hide': `drawer-start-hide ${MOVE_AWAY}`,
+        'drawer-end-show': `drawer-end-show ${MOVE}`,
+        'drawer-end-hide': `drawer-end-hide ${MOVE_AWAY}`,
+        'text-shimmer': `text-shimmer ${ms(ambient.shimmer)} linear infinite`,
+        'ai-sweep': `text-shimmer ${ms(ambient.aiSweep)} linear infinite`,
+        'ai-arrive': `ai-arrive ${ms(ambient.aiArrive)} ${bezier(MOTION.curve.in)}`,
+        'glow-drift-1': `glow-drift-1 ${ms(ambient.glowDrift[0])} ${LOOP} infinite`,
+        'glow-drift-2': `glow-drift-2 ${ms(ambient.glowDrift[1])} ${LOOP} infinite`,
+        'glow-drift-3': `glow-drift-3 ${ms(ambient.glowDrift[2])} ${LOOP} infinite`,
       },
     },
   },
+  plugins: [
+    // The motion vocabulary for plain CSS files: a pointer's answer (markdown.css, scroll fades) and the keyboard's ride
+    // (tokens.css).
+    ({ addBase }) => addBase({
+      ':root': {
+        '--motion-quick': QUICK,
+        '--motion-follow': FOLLOW,
+      },
+    }),
+  ],
 }

@@ -42,6 +42,7 @@ import {
   TitleBlock,
   Text,
   Tooltip,
+  motionFor,
 } from '@shared/ui';
 import type { TabItem } from '@shared/ui';
 import { TODOS_CONFIG } from '@config/todos.config';
@@ -211,7 +212,7 @@ export const ResultsView: React.FC = () => {
       className="h-full flex flex-col overflow-hidden"
       initial={VIEW.hidden}
       animate={VIEW.shown}
-      transition={VIEW.enter}
+      transition={motionFor(VIEW.enter)}
     >
       <TitleBlock
         title={

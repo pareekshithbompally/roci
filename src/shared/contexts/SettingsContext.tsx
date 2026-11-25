@@ -70,6 +70,7 @@ const PERSISTED_SETTINGS: Record<keyof AppSettings, true> = {
   followUps: true,
   hexIntegration: true,
   hideToolCalls: true,
+  haptics: true,
   imageModel: true,
   imageProvider: true,
   jobProcessing: true,

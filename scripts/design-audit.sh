@@ -18,12 +18,13 @@ HUE_RE='\b[a-z]+-('"$HUES"')-[0-9]{2,3}\b'
 # Semantic role classes written directly in feature code (features must use kit props instead)
 ROLE_RE='(^|[^-a-z])(bg-(base|deep|layer-[1-4]|inverse|accent|knob|hover|pressed|scrim|separator|ai|(base|deep|raised)-glass|(danger|warning|success|info)(-subtle)?)|text-(primary|muted|faint|accent|inverse|on-accent|danger|warning|success|info|ai)|border-(muted|base|strong|focus|accent|danger|warning|success|info)|divide-(muted|base|strong)|ring-focus|shadow-(input|raised|floating|overlay)|rounded(-(sm|md|lg|xl|2xl|full))?)\b'
 CODE=(--include='*.ts' --include='*.tsx')
+MOTION_RE="ease: \\[|cubic-bezier\\([0-9]|'ease(In|Out|InOut)'|stiffness:|damping:|duration: (0?\\.[0-9]|[1-9])|duration-[0-9]+\\b"
 
 # Occurrences of an extended regex in .ts/.tsx under $1, skipping comment lines.
 COMMENT_RE='^[^:]*:[[:space:]]*(\*|//|/\*)'
 hits() { { grep -rHE "$2" "$1" "${CODE[@]}" 2>/dev/null || true; } | { grep -vE "$COMMENT_RE" || true; } | cut -d: -f2- | { grep -oE "$2" || true; } | wc -l | tr -d ' '; }
 # same, excluding a path prefix
-hits_except() { { grep -rHE "$2" "$1" "${CODE[@]}" 2>/dev/null || true; } | { grep -v "^$3" || true; } | { grep -vE "$COMMENT_RE" || true; } | cut -d: -f2- | { grep -oE "$2" || true; } | wc -l | tr -d ' '; }
+hits_except() { { grep -rHE "$2" "$1" "${CODE[@]}" 2>/dev/null || true; } | { grep -vE "^$3" || true; } | { grep -vE "$COMMENT_RE" || true; } | cut -d: -f2- | { grep -oE "$2" || true; } | wc -l | tr -d ' '; }
 # files matching under $1, excluding a path prefix
 files_except() { { grep -rlE "$2" "$1" "${CODE[@]}" 2>/dev/null || true; } | { grep -v "^$3" || true; } | wc -l | tr -d ' '; }
 
@@ -58,6 +59,8 @@ report() {
   echo "deep_shared_ui_imports    $(hits "$SCOPE" "from '@shared/ui/")"
   echo "role_classes_in_features  $( [ "${SCOPE#src/features}" != "$SCOPE" ] || [ "$SCOPE" = src ] && hits_except "$SCOPE" "$ROLE_RE" "src/[^f]" || echo 0)"
   echo "form_factor_in_features   $(hits_except "$SCOPE" 'useFormFactor\(\)' 'src/[^f]')"
+  # Durations, curves and springs written outside the motion vocabulary (motion.config.ts; the Horizon line's own physics).
+  echo "motion_literals           $(hits_except "$SCOPE" "$MOTION_RE" 'src/config/(motion|horizon)\.config\.ts')"
   if [ "$SCOPE" = src ]; then
     echo "colour_literal_files      $(colour_files | wc -l | tr -d ' ')   ($(colour_files | tr '\n' ' '))"
     echo "total_lines               $(loc)"

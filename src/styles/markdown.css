@@ -256,11 +256,11 @@
   /* As the kit's ghost icon button: muted, round, a hover tint. */
   color: var(--text-muted) !important;
   border-radius: 9999px;
-  transition: background-color 0.15s ease;
+  transition: background-color var(--motion-quick);
 }
 
 /* Mac: a block's actions show on hover (as the kit's HoverReveal); touch screens always show them. */
-html:not(.platform-ios) .markdown-content [data-streamdown="code-block-actions"] { opacity: 0; transition: opacity 0.15s ease; }
+html:not(.platform-ios) .markdown-content [data-streamdown="code-block-actions"] { opacity: 0; transition: opacity var(--motion-quick); }
 html:not(.platform-ios) .markdown-content [data-streamdown="code-block"]:is(:hover, :focus-within) [data-streamdown="code-block-actions"] { opacity: 1; }
 
 .markdown-content [data-streamdown="code-block-actions"] button:hover {

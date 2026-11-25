@@ -3,6 +3,7 @@
 import React from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { ANIMATION_CONFIG } from '@config/animations.config';
+import { motionFor } from '@shared/ui';
 import { useAppStatus, useSelectedHistoryId } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { useSettings } from '@shared/contexts/SettingsContext';
@@ -11,7 +12,7 @@ import { RecordingMeetingView, useRecordingMeetingId } from '@features/recording
 import { IdleView } from './IdleView';
 import { ResultsView } from './ResultsView';
 
-/** Record screen exit: gentle release, decisive departure (mirrors the voice pill-out). */
+/** Record screen exit: a fade out. */
 const VIEW = ANIMATION_CONFIG.view;
 
 export const HomeView: React.FC = () => {
@@ -42,7 +43,7 @@ export const HomeView: React.FC = () => {
             key="recording"
             className="flex-1 flex flex-col min-h-0"
             exit={VIEW.hidden}
-            transition={VIEW.exit}
+            transition={motionFor(VIEW.exit)}
           >
             <RecordingMeetingView />
           </motion.div>
