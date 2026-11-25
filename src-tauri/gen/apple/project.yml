@@ -80,6 +80,8 @@ targets:
     dependencies:
       - framework: libapp.a
         embed: false
+      # ggml's CPU code calls Accelerate (vDSP, BLAS); the Rust static library can't link it itself.
+      - sdk: Accelerate.framework
       - sdk: CoreGraphics.framework
       - sdk: Metal.framework
       - sdk: MetalKit.framework
