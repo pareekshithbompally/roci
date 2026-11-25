@@ -21,8 +21,9 @@
   appears while you talk: word by word with a model that streams, every few seconds otherwise.
 - **Transcribes and summarizes** with the speech and text models you pick: a summary, action items and to-dos, and your
   own notes filled in from what was said. Save a recording for later and summarize it when you want.
-- **Chat.** Ask about your meetings, or about anything else, with any model you've added. Answers about meetings point
-  back to the meeting and the moment. Add MCP servers, local or remote, to give chat more tools.
+- **Chat.** Ask about your meetings, including the one you're recording, or about anything else, with any model you've
+  added. Answers about meetings point back to the meeting and the moment. Add MCP servers, local or remote, to give chat
+  more tools.
 - **Dictation.** Speak instead of typing, with the same speech models; every dictation is kept.
 - **Search by meaning.** Hybrid search (keywords plus vectors) over everything said, in the app's own database.
 - **A knowledge graph that builds up over time.** Each meeting adds the people, organizations, projects and topics it

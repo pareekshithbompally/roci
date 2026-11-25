@@ -27,7 +27,6 @@ export const USAGE_CONFIG = {
     chat: 'Chat',
     image: 'Images',
     summary: 'Summaries',
-    liveNotes: 'Live notes',
     transcription: 'Transcription',
     readAloud: 'Read aloud',
   } as const satisfies Record<UsageCategory, string>,

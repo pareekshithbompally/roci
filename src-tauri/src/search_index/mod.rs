@@ -241,30 +241,13 @@ async fn off_main<T: Send + 'static>(work: impl FnOnce() -> Result<T, String> + 
     tauri::async_runtime::spawn_blocking(work).await.map_err(|e| e.to_string())?
 }
 
-/// Meeting pieces matching `query`, by meaning and words, best first, across all meetings.
+/// Meeting pieces matching `query`, by meaning and words, best first: the best of each meeting, or every matching piece of
+/// `meeting_id` when given (a long meeting, or the one being recorded).
 #[tauri::command]
-pub async fn search_meetings(app: AppHandle, query: String, limit: usize) -> Result<Vec<SearchHit>, String> {
+pub async fn search_meetings(app: AppHandle, query: String, limit: usize, meeting_id: Option<String>) -> Result<Vec<SearchHit>, String> {
     off_main(move || {
         let vector = query_vector(&app, &query)?;
-        index::search_meetings(&app, &query, vector, limit, None).map_err(|e| e.to_string())
-    })
-    .await
-}
-
-/// Several queries within one meeting (a recording's live notes recalling what was said), their vectors in one call.
-#[tauri::command]
-pub async fn search_meeting_within(app: AppHandle, meeting_id: String, queries: Vec<String>, limit: usize) -> Result<Vec<Vec<SearchHit>>, String> {
-    off_main(move || {
-        let texts: Vec<String> = queries.iter().map(|q| format!("{QUERY_INSTRUCTION}{q}")).collect();
-        let vectors = embed(&app, &texts, Priority::Interactive)?;
-        queries
-            .iter()
-            .enumerate()
-            .map(|(i, q)| {
-                let vector = vectors.as_ref().and_then(|v| v.get(i).cloned());
-                index::search_meetings(&app, q, vector, limit, Some(vec![meeting_id.clone()])).map_err(|e| e.to_string())
-            })
-            .collect()
+        index::search_meetings(&app, &query, vector, limit, meeting_id.map(|id| vec![id])).map_err(|e| e.to_string())
     })
     .await
 }
@@ -279,7 +262,8 @@ pub async fn search_chats(app: AppHandle, query: String, limit: usize) -> Result
     .await
 }
 
-/// A recording's new stretch of transcript, added to its meeting's pieces as it's spoken; resolves the piece texts it added.
+/// A recording's new stretch of transcript, added to its meeting's pieces as it's spoken (chat finds it mid-meeting); resolves
+/// the piece texts it added.
 #[tauri::command]
 pub async fn index_stretch(app: AppHandle, meeting_id: String, text: String) -> Result<Vec<String>, String> {
     off_main(move || {

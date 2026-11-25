@@ -23,7 +23,7 @@ export function templateText({ templates }: PromptPersonalization, id: PromptTem
   return templates?.[id]?.trim() || byDefault();
 }
 
-/** Who reads the sections: chat writes for the user (all of them); a transcript task (summary, live notes) reads the meeting. */
+/** Who reads the sections: chat writes for the user (all of them); a transcript task (the summary) reads the meeting. */
 export type PersonalizationScope = 'chat' | 'transcript';
 
 /** The first items whose rendered texts, `gap` characters apart, fit `maxChars` (characters, not UTF-16 units): the order is

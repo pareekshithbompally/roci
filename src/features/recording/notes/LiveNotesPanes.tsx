@@ -1,5 +1,5 @@
-/** A meeting's notes: the user's shorthand and the AI lines that fill it in, one view at a time behind a switch; one continuous
- *  list where only the lines being written shimmer. The same pane while recording and after. */
+/** A meeting's notes: while recording, the user's shorthand alone; after, it and the summary's AI lines that fill it in, one view
+ *  at a time behind a switch, where only the lines being written shimmer. */
 
 import React, { useMemo, useState } from 'react';
 import { AiLine, Icon, RociMark, Tabs, Text, Textarea } from '@shared/ui';
@@ -7,17 +7,20 @@ import { LIVE_NOTES_CONFIG as NOTES, type NotesView } from '@config/liveNotes.co
 import { aiRows, type Bullet } from './liveNotes';
 import { useLiveNotesStore } from './liveNotesStore';
 
-/** What the notes pane shows besides the user's lines. */
-export interface NotesPaneProps {
-  onType: (text: string) => void;
+/** The summary's side of the notes, after the meeting. */
+export interface AiNotesProps {
   /** Why the AI lines can't be written (no Summary model, a missing key), in words to show; null when they can. */
   modelProblem: string | null;
-  /** The AI lines: live ones while recording, the summary's once written. */
+  /** The summary's AI lines, once written. */
   bullets: Bullet[];
-  /** AI lines are being written now (a live refresh, or the summary): the notes still waiting shimmer. */
+  /** The summary is being written now: the notes still waiting shimmer. */
   writing: boolean;
-  /** The meeting is recording: the empty AI view says lines build as it goes, and typing takes the focus. */
-  live: boolean;
+}
+
+/** What the notes pane shows: the user's lines, and after the meeting the summary's beside them (none while recording). */
+export interface NotesPaneProps {
+  onType: (text: string) => void;
+  ai?: AiNotesProps;
 }
 
 /** A pane's heading row: the title or a switch, then trailing content. */
@@ -50,23 +53,13 @@ export const YourNotes: React.FC<{ onType: (text: string) => void; autoFocus: bo
   );
 };
 
-type AiNotesProps = Pick<NotesPaneProps, 'modelProblem' | 'bullets' | 'writing' | 'live'>;
-
-function aiEmptyCopy({ modelProblem, live }: AiNotesProps): string {
-  if (modelProblem) return modelProblem;
-  return live ? NOTES.copy.aiEmpty : NOTES.copy.aiEmptyAfter;
-}
-
 export const AiNotes: React.FC<AiNotesProps> = (props) => {
   const lines = useLiveNotesStore((s) => s.lines);
-  const problem = useLiveNotesStore((s) => (props.live ? s.problem : null));
   const rows = useMemo(() => aiRows(lines, props.bullets), [lines, props.bullets]);
   return (
     <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 pb-4">
-      {/* a failed update says why, above the lines it couldn't add to; the next update that works clears it */}
-      {problem && <Text as="p" variant="helper" tone="warning" className="pb-2">{problem}</Text>}
       {rows.length === 0 ? (
-        <EmptyLine>{aiEmptyCopy(props)}</EmptyLine>
+        <EmptyLine>{props.modelProblem ?? NOTES.copy.aiEmptyAfter}</EmptyLine>
       ) : (
         // rows carry their own inset; pulling them out by it lines their marks up with the pane's text
         <ul className="-mx-3 space-y-1">
@@ -85,15 +78,24 @@ export const NOTES_TABS = [
   { value: 'notes' as const, label: NOTES.copy.yourNotes },
 ];
 
-/** Mac and iPad: the notes pane, the AI summary (first, and open) or Your notes behind a switch. */
-export const NotesPane: React.FC<NotesPaneProps> = ({ onType, ...ai }) => {
+/** Mac and iPad: while recording, Your notes alone (typing takes the focus); after, the AI summary (first, and open) or Your
+ *  notes behind a switch. */
+export const NotesPane: React.FC<NotesPaneProps> = ({ onType, ai }) => {
   const [view, setView] = useState<NotesView>('ai');
+  if (!ai) {
+    return (
+      <section className="flex h-full min-h-0 flex-col">
+        <PaneHeader><Text variant="label" tone="muted">{NOTES.copy.yourNotes}</Text></PaneHeader>
+        <YourNotes onType={onType} autoFocus />
+      </section>
+    );
+  }
   return (
     <section className="flex h-full min-h-0 flex-col">
       <PaneHeader>
         <Tabs items={NOTES_TABS} value={view} onValueChange={setView} label={NOTES.copy.yourNotes} />
       </PaneHeader>
-      {view === 'notes' ? <YourNotes onType={onType} autoFocus={ai.live} /> : <AiNotes {...ai} />}
+      {view === 'notes' ? <YourNotes onType={onType} autoFocus={false} /> : <AiNotes {...ai} />}
     </section>
   );
 };

@@ -60,7 +60,7 @@ beforeEach(() => {
   window.HTMLElement.prototype.scrollTo ??= vi.fn() as unknown as typeof window.HTMLElement.prototype.scrollTo;
   useRecordingStore.setState({ ...mirrorOf({ state: 'idle' }, 0), busy: false, justStopped: null });
   useMeetingLiveStore.setState({ meetingId: null, entries: [] });
-  useLiveNotesStore.setState({ meetingId: null, lines: [], bullets: [], updating: false });
+  useLiveNotesStore.setState({ meetingId: null, lines: [] });
   useAppStore.setState({ status: AppStatus.IDLE, selectedHistoryId: null, activeResultTab: 'summary' });
 });
 
@@ -116,7 +116,6 @@ describe('RecordingMeetingView', () => {
     startRecording();
     render(<RecordingMeetingView />, { wrapper: withQuery });
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Your notes' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Your notes' }), { target: { value: 'launch date?\n\nask Raj' } });
     fireEvent.click(screen.getByRole('button', { name: /stop/i }));
     await waitFor(() => expect(useRecordingStore.getState().meetingId).toBeNull());
@@ -125,15 +124,14 @@ describe('RecordingMeetingView', () => {
     expect(notesApi.addNote).toHaveBeenCalledWith('ask Raj', expect.objectContaining({ id: expect.any(String) }));
   });
 
-  it('puts the transcript beside the notes, opens on the AI Summary, which asks for a Summary model when none can be called', () => {
+  it('puts the transcript beside Your notes, open for typing, with no AI Summary while recording', () => {
     startRecording();
     render(<RecordingMeetingView />, { wrapper: withQuery });
 
     expect(screen.getByText('Live transcript')).toBeInTheDocument();
-    expect(screen.queryByRole('textbox', { name: 'Your notes' })).not.toBeInTheDocument();
-    expect(screen.getByText(/No Summary model is chosen/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: 'Your notes' }));
     expect(screen.getByRole('textbox', { name: 'Your notes' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Your notes' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/AI Summary/)).not.toBeInTheDocument();
   });
 
   it('offers Save for Later only while paused, beside Resume and Stop', () => {

@@ -1,6 +1,6 @@
 /** read: one meeting (chosen parts: summary, notes, to-dos with their ids, transcript), one earlier chat (its latest messages
  *  when long) or one entity (what the user approved about it, its relations, the meetings that discussed it), by the id
- *  `find` returned; read from roci.db as it is now. */
+ *  `find` returned; read from roci.db as it is now, and a meeting being recorded reads its transcript so far. */
 
 import { z } from 'zod';
 import type { MeetingCitation, ToolResult } from '@extensions/tools/types';
@@ -12,6 +12,8 @@ import { chatService } from '@services/chat.service';
 import { summaryText } from '@services/meetingReferenceService';
 import { excerptTranscript } from '@services/ai/transcription/excerpt';
 import { messageText } from '@shared/utils/chatParts';
+// the live store alone: importing the whole recording feature here makes an import cycle through the tool registry
+import { runningTranscript } from '@features/recording/live/meetingLiveStore';
 import type { MeetingDetail } from '@shared/types';
 
 const PARTS = ['summary', 'notes', 'todos', 'transcript'] as const;
@@ -37,7 +39,10 @@ const SECTIONS: Record<Part, (detail: MeetingDetail) => string | null> = {
   summary: (d) => (d.summary ? `### Summary\n${summaryText(d.summary)}` : null),
   notes: (d) => (d.notes.length > 0 ? `### Notes\n${d.notes.map((n) => `- ${n.text}`).join('\n')}` : null),
   todos: (d) => (d.todos.length > 0 ? `### To-dos\n${d.todos.map(todoLine).join('\n')}` : null),
-  transcript: (d) => (d.transcript?.text ? `### Transcript\n${excerptTranscript(d.transcript.text, MAX_TRANSCRIPT_FOR_LLM)}` : null),
+  transcript: (d) => {
+    const text = d.transcript?.text || runningTranscript(d.index.id);
+    return text ? `### Transcript\n${excerptTranscript(text, MAX_TRANSCRIPT_FOR_LLM)}` : null;
+  },
 };
 
 async function readMeeting(id: string, parts: Part[]): Promise<ToolResult> {

@@ -6,6 +6,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { MEETING_LIVE_CONFIG as LIVE } from '@config/meetingLive.config';
 import type { LiveEntry } from './liveTranscript';
+import { liveIndex } from './liveIndex';
+import { latestOf, transcriptText } from './liveText';
 import type { MeetingSource } from '@shared/types/native';
 
 interface MeetingLiveState {
@@ -28,10 +30,16 @@ export const useMeetingLiveStore = create<MeetingLiveState>()(persist(
 
 export const meetingLiveActions = {
   /** A new recording starts empty; the same one again (the window reloaded mid-recording) keeps the lines it had. */
-  start: (meetingId: string) => useMeetingLiveStore.setState((s) => ({
-    meetingId, entries: s.meetingId === meetingId ? s.entries : [], live: true, reason: '', partial: {},
-  })),
-  set: (entries: LiveEntry[]) => useMeetingLiveStore.setState({ entries }),
+  start: (meetingId: string) => {
+    useMeetingLiveStore.setState((s) => ({ meetingId, entries: s.meetingId === meetingId ? s.entries : [], live: true, reason: '', partial: {} }));
+    liveIndex.start(meetingId, useMeetingLiveStore.getState().entries);
+  },
+  /** New lines: shown, and the running meeting's search index follows them. */
+  set: (entries: LiveEntry[]) => {
+    useMeetingLiveStore.setState({ entries });
+    const { meetingId, live } = useMeetingLiveStore.getState();
+    if (live && meetingId) liveIndex.follow(meetingId, entries);
+  },
   /** The first reason given stays: it is the one to fix. */
   fail: (reason: string) => useMeetingLiveStore.setState((s) => ({ reason: s.reason || reason })),
   partial: (source: MeetingSource, text: string) => useMeetingLiveStore.setState((s) => ({ partial: { ...s.partial, [source]: text } })),
@@ -45,6 +53,15 @@ const NO_ENTRIES: LiveEntry[] = [];
 export function draftEntriesOf(meetingId: string): LiveEntry[] {
   const { meetingId: owner, entries } = useMeetingLiveStore.getState();
   return owner === meetingId ? entries : NO_ENTRIES;
+}
+
+/** The transcript so far of the meeting being recorded now, as a model reads it (`chars`: only its newest part); null for any
+ *  other meeting. */
+export function runningTranscript(meetingId: string, chars?: number): string | null {
+  const { meetingId: owner, entries, live } = useMeetingLiveStore.getState();
+  if (!live || owner !== meetingId) return null;
+  const text = transcriptText(entries);
+  return chars === undefined ? text : latestOf(text, chars);
 }
 
 /** The draft entries of a meeting just recorded (or recording); empty for any other meeting. */

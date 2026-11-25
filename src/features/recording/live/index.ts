@@ -2,6 +2,6 @@
 
 export { liveTranscript, liveTranscriptResult } from './liveTranscript';
 export type { LiveEntry } from './liveTranscript';
-export { draftEntriesOf, meetingLiveActions, useMeetingLiveStore } from './meetingLiveStore';
+export { draftEntriesOf, meetingLiveActions, runningTranscript, useMeetingLiveStore } from './meetingLiveStore';
 export { useDraftSegments } from './useDraftSegments';
 export { useMeetingLive } from './useMeetingLive';

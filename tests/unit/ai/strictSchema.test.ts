@@ -2,7 +2,7 @@
  *  every key in properties"), and a null sent back for an optional field reads as absent. */
 
 import { describe, it, expect } from 'vitest';
-import { chatExtrasSchema, jsonSchemaOf, liveNotesSchema, meetingSummarySchema, readReply } from '@core/ai';
+import { chatExtrasSchema, jsonSchemaOf, meetingSummarySchema, readReply } from '@core/ai';
 
 type Node = Record<string, unknown>;
 const isNode = (v: unknown): v is Node => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -21,8 +21,6 @@ function looseObjects(node: unknown, path = '$'): string[] {
 const SENT = {
   'summary': meetingSummarySchema(false),
   'summary with notes': meetingSummarySchema(true),
-  'live notes': liveNotesSchema([]),
-  'live notes with notes': liveNotesSchema(['n1', 'n2']),
   'title and follow-ups': chatExtrasSchema({ title: true, suggestions: true }),
 };
 
@@ -47,10 +45,5 @@ describe('a null for an optional field reads as absent', () => {
       actionItems: [{ text: 'Send the report', owner: null, dueDate: null }],
     });
     expect(reply.actionItems).toEqual([{ text: 'Send the report' }]);
-  });
-
-  it('a new live-notes point', () => {
-    const reply = readReply(liveNotesSchema([]), { points: [{ id: null, text: 'Budget is 40k.' }] });
-    expect(reply.points).toEqual([{ text: 'Budget is 40k.' }]);
   });
 });

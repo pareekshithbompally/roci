@@ -18,6 +18,8 @@ export interface MeetingReference {
   todos?: ActionItem[];
   categories?: string[];
   transcript?: string;
+  /** A meeting being recorded now: the newest part of its transcript so far. */
+  liveTranscript?: string;
 }
 
 export type MeetingField = 'summary' | 'actionItems' | 'notes' | 'transcript';
@@ -95,6 +97,10 @@ class MeetingReferenceService {
 
       if (ref.transcript) {
         parts.push(`### Transcript\n${excerptTranscript(ref.transcript, MAX_TRANSCRIPT_FOR_LLM)}`);
+      }
+
+      if (ref.liveTranscript) {
+        parts.push(`### Live transcript (recording now, meeting ID ${ref.id}; its newest part. For earlier parts, find in meetings with this meeting_id and a query, or read its transcript)\n${ref.liveTranscript}`);
       }
 
       return parts.join('\n\n');

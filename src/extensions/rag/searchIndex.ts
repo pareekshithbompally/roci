@@ -35,16 +35,10 @@ const toMeeting = (hit: MeetingHit): MeetingSearchResult => ({
   timestamp: hit.created_at,
 });
 
-/** Meetings matching `query` by meaning and words, best first. */
-export async function searchMeetings(query: string, limit: number): Promise<MeetingSearchResult[]> {
+/** Meetings matching `query` by meaning and words, best first; with `meetingId`, that meeting's matching passages. */
+export async function searchMeetings(query: string, limit: number, meetingId?: string): Promise<MeetingSearchResult[]> {
   if (!isTauriEnvironment()) return [];
-  return (await invoke<MeetingHit[]>('search_meetings', { query, limit })).map(toMeeting);
-}
-
-/** Several queries within one meeting (live notes recalling what was said), each query's hits. */
-export async function searchMeetingWithin(meetingId: string, queries: string[], limit: number): Promise<MeetingSearchResult[][]> {
-  if (!isTauriEnvironment() || queries.length === 0) return [];
-  return (await invoke<MeetingHit[][]>('search_meeting_within', { meetingId, queries, limit })).map((hits) => hits.map(toMeeting));
+  return (await invoke<MeetingHit[]>('search_meetings', { query, limit, meetingId: meetingId ?? null })).map(toMeeting);
 }
 
 /** Chats matching `query` by meaning and words, best first. */

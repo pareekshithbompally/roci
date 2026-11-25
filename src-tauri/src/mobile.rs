@@ -49,7 +49,6 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       llama::local_chat,
       llama::local_cancel,
       search_index::search_meetings,
-      search_index::search_meeting_within,
       search_index::search_chats,
       search_index::index_stretch,
       search_index::rebuild_search_index,

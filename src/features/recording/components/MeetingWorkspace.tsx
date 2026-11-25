@@ -71,11 +71,16 @@ const Columns: React.FC<MeetingWorkspaceProps> = ({ transcript, notes }) => (
   </Surface>
 );
 
-/** A phone's notes on one page: the AI notes, then yours, each under its label (no switch, so no second row of tabs). */
-const StackedNotes: React.FC<NotesPaneProps> = ({ onType, ...ai }) => (
+/** A phone's notes on one page: the summary's AI notes (after the meeting), then yours, each under its label (no switch, so
+ *  no second row of tabs). */
+const StackedNotes: React.FC<NotesPaneProps> = ({ onType, ai }) => (
   <div className="flex h-full min-h-0 flex-col">
-    <PaneHeader><Text variant="label" tone="muted">{NOTES.copy.aiNotes}</Text></PaneHeader>
-    <AiNotes {...ai} />
+    {ai && (
+      <>
+        <PaneHeader><Text variant="label" tone="muted">{NOTES.copy.aiNotes}</Text></PaneHeader>
+        <AiNotes {...ai} />
+      </>
+    )}
     <PaneHeader><Text variant="label" tone="muted">{NOTES.copy.yourNotes}</Text></PaneHeader>
     <YourNotes onType={onType} autoFocus={false} />
   </div>
@@ -94,7 +99,6 @@ const Sections: React.FC<MeetingWorkspaceProps> = ({ transcript, notes }) => {
   const short = NOTES.copy.sectionShort;
   const items = [
     { value: 'transcript' as const, label: transcript.label, short: short.transcript },
-    { value: 'ai' as const, label: NOTES.copy.aiNotes, short: short.ai },
     { value: 'notes' as const, label: NOTES.copy.yourNotes, short: short.notes },
   ];
   return (
@@ -102,8 +106,7 @@ const Sections: React.FC<MeetingWorkspaceProps> = ({ transcript, notes }) => {
       <Tabs items={items} value={section} onValueChange={setSection} label={NOTES.copy.sections} />
       <div className="flex flex-1 min-h-0 flex-col overflow-hidden pt-3">
         {section === 'transcript' && <TranscriptBody {...transcript} />}
-        {section === 'notes' && <YourNotes onType={notes.onType} autoFocus={notes.live} />}
-        {section === 'ai' && <AiNotes {...notes} />}
+        {section === 'notes' && <YourNotes onType={notes.onType} autoFocus />}
       </div>
     </div>
   );

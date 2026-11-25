@@ -18,6 +18,10 @@ export const MEETING_LIVE_CONFIG = {
   /** A source with more audio than this waiting to be transcribed drops its oldest chunks to catch up; the draft then says it
    *  has a gap (ms). */
   maxBacklogMs: 120_000,
+  /** The running meeting joins its search index each time its transcript moves this far past what was indexed (ms). */
+  indexStepMs: 20_000,
+  /** The newest part of a running meeting's transcript a chat question carries (characters). */
+  chatTailChars: 2_000,
   /** A hard-cut chunk's re-heard start: with word times, the chunks join at a word both heard within `anchorMs` of each other
    *  inside the overlap; without, its first `minWords`–`maxWords` words repeating the previous line are dropped. A sentence ends
    *  at . ? ! or a pause of `sentencePauseMs`. */

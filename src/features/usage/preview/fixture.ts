@@ -25,7 +25,6 @@ const MODELS: ProviderModelBreakdown[] = [
 const CATEGORIES = [
   { category: 'chat', calls: 96, cost: 0.0821 },
   { category: 'summary', calls: 21, cost: 0.0192 },
-  { category: 'liveNotes', calls: 11, cost: 0.0032 },
   { category: 'transcription', calls: 14, cost: 0, unpriced: 9 },
 ];
 
@@ -61,12 +60,12 @@ function spread(days: UsageBucket[], shares: Array<{ part: string; calls: number
   })).filter((p) => p.calls > 0 || p.estimated_cost > 0));
 }
 
-/** What each model ran for: speech models transcribe, the rest share chat, summaries and live notes. */
+/** What each model ran for: speech models transcribe, the rest share chat and summaries. */
 function modelUseCases(models: ProviderModelBreakdown[]): ModelUseCase[] {
   return models.flatMap((m) => {
-    const uses = m.model.includes('transcribe') || m.model.includes('parakeet') ? ['transcription'] : m.calls > 50 ? ['chat', 'summary', 'liveNotes'] : ['chat', 'summary'];
+    const uses = m.model.includes('transcribe') || m.model.includes('parakeet') ? ['transcription'] : ['chat', 'summary'];
     return uses.map((category, i) => {
-      const weight = uses.length === 1 ? 1 : [0.7, 0.2, 0.1][i] / (uses.length === 2 ? 0.9 : 1);
+      const weight = uses.length === 1 ? 1 : [0.8, 0.2][i];
       return { provider: m.provider, model: m.model, category, calls: Math.round(m.calls * weight), tokens: Math.round((m.input_tokens + m.output_tokens) * weight), estimated_cost: m.estimated_cost * weight };
     });
   });

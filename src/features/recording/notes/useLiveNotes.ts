@@ -1,15 +1,12 @@
-/** A meeting's notes pane, wired: typing records each line's time and a typing pause saves the lines to the meeting's notes. While
- *  the meeting records (`live`) a pause or enough new transcript also refreshes the AI lines; afterwards the summary writes them.
- *  No timer runs except the one armed by typing (I10). */
+/** A meeting's notes pane, wired: typing records each line's time and a typing pause saves the lines to the meeting's notes;
+ *  the summary fills them in after the meeting. No timer runs except the one armed by typing (I10). */
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { summaryModel } from '@services/ai/jobModel';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
 import { useMeetingNotes } from '@features/notes';
-import { useMeetingLiveStore } from '@features/recording/live/meetingLiveStore';
 import { recordedSeconds, useRecordingStore } from '@features/recording/stores/recordingStore';
 import { writtenLines, type NoteLine } from './liveNotes';
 import { liveNotes, useLiveNotesStore } from './liveNotesStore';
@@ -23,12 +20,6 @@ function useSummaryModel(): { model: ResolvedModel | null; problem: string | nul
     const check = summaryModel(settings, providers);
     return { model: check.model ?? null, problem: check.problem?.message ?? null };
   }, [settings, providers]);
-}
-
-/** The meeting's participants from its calendar event, by name, for naming who speaks. */
-function useParticipants(meetingId: string): string[] {
-  const participants = useMeetingBrief(meetingId)?.participants;
-  return useMemo(() => (participants ?? []).flatMap(({ name }) => (name ? [name] : [])), [participants]);
 }
 
 /** Saves the typed lines as the meeting's notes: new lines added under their own ids, edited ones updated, emptied ones deleted. */
@@ -64,49 +55,32 @@ function useSaveLines(meetingId: string) {
   }, [addNote, updateNote, deleteNote]);
 }
 
-export function useLiveNotes(meetingId: string, live: boolean) {
+/** The meeting's notes, typed and saved; `model` is the Summary model that fills them in after the meeting, `modelProblem` why it
+ *  can't. */
+export function useLiveNotes(meetingId: string) {
   // first, so a meeting's saved lines are seeded into its own notes, never into the previous meeting's
   useEffect(() => liveNotes.start(meetingId), [meetingId]);
   const { model, problem: modelProblem } = useSummaryModel();
-  const refreshModel = live ? model : null;
-  const entries = useMeetingLiveStore((s) => s.entries);
   const save = useSaveLines(meetingId);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  const participants = useParticipants(meetingId);
-  const latest = useRef({ save, model: refreshModel, participants });
+  const latestSave = useRef(save);
   useEffect(() => {
-    latest.current = { save, model: refreshModel, participants };
-  }, [save, refreshModel]);
-
-  // the recording ending drops an update still in flight
-  useEffect(() => (live ? () => liveNotes.stop() : undefined), [live]);
-
-  // enough new transcript refreshes the bullets
-  useEffect(() => {
-    if (refreshModel && liveNotes.due(entries, false)) void liveNotes.refresh(entries, refreshModel, latest.current.participants);
-  }, [entries, refreshModel]);
+    latestSave.current = save;
+  }, [save]);
 
   const flush = useCallback((): Promise<void> => {
     clearTimeout(typingTimer.current);
-    return latest.current.save();
+    return latestSave.current();
   }, []);
 
   // leaving the screen (Stop, or another meeting) saves what was typed
   useEffect(() => () => void flush().catch(report('save')), [flush, meetingId]);
 
-  const onTypingPause = useCallback(() => {
-    const { save: saveLines, model: current, participants: names } = latest.current;
-    saveLines().catch(report('save'));
-    const now = useMeetingLiveStore.getState().entries;
-    if (current && liveNotes.due(now, true)) void liveNotes.refresh(now, current, names, true);
-  }, []);
-
   const type = useCallback((text: string) => {
     liveNotes.type(text, { atMs: recordedSeconds(useRecordingStore.getState()) * 1_000, typedAt: Date.now() });
     clearTimeout(typingTimer.current);
-    typingTimer.current = setTimeout(onTypingPause, NOTES.typingIdleMs);
-  }, [onTypingPause]);
+    typingTimer.current = setTimeout(() => void latestSave.current().catch(report('save')), NOTES.typingIdleMs);
+  }, []);
 
   return { type, flush, modelProblem, model };
 }

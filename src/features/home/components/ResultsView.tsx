@@ -135,7 +135,7 @@ const MeetingTitle: React.FC<{ title: string }> = ({ title }) => (
 /** The Transcript tab: the saved transcript (or the in-call one until it is saved) beside the meeting's notes, whose AI lines
  *  are the summary's filled-in notes and key points. Keyed by meeting, so each meeting's notes load fresh. */
 const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phase: MeetingPhase; only: 'transcript' | 'notes' }> = ({ meetingId, result, phase, only }) => {
-  const { type, modelProblem } = useLiveNotes(meetingId, false);
+  const { type, modelProblem } = useLiveNotes(meetingId);
   const draft = useDraftSegments(meetingId);
   const summary = result.structuredSummary;
   const bullets = useAiBullets(meetingId, summary?.enhancedNotes, summary?.keyDiscussionPoints);
@@ -152,7 +152,7 @@ const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phas
   return (
     <MeetingWorkspace
       transcript={transcript}
-      notes={{ onType: type, modelProblem, bullets, writing: busy, live: false }}
+      notes={{ onType: type, ai: { modelProblem, bullets, writing: busy } }}
       only={only}
     />
   );

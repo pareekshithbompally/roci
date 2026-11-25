@@ -198,7 +198,7 @@ export const PERSONALIZATION_CONFIG = {
         namePlaceholder: 'What Roci calls you',
         about: 'Your Work',
         aboutPlaceholder: 'Your role, your team, what you work on',
-        footer: 'Roci uses this in chat, summaries and live notes, so it can tell who “You” is and what matters to you.',
+        footer: 'Roci uses this in chat and summaries, so it can tell who “You” is and what matters to you.',
       },
       responses: {
         section: 'Responses',

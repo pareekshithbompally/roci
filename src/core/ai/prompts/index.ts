@@ -12,6 +12,4 @@ export type { ChatExtrasWant } from './chatExtras.prompt';
 
 export { formatChatTimeContext, formatSentAt, formatTemporalContext } from '@core/ai/temporal';
 
-export { liveNotesPrompt, buildLiveNotesInput } from './liveNotes.prompt';
-export type { LiveNotesInput } from './liveNotes.prompt';
 export { SPEAKERS, SPEAKER_NAMING, TRANSCRIPT_GUIDE } from './transcript.prompt';

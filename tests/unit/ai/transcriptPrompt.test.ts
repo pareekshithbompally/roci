@@ -3,13 +3,10 @@ import { MEETING_LIVE_CONFIG } from '@config/meetingLive.config';
 import {
   buildChatSystemPrompt,
   buildTranscriptionPrompt,
-  liveNotesPrompt,
-  NO_PERSONALIZATION,
   NO_TOOLS,
   SPEAKERS,
   SPEAKER_NAMING,
   TRANSCRIPT_GUIDE,
-  buildLiveNotesInput,
 } from '@core/ai/prompts';
 
 const summary = (participants: Array<{ name?: string; email?: string }> = []) =>
@@ -33,11 +30,9 @@ describe('transcript guide', () => {
     expect(SPEAKER_NAMING).toContain('participants from the calendar are listed');
   });
 
-  it('is the same text in the summary and live notes; chat with meeting tools reads it in one line', () => {
+  it('is in the summary; chat with meeting tools reads it in one line', () => {
     expect(summary()).toContain(TRANSCRIPT_GUIDE);
-    expect(liveNotesPrompt(NO_PERSONALIZATION)).toContain(TRANSCRIPT_GUIDE);
     expect(summary()).toContain(SPEAKER_NAMING);
-    expect(liveNotesPrompt(NO_PERSONALIZATION)).toContain(SPEAKER_NAMING);
     const chat = (meetings: boolean) => buildChatSystemPrompt({
       tools: { ...NO_TOOLS, meetings }, modalities: { input: ['text'], output: ['text'] }, meetingCount: 1, timeContext: '',
     });
@@ -51,11 +46,5 @@ describe('transcript guide', () => {
     expect(text).toContain(`A task ${SPEAKERS.self} took on has the owner "${SPEAKERS.self}".`);
     expect(text.match(/Priya \(p@x\.com\)/g)).toHaveLength(1);
     expect(text).not.toContain('The calendar lists');
-  });
-
-  it('live notes list the calendar participants with the update, only when there are some', () => {
-    const input = { notes: [], filled: [], points: [], earlier: [], transcript: '' };
-    expect(buildLiveNotesInput({ ...input, participants: ['Priya', 'Raj'] })).toContain('## Participants (from the calendar)\n\nPriya, Raj');
-    expect(buildLiveNotesInput({ ...input, participants: [] })).not.toContain('Participants');
   });
 });

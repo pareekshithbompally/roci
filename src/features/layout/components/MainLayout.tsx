@@ -10,6 +10,7 @@ import { useActivityItems } from '@shared/stores/activityStore';
 import { Sidebar } from './Sidebar';
 import { CommandPalette } from '@features/palette';
 import { MeetingChat, startNewChat } from '@features/chat';
+import { useRecordingScreenMeetingId } from '@features/recording';
 import { PanelLeft, SquarePen } from 'lucide-react';
 import { useFormFactor } from '@platform/formFactor';
 import { PhoneShell } from './PhoneShell';
@@ -29,7 +30,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const status = useAppStatus();
   const selectedHistoryId = useSelectedHistoryId();
   const currentView = useCurrentView();
-  const selectedMeeting = useMeetingBrief(selectedHistoryId);
+  const recordingScreenMeetingId = useRecordingScreenMeetingId();
   const activityItems = useActivityItems();
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
@@ -62,8 +63,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   const shouldOffsetMacControls = useFloatingSidebarControls();
 
-  // Meeting chat (its button or its window) only on the meeting page: other destinations keep the meeting selected underneath.
-  const meetingChatAvailable = currentView === 'home' && selectedHistoryId && status === AppStatus.RESULTS;
+  // Meeting chat (its button or its window) only on a meeting's page, the record screen included: other destinations keep the
+  // meeting selected underneath.
+  const meetingResultsId = status === AppStatus.RESULTS ? selectedHistoryId : null;
+  const chatMeetingId = currentView === 'home' ? recordingScreenMeetingId ?? meetingResultsId : null;
+  const chatMeeting = useMeetingBrief(chatMeetingId);
 
   if (formFactor === 'phone') return <PhoneShell>{children}</PhoneShell>;
 
@@ -135,9 +139,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             {children}
           </div>
 
-          {meetingChatAvailable && (
-            <MeetingChat meetingId={selectedHistoryId} meetingTitle={selectedMeeting?.title || 'Meeting'} />
-          )}
+          {chatMeetingId && <MeetingChat meetingId={chatMeetingId} meetingTitle={chatMeeting?.title || 'Meeting'} />}
         </div>
       </div>
     </Surface>

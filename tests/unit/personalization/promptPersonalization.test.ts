@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildChatSystemPrompt, buildTranscriptionPrompt, liveNotesPrompt, NO_PERSONALIZATION, NO_TOOLS, termsWithin, verbatimTranscribePrompt } from '@core/ai';
+import { buildChatSystemPrompt, buildTranscriptionPrompt, NO_PERSONALIZATION, NO_TOOLS, termsWithin, verbatimTranscribePrompt } from '@core/ai';
 import { fileHints, liveHints } from '@services/ai/transcription/vocabularyHints';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 
@@ -12,13 +12,13 @@ describe('terminology in prompts', () => {
     expect(termsWithin(['toolong'], 3)).toEqual([]);
   });
 
-  it('states the terms in the chat, summary, live-notes and verbatim prompts, and nothing without terms', () => {
+  it('states the terms in the chat, summary and verbatim prompts, and nothing without terms', () => {
     const chat = (terms?: string[]) => buildChatSystemPrompt({ tools: NO_TOOLS, modalities: { input: ['text'], output: ['text'] }, meetingCount: 0, timeContext: '', personalization: terms && { terms } });
     const summary = (terms?: string[]) => buildTranscriptionPrompt({ categories: [], temporalContext: '', schema: {}, personalization: terms && { terms } });
-    for (const prompt of [chat(TERMS), summary(TERMS), liveNotesPrompt({ terms: TERMS }), verbatimTranscribePrompt(TERMS)]) {
+    for (const prompt of [chat(TERMS), summary(TERMS), verbatimTranscribePrompt(TERMS)]) {
       expect(prompt).toContain('Context7, Priya Raman');
     }
-    for (const prompt of [chat(), summary(), liveNotesPrompt(NO_PERSONALIZATION), verbatimTranscribePrompt([])]) {
+    for (const prompt of [chat(), summary(), verbatimTranscribePrompt([])]) {
       expect(prompt).not.toContain('terminology');
       expect(prompt).not.toContain('names and terms');
     }

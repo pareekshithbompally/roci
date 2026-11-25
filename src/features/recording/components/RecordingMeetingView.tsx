@@ -17,7 +17,7 @@ import { speechSelectionOf } from '@services/ai/transcription';
 import { recording, useRecordingBusy, useRecordingMeetingId, useRecordingPaused } from '@features/recording/stores/recordingStore';
 import { useRecordingClock } from '@features/recording/hooks/useRecordingClock';
 import { useDraftSegments, useMeetingLiveStore } from '@features/recording/live';
-import { useLiveNotes, useLiveNotesStore } from '@features/recording/notes';
+import { useLiveNotes } from '@features/recording/notes';
 import { MeetingWorkspace, type WorkspaceTranscript } from './MeetingWorkspace';
 
 const VIEW = ANIMATION_CONFIG.view;
@@ -100,12 +100,10 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
   const partial = useMeetingLiveStore((s) => s.partial);
   // a streaming model's words still being revised wait under the last line, faint, until they settle
   const drafting = Object.values(partial).filter(Boolean).join(' ');
-  const bullets = useLiveNotesStore((s) => s.bullets);
-  const updating = useLiveNotesStore((s) => s.updating);
   const { settings } = useSettings();
   const meeting = useMeetingBrief(meetingId);
   const clock = useRecordingClock();
-  const { type, flush, modelProblem, model } = useLiveNotes(meetingId, true);
+  const { type, flush, model } = useLiveNotes(meetingId);
   const speech = speechSelectionOf(settings);
 
   const title = meeting?.title ?? 'Recording';
@@ -144,7 +142,7 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
         <div className={`${LAYOUT.pageColumn} h-full flex flex-col min-h-0`}>
           <MeetingWorkspace
             transcript={transcript}
-            notes={{ onType: type, modelProblem, bullets, writing: updating, live: true }}
+            notes={{ onType: type }}
           />
         </div>
       </div>

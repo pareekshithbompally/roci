@@ -33,7 +33,7 @@ const input = z.object({
   from_date: day.optional().describe('meetings without a query: only those on or after this day, YYYY-MM-DD.'),
   to_date: day.optional().describe('meetings without a query: only those on or before this day, YYYY-MM-DD.'),
   status: z.enum(['open', 'done', 'all']).default('open').describe('todos: open (not done yet), done, or all.'),
-  meeting_id: idFrom('find in meetings', "todos: only this meeting's to-dos.").optional(),
+  meeting_id: idFrom('find in meetings', "todos: only this meeting's to-dos. meetings with a query: this meeting's passages that match (a long meeting, or the one being recorded).").optional(),
   limit: z.coerce.number().int().min(1).max(COUNTS.list.max).optional().describe(`How many to return: a search up to ${COUNTS.search.max}, a list up to ${COUNTS.list.max}.`),
 });
 type Input = z.output<typeof input>;
@@ -82,6 +82,17 @@ async function searchMeetingsFor(query: string, count: number): Promise<ToolResu
   return ok([`Found ${hits.length} relevant meeting(s):\n`, ...lines].join('\n'), { resultCount: hits.length, citations, meetings });
 }
 
+/** One meeting's passages that match, best first: a long meeting, or the one being recorded, read in part. */
+async function searchWithinMeeting(meetingId: string, query: string, count: number): Promise<ToolResult> {
+  const results = await searchMeetings(query, count, meetingId);
+  if (results.length === 0) return ok('Nothing in that meeting matches. Try other words, or read its transcript.', { resultCount: 0 });
+  const lines = results.flatMap((r, i) => [`${i + 1}. Relevance: ${confidenceOf(r.score)}`, `   "${r.chunkText.replace(/\n/g, ' ')}"`, '']);
+  const citations: MeetingCitation[] = results
+    .filter((r) => r.score >= SCORE_HIGH)
+    .map((r) => ({ meetingId, meetingTitle: r.meetingTitle, meetingTimestamp: r.timestamp, excerpt: r.chunkText.slice(0, MAX_CITATION_EXCERPT_CHARS), score: r.score }));
+  return ok([`${results.length} passage(s) of "${results[0].meetingTitle}" (meeting ID: ${meetingId}):\n`, ...lines].join('\n'), { resultCount: results.length, citations });
+}
+
 async function listMeetings({ from_date, to_date }: Input, count: number): Promise<ToolResult> {
   // One more than asked, so the reply can say there are more.
   const found = await fetchMeetings({ since: startOfDay(from_date), until: startOfDay(to_date, 1) }, count + 1);
@@ -92,6 +103,12 @@ async function listMeetings({ from_date, to_date }: Input, count: number): Promi
   const meetings: MeetingRow[] = shown.map((m) => ({ id: m.id, title: m.title, date: toolDate(m.timestamp) }));
   const lines = meetings.map((m, i) => `${i + 1}. "${m.title}" — ${m.date} — ID: ${m.id}`);
   return ok([`Meetings${range} (newest ${shown.length}${more}):`, '', ...lines].join('\n'), { resultCount: shown.length, meetings });
+}
+
+/** Meetings: one meeting's matching passages, the meetings that match, or the newest. */
+function meetingsFor(args: Input): Promise<ToolResult> {
+  if (!args.query) return listMeetings(args, countOf(args));
+  return args.meeting_id ? searchWithinMeeting(args.meeting_id, args.query, countOf(args)) : searchMeetingsFor(args.query, countOf(args));
 }
 
 // ── Chats ──
@@ -175,7 +192,7 @@ async function findKnowledge(query: string | undefined, count: number): Promise<
 }
 
 const FIND: Record<(typeof SCOPES)[number], (args: Input) => Promise<ToolResult>> = {
-  meetings: (args) => (args.query ? searchMeetingsFor(args.query, countOf(args)) : listMeetings(args, countOf(args))),
+  meetings: (args) => meetingsFor(args),
   chats: (args) => (args.query ? searchChatsFor(args.query, countOf(args)) : listChats(countOf(args))),
   todos: findTodos,
   memories: (args) => findMemories(args.query),

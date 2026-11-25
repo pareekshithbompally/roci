@@ -19,6 +19,8 @@ import { errorMessage } from '@shared/utils/errors';
 import { offlineError } from '@services/ai/errors';
 import { chatPersonalization } from '@shared/utils/personalization';
 import { isShownPart, messageText } from '@shared/utils/chatParts';
+// the live store alone (a light module), not the whole recording feature
+import { runningTranscript } from '@features/recording/live/meetingLiveStore';
 import { streamingStore } from './streamingStore';
 import type { ChatStoreState } from './chatStore';
 import type { Sessions } from './chatSessions';
@@ -26,6 +28,14 @@ import {
   NO_MODEL_REPLY, STOPPED_REPLY, lockedModelGoneReply, questionMessage, tokensPerSecond, withMeetings, withMetadata,
   withoutSuggestions, type Question,
 } from './chatMessages';
+
+/** The meetings a question brings: those attached to it, and a meeting chat's own meeting while it's being recorded, so every
+ *  question sees its transcript as it is now. */
+function meetingIdsFor(session: ChatSession, question: Question): string[] {
+  const attached = question.meetings.map((m) => m.id);
+  const recording = session.meetingId && runningTranscript(session.meetingId) !== null ? [session.meetingId] : [];
+  return [...new Set([...attached, ...recording])];
+}
 
 /** Injected by useChatRuntime from Settings. */
 const injectedRefs = {
@@ -146,7 +156,7 @@ export function createReplies(store: StoreApi<ChatStoreState>, sessions: Session
     const { session, question, resolved, settings, providers } = request;
     const signal = reply.controller.signal;
 
-    const context = await contextPipeline.resolve({ meetingIds: question.meetings.map((m) => m.id), signal });
+    const context = await contextPipeline.resolve({ meetingIds: meetingIdsFor(session, question), signal });
     if (!isLive(reply)) return null;
     const messages = context.text ? withMeetingContext(reply, session.messages, context.text) : session.messages;
 

@@ -1,5 +1,5 @@
 /** How every prompt that reads a meeting transcript describes it: one text, built from the speaker labels the app writes
- *  (MEETING_LIVE_CONFIG.speakers), so the summary, live notes and chat all read transcripts the same way. */
+ *  (MEETING_LIVE_CONFIG.speakers), so the summary and chat read transcripts the same way. */
 
 import { MEETING_LIVE_CONFIG } from '@config/meetingLive.config';
 
