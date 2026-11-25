@@ -1,8 +1,8 @@
 /** Agentic tool loop: one streamText call where the LLM picks tools; called only by chatStore.sendMessage(). */
 
 import { missingKey } from '@services/ai/jobModel';
-import { streamText, isStepCount, readUIMessageStream, toUIMessageStream } from 'ai';
-import type { StreamTextTransform, TextStreamPart, ToolSet } from 'ai';
+import { streamText, isStepCount, readUIMessageStream, toolSearch, toUIMessageStream } from 'ai';
+import type { ModelMessage, StreamTextTransform, TextStreamPart, ToolSet } from 'ai';
 import { createModel, chatCallSettings, toModelMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
 import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
@@ -17,6 +17,8 @@ import { listStyleOf } from '@services/providers/listers';
 import { followLocalLoad, onDeviceServerAddress } from '@services/onDevice.service';
 import { platform } from '@platform/index';
 import { toolRegistry, loadMcpSettings, loadMcpTools, generateImageTool, GENERATE_IMAGE_TOOL, showTool, suggestMemoryTool } from '@extensions/tools';
+import { toolPromptTokens } from '@extensions/tools/tool-tokens';
+import { contextTokensFor } from '@services/ai/transcription/excerpt';
 import { memoryEnabled } from '@shared/utils/personalization';
 import type { McpSettings } from '@config/mcp.config';
 import { hasImageModel } from '@services/ai/image';
@@ -29,9 +31,10 @@ import type { AppSettings, ChatPart, ChatUIMessage, ContextTokens } from '@share
 import { errorMessage } from '@shared/utils/errors';
 import { messageText } from '@shared/utils/chatParts';
 import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
-import { finalStepGuard } from './stepGuard';
+import { finalStepGuard, type StepCalls } from './stepGuard';
+import { fitMessages, messageRoom, tokensIn } from './contextFit';
 import { askChatExtras, NO_EXTRAS, type ChatExtras } from './chatExtras';
-import { buildChatSystemPrompt, NO_TOOLS } from '@core/ai';
+import { buildChatSystemPrompt, NO_TOOLS, TOOL_SEARCH_TOOL } from '@core/ai';
 import type { ChatToolset } from '@core/ai';
 
 export type { ChatExtras } from './chatExtras';
@@ -106,6 +109,8 @@ interface ChatTools {
   tools: ToolSet | undefined;
   /** The tool groups sent, so the system prompt guides exactly these. */
   toolset: ChatToolset;
+  /** Tokens the tools sent from the first step take in every request (deferred ones count once found, in the headroom). */
+  toolTokens: number;
 }
 
 /** The built-in tool groups the user's settings turn on, before the model and connected apps are known (chat sends these to
@@ -118,7 +123,7 @@ export function selectedToolset(settings: AppSettings): Pick<ChatToolset, 'meeti
 /** Roci's tools go only to a model that takes tools; the provider's own web search goes either way. */
 async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet | undefined, mcpSettings: McpSettings, takesTools: boolean): Promise<ChatTools> {
   const webSearch = !!webSearchTools;
-  if (!takesTools) return { tools: webSearchTools, toolset: { ...NO_TOOLS, webSearch } };
+  if (!takesTools) return { tools: webSearchTools, toolset: { ...NO_TOOLS, webSearch }, toolTokens: 0 };
   const { settings, providers } = options;
   const on = selectedToolset(settings);
   const memoryTools = on.memory ? [suggestMemoryTool] : [];
@@ -131,8 +136,20 @@ async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet 
   const rociTools = toExecutableTools(definitions, { signal: options.signal, approval: 'chat', sessionId: options.sessionId });
   const apps = [...new Set(mcpTools.flatMap((t) => (t.source ? [t.source] : [])))];
   const toolset = { meetings: meetingTools.length > 0, webSearch, image: imageTools.length > 0, views: viewTools.length > 0, apps, memory: memoryTools.length > 0 };
-  const tools = { ...rociTools, ...webSearchTools };
-  return { tools: Object.keys(tools).length > 0 ? tools : undefined, toolset };
+  // Deferred tools load only once the model finds them with the SDK's tool search (sent only when something is deferred).
+  const deferred = definitions.some((d) => d.deferLoading);
+  const tools = { ...rociTools, ...(deferred && { [TOOL_SEARCH_TOOL]: toolSearch() }), ...webSearchTools };
+  const toolTokens = definitions.filter((d) => !d.deferLoading).reduce((sum, d) => sum + toolPromptTokens(d), 0);
+  return { tools: Object.keys(tools).length > 0 ? tools : undefined, toolset, toolTokens };
+}
+
+/** Each step's request: the history fitted to the model's context, then (with tools) the final-step guard over it. */
+function prepareChatStep(room: number | null, maxToolCalls: number | null) {
+  const guard = maxToolCalls === null ? null : finalStepGuard(maxToolCalls);
+  return ({ steps, messages }: { steps: readonly StepCalls[]; messages: ModelMessage[] }) => {
+    const fitted = fitMessages(messages, room);
+    return guard?.({ steps, messages: fitted }) ?? (fitted === messages ? undefined : { messages: fitted });
+  };
 }
 
 /** llama-server's own chunk (raw, so outside the UI stream): prompt-reading progress, and tokens and speed while it generates. */
@@ -211,10 +228,11 @@ export async function orchestrate(
   const resolved = await withServerAddress(chatModelOrThrow(model, profile));
   const webSearchTools = chatToolPreferences(settings).webSearch ? getWebSearchTools(resolved) : undefined;
   const mcpSettings = await loadMcpSettings();
-  const { tools, toolset } = await buildTools(options, webSearchTools, mcpSettings, profile.tools);
+  const { tools, toolset, toolTokens } = await buildTools(options, webSearchTools, mcpSettings, profile.tools);
   const { input, output } = profile;
   const systemPrompt = buildChatSystemPrompt({ ...prompt, tools: toolset, modalities: { input, output } });
   const { maxToolCalls } = mcpSettings;
+  const room = messageRoom(await contextTokensFor(resolved), tokensIn(systemPrompt) + toolTokens);
   // A local llama-server (the Mac's on-device server among them) reports loading the model and reading the prompt.
   const reportsProgress = servedOnDevice(resolved) || (await listStyleOf(resolved.provider, { baseUrl: resolved.baseUrl })) === 'llama-server';
 
@@ -228,6 +246,7 @@ export async function orchestrate(
       instructions: systemPrompt,
       messages: await toModelMessages(messages, tools ?? {}, input),
       abortSignal: signal,
+      prepareStep: prepareChatStep(room, tools ? maxToolCalls : null),
       ...(webSearchTools && { experimental_transform: withoutCitationMarkers }),
       ...(reportsProgress && {
         include: { rawChunks: true },
@@ -236,7 +255,6 @@ export async function orchestrate(
       ...(tools && {
         tools,
         toolChoice: 'auto' as const,
-        prepareStep: finalStepGuard(maxToolCalls),
         // Every step before the answer calls at least one tool, so the guard has turned tools off by this count.
         stopWhen: isStepCount(maxToolCalls + 1),
       }),
@@ -260,10 +278,11 @@ export async function orchestrate(
   }
 }
 
-/** The reply's title and follow-ups, asked of the same model as soon as it's done, from the user's last message and the answer. */
-function extrasFor({ messages, extras: want, prompt, sessionId }: OrchestratorOptions, model: ResolvedModel, answer: string): Promise<ChatExtras> {
+/** The reply's title and follow-ups, asked of the same model as soon as it's done, from the user's last message and the
+ *  answer; the reply's own signal stops it too. */
+function extrasFor({ messages, extras: want, prompt, sessionId, signal }: OrchestratorOptions, model: ResolvedModel, answer: string): Promise<ChatExtras> {
   const question = messages.at(-1);
-  return askChatExtras({ model, want, personalization: prompt.personalization, question: question ? messageText(question) : '', answer, sessionId });
+  return askChatExtras({ model, want, personalization: prompt.personalization, question: question ? messageText(question) : '', answer, sessionId, signal });
 }
 
 /** The window after the reply is its last call's prompt and reply; `usage` sums every tool step, so it can't say this. */

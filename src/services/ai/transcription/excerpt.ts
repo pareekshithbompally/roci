@@ -6,16 +6,18 @@ import { profileOf } from '@services/ai/models';
 import { appleIntelligence } from '@services/ai/apple/appleIntelligence.service';
 import { modalitiesService } from '@services/modalities';
 import { getProviderType, type ResolvedModel } from '@shared/utils/modelResolver';
+import { resolveTuning } from '@shared/utils/modelTuning';
 
 const { outputTokens, headShare } = TRANSCRIPTION_CONFIG.summaryBudget;
 const { charsPerToken } = TOKEN_ESTIMATE;
 export const GAP_MARKER = '\n[…]\n';
 
-/** The model's context window in tokens: Apple's reported window, else the model catalog's; null when unknown. */
+/** The model's context window in tokens: Apple's reported window, a downloaded model's tuned context (what its engine
+ *  loads), else the model's profile; null when unknown. */
 export async function contextTokensFor(resolved: ResolvedModel): Promise<number | null> {
-  if (getProviderType(resolved.provider) === 'apple-intelligence') {
-    return (await appleIntelligence.status()).contextTokens || null;
-  }
+  const type = getProviderType(resolved.provider);
+  if (type === 'apple-intelligence') return (await appleIntelligence.status()).contextTokens || null;
+  if (type === 'on-device') return resolveTuning(resolved.modelId)['ctx-size'] ?? null;
   await modalitiesService.ensureLoaded();
   return profileOf(resolved.provider, resolved.model).contextTokens;
 }

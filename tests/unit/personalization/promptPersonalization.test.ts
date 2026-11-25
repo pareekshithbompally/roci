@@ -55,14 +55,14 @@ describe('prompts personalization', () => {
     buildChatSystemPrompt({ tools: NO_TOOLS, modalities: { input: ['text'], output: ['text'] }, meetingCount: 0, timeContext: '', personalization });
 
   it('keeps the default answer style, writes the knobs, and uses a rewrite in their place', () => {
-    expect(chat(NO_PERSONALIZATION)).toContain('Lead with the answer, then only the detail that helps. Keep it short.');
+    expect(chat(NO_PERSONALIZATION)).toContain('- Lead with the answer; keep it short; use a list or table only when it reads better.');
     const detailed = chat({ terms: [], responses: { length: 'detailed', tone: 'formal' } });
     expect(detailed).toContain('explain it fully');
     expect(detailed).toContain('formal, professional tone');
     const rewritten = chat({ terms: [], responses: { length: 'detailed' }, templates: { chatStyle: '- Answer in haiku.' } });
     expect(rewritten).toContain('- Answer in haiku.');
     expect(rewritten).not.toContain('explain it fully');
-    expect(rewritten).toContain('Never make up facts');
+    expect(rewritten).toContain('Never invent facts');
   });
 
   it('gives chat the profile and custom instructions, and transcript tasks only the profile', () => {

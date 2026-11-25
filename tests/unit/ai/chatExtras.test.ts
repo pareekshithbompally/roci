@@ -51,6 +51,17 @@ describe('chat extras', () => {
     expect(await ask()).toEqual({ suggestions: [] });
   });
 
+  it('passes the reply\'s signal on, and a stopped call gives none without an error in the log', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    error.mockClear();
+    const controller = new AbortController();
+    controller.abort();
+    generateStructured.mockRejectedValue(new DOMException('Aborted', 'AbortError'));
+    expect(await askChatExtras({ model, want: both, question: 'q', answer: 'a', sessionId: 'c1', signal: controller.signal })).toEqual({ suggestions: [] });
+    expect(generateStructured.mock.calls[0][0]).toMatchObject({ signal: controller.signal });
+    expect(error).not.toHaveBeenCalled();
+  });
+
   it('makes no call when nothing is wanted', async () => {
     expect(await ask({ title: false, suggestions: false })).toEqual({ suggestions: [] });
     expect(generateStructured).not.toHaveBeenCalled();

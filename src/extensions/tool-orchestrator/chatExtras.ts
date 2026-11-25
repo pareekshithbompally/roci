@@ -25,6 +25,8 @@ export interface ExtrasRequest {
   answer: string;
   /** The chat, for the usage row. */
   sessionId: string;
+  /** The reply's own: Stop, the chat's next message or its delete ends the call. */
+  signal?: AbortSignal;
 }
 
 /** At most `CHAT_TITLE_MAX_CHARS`, cut at a word; trailing punctuation dropped. */
@@ -32,7 +34,7 @@ const tidy = (title: string): string =>
   (title.length > CHAT_TITLE_MAX_CHARS ? title.slice(0, CHAT_TITLE_MAX_CHARS).replace(/\s+\S*$/, '') : title).replace(/[.!?…]+$/, '').trim();
 
 /** Asks for exactly what `want` names; nothing (and no call) when both are off; never rejects. */
-export async function askChatExtras({ model, want, personalization, question, answer, sessionId }: ExtrasRequest): Promise<ChatExtras> {
+export async function askChatExtras({ model, want, personalization, question, answer, sessionId, signal }: ExtrasRequest): Promise<ChatExtras> {
   if (!want.title && !want.suggestions) return NO_EXTRAS;
   try {
     const { title, suggestions }: { title?: string; suggestions?: string[] } = await generateStructured({
@@ -42,10 +44,11 @@ export async function askChatExtras({ model, want, personalization, question, an
       prompt: chatExtrasInput(question, answer),
       schema: chatExtrasSchema(want),
       usage: { category: 'chat', sessionId },
+      signal,
     });
     return { title: title ? tidy(title) || undefined : undefined, suggestions: (suggestions ?? []).slice(0, SUGGESTION_COUNT) };
   } catch (error: unknown) {
-    console.error('[ChatExtras] Title and follow-ups failed:', error);
+    if (!signal?.aborted) console.error('[ChatExtras] Title and follow-ups failed:', error);
     return NO_EXTRAS;
   }
 }

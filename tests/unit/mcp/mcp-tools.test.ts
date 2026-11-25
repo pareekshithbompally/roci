@@ -47,7 +47,8 @@ describe('loadMcpTools', () => {
     setup();
     const defs = await loadMcpTools(new Set(['search_meetings']), settings);
     expect(defs.map((d) => d.name)).toEqual(['read_file']);
-    expect(defs[0]).toMatchObject({ description: 'Read a file', timeoutMs: null, maxResultChars: null });
+    // Its server leads the description, so tool search finds it by the app's name; it loads only once found.
+    expect(defs[0]).toMatchObject({ description: 'fs: Read a file', timeoutMs: null, maxResultChars: null, deferLoading: true });
     expect(defs[0].parameters.type).toBe('object');
   });
 

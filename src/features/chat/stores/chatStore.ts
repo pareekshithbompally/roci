@@ -123,6 +123,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
 
   deleteSession: async (sessionId) => {
     if (replies.isReplyingIn(sessionId)) get().stopGeneration();
+    replies.cancelExtras(sessionId);
     set((state) => {
       const loadedSessions = new Map(state.loadedSessions);
       loadedSessions.delete(sessionId);
@@ -134,6 +135,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   },
 
   forgetSessions: (sessionIds) => {
+    sessionIds.forEach(replies.cancelExtras);
     const gone = new Set(sessionIds);
     set((state) => ({ loadedSessions: new Map([...state.loadedSessions].filter(([id]) => !gone.has(id))) }));
   },

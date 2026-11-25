@@ -21,6 +21,7 @@ vi.mock('@services/ai/apple/appleIntelligence.service', () => ({
 }));
 
 import { contextTokensFor } from '@services/ai/transcription/excerpt';
+import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import { analyzeTranscript } from '@services/ai/transcription/analyze';
 
 const resolvedFor = (provider: string): ResolvedModel => ({
@@ -52,6 +53,11 @@ describe('contextTokensFor', () => {
     await expect(contextTokensFor(resolvedFor('openai'))).resolves.toBe(128_000);
     expect(modalities.ensureLoaded).toHaveBeenCalled();
     expect(modalities.catalogReport).toHaveBeenCalledWith('openai', 'm1');
+  });
+
+  it("uses a downloaded model's tuned context: what its engine loads, not the model's maximum", async () => {
+    catalogWindow(128_000);
+    await expect(contextTokensFor(resolvedFor('on-device'))).resolves.toBe(LOCAL_MODELS_CONFIG.rociDefaults['ctx-size']);
   });
 
   it('returns null when the window is unknown', async () => {

@@ -33,7 +33,7 @@ describe('transcript guide', () => {
     expect(SPEAKER_NAMING).toContain('participants from the calendar are listed');
   });
 
-  it('is the same text in the summary, live notes, and chat with meeting tools', () => {
+  it('is the same text in the summary and live notes; chat with meeting tools reads it in one line', () => {
     expect(summary()).toContain(TRANSCRIPT_GUIDE);
     expect(liveNotesPrompt(NO_PERSONALIZATION)).toContain(TRANSCRIPT_GUIDE);
     expect(summary()).toContain(SPEAKER_NAMING);
@@ -41,8 +41,9 @@ describe('transcript guide', () => {
     const chat = (meetings: boolean) => buildChatSystemPrompt({
       tools: { ...NO_TOOLS, meetings }, modalities: { input: ['text'], output: ['text'] }, meetingCount: 1, timeContext: '',
     });
-    expect(chat(true)).toContain(TRANSCRIPT_GUIDE);
-    expect(chat(false)).not.toContain(TRANSCRIPT_GUIDE);
+    const line = `- Transcripts read "[time] speaker: words". "${SPEAKERS.self}" is the user, "${SPEAKERS.others}" everyone else`;
+    expect(chat(true)).toContain(line);
+    expect(chat(false)).not.toContain(line);
   });
 
   it('summary: the user\'s own tasks are theirs; participants are listed once, under Meeting details', () => {

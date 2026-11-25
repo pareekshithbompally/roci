@@ -25,9 +25,12 @@ vi.mock('@shared/utils/appEvents', () => ({ notifyAppEvent: (...args: unknown[])
 type Callbacks = { onParts: (parts: ChatPart[]) => void };
 interface Stream { say: (text: string) => void; show: (parts: ChatPart[]) => void; finish: (extras?: Promise<object>) => void; fail: (e: Error) => void }
 const streams: Stream[] = [];
+/** Each reply's own signal, as the orchestrator is given it (its title and follow-ups call shares it). */
+const signals: AbortSignal[] = [];
 vi.mock('@extensions/tool-orchestrator', () => ({
-  orchestrate: (_req: unknown, callbacks: Callbacks) =>
+  orchestrate: (req: { signal: AbortSignal }, callbacks: Callbacks) =>
     new Promise((resolve, reject) => {
+      signals.push(req.signal);
       let parts: ChatPart[] = [];
       streams.push({
         say: (text) => callbacks.onParts((parts = [{ type: 'text', text }])),
@@ -59,6 +62,7 @@ async function ask(text: string): Promise<string> {
 describe('stopping a reply', () => {
   beforeEach(() => {
     streams.length = 0;
+    signals.length = 0;
     persist.mockClear();
     notify.mockClear();
     injectChatRefs({ settings, providers: [] });
@@ -134,6 +138,56 @@ describe('stopping a reply', () => {
     expect(replyOf(id).suggestions).toBeUndefined();
     arrive({ suggestions: ['Say more'] });
     await vi.waitFor(() => expect(replyOf(id).suggestions).toEqual(['Say more']));
+  });
+
+  /** A reply in a new chat that settles with its title and follow-ups still to come; `arrive` hands them over. */
+  async function settledAwaitingExtras(): Promise<{ id: string; arrive: (extras: object) => void }> {
+    const id = await ask('hi');
+    let arrive: (extras: object) => void = () => undefined;
+    streams[0].say('Hello');
+    streams[0].finish(new Promise((resolve) => { arrive = resolve; }));
+    await vi.waitFor(() => expect(replyOf(id).state).toBe('complete'));
+    return { id, arrive };
+  }
+
+  it('names the chat once its title arrives', async () => {
+    const { id, arrive } = await settledAwaitingExtras();
+    arrive({ title: 'Greeting', suggestions: [] });
+    await vi.waitFor(() => expect(sessionOf(id).title).toBe('Greeting'));
+  });
+
+  it('never renames over a rename the user made meanwhile', async () => {
+    const { id, arrive } = await settledAwaitingExtras();
+    await useChatStore.getState().renameSession(id, 'Mine');
+    arrive({ title: 'Greeting', suggestions: ['Say more'] });
+    await vi.waitFor(() => expect(replyOf(id).suggestions).toEqual(['Say more']));
+    expect(sessionOf(id).title).toBe('Mine');
+  });
+
+  it('ends the title and follow-ups call when the next message is sent in that chat, and applies nothing it returns', async () => {
+    const { id, arrive } = await settledAwaitingExtras();
+    const title = sessionOf(id).title;
+    useChatStore.setState({ input: 'again' });
+    void useChatStore.getState().sendMessage();
+    await vi.waitFor(() => expect(streams).toHaveLength(2));
+    expect(signals[0].aborted).toBe(true);
+    expect(signals[1].aborted).toBe(false);
+    arrive({ title: 'Late', suggestions: ['Late one'] });
+    await flush();
+    expect(sessionOf(id).title).toBe(title);
+    expect(sessionOf(id).messages.some((m) => m.metadata.suggestions)).toBe(false);
+  });
+
+  it('ends the call when its chat is deleted', async () => {
+    const { id } = await settledAwaitingExtras();
+    await useChatStore.getState().deleteSession(id);
+    expect(signals[0].aborted).toBe(true);
+  });
+
+  it('a stopped reply ends its own call too (one signal)', async () => {
+    await ask('hi');
+    useChatStore.getState().stopGeneration();
+    expect(signals[0].aborted).toBe(true);
   });
 
   it('never writes a reply in progress to disk', async () => {

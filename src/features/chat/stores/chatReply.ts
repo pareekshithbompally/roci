@@ -44,7 +44,7 @@ function notifyReply(sessionId: string, text: string): void {
   notifyAppEvent({ id: `chat:${sessionId}`, kind: 'chatReplies', tone: 'success', inFront: 'quiet', title: 'Reply ready', body });
 }
 
-/** The one reply being generated: its chat, its message, and its own Stop. */
+/** The one reply being generated: its chat, its message, and its own Stop (which also ends its title and follow-ups call). */
 interface Reply {
   sessionId: string;
   messageId: string;
@@ -74,6 +74,8 @@ interface StreamTally {
 export function createReplies(store: StoreApi<ChatStoreState>, sessions: Sessions) {
   const { sessionOf, putSession, patchMessage, settle, saveSession } = sessions;
   let activeReply: Reply | null = null;
+  /** Each chat's settled reply whose title and follow-ups are still coming. */
+  const awaitingExtras = new Map<string, Reply>();
 
   /** Still the reply in flight and not stopped; a stopped or finished reply writes nothing more. */
   const isLive = (reply: Reply): boolean => activeReply === reply && !reply.controller.signal.aborted;
@@ -121,9 +123,20 @@ export function createReplies(store: StoreApi<ChatStoreState>, sessions: Session
     return [...messages.slice(0, -1), withMeetings(question, meetingContext)];
   }
 
-  /** A finished reply's title and follow-ups, once they arrive; follow-ups only while the reply is still the chat's last message. */
-  function applyExtras({ sessionId, messageId }: Reply, { title, suggestions }: ChatExtras): void {
-    if (title) void store.getState().renameSession(sessionId, title);
+  /** Ends the title and follow-ups call of the chat's last reply, if it is still running (the chat's next message, its delete). */
+  function cancelExtras(sessionId: string): void {
+    awaitingExtras.get(sessionId)?.controller.abort();
+    awaitingExtras.delete(sessionId);
+  }
+
+  /** A finished reply's title and follow-ups, once they arrive and unless the call was ended: the title only while the chat
+   *  still has the title it had when the reply settled (a rename meanwhile wins); follow-ups only while the reply is still
+   *  the chat's last message. */
+  function applyExtras(reply: Reply, settledTitle: string | undefined, { title, suggestions }: ChatExtras): void {
+    const { sessionId, messageId, controller } = reply;
+    if (awaitingExtras.get(sessionId) === reply) awaitingExtras.delete(sessionId);
+    if (controller.signal.aborted) return;
+    if (title && sessionOf(sessionId)?.title === settledTitle) void store.getState().renameSession(sessionId, title);
     if (suggestions.length === 0 || sessionOf(sessionId)?.messages.at(-1)?.id !== messageId) return;
     saveSession(patchMessage(sessionId, messageId, (m) => withMetadata(m, { suggestions })));
   }
@@ -197,8 +210,10 @@ export function createReplies(store: StoreApi<ChatStoreState>, sessions: Session
       saveSession(settle(reply.sessionId, reply.messageId, parts, { tokensPerSecond: tokensPerSecond(usage?.outputTokens, tally.firstTextAt), context, usage }));
       endReply(reply);
       notifyReply(reply.sessionId, messageText({ parts }));
+      awaitingExtras.set(reply.sessionId, reply);
+      const settledTitle = sessionOf(reply.sessionId)?.title;
       // Never rejects: a failed call logs and gives none.
-      void extras.then((found) => applyExtras(reply, found));
+      void extras.then((found) => applyExtras(reply, settledTitle, found));
     } catch (error: unknown) {
       if (!isLive(reply)) return; // Stopped: the abort surfaced as an error, and Stop already settled it.
       console.error('[ChatStore] Error sending message:', error);
@@ -240,6 +255,7 @@ export function createReplies(store: StoreApi<ChatStoreState>, sessions: Session
     const posted = postQuestion(textOverride);
     if (!posted) return;
     const { session, question, isNewSession } = posted;
+    cancelExtras(session.id);
     const reply = beginReply(session.id);
     await store.getState().persistSession(session);
     if (!isLive(reply)) return;
@@ -281,5 +297,5 @@ export function createReplies(store: StoreApi<ChatStoreState>, sessions: Session
   /** A reply is being generated in this chat. */
   const isReplyingIn = (sessionId: string): boolean => activeReply?.sessionId === sessionId;
 
-  return { send, stop, isReplyingIn };
+  return { send, stop, isReplyingIn, cancelExtras };
 }

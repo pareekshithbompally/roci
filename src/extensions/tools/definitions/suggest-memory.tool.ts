@@ -68,9 +68,11 @@ async function forget({ memory_id }: Input, context: ToolContext): Promise<ToolR
 export const suggestMemoryTool = defineTool({
   name: 'suggest_memory',
   description:
-    'Suggest saving or forgetting one lasting fact, only when the user asks or shares their role, a standing preference, a ' +
-    'project or the people they work with. Never one-off details, secrets, health or money. `about` names someone else; ' +
-    '`replaces` corrects a saved memory. The user approves it on a card: say you suggested it, never that it is saved.',
+    'Suggest saving or forgetting one memory: only what the user asks you to remember, or a lasting fact about them or ' +
+    'the people, organizations and projects in their work (facts about the user go here, not to another tool). Never ' +
+    'one-off, secret, health or financial details; at most one per reply; never one already saved. `about` names someone ' +
+    'else; `replaces` corrects a saved memory. The user approves it on a card: say you suggested it, never that it is saved.',
   input,
+  deferLoading: true,
   execute: (args, context) => (args.action === 'save' ? save(args, context) : forget(args, context)),
 });

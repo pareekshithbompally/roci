@@ -53,11 +53,12 @@ export async function loadMcpTools(
   }
 }
 
-/** An MCP tool as the model reads it (chat sends this; the Tools menu sizes it). */
+/** An MCP tool as the model reads it (chat sends this; the Tools menu sizes it): its description leads with its server, so
+ *  `tool_search` finds a connected app's tools by the app's name. */
 export function mcpToolShape(tool: McpTool): ToolShape {
   return {
     name: tool.name,
-    description: tool.description || `Tool "${tool.name}" from the ${tool.server} MCP server.`,
+    description: `${tool.server}: ${tool.description || `Tool "${tool.name}" from the ${tool.server} MCP server.`}`,
     parameters: toObjectSchema(tool.inputSchema),
   };
 }
@@ -66,6 +67,7 @@ function toDefinition(tool: McpTool, gate: ApprovalGate): ToolDefinition {
   return {
     ...mcpToolShape(tool),
     source: tool.server,
+    deferLoading: true,
     // Rust bounds the call; the approval prompt may wait on the user, so the bridge must not time it out.
     timeoutMs: null,
     maxResultChars: null,

@@ -71,6 +71,7 @@ export function toExecutableTools(definitions: ToolDefinition[], context: ToolCo
       description: definition.description,
       inputSchema: jsonSchema(definition.parameters as Parameters<typeof jsonSchema>[0]),
       execute: (args: Record<string, unknown>, { toolCallId }) => runTool(definition, args, context, toolCallId),
+      ...(definition.deferLoading && { deferLoading: true }),
       // The MCP server a tool came from rides on its parts in the chat (the SDK's `toolMetadata`); never sent to the model.
       ...(definition.source && { metadata: { source: definition.source } }),
       // A failed call goes back as an error, so providers that mark one (Anthropic's is_error) do.

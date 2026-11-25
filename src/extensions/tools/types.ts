@@ -44,6 +44,8 @@ export interface ToolDefinition {
   writes?: boolean;
   /** MCP Apps: the screen (`ui://roci/…`) Roci's MCP server gives agents' apps for this tool's results. */
   screen?: string;
+  /** Chat sends it only once the model finds it with `tool_search` (the AI SDK's `deferLoading`). */
+  deferLoading?: boolean;
 }
 
 // ── Tool Context (passed by orchestrator to tool execute()) ──

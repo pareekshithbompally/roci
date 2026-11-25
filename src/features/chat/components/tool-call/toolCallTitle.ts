@@ -2,6 +2,7 @@ import { toolKey, type ToolCallView } from './toolCallView';
 import { truncate } from '@shared/utils/formatters';
 import { extractDomain } from '@shared/utils/citationUtils';
 import { UI_CONFIG } from '@config/ui.config';
+import { TOOL_SEARCH_TOOL } from '@core/ai';
 
 /** [in-flight, done] verbs for built-in and native provider tools, by `toolKey`. */
 const LABELS: Record<string, [string, string]> = {
@@ -26,6 +27,8 @@ const LABELS: Record<string, [string, string]> = {
   'show.chart': ['Drawing chart', 'Drew chart'],
   'show.stats': ['Laying out figures', 'Showed figures'],
   'show.table': ['Building table', 'Showed table'],
+  // The AI SDK's tool search: loads a tool the model found
+  [TOOL_SEARCH_TOOL]: ['Finding tools', 'Found tools'],
   // Native provider tools (web search)
   webSearch: ['Searching the web', 'Searched the web'],
   googleSearch: ['Searching the web', 'Searched the web'],
@@ -70,6 +73,7 @@ const DETAILS: Record<string, (part: ToolCallView) => string | undefined> = {
   'find.todos': queryDetail,
   'find.memories': queryDetail,
   'find.knowledge': queryDetail,
+  [TOOL_SEARCH_TOOL]: queryDetail,
   webSearch: webDetail,
   googleSearch: webDetail,
   webSearchPreview: webDetail,

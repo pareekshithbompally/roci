@@ -15,14 +15,15 @@ export function generateImageTool(deps: { settings: AppSettings; providers: Mode
   return defineTool({
     name: GENERATE_IMAGE_TOOL,
     description:
-      'Create one image from a text description and show it to the user. Write a detailed visual prompt: subject, ' +
-      'setting, style, lighting, composition and colours. Make one image per call unless the user asks for more. ' +
-      'The image is shown in the chat, so describe what you made briefly instead of repeating the prompt.',
+      'Create images from a text description, only when the user asks for one. Write a detailed visual prompt: subject, ' +
+      'setting, style, lighting, composition and colours. One image per call unless the user asks for more. It appears ' +
+      'in the chat on its own, so add at most one short line.',
     input: z.object({
       prompt: text('Detailed description of the image to create.'),
       aspect_ratio: z.enum(IMAGE_ASPECT_RATIOS).default(IMAGE_GENERATION_CONFIG.defaultAspectRatio).describe('Shape of the image.'),
     }),
     timeoutMs: IMAGE_GENERATION_CONFIG.timeoutMs,
+    deferLoading: true,
 
     async execute({ prompt, aspect_ratio: aspectRatio }, context) {
       const image = await generateImageFile({

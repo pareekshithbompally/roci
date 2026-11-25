@@ -15,11 +15,12 @@ function shownLine(view: ResultView): string {
 export const showTool = defineTool({
   name: SHOW_TOOL,
   description:
-    'Show the user a chart, a few headline figures or a table in the chat, drawn in the app’s own design. Use it when ' +
-    'numbers read better seen than written: a trend over time, a comparison, a set of key figures, rows of data. Only show ' +
-    'figures that an earlier tool returned in this conversation (web search, meetings, connected apps), and name where ' +
-    'they came from in `source`; never invent, estimate or fill in numbers.',
+    'Show charts, headline figures or tables in the chat, drawn in the app’s own design, when numbers read better seen ' +
+    'than written: a trend, a comparison, key figures, rows of data. Only figures an earlier tool returned in this ' +
+    'conversation, with where they came from in `source`; never invent, estimate or fill in numbers. It appears on its ' +
+    'own, so don’t repeat its figures.',
   input: showInput,
+  deferLoading: true,
   async execute(input) {
     const view = toResultView(input);
     return ok(shownLine(view), { view });

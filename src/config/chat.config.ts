@@ -114,12 +114,21 @@ export const CHAT_REASONING_COPY = {
   speed: (tokensPerSecond: number) => `${tokensPerSecond.toFixed(1)} tok/s`,
 } as const;
 
+/** How a chat's history fits the model's context: past `pruneAbove` of the window, old thinking and tool calls before the
+ *  last `keepToolCallsInLast` messages are pruned, then the oldest whole turns are left out. */
+export const CHAT_CONTEXT_CONFIG = {
+  pruneAbove: 0.7,
+  keepToolCallsInLast: 3,
+} as const;
+
 /** A scroll area counts as at its bottom within this distance, px, and keeps following new content. */
 export const SCROLL_FOLLOW_THRESHOLD_PX = 48;
 
 /** A reply that failed (ErrorMessageBox). */
 export const CHAT_ERROR_COPY = {
   unknown: 'The model returned an error.',
+  /** The latest message, with what its tools found, doesn't fit the model's context even with older turns left out. */
+  tooLong: 'This message and what was found for it don’t fit the model’s context. Ask something narrower, attach less, or use a model with a larger context.',
   showDetails: 'Show error details',
   hideDetails: 'Hide error details',
 } as const;

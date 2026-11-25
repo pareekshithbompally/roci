@@ -5,13 +5,18 @@ const streamText = vi.hoisted(() => vi.fn());
 vi.mock('ai', async (importOriginal) => ({ ...(await importOriginal<typeof import('ai')>()), streamText }));
 
 const getWebSearchTools = vi.hoisted(() => vi.fn());
+/** The bridge as it is: each definition becomes an SDK tool, deferred ones with `deferLoading`. */
+const toExecutableTools = vi.hoisted(() => vi.fn((definitions: Array<{ name: string; deferLoading?: boolean }>) =>
+  Object.fromEntries(definitions.map((d) => [d.name, { deferLoading: d.deferLoading }]))));
 vi.mock('@services/ai', () => ({
   createModel: () => ({}),
   chatCallSettings: () => ({}),
   toModelMessages: async () => [],
   getWebSearchTools,
-  toExecutableTools: () => ({}),
+  toExecutableTools,
 }));
+const contextTokensFor = vi.hoisted(() => vi.fn());
+vi.mock('@services/ai/transcription/excerpt', () => ({ contextTokensFor }));
 
 const resolved = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 vi.mock('@shared/utils/modelResolver', () => ({
@@ -27,14 +32,17 @@ vi.mock('@services/ai/llamaServer', () => ({
   promptProgress: () => null,
 }));
 vi.mock('@services/mlx.service', () => ({ followMlxLoad: async () => () => undefined }));
+const shape = (name: string, deferLoading?: boolean) => ({ name, description: `${name} does it`, parameters: { type: 'object', properties: {} }, deferLoading });
+const registry = vi.hoisted(() => ({ tools: [] as object[] }));
+const loadMcpTools = vi.hoisted(() => vi.fn());
 vi.mock('@extensions/tools', () => ({
-  toolRegistry: { getToolNames: () => [], getTools: () => [] },
+  toolRegistry: { getToolNames: () => [], getTools: () => registry.tools },
   loadMcpSettings: async () => ({ maxToolCalls: 10 }),
-  loadMcpTools: async () => [],
+  loadMcpTools,
   generateImageTool: vi.fn(),
   GENERATE_IMAGE_TOOL: 'generate_image',
-  showTool: { name: 'show' },
-  suggestMemoryTool: { name: 'suggest_memory' },
+  showTool: { name: 'show', description: 'Show charts', parameters: {}, deferLoading: true },
+  suggestMemoryTool: { name: 'suggest_memory', description: 'memory', parameters: {}, deferLoading: true },
 }));
 
 const catalog = vi.hoisted(() => ({ loaded: true, fetches: true }));
@@ -93,7 +101,60 @@ beforeEach(() => {
   listStyleOf.mockResolvedValue('openai');
   resolved.current = { provider: 'openai', modelId: 'gpt', baseUrl: '', model: { id: 'gpt' } };
   askChatExtras.mockResolvedValue({ suggestions: [] });
+  registry.tools = [shape('find'), shape('read'), shape('suggest_todo')];
+  loadMcpTools.mockResolvedValue([]);
+  contextTokensFor.mockResolvedValue(null);
   replyOnce();
+});
+
+/** What the chat sent: its tool names, its instructions, and its step function. */
+type Sent = { tools?: Record<string, { deferLoading?: boolean }>; instructions: string; prepareStep: (step: { steps: object[]; messages: object[] }) => { messages?: object[]; toolChoice?: string } | undefined };
+const sent = (call = 0) => streamText.mock.calls[call][0] as Sent;
+const MEETINGS_ONLY = {
+  chatTools: { meetingTools: true, imageGeneration: false, resultViews: false, webSearch: false, disabledMcpTools: [] },
+  personalization: { memory: { enabled: false } },
+} as Partial<AppSettings>;
+/** A model that takes tools (the user said so in its menu). */
+const takesTools = () => { resolved.current = { provider: 'openai', modelId: 'gpt', baseUrl: '', model: { id: 'gpt', overrides: { tools: true } } }; };
+
+describe('orchestrate — tool search', () => {
+  beforeEach(takesTools);
+  it('sends find, read, suggest_todo and web search whole; charts, memory and every connected app load through tool_search', async () => {
+    loadMcpTools.mockResolvedValue([{ ...shape('web_search_exa', true), source: 'Exa' }]);
+    await run({});
+    const { tools = {}, instructions } = sent();
+    expect(Object.keys(tools)).toEqual(['find', 'read', 'suggest_todo', 'show', 'suggest_memory', 'web_search_exa', 'tool_search', 'webSearch']);
+    expect(Object.entries(tools).filter(([, t]) => t.deferLoading).map(([name]) => name)).toEqual(['show', 'suggest_memory', 'web_search_exa']);
+    expect(instructions).toContain('e.g. charts, memory, Exa. Call `tool_search`');
+  });
+
+  it('sends no tool_search when nothing is deferred', async () => {
+    await run(MEETINGS_ONLY);
+    expect(Object.keys(sent().tools ?? {})).toEqual(['find', 'read', 'suggest_todo']);
+    expect(sent().instructions).not.toContain('tool_search');
+  });
+});
+
+describe('orchestrate — the history fits the context', () => {
+  beforeEach(takesTools);
+  const old = { role: 'user', content: [{ type: 'text', text: 'x'.repeat(30_000) }] };
+  const latest = { role: 'user', content: [{ type: 'text', text: 'latest' }] };
+
+  it('leaves the history alone while the window is unknown or roomy', async () => {
+    await run(MEETINGS_ONLY);
+    expect(sent().prepareStep({ steps: [], messages: [old, latest] })).toBeUndefined();
+  });
+
+  it('cuts it to fit the model\'s window, every step, before the final-step guard adds its note', async () => {
+    contextTokensFor.mockResolvedValue(8_192);
+    await run(MEETINGS_ONLY);
+    const { prepareStep } = sent();
+    expect(prepareStep({ steps: [], messages: [old, latest] })).toEqual({ messages: [latest] });
+    const calls = Array.from({ length: 10 }, (_, i) => ({ toolCalls: [{ toolName: 'find', input: { q: i } }] }));
+    const final = prepareStep({ steps: calls, messages: [old, latest] });
+    expect(final?.toolChoice).toBe('none');
+    expect(final?.messages?.[0]).toEqual(latest);
+  });
 });
 
 describe('orchestrate — web search', () => {

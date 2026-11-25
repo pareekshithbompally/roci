@@ -6,7 +6,7 @@ import { FINAL_ANSWER_PROMPT } from '@core/ai/prompts';
 export type FinalStepReason = 'call-limit' | 'repeated-call';
 
 /** The part of a finished step the guard reads. */
-interface StepCalls {
+export interface StepCalls {
   toolCalls: ReadonlyArray<{ toolName: string; input: unknown }>;
 }
 
