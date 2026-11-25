@@ -21,7 +21,7 @@ describe('buildChatSystemPrompt', () => {
   });
 
   it('names the tools that load through tool_search by group and app, in one line, only when something is deferred', () => {
-    expect(prompt(ALL)).toContain(`- ${DEFERRED}, e.g. charts, images, memory, Linear, Exa. Call \`${TOOL_SEARCH_TOOL}\` with keywords to load one.`);
+    expect(prompt(ALL)).toContain(`- ${DEFERRED}, e.g. charts, images, memory, Linear, Exa. Call \`${TOOL_SEARCH_TOOL}\` with keywords for the task to load what it needs.`);
     expect(prompt({ views: true })).toContain(`${DEFERRED}, e.g. charts.`);
     expect(prompt({ meetings: true, webSearch: true })).not.toContain(DEFERRED);
     expect(prompt()).not.toContain(TOOL_SEARCH_TOOL);

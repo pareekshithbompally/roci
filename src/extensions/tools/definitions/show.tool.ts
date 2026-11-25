@@ -15,7 +15,8 @@ function shownLine(view: ResultView): string {
 export const showTool = defineTool({
   name: SHOW_TOOL,
   description:
-    'Show charts, headline figures or tables in the chat, drawn in the app’s own design, when numbers read better seen ' +
+    'Show charts, headline figures or tables in the chat (a chart, graph or plot; key figures; a table), drawn in the ' +
+    'app’s own design, when numbers read better seen ' +
     'than written: a trend, a comparison, key figures, rows of data. Only figures an earlier tool returned in this ' +
     'conversation, with where they came from in `source`; never invent, estimate or fill in numbers. It appears on its ' +
     'own, so don’t repeat its figures.',

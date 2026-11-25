@@ -78,7 +78,7 @@ function meetingsLine(tools: ChatToolset, meetingCount: number): string | null {
 
 function deferredLine(tools: ChatToolset): string | null {
   const names = deferredToolNames(tools);
-  return names.length > 0 ? `- More tools aren't loaded yet, e.g. ${names.join(', ')}. Call \`${TOOL_SEARCH_TOOL}\` with keywords to load one.` : null;
+  return names.length > 0 ? `- More tools aren't loaded yet, e.g. ${names.join(', ')}. Call \`${TOOL_SEARCH_TOOL}\` with keywords for the task to load what it needs.` : null;
 }
 
 function howToWork(tools: ChatToolset, meetingCount: number): string {

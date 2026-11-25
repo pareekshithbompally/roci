@@ -5,6 +5,7 @@ import { CHAT_CONTEXT_CONFIG } from '@config/chat.config';
 import { AiError } from '@services/ai/errors';
 
 vi.spyOn(console, 'info').mockImplementation(() => undefined);
+vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
 const user = (text: string): ModelMessage => ({ role: 'user', content: [{ type: 'text', text }] });
 const thought = (text: string, answer: string): ModelMessage => ({ role: 'assistant', content: [{ type: 'reasoning', text }, { type: 'text', text: answer }] });
@@ -26,6 +27,14 @@ describe('messageRoom', () => {
   it('is the share of the window past which history is pruned, less what every request carries; none when unknown', () => {
     expect(messageRoom(10_000, 1_000)).toBe(10_000 * CHAT_CONTEXT_CONFIG.pruneAbove - 1_000);
     expect(messageRoom(null, 1_000)).toBeNull();
+  });
+
+  it("keeps the reply's own room when the model caps its reply", () => {
+    expect(messageRoom(16_384, 1_000, 8_192)).toBe(16_384 - 8_192 - 1_000);
+  });
+
+  it('leaves history as it is when instructions and tools alone fill the window', () => {
+    expect(messageRoom(4_096, 4_000)).toBeNull();
   });
 });
 
@@ -49,6 +58,12 @@ describe('fitMessages', () => {
     const messages = [user('first'), answer(big(3_000)), user('latest'), call('c2'), result('c2', 'found it')];
     const fitted = fitMessages(messages, 200);
     expect(fitted).toEqual([user('latest'), call('c2'), result('c2', 'found it')]);
+  });
+
+  it("never prunes the turn in flight: its thinking and every tool result stay whole", () => {
+    const turn = [user('latest'), thought('plan', ''), call('c1'), result('c1', 'one'), call('c2'), result('c2', 'two'), call('c3'), result('c3', 'three')];
+    const fitted = fitMessages([user(big(3_000)), answer('a1'), ...turn], 600);
+    expect(fitted).toEqual(turn);
   });
 
   it('when pruning is not enough, leaves out the oldest whole turns, never the latest question', () => {

@@ -130,13 +130,13 @@ export function createReplies(store: StoreApi<ChatStoreState>, sessions: Session
   }
 
   /** A finished reply's title and follow-ups, once they arrive and unless the call was ended: the title only while the chat
-   *  still has the title it had when the reply settled (a rename meanwhile wins); follow-ups only while the reply is still
-   *  the chat's last message. */
-  function applyExtras(reply: Reply, settledTitle: string | undefined, { title, suggestions }: ChatExtras): void {
+   *  still has the title it had when its question was sent (a rename meanwhile wins); follow-ups only while the reply is
+   *  still the chat's last message. */
+  function applyExtras(reply: Reply, sentTitle: string | undefined, { title, suggestions }: ChatExtras): void {
     const { sessionId, messageId, controller } = reply;
     if (awaitingExtras.get(sessionId) === reply) awaitingExtras.delete(sessionId);
     if (controller.signal.aborted) return;
-    if (title && sessionOf(sessionId)?.title === settledTitle) void store.getState().renameSession(sessionId, title);
+    if (title && sessionOf(sessionId)?.title === sentTitle) void store.getState().renameSession(sessionId, title);
     if (suggestions.length === 0 || sessionOf(sessionId)?.messages.at(-1)?.id !== messageId) return;
     saveSession(patchMessage(sessionId, messageId, (m) => withMetadata(m, { suggestions })));
   }
@@ -211,9 +211,8 @@ export function createReplies(store: StoreApi<ChatStoreState>, sessions: Session
       endReply(reply);
       notifyReply(reply.sessionId, messageText({ parts }));
       awaitingExtras.set(reply.sessionId, reply);
-      const settledTitle = sessionOf(reply.sessionId)?.title;
       // Never rejects: a failed call logs and gives none.
-      void extras.then((found) => applyExtras(reply, settledTitle, found));
+      void extras.then((found) => applyExtras(reply, request.session.title, found));
     } catch (error: unknown) {
       if (!isLive(reply)) return; // Stopped: the abort surfaced as an error, and Stop already settled it.
       console.error('[ChatStore] Error sending message:', error);

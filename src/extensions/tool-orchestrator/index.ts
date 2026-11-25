@@ -18,7 +18,7 @@ import { followLocalLoad, onDeviceServerAddress } from '@services/onDevice.servi
 import { platform } from '@platform/index';
 import { toolRegistry, loadMcpSettings, loadMcpTools, generateImageTool, GENERATE_IMAGE_TOOL, showTool, suggestMemoryTool } from '@extensions/tools';
 import { toolPromptTokens } from '@extensions/tools/tool-tokens';
-import { contextTokensFor } from '@services/ai/transcription/excerpt';
+import { contextTokensFor, replyTokensFor } from '@services/ai/transcription/excerpt';
 import { memoryEnabled } from '@shared/utils/personalization';
 import type { McpSettings } from '@config/mcp.config';
 import { hasImageModel } from '@services/ai/image';
@@ -232,7 +232,7 @@ export async function orchestrate(
   const { input, output } = profile;
   const systemPrompt = buildChatSystemPrompt({ ...prompt, tools: toolset, modalities: { input, output } });
   const { maxToolCalls } = mcpSettings;
-  const room = messageRoom(await contextTokensFor(resolved), tokensIn(systemPrompt) + toolTokens);
+  const room = messageRoom(await contextTokensFor(resolved), tokensIn(systemPrompt) + toolTokens, replyTokensFor(resolved));
   // A local llama-server (the Mac's on-device server among them) reports loading the model and reading the prompt.
   const reportsProgress = servedOnDevice(resolved) || (await listStyleOf(resolved.provider, { baseUrl: resolved.baseUrl })) === 'llama-server';
 
