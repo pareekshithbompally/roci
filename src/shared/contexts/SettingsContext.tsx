@@ -82,6 +82,8 @@ const PERSISTED_SETTINGS: Record<keyof AppSettings, true> = {
   remindersIntegration: true,
   showModelAvatars: true,
   modelIdleMinutes: true,
+  modelDirectory: true,
+  onDeviceEngine: true,
   spotlightIntegration: true,
   storageRetention: true,
   transcriptionModel: true,

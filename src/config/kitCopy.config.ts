@@ -10,6 +10,8 @@ export const KIT_COPY = {
   rename: 'Rename',
   renamePlaceholder: 'Enter a title',
   done: 'Done',
+  /** A setting's ⓘ button, read out. */
+  aboutSetting: (label: string) => `About ${label}`,
   close: 'Close',
   back: 'Back',
   delete: 'Delete',

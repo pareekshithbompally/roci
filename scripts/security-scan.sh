@@ -16,7 +16,12 @@ SEMGREP=(semgrep scan --metrics=off --disable-version-check --quiet --error --se
 if [[ "${1:-}" == "--staged" ]]; then
   gitleaks git --staged --no-banner --redact --config .gitleaks.toml
   files=()
-  while IFS= read -r -d '' file; do files+=("$file"); done < <(git diff --cached --name-only --diff-filter=ACMR -z)
+  # Semgrep scans a file named on its command line even when .semgrepignore lists its folder, so the folders listed
+  # there (third-party and generated code) are left out here; so is a symbolic link (its target is scanned at its own path).
+  ignored=()
+  while IFS= read -r line; do [[ -z "$line" || "$line" == \#* ]] || ignored+=("$line"); done < .semgrepignore
+  skipped() { [[ -L "$1" ]] && return 0; for dir in "${ignored[@]}"; do [[ "$1" == "$dir"* ]] && return 0; done; return 1; }
+  while IFS= read -r -d '' file; do skipped "$file" || files+=("$file"); done < <(git diff --cached --name-only --diff-filter=ACMR -z)
   [[ ${#files[@]} -eq 0 ]] || "${SEMGREP[@]}" "${files[@]}"
 else
   gitleaks git --no-banner --redact --config .gitleaks.toml

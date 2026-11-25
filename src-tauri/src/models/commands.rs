@@ -30,6 +30,10 @@ pub struct LocalModelStatus {
     tools: Option<bool>,
     /// A downloaded chat model ships a vision encoder, so it reads images (`vision_config`); None otherwise.
     vision: Option<bool>,
+    /// A chat model's quantization, as its weights file names it (`Q4_0`); None for other kinds.
+    quant: Option<&'static str>,
+    /// A chat model ships its own speculative-decoding draft (an MTP head or a DFlash model): replies come faster.
+    drafts: bool,
 }
 
 /// Every curated model: downloaded, downloading, or neither.
@@ -38,8 +42,12 @@ pub fn local_models(app: AppHandle, state: State<'_, ModelsState>) -> Result<Vec
     MODELS
         .iter()
         .map(|m| {
-            let dir = store::model_dir(&app, m)?;
-            let installed = store::is_installed(&dir, m);
+            let installed = store::is_installed(&app, m);
+            let (context, template) = if installed && m.kind == Kind::Chat {
+                crate::engine_readings::model_info(&store::file_path(&app, m, m.main_file())?)
+            } else {
+                (None, None)
+            };
             Ok(LocalModelStatus {
                 id: m.id,
                 name: m.name,
@@ -51,45 +59,37 @@ pub fn local_models(app: AppHandle, state: State<'_, ModelsState>) -> Result<Vec
                 bytes: m.bytes(),
                 installed,
                 downloading: state.downloads.is_active(m.id),
-                partial: !installed && store::is_started(&dir, m),
-                context_tokens: (installed && m.kind == Kind::Chat).then(|| context_tokens(&dir)).flatten(),
-                tools: (installed && m.kind == Kind::Chat).then(|| takes_tools(&dir)),
-                vision: (installed && m.kind == Kind::Chat).then(|| model_config(&dir).is_some_and(|c| c.get("vision_config").is_some())),
+                partial: !installed && store::is_started(&app, m),
+                context_tokens: context,
+                tools: template.as_deref().map(|t| jinja_uses(t, "tools")),
+                // Images reach a model once the shim passes them (mtmd vision); until then none takes them.
+                vision: (installed && m.kind == Kind::Chat).then_some(false),
+                quant: (m.kind == Kind::Chat).then(|| quant_of(m.main_file().name)),
+                drafts: m.kind == Kind::Chat && m.files.iter().any(|f| f.name.starts_with("mtp-") || f.name.contains("DFlash")),
             })
         })
         .collect()
 }
 
-/// The context window a model's config.json states: `max_position_embeddings`, at the top (text models) or in
-/// `text_config` (multimodal ones).
-fn context_tokens(dir: &std::path::Path) -> Option<u64> {
-    let config = model_config(dir)?;
-    let key = "max_position_embeddings";
-    config.get(key).or_else(|| config.get("text_config")?.get(key))?.as_u64()
+/// A weights file's quantization: the last dash-separated part of its name (`gemma-4-E2B-it-Q4_0.gguf` → `Q4_0`).
+fn quant_of(file: &str) -> &str {
+    file.trim_end_matches(".gguf").rsplit('-').next().unwrap_or_default()
 }
 
-/// The model's config.json, as the model ships it.
-fn model_config(dir: &std::path::Path) -> Option<serde_json::Value> {
-    serde_json::from_str(&std::fs::read_to_string(dir.join("config.json")).ok()?).ok()
-}
+/// One projection at a time: llama.cpp's measure swaps its global logger while it runs.
+static PROJECTING: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-/// Whether the model's chat template takes tool definitions: a Jinja tag (`{% … %}`, `{{ … }}`) uses `tools` — prose
-/// that merely mentions the word doesn't count. Read from `chat_template.jinja`, `chat_template.json` or
-/// `tokenizer_config.json`, wherever the model ships it.
-fn takes_tools(dir: &std::path::Path) -> bool {
-    chat_templates(dir).iter().any(|template| jinja_uses(template, "tools"))
-}
-
-fn chat_templates(dir: &std::path::Path) -> Vec<String> {
-    let read = |name: &str| std::fs::read_to_string(dir.join(name)).ok();
-    let embedded = |name: &str| {
-        let config: serde_json::Value = serde_json::from_str(&read(name)?).ok()?;
-        match config.get("chat_template")? {
-            serde_json::Value::String(template) => Some(template.clone()),
-            other => Some(other.to_string()), // named templates: [{ "name", "template" }]
-        }
-    };
-    [read("chat_template.jinja"), embedded("chat_template.json"), embedded("tokenizer_config.json")].into_iter().flatten().collect()
+/// The memory llama.cpp projects for the downloaded chat model `id` at `context_tokens` with a KV cache of `kv_type`
+/// (f16, q8_0, q4_0), bytes: Model Tuning's context and memory-saver choices show it.
+#[tauri::command]
+pub async fn local_model_memory(app: AppHandle, id: String, context_tokens: u32, kv_type: String) -> Result<u64, LocalError> {
+    let model = catalog::find_kind(&id, Kind::Chat)?;
+    let path = store::installed_path(&app, model, model.main_file())?;
+    blocking(move || {
+        let _turn = crate::sync::lock(&PROJECTING);
+        crate::engine_readings::projected_memory(&path, context_tokens, &kv_type)
+    })
+    .await
 }
 
 /// Whether any Jinja tag in `template` names `variable` as a whole word.
@@ -154,8 +154,13 @@ pub async fn local_model_remove(app: AppHandle, id: String) -> Result<(), LocalE
         match model.kind {
             Kind::Speech => app.state::<SttState>().engine.forget(model.id),
             Kind::Voice => app.state::<TtsState>().forget(),
-            Kind::Embedding | Kind::Chat => crate::mlx::unload(model.kind),
+            #[cfg(mobile)]
+            Kind::Embedding | Kind::Chat => crate::llama::unload(model.kind),
+            #[cfg(desktop)]
+            Kind::Embedding | Kind::Chat => {}
         }
+        #[cfg(desktop)]
+        crate::llama_server::models_changed();
         store::remove(&app, model)
     })
     .await

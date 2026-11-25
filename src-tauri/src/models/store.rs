@@ -1,11 +1,14 @@
-//! Model storage under `<app data>/models/<id>/`: resumable `.part` downloads checked by size and SHA-256.
+//! Model storage in the model directory (Settings; default `<app data>/models`): resumable downloads checked by size and
+//! SHA-256. Roci's own layout keeps a model's files in `<dir>/<id>/`; a Hugging Face cache directory is read and written
+//! in its layout (`models--org--repo/snapshots/<revision>/<file>` linked to `blobs/<sha256>`), so other apps share them.
+//! Only the catalog's exact files count; nothing else in the directory is looked at.
 
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -13,7 +16,7 @@ use objc2_foundation::{NSArray, NSNumber, NSString, NSURL, NSURLVolumeAvailableC
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::AsyncWriteExt;
 
-use super::catalog::{self, LocalModel, ModelFile};
+use super::catalog::{self, LocalModel, ModelFile, Source};
 use super::LocalError;
 use crate::sync::lock;
 
@@ -73,24 +76,88 @@ impl Downloads {
     }
 }
 
-/// The model's folder (created on first use).
-pub fn model_dir(app: &AppHandle, model: &LocalModel) -> Result<PathBuf, LocalError> {
-    let dir = app.path().app_data_dir().map_err(|e| LocalError::Io(e.to_string()))?.join("models").join(model.id);
-    fs::create_dir_all(&dir)?;
-    Ok(dir)
+/// The model directory the user chose; None: Roci's own (`<app data>/models`).
+static DIRECTORY: LazyLock<Mutex<Option<PathBuf>>> = LazyLock::new(Mutex::default);
+
+/// How files sit in the model directory.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Layout {
+    /// `<dir>/<id>/<file>`.
+    Roci,
+    /// `<dir>/models--org--repo/snapshots/<revision>/<file>` → `blobs/<sha256>`.
+    HuggingFace,
 }
 
-fn has_file(dir: &Path, file: &ModelFile) -> bool {
-    fs::metadata(dir.join(file.name)).is_ok_and(|m| m.len() == file.bytes)
+/// Uses `dir` as the model directory from now on (None: Roci's own); refused when it can't be read or written, so the
+/// one in use stays.
+pub fn set_directory(dir: Option<PathBuf>) -> Result<(), LocalError> {
+    if let Some(dir) = &dir {
+        fs::create_dir_all(dir)?;
+        fs::read_dir(dir)?;
+    }
+    *lock(&DIRECTORY) = dir;
+    Ok(())
 }
 
-pub fn is_installed(dir: &Path, model: &LocalModel) -> bool {
-    model.files.iter().all(|f| has_file(dir, f))
+fn root(app: &AppHandle) -> Result<PathBuf, LocalError> {
+    match lock(&DIRECTORY).clone() {
+        Some(dir) => Ok(dir),
+        None => Ok(app.path().app_data_dir().map_err(|e| LocalError::Io(e.to_string()))?.join("models")),
+    }
+}
+
+/// A Hugging Face cache: named `…/huggingface/hub`, or already holding `models--…` folders.
+fn layout_of(root: &Path) -> Layout {
+    let named = root.ends_with("huggingface/hub");
+    let holds = fs::read_dir(root).is_ok_and(|entries| entries.flatten().any(|e| e.file_name().to_string_lossy().starts_with("models--")));
+    if named || holds { Layout::HuggingFace } else { Layout::Roci }
+}
+
+/// Where `file` of `model` lives (or will) in the model directory.
+pub fn file_path(app: &AppHandle, model: &LocalModel, file: &ModelFile) -> Result<PathBuf, LocalError> {
+    Ok(path_in(&root(app)?, model, file))
+}
+
+fn path_in(root: &Path, model: &LocalModel, file: &ModelFile) -> PathBuf {
+    match layout_of(root) {
+        Layout::Roci => root.join(model.id).join(file.name),
+        Layout::HuggingFace => repo_dir(root, model.source_of(file)).join("snapshots").join(model.source_of(file).revision).join(file.name),
+    }
+}
+
+/// `models--org--repo` for a repository, as the Hugging Face cache names it.
+fn repo_dir(root: &Path, source: &Source) -> PathBuf {
+    root.join(format!("models--{}", source.repository.replace('/', "--")))
+}
+
+/// Where an unfinished download of `file` grows: beside it (Roci) or as the cache's `blobs/<sha256>.incomplete`.
+fn part_path(app: &AppHandle, model: &LocalModel, file: &ModelFile) -> Result<PathBuf, LocalError> {
+    let root = root(app)?;
+    Ok(match layout_of(&root) {
+        Layout::Roci => root.join(model.id).join(format!("{}.part", file.name)),
+        Layout::HuggingFace => repo_dir(&root, model.source_of(file)).join("blobs").join(format!("{}.incomplete", file.sha256)),
+    })
+}
+
+fn has_file(app: &AppHandle, model: &LocalModel, file: &ModelFile) -> bool {
+    file_path(app, model, file).is_ok_and(|path| fs::metadata(path).is_ok_and(|m| m.len() == file.bytes))
+}
+
+pub fn is_installed(app: &AppHandle, model: &LocalModel) -> bool {
+    model.files.iter().all(|f| has_file(app, model, f))
 }
 
 /// Some of the model is here: a whole file, or part of one.
-pub fn is_started(dir: &Path, model: &LocalModel) -> bool {
-    model.files.iter().any(|f| has_file(dir, f) || dir.join(format!("{}.part", f.name)).exists())
+pub fn is_started(app: &AppHandle, model: &LocalModel) -> bool {
+    model.files.iter().any(|f| has_file(app, model, f) || part_path(app, model, f).is_ok_and(|p| p.exists()))
+}
+
+/// The path of `file` once every file of `model` is in place; `NotDownloaded` until then.
+pub fn installed_path(app: &AppHandle, model: &LocalModel, file: &ModelFile) -> Result<PathBuf, LocalError> {
+    if !is_installed(app, model) {
+        return Err(LocalError::NotDownloaded);
+    }
+    file_path(app, model, file)
 }
 
 /// What the system can free for a download the user asked for (purgeable space included).
@@ -107,17 +174,29 @@ pub fn free_space(app: &AppHandle) -> Result<u64, LocalError> {
         .ok_or_else(|| LocalError::Io("free space is unknown".into()))
 }
 
-/// The model's folder, or `NotDownloaded` until every file is there.
-pub fn installed_dir(app: &AppHandle, model: &LocalModel) -> Result<PathBuf, LocalError> {
-    let dir = model_dir(app, model)?;
-    if is_installed(&dir, model) { Ok(dir) } else { Err(LocalError::NotDownloaded) }
+/// Deletes the model's files and partial downloads (in a Hugging Face cache, each file's snapshot link and blob).
+pub fn remove(app: &AppHandle, model: &LocalModel) -> Result<(), LocalError> {
+    for file in model.files {
+        let path = file_path(app, model, file)?;
+        let blob = fs::canonicalize(&path).ok();
+        remove_if_there(&path)?;
+        remove_if_there(&part_path(app, model, file)?)?;
+        if let Some(blob) = blob.filter(|b| *b != path) {
+            remove_if_there(&blob)?;
+        }
+    }
+    let own = root(app)?.join(model.id);
+    if own.exists() && layout_of(&root(app)?) == Layout::Roci {
+        fs::remove_dir_all(own)?;
+    }
+    Ok(())
 }
 
-/// Deletes the model's folder, partial downloads included.
-pub fn remove(app: &AppHandle, model: &LocalModel) -> Result<(), LocalError> {
-    let dir = model_dir(app, model)?;
-    fs::remove_dir_all(dir)?;
-    Ok(())
+fn remove_if_there(path: &Path) -> Result<(), LocalError> {
+    match fs::remove_file(path) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.into()),
+        _ => Ok(()),
+    }
 }
 
 /// Emits progress whenever the whole-percent value changes.
@@ -147,12 +226,13 @@ impl Reporter<'_> {
 /// Downloads one model to completion, reporting every step as an event.
 pub async fn download(app: &AppHandle, model: &'static LocalModel, cancel: &AtomicBool) {
     let mut reporter = Reporter { app, model, last_percent: u64::MAX };
-    let outcome = match model_dir(app, model) {
-        Ok(dir) => fetch_all(model, &dir, cancel, &mut reporter).await,
-        Err(error) => Err(error),
-    };
+    let outcome = fetch_all(app, model, cancel, &mut reporter).await;
     match outcome {
         Ok(state) => {
+            #[cfg(desktop)]
+            if matches!(state, DownloadState::Done) {
+                crate::llama_server::models_changed();
+            }
             reporter.emit(state, model.bytes(), None);
             // Search's model is in: the meetings and chats without vectors get them now.
             if matches!(state, DownloadState::Done) && model.kind == catalog::Kind::Embedding {
@@ -167,19 +247,19 @@ pub async fn download(app: &AppHandle, model: &'static LocalModel, cancel: &Atom
 }
 
 /// Every file not already in place, in order; Done, or Cancelled midway.
-async fn fetch_all(model: &'static LocalModel, dir: &Path, cancel: &AtomicBool, reporter: &mut Reporter<'_>) -> Result<DownloadState, LocalError> {
+async fn fetch_all(app: &AppHandle, model: &'static LocalModel, cancel: &AtomicBool, reporter: &mut Reporter<'_>) -> Result<DownloadState, LocalError> {
     let mut done = 0;
     for file in model.files {
-        if !has_file(dir, file) {
-            let part = dir.join(format!("{}.part", file.name));
-            if let Some(parent) = part.parent() {
-                fs::create_dir_all(parent)?; // voice files sit in a subfolder
+        if !has_file(app, model, file) {
+            let (part, target) = (part_path(app, model, file)?, file_path(app, model, file)?);
+            for dir in [part.parent(), target.parent()].into_iter().flatten() {
+                fs::create_dir_all(dir)?;
             }
             if !fetch(&model.url(file), file, &part, done, cancel, reporter).await? {
                 return Ok(DownloadState::Cancelled);
             }
             reporter.emit(DownloadState::Verifying, done + file.bytes, None);
-            verify_and_place(file, &part, &dir.join(file.name)).await?;
+            verify_and_place(file, &part, &target).await?;
         }
         done += file.bytes;
     }
@@ -193,8 +273,28 @@ async fn verify_and_place(file: &ModelFile, part: &Path, target: &Path) -> Resul
         fs::remove_file(part)?;
         return Err(LocalError::Download(format!("{} didn't match its checksum; download it again", file.name)));
     }
-    fs::rename(part, target)?;
+    place(part, target)
+}
+
+/// Moves a checked download into place: beside its name (Roci), or as its blob with the snapshot linked to it (a Hugging
+/// Face cache, where the part is `blobs/<sha256>.incomplete`).
+fn place(part: &Path, target: &Path) -> Result<(), LocalError> {
+    let Some(blob) = part.to_str().and_then(|p| p.strip_suffix(".incomplete")).map(PathBuf::from) else {
+        fs::rename(part, target)?;
+        return Ok(());
+    };
+    fs::rename(part, &blob)?;
+    remove_if_there(target)?;
+    std::os::unix::fs::symlink(relative_blob(target, &blob), target)?;
     Ok(())
+}
+
+/// The blob as the cache links it from a snapshot: `../../blobs/<sha256>`.
+fn relative_blob(target: &Path, blob: &Path) -> PathBuf {
+    let depth = target.parent().map_or(0, |snapshot| snapshot.strip_prefix(blob.parent().and_then(Path::parent).unwrap_or(snapshot)).map_or(0, |p| p.components().count()));
+    let mut path = PathBuf::new();
+    (0..depth).for_each(|_| path.push(".."));
+    path.join("blobs").join(blob.file_name().unwrap_or_default())
 }
 
 /// How much of a file a `.part` already holds: all of it (the app stopped before checking it), so nothing is fetched and the
@@ -273,6 +373,38 @@ mod tests {
         fs::write(&path, b"abc").unwrap();
         assert_eq!(sha256_hex(&path).unwrap(), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
         fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn a_file_sits_where_the_directory_s_layout_puts_it() {
+        let model = catalog::find("nemotron-3.5-bolt-e4b").unwrap();
+        let draft = model.files.iter().find(|f| f.name.contains("DFlash")).unwrap();
+        let roci = std::env::temp_dir().join("roci-store-layout-roci");
+        fs::create_dir_all(&roci).unwrap();
+        assert_eq!(path_in(&roci, model, draft), roci.join("nemotron-3.5-bolt-e4b").join(draft.name));
+        let hub = std::env::temp_dir().join("roci-store-layout/huggingface/hub");
+        let path = path_in(&hub, model, draft);
+        assert!(path.starts_with(hub.join("models--nvidia--NVIDIA-Nemotron-3.5-Bolt-E4B-4GB-DFlash/snapshots")));
+        assert!(path.ends_with(draft.name));
+    }
+
+    #[test]
+    fn a_snapshot_links_to_its_blob_two_levels_up() {
+        let repo = Path::new("/hub/models--org--repo");
+        let blob = repo.join("blobs/abc");
+        assert_eq!(relative_blob(&repo.join("snapshots/rev1/model.gguf"), &blob), PathBuf::from("../../blobs/abc"));
+    }
+
+    /// Which catalog models a real directory holds, by exact file and size: `ROCI_MODEL_DIR` (e.g. a Hugging Face cache).
+    #[test]
+    #[ignore = "reads a real model directory"]
+    fn a_real_directory_s_models() {
+        let root = PathBuf::from(std::env::var("ROCI_MODEL_DIR").unwrap());
+        println!("LAYOUT {:?}", layout_of(&root));
+        for model in catalog::MODELS {
+            let have = model.files.iter().filter(|f| fs::metadata(path_in(&root, model, f)).is_ok_and(|m| m.len() == f.bytes)).count();
+            println!("MODEL {:<24} {have}/{} files", model.id, model.files.len());
+        }
     }
 
     #[test]

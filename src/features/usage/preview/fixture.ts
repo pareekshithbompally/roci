@@ -16,7 +16,7 @@ const MODELS: ProviderModelBreakdown[] = [
   model('ollama', 'gemma4:31b-cloud', 22, 79_017, 36_469, 9_870, 0.0045),
   model('gemini', 'gemini-3.5-transcribe', 9, 12_300, 0, 4_100, 0, 9),
   model('apple-intelligence', 'apple-intelligence', 12, 0, 0, 0, 0),
-  model('on-device', 'mlx-community/qwen3.5-9b', 9, 4_168, 0, 1_200, 0),
+  model('on-device', 'mlx-community/gemma-4-e2b', 9, 4_168, 0, 1_200, 0),
   model('local:ollama', 'llama3.2:3b', 14, 22_000, 0, 5_400, 0),
   model('local:localhost:9931', 'qwen3-8b', 10, 16_084, 4_786, 3_100, 0),
   model('on-device', 'mlx-community/parakeet-tdt-0.6b', 4, 0, 0, 0, 0),

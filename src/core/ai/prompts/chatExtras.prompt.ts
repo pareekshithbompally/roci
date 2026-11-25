@@ -1,19 +1,14 @@
-/** A chat reply ends with one finishReply call that names a new chat and/or suggests follow-ups; its input's shape is
- *  chatExtrasSchema(want). The call is part of the reply itself, so nothing is sent a second time. */
+/** After a reply, one short structured call to the chat's own model names a new chat and/or suggests follow-ups; its
+ *  output's shape is chatExtrasSchema(want). It reads only the user's last message and the reply, never tools. */
 
 import { SUGGESTION_COUNT } from '@config/chat.config';
 import { NO_PERSONALIZATION, templateText, type PromptPersonalization } from './personalization.prompt';
 
-/** What a reply's finishReply carries: a title (a new chat, while naming is on), follow-ups (while they're on). */
+/** What the call after a reply asks for: a title (a new chat, while naming is on), follow-ups (while they're on). */
 export interface ChatExtrasWant {
   title: boolean;
   suggestions: boolean;
 }
-
-export const FINISH_REPLY_TOOL = 'finishReply';
-
-/** The one line the chat instructions add while finishReply is sent. */
-export const FINISH_REPLY_RULE = `After your full answer, end the reply by calling ${FINISH_REPLY_TOOL} once. Never call it before or instead of answering.`;
 
 /** How a chat is named: the Chat Titles template's default. */
 export const TITLE_RULES = `"title" names this conversation for a list of chats: 2 to 6 words naming its specific subject (a meeting, person, product, place or task), not the kind of request.
@@ -28,9 +23,14 @@ const SUGGESTION_RULES = `"suggestions" holds ${SUGGESTION_COUNT} short follow-u
 - Different from each other and new: not a rewording of the question or something you already covered.
 - Each under 12 words, in the language the user writes in.`;
 
-/** finishReply's description: the rules for each field it asks for (when to call it is FINISH_REPLY_RULE, in the chat's
- *  instructions). */
-export function finishReplyDescription(want: ChatExtrasWant, personalization: PromptPersonalization = NO_PERSONALIZATION): string {
+/** The extras call's instructions: the rules for each field it asks for. */
+export function chatExtrasInstructions(want: ChatExtrasWant, personalization: PromptPersonalization = NO_PERSONALIZATION): string {
   const titleRules = templateText(personalization, 'chatTitles', () => TITLE_RULES);
-  return ['Ends your reply.', want.title && titleRules, want.suggestions && SUGGESTION_RULES].filter(Boolean).join('\n\n');
+  const intro = 'You just answered the user\'s message below. Reply with only the fields asked for.';
+  return [intro, want.title && titleRules, want.suggestions && SUGGESTION_RULES].filter(Boolean).join('\n\n');
+}
+
+/** The extras call's input: the user's last message and the reply's text. */
+export function chatExtrasInput(question: string, answer: string): string {
+  return `## The user's message\n\n${question}\n\n## Your answer\n\n${answer}`;
 }

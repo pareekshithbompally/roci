@@ -4,3 +4,4 @@ src-tauri/gen/
 src-tauri/resources/
 public/
 tests/
+src-tauri/engines/llama.cpp/

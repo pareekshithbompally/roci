@@ -28,5 +28,6 @@ regexes = [
 paths = ['''package-lock\.json''', '''Cargo\.lock''', '''Package\.resolved''', '''\.pbxproj$''']
 
 [allowlist]
-description = "Fake keys used by tests"
-paths = ['''^tests/''']
+# llama.cpp's upstream source is vendored unchanged; its examples, test data and hash code match the generic rules.
+description = "Fake keys used by tests, and llama.cpp's vendored upstream source"
+paths = ['''^tests/''', '''^src-tauri/engines/llama\.cpp/''']

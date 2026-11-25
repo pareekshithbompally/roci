@@ -19,6 +19,7 @@ class DialogService {
         defaultPath: options.defaultPath,
         filters: options.filters,
         multiple: options.multiple,
+        directory: options.directory,
       });
     } catch (error) {
       console.error('Failed to open file dialog:', error);

@@ -4,7 +4,7 @@ pub mod commands;
 mod system;
 mod playback;
 mod text;
-mod voice_model;
+pub mod voice_model;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -79,7 +79,8 @@ impl TtsState {
     /// Stops speaking and frees the voice model about to be deleted.
     pub fn forget(&self) {
         self.stop();
-        crate::mlx::unload(crate::models::catalog::Kind::Voice);
+        #[cfg(mobile)]
+        crate::llama::unload(crate::models::catalog::Kind::Voice);
     }
 }
 

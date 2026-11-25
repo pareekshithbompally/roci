@@ -14,7 +14,8 @@ import { AiError } from '@services/ai/errors';
 import { CHAT_CATALOG_COPY, SOURCE_LINK_TITLE } from '@config/chat.config';
 import { followModelLoad, generationStats, promptProgress } from '@services/ai/llamaServer';
 import { listStyleOf } from '@services/providers/listers';
-import { followMlxLoad } from '@services/mlx.service';
+import { followLocalLoad, onDeviceServerAddress } from '@services/onDevice.service';
+import { platform } from '@platform/index';
 import { toolRegistry, loadMcpSettings, loadMcpTools, generateImageTool, GENERATE_IMAGE_TOOL, showTool, suggestMemoryTool } from '@extensions/tools';
 import { memoryEnabled } from '@shared/utils/personalization';
 import type { McpSettings } from '@config/mcp.config';
@@ -29,9 +30,11 @@ import { errorMessage } from '@shared/utils/errors';
 import { messageText } from '@shared/utils/chatParts';
 import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
 import { finalStepGuard } from './stepGuard';
-import { extrasOf, finishReplyTools, isFinishReply, type ChatExtras } from './finishReply';
-import { buildChatSystemPrompt, FINISH_REPLY_TOOL, NO_TOOLS } from '@core/ai';
+import { askChatExtras, NO_EXTRAS, type ChatExtras } from './chatExtras';
+import { buildChatSystemPrompt, NO_TOOLS } from '@core/ai';
 import type { ChatToolset } from '@core/ai';
+
+export type { ChatExtras } from './chatExtras';
 
 /** GPT's private-use citation marker: \ue200 kind \ue202 field(s) \ue201. */
 const MARKER_OPEN = '\ue200';
@@ -103,8 +106,6 @@ interface ChatTools {
   tools: ToolSet | undefined;
   /** The tool groups sent, so the system prompt guides exactly these. */
   toolset: ChatToolset;
-  /** finishReply is sent: the reply ends with its title and follow-ups. */
-  finishReply: boolean;
 }
 
 /** The built-in tool groups the user's settings turn on, before the model and connected apps are known (chat sends these to
@@ -114,25 +115,24 @@ export function selectedToolset(settings: AppSettings): Pick<ChatToolset, 'meeti
   return { meetings: prefs.meetingTools, image: prefs.imageGeneration && hasImageModel(settings), views: prefs.resultViews, memory: memoryEnabled(settings) };
 }
 
-/** Roci's tools and finishReply go only to a model that takes tools; the provider's own web search goes either way. */
+/** Roci's tools go only to a model that takes tools; the provider's own web search goes either way. */
 async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet | undefined, mcpSettings: McpSettings, takesTools: boolean): Promise<ChatTools> {
   const webSearch = !!webSearchTools;
-  if (!takesTools) return { tools: webSearchTools, toolset: { ...NO_TOOLS, webSearch }, finishReply: false };
+  if (!takesTools) return { tools: webSearchTools, toolset: { ...NO_TOOLS, webSearch } };
   const { settings, providers } = options;
   const on = selectedToolset(settings);
   const memoryTools = on.memory ? [suggestMemoryTool] : [];
   const viewTools = on.views ? [showTool] : [];
-  const reservedNames = new Set([...toolRegistry.getToolNames(), GENERATE_IMAGE_TOOL, showTool.name, FINISH_REPLY_TOOL, ...memoryTools.map((t) => t.name)]);
+  const reservedNames = new Set([...toolRegistry.getToolNames(), GENERATE_IMAGE_TOOL, showTool.name, ...memoryTools.map((t) => t.name)]);
   const meetingTools = on.meetings ? toolRegistry.getTools() : [];
   const imageTools = on.image ? [generateImageTool({ settings, providers })] : [];
   const mcpTools = await loadMcpTools(reservedNames, mcpSettings, new Set(chatToolPreferences(settings).disabledMcpTools));
   const definitions = [...meetingTools, ...imageTools, ...viewTools, ...memoryTools, ...mcpTools];
   const rociTools = toExecutableTools(definitions, { signal: options.signal, approval: 'chat', sessionId: options.sessionId });
-  const finish = finishReplyTools(options.extras, options.prompt.personalization);
   const apps = [...new Set(mcpTools.flatMap((t) => (t.source ? [t.source] : [])))];
   const toolset = { meetings: meetingTools.length > 0, webSearch, image: imageTools.length > 0, views: viewTools.length > 0, apps, memory: memoryTools.length > 0 };
-  const tools = { ...rociTools, ...finish, ...webSearchTools };
-  return { tools: Object.keys(tools).length > 0 ? tools : undefined, toolset, finishReply: FINISH_REPLY_TOOL in finish };
+  const tools = { ...rociTools, ...webSearchTools };
+  return { tools: Object.keys(tools).length > 0 ? tools : undefined, toolset };
 }
 
 /** llama-server's own chunk (raw, so outside the UI stream): prompt-reading progress, and tokens and speed while it generates. */
@@ -152,10 +152,19 @@ function emptyResponseError(finishReason: string | undefined): Error {
   );
 }
 
-/** Model loads show in the reply header: llama-server's staged progress, MLX's start (followed before the request); returns the stop. */
+/** On the Mac an on-device model is served by Roci's own llama-server. */
+const servedOnDevice = (resolved: ResolvedModel): boolean => platform.servesOnDeviceModels && getProviderType(resolved.provider) === 'on-device';
+
+/** An on-device model on the Mac, addressed at its server (started first when needed); any other model as it is. */
+async function withServerAddress(resolved: ResolvedModel): Promise<ResolvedModel> {
+  return servedOnDevice(resolved) ? { ...resolved, baseUrl: `${await onDeviceServerAddress()}/v1` } : resolved;
+}
+
+/** Model loads show in the reply header: llama-server's staged progress, the on-device model's start (followed before the
+ *  request); returns the stop. */
 async function followLoad(resolved: ResolvedModel, llamaServer: boolean, showProgress: (progress: StreamProgress) => void): Promise<() => void> {
   if (llamaServer) return followModelLoad(resolved.baseUrl, resolved.modelId, showProgress);
-  if (getProviderType(resolved.provider) === 'on-device') return followMlxLoad(resolved.modelId, showProgress);
+  if (getProviderType(resolved.provider) === 'on-device') return followLocalLoad(resolved.modelId, showProgress);
   return () => undefined;
 }
 
@@ -194,20 +203,20 @@ async function readReply(
 export async function orchestrate(
   options: OrchestratorOptions,
   callbacks: OrchestratorCallbacks,
-): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage; context?: ContextTokens; parts: ChatPart[]; extras: ChatExtras }> {
+): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage; context?: ContextTokens; parts: ChatPart[]; extras: Promise<ChatExtras> }> {
   const { messages, model, prompt, settings, signal, reasoningEffort } = options;
 
   await loadModelFacts(callbacks.onProgress);
   const profile = profileOf(model.provider, model.model);
-  const resolved = chatModelOrThrow(model, profile);
+  const resolved = await withServerAddress(chatModelOrThrow(model, profile));
   const webSearchTools = chatToolPreferences(settings).webSearch ? getWebSearchTools(resolved) : undefined;
   const mcpSettings = await loadMcpSettings();
-  const { tools, toolset, finishReply } = await buildTools(options, webSearchTools, mcpSettings, profile.tools);
+  const { tools, toolset } = await buildTools(options, webSearchTools, mcpSettings, profile.tools);
   const { input, output } = profile;
-  const systemPrompt = buildChatSystemPrompt({ ...prompt, tools: toolset, modalities: { input, output }, finishReply });
+  const systemPrompt = buildChatSystemPrompt({ ...prompt, tools: toolset, modalities: { input, output } });
   const { maxToolCalls } = mcpSettings;
-  // A local llama-server reports loading the model and reading the prompt before it replies.
-  const reportsProgress = (await listStyleOf(resolved.provider, { baseUrl: resolved.baseUrl })) === 'llama-server';
+  // A local llama-server (the Mac's on-device server among them) reports loading the model and reading the prompt.
+  const reportsProgress = servedOnDevice(resolved) || (await listStyleOf(resolved.provider, { baseUrl: resolved.baseUrl })) === 'llama-server';
 
   const stopFollowingLoad = await followLoad(resolved, reportsProgress, callbacks.onProgress);
 
@@ -227,16 +236,15 @@ export async function orchestrate(
       ...(tools && {
         tools,
         toolChoice: 'auto' as const,
-        prepareStep: finalStepGuard(maxToolCalls, finishReply ? [FINISH_REPLY_TOOL] : []),
+        prepareStep: finalStepGuard(maxToolCalls),
         // Every step before the answer calls at least one tool, so the guard has turned tools off by this count.
         stopWhen: isStepCount(maxToolCalls + 1),
       }),
     });
 
-    // finishReply is read for its title and follow-ups, never shown or saved.
-    const all = await readReply(result.stream, tools, options, (shown) => callbacks.onParts(shown.filter((p) => !isFinishReply(p))));
-    const parts = all.filter((p) => !isFinishReply(p));
-    if (!messageText({ parts }) && !signal?.aborted) throw emptyResponseError(await result.finishReason);
+    const parts = await readReply(result.stream, tools, options, callbacks.onParts);
+    const answer = messageText({ parts });
+    if (!answer && !signal?.aborted) throw emptyResponseError(await result.finishReason);
 
     return {
       provider: resolved.provider,
@@ -244,12 +252,18 @@ export async function orchestrate(
       tokenUsage: extractTokenUsage(await result.usage),
       context: contextOf((await result.steps).at(-1)?.usage),
       parts,
-      extras: extrasOf(all, options.extras),
+      extras: signal?.aborted ? Promise.resolve(NO_EXTRAS) : extrasFor(options, resolved, answer),
     };
   } finally {
     stopFollowingLoad();
     if (reportsProgress) learnTemplateCapabilities(resolved);
   }
+}
+
+/** The reply's title and follow-ups, asked of the same model as soon as it's done, from the user's last message and the answer. */
+function extrasFor({ messages, extras: want, prompt, sessionId }: OrchestratorOptions, model: ResolvedModel, answer: string): Promise<ChatExtras> {
+  const question = messages.at(-1);
+  return askChatExtras({ model, want, personalization: prompt.personalization, question: question ? messageText(question) : '', answer, sessionId });
 }
 
 /** The window after the reply is its last call's prompt and reply; `usage` sums every tool step, so it can't say this. */

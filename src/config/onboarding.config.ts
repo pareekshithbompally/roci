@@ -36,12 +36,9 @@ export const ONBOARDING_ICONS = {
   appleIntelligence: { glyph: INTEGRATIONS_CONFIG.appleIntelligence.icon },
   // iPhone can't read the Terminal's icon: the bundled server art stands in (docs/design/pane-icons).
   local: { app: 'com.apple.Terminal', symbol: SquareTerminal, art: 'server' },
-  // The engines models run on here: MLX (chat, voices, search) and transcribe.cpp on ggml (speech recognition).
+  // The engine models run on here: ggml, through llama.cpp (chat, voices, search) and transcribe.cpp (speech recognition).
   onDevice: {
-    engines: [
-      { name: 'transcribe.cpp', light: GGML_LOGO, dark: GGML_LOGO },
-      { name: 'MLX', light: '/images/engines/mlx-light.png', dark: '/images/engines/mlx-dark.png' },
-    ],
+    engines: [{ name: 'llama.cpp', light: GGML_LOGO, dark: GGML_LOGO }],
   },
   remote: { providers: ['gemini', 'openai', 'anthropic'] },
 } satisfies Record<string, OnboardingIconSource>;

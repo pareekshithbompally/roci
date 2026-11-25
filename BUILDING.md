@@ -31,9 +31,12 @@ npm run tauri:dev      # run the app in development
 npm run tauri:build    # build Roci.app and a .dmg
 ```
 
-Both commands first run `scripts/build-mlx.sh`, which builds the on-device engine (`RociMLX.framework`, MLX Swift) into
-`src-tauri/frameworks`. The first time takes a few minutes; after that it is rebuilt only when its sources change. The
-first Rust build also takes a while, as it compiles transcribe.cpp and SQLite's extensions.
+Both commands first run `scripts/build-mlx.sh`, which builds `RociMLX.framework` (MLX Swift; leaving in Phase 3 of
+the on-device engine move) into `src-tauri/frameworks`, then `scripts/build-llama-server.sh`, which builds llama.cpp's
+`llama-server` from Roci's copy (`src-tauri/engines/llama.cpp`) into `src-tauri/binaries`: the Mac bundles it and runs
+on-device chat, search and read aloud in it, one process per model. Each is rebuilt only when its sources change; the
+first time takes a few minutes. The first Rust build also takes a while, as it compiles transcribe.cpp, llama.cpp's
+library and SQLite's extensions.
 
 `npm run dev` and `npm run build` first run `npm run build:screens`: Roci's MCP App screens (`src/screens`, for agents'
 apps that show them) are each built into one self-contained page in `public/screens` (generated, not committed).

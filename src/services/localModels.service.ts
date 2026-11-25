@@ -1,6 +1,7 @@
 /** Curated on-device models (src-tauri/src/models): state, download, cancel, delete; progress on its download event. */
 
 import { invoke } from '@tauri-apps/api/core';
+import type { KvType } from '@config/personalization.config';
 import { isTauriEnvironment } from '@services/tauri';
 import { platform } from '@platform/index';
 
@@ -31,6 +32,10 @@ export interface LocalModel {
   tools: boolean | null;
   /** A downloaded chat model reads images (it ships a vision encoder); null otherwise. */
   vision: boolean | null;
+  /** A chat model's quantization, as its weights file names it (`Q4_0`); null for other kinds. */
+  quant: string | null;
+  /** A chat model ships its own speculative-decoding draft, so replies can come faster. */
+  drafts: boolean;
 }
 
 /** Payload of the download event (Rust `DownloadProgress`). */
@@ -42,7 +47,7 @@ export interface LocalModelDownload {
   error: string | null;
 }
 
-/** Payload of the model-load event (Rust `mlx::on_load`): which role's model, and where its load stands. */
+/** Payload of the model-load event (Rust `llama::report`): which role's model, and where its load stands. */
 export interface ModelLoad {
   role: 'chat' | 'embedding' | 'voice';
   model: string;
@@ -70,8 +75,16 @@ export const cancelLocalModelDownload = (id: string): Promise<void> => invoke('l
 
 export const removeLocalModel = (id: string): Promise<void> => invoke('local_model_remove', { id });
 
+/** The memory llama.cpp projects for a downloaded chat model at `contextTokens` with a KV cache of `kvType`, bytes (its
+ *  own measure, without loading the weights). */
+export const projectedModelMemory = (id: string, contextTokens: number, kvType: KvType): Promise<number> =>
+  invoke<number>('local_model_memory', { id, contextTokens, kvType });
+
 /** How long unused models stay loaded, for every engine (0 = until quit). */
 export const setLocalModelIdle = (minutes: number): Promise<void> => invoke('local_models_set_idle', { minutes });
+
+/** Uses `dir` as the model directory (undefined: Roci's own folder); rejects when Roci can't read and write it. */
+export const setLocalModelDirectory = (dir: string | undefined): Promise<void> => invoke('local_models_set_directory', { dir: dir ?? null });
 
 /** Whole percent of a running download. */
 export const downloadPercent = (download: Pick<LocalModelDownload, 'received' | 'total'>): number =>

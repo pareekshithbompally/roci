@@ -23,7 +23,7 @@ vi.mock('@shared/utils/appEvents', () => ({ notifyAppEvent: (...args: unknown[])
 
 /** A stream the test drives: the reply's words so far, then finish (normally, as the SDK does after an abort) or fail. */
 type Callbacks = { onParts: (parts: ChatPart[]) => void };
-interface Stream { say: (text: string) => void; show: (parts: ChatPart[]) => void; finish: () => void; fail: (e: Error) => void }
+interface Stream { say: (text: string) => void; show: (parts: ChatPart[]) => void; finish: (extras?: Promise<object>) => void; fail: (e: Error) => void }
 const streams: Stream[] = [];
 vi.mock('@extensions/tool-orchestrator', () => ({
   orchestrate: (_req: unknown, callbacks: Callbacks) =>
@@ -32,7 +32,7 @@ vi.mock('@extensions/tool-orchestrator', () => ({
       streams.push({
         say: (text) => callbacks.onParts((parts = [{ type: 'text', text }])),
         show: (next) => callbacks.onParts((parts = next)),
-        finish: () => resolve({ provider: 'openai', model: 'm', tokenUsage: undefined, parts, extras: { suggestions: [] } }),
+        finish: (extras = Promise.resolve({ suggestions: [] })) => resolve({ provider: 'openai', model: 'm', tokenUsage: undefined, parts, extras }),
         fail: reject,
       });
     }),
@@ -123,6 +123,17 @@ describe('stopping a reply', () => {
     streams[0].fail(new Error('rate limited'));
     await vi.waitFor(() => expect(replyOf(id)).toMatchObject({ text: 'rate limited', isError: true, state: 'complete' }));
     expect(useChatStore.getState().replyingSessionId).toBeNull();
+  });
+
+  it('shows the reply done first, then adds the follow-ups once they arrive', async () => {
+    const id = await ask('hi');
+    let arrive: (extras: object) => void = () => undefined;
+    streams[0].say('Hello');
+    streams[0].finish(new Promise((resolve) => { arrive = resolve; }));
+    await vi.waitFor(() => expect(replyOf(id)).toMatchObject({ text: 'Hello', state: 'complete' }));
+    expect(replyOf(id).suggestions).toBeUndefined();
+    arrive({ suggestions: ['Say more'] });
+    await vi.waitFor(() => expect(replyOf(id).suggestions).toEqual(['Say more']));
   });
 
   it('never writes a reply in progress to disk', async () => {

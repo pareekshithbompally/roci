@@ -48,19 +48,30 @@ pub async fn tts_speak(app: AppHandle, id: u64, text: String, engine: String, vo
     // iPhone: the shared session, refused while a recording holds it; heard with the silent switch on.
     #[cfg(target_os = "ios")]
     audio_session::activate(Use::Playback).map_err(LocalError::Engine)?;
+    #[cfg(mobile)]
     let used = app.clone();
     let spoken = blocking(move || {
         if engine == SYSTEM_VOICES {
             return system::speak(&chunks, voice.as_deref(), &stop, on_chunk);
         }
         let model = catalog::find_kind(&engine, Kind::Voice)?;
-        let dir = store::installed_dir(&app, model)?;
-        voice_model::speak(&dir, model.loads_as, chunks, voice.as_deref(), stop, on_chunk)
+        store::installed_path(&app, model, model.main_file())?;
+        // The Mac: llama-server's speech endpoint; iPhone and iPad: llama.cpp in the app.
+        #[cfg(desktop)]
+        let synthesize = |chunk: &str| crate::llama_server::speak(&app, model.id, chunk, voice.as_deref());
+        #[cfg(mobile)]
+        let synthesize = {
+            let projector = model.files.iter().find(|f| f.name.contains("mmproj")).ok_or(LocalError::NotDownloaded)?;
+            let (path, projector) = (store::installed_path(&app, model, model.main_file())?, store::installed_path(&app, model, projector)?);
+            move |chunk: &str| crate::llama::speak(model.id, &path, &projector, chunk, voice.as_deref())
+        };
+        voice_model::speak(chunks, stop, on_chunk, synthesize)
     })
     .await;
     #[cfg(target_os = "ios")]
     audio_session::deactivate(Use::Playback);
-    crate::mlx::touch(&used, Kind::Voice);
+    #[cfg(mobile)]
+    crate::llama::touch(&used, Kind::Voice);
     spoken
 }
 

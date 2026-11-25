@@ -24,7 +24,7 @@ pub async fn stt_transcribe(app: AppHandle, request: Request<'_>) -> Result<Time
     let wav = raw_body(&request).ok_or_else(|| LocalError::BadInput("expected a raw WAV body".into()))?;
     let model = catalog::find_kind(header(&request, MODEL_HEADER).unwrap_or_default(), Kind::Speech)?;
     let language = header(&request, LANGUAGE_HEADER).unwrap_or(LANGUAGE).to_string();
-    let path = store::installed_dir(&app, model)?.join(model.main_file().name);
+    let path = store::installed_path(&app, model, model.main_file())?;
     let pcm = engine::decode_wav(wav)?;
 
     let worker = app.clone();
@@ -69,7 +69,7 @@ pub fn stt_set_vocabulary(entries: Vec<VocabularyEntry>, boost: RecognitionBoost
 #[tauri::command]
 pub async fn stt_live_start(app: AppHandle, model: String, language: String) -> Result<(), LocalError> {
     let model = catalog::find_kind(&model, Kind::Speech)?;
-    let path = store::installed_dir(&app, model)?.join(model.main_file().name);
+    let path = store::installed_path(&app, model, model.main_file())?;
     lock(&app.state::<SttState>().live).take();
     let worker = app.clone();
     let started = blocking(move || LiveSession::start(worker, model.id, path, language)).await;

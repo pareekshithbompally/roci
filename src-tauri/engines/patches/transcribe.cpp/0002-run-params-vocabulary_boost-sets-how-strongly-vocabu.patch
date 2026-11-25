@@ -1,0 +1,132 @@
+From 76fb60b91afbe73e74b86005d915a9a3c6e6a621 Mon Sep 17 00:00:00 2001
+From: roci <roci@local>
+Date: Wed, 25 Nov 2026 12:59:19 +0530
+Subject: [PATCH 2/2] run params: vocabulary_boost sets how strongly vocabulary
+ terms are favoured (0 = family default)
+
+---
+ bindings/rust/sys/src/transcribe_sys.rs     | 5 ++++-
+ bindings/rust/transcribe-cpp/src/session.rs | 4 ++++
+ include/transcribe.h                        | 4 ++++
+ src/arch/parakeet/model.cpp                 | 8 +++++---
+ src/arch/parakeet/parakeet.h                | 1 +
+ 5 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/bindings/rust/sys/src/transcribe_sys.rs b/bindings/rust/sys/src/transcribe_sys.rs
+index db7d0d9f..ef801b28 100644
+--- a/bindings/rust/sys/src/transcribe_sys.rs
++++ b/bindings/rust/sys/src/transcribe_sys.rs
+@@ -412,10 +412,11 @@ pub struct transcribe_run_params {
+     pub n_vocabulary: i32,
+     pub prompt: *const ::std::os::raw::c_char,
+     pub prefix: *const ::std::os::raw::c_char,
++    pub vocabulary_boost: f32,
+ }
+ #[allow(clippy::unnecessary_operation, clippy::identity_op)]
+ const _: () = {
+-    ["Size of transcribe_run_params"][::std::mem::size_of::<transcribe_run_params>() - 104usize];
++    ["Size of transcribe_run_params"][::std::mem::size_of::<transcribe_run_params>() - 112usize];
+     ["Alignment of transcribe_run_params"]
+         [::std::mem::align_of::<transcribe_run_params>() - 8usize];
+     ["Offset of field: transcribe_run_params::struct_size"]
+@@ -448,6 +449,8 @@ const _: () = {
+         [::std::mem::offset_of!(transcribe_run_params, prompt) - 88usize];
+     ["Offset of field: transcribe_run_params::prefix"]
+         [::std::mem::offset_of!(transcribe_run_params, prefix) - 96usize];
++    ["Offset of field: transcribe_run_params::vocabulary_boost"]
++        [::std::mem::offset_of!(transcribe_run_params, vocabulary_boost) - 104usize];
+ };
+ unsafe extern "C" {
+     pub fn transcribe_run_params_init(params: *mut transcribe_run_params);
+diff --git a/bindings/rust/transcribe-cpp/src/session.rs b/bindings/rust/transcribe-cpp/src/session.rs
+index 017c38d9..107f76e6 100644
+--- a/bindings/rust/transcribe-cpp/src/session.rs
++++ b/bindings/rust/transcribe-cpp/src/session.rs
+@@ -51,6 +51,8 @@ pub struct RunOptions {
+     /// Custom terms in priority order, formatted per family
+     /// (`Feature::Vocabulary`; ignored with a warning elsewhere).
+     pub vocabulary: Vec<String>,
++    /// How strongly `vocabulary` terms are favoured; `None` keeps the family default.
++    pub vocabulary_boost: Option<f32>,
+     /// Context text under `Task::Transcribe`/`Translate`
+     /// (`Feature::ContextPrompt`); the required instruction under
+     /// `Task::Instruct`.
+@@ -75,6 +77,7 @@ impl Default for RunOptions {
+             spec_k_drafts: -1,
+             family: None,
+             vocabulary: Vec::new(),
++            vocabulary_boost: None,
+             prompt: None,
+             prefix: None,
+         }
+@@ -447,6 +450,7 @@ fn build_run_params(o: &RunOptions) -> Result<RunParamsBundle> {
+     params.diarize = o.diarize.to_raw();
+     params.keep_special_tags = o.keep_special_tags;
+     params.spec_k_drafts = o.spec_k_drafts;
++    params.vocabulary_boost = o.vocabulary_boost.unwrap_or(0.0);
+ 
+     let lang = o.language.as_deref().map(CString::new).transpose()?;
+     let target = o.target_language.as_deref().map(CString::new).transpose()?;
+diff --git a/include/transcribe.h b/include/transcribe.h
+index 717b3cc9..e7ba9417 100644
+--- a/include/transcribe.h
++++ b/include/transcribe.h
+@@ -1221,6 +1221,9 @@ TRANSCRIBE_API void transcribe_session_params_init(struct transcribe_session_par
+  *              (TRANSCRIPT_PREFIX). Results hold only the continuation,
+  *              except raw_text. An error when unsupported, and under
+  *              INSTRUCT, batch or streaming.
++ *
++ * vocabulary_boost: how strongly vocabulary terms are favoured (log-prob
++ *              bonus per term piece); 0 means the family default.
+  */
+ struct transcribe_run_params {
+     uint64_t struct_size;
+@@ -1240,6 +1243,7 @@ struct transcribe_run_params {
+     int32_t              n_vocabulary;
+     const char *         prompt;
+     const char *         prefix;
++    float                vocabulary_boost;
+ };
+ 
+ TRANSCRIBE_API void transcribe_run_params_init(struct transcribe_run_params * params);
+diff --git a/src/arch/parakeet/model.cpp b/src/arch/parakeet/model.cpp
+index 8ade1bb1..94b5650a 100644
+--- a/src/arch/parakeet/model.cpp
++++ b/src/arch/parakeet/model.cpp
+@@ -830,7 +830,8 @@ static const transcribe::PhraseBoost * vocabulary_boost(ParakeetSession *
+     if (terms.empty() || pm->host_decoder.head_kind == HostHeadKind::CTC) {
+         return nullptr;
+     }
+-    if (terms != pc->boost_terms || pc->boost.empty()) {
++    const float strength = params->vocabulary_boost > 0.0f ? params->vocabulary_boost : kVocabularyBoost;
++    if (terms != pc->boost_terms || strength != pc->boost_strength || pc->boost.empty()) {
+         std::vector<std::vector<int32_t>> phrases;
+         for (const std::string & term : terms) {
+             std::vector<int32_t> ids;
+@@ -864,8 +865,9 @@ static const transcribe::PhraseBoost * vocabulary_boost(ParakeetSession *
+                 }
+             }
+         }
+-        pc->boost.build(phrases, kVocabularyBoost);
+-        pc->boost_terms = std::move(terms);
++        pc->boost.build(phrases, strength);
++        pc->boost_terms    = std::move(terms);
++        pc->boost_strength = strength;
+     }
+     return pc->boost.empty() ? nullptr : &pc->boost;
+ }
+diff --git a/src/arch/parakeet/parakeet.h b/src/arch/parakeet/parakeet.h
+index 9d2fee81..62b021ee 100644
+--- a/src/arch/parakeet/parakeet.h
++++ b/src/arch/parakeet/parakeet.h
+@@ -320,6 +320,7 @@ struct ParakeetSession final : public transcribe_session {
+     std::vector<TdtToken>    raw_tokens;
+     // Vocabulary biasing, rebuilt only when the run's terms change.
+     std::vector<std::string> boost_terms;
++    float                    boost_strength = 0.0f;
+     transcribe::PhraseBoost  boost;
+ 
+     // Multitalker bundle scratch: streaming-diarizer AOSC/FIFO state for
+-- 
+2.54.0 (Apple Git-157)
+

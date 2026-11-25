@@ -28,6 +28,7 @@ dependencies = [
  "objc2-foundation",
  "reqwest 0.13.2",
  "rmcp",
+ "roci-llama-sys",
  "rubato",
  "screencapturekit",
  "serde",
@@ -4337,6 +4338,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "roci-llama-sys"
+version = "0.0.0"
+dependencies = [
+ "cmake",
+ "transcribe-cpp-sys",
+]
+
+[[package]]
 name = "rubato"
 version = "5.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6212,8 +6221,7 @@ dependencies = [
 
 [[package]]
 name = "transcribe-cpp"
-version = "0.4.1"
-source = "git+https://github.com/anomalyco/transcribe.cpp?rev=2778ae4bf5ca5f394d129a39467f4ad9552dc34f#2778ae4bf5ca5f394d129a39467f4ad9552dc34f"
+version = "0.4.2"
 dependencies = [
  "log",
  "thiserror 2.0.18",
@@ -6222,8 +6230,7 @@ dependencies = [
 
 [[package]]
 name = "transcribe-cpp-sys"
-version = "0.4.1"
-source = "git+https://github.com/anomalyco/transcribe.cpp?rev=2778ae4bf5ca5f394d129a39467f4ad9552dc34f#2778ae4bf5ca5f394d129a39467f4ad9552dc34f"
+version = "0.4.2"
 dependencies = [
  "cmake",
  "serde_json",

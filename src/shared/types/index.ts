@@ -225,6 +225,13 @@ export interface Personalization {
   savedPrompts?: SavedPrompt[];
 }
 
+/** The Mac's on-device engine flags the user set: memory kept free (MiB), each model's prompt cache (MiB), models at once. */
+export interface OnDeviceEngineSettings {
+  memoryMarginMib?: number;
+  cacheRamMib?: number;
+  modelsMax?: number;
+}
+
 export interface AppSettings {
   /** First-run flow (permissions, then AI setup) finished or skipped; Settings › General can run it again. */
   onboarding?: {
@@ -238,6 +245,10 @@ export interface AppSettings {
   showModelAvatars?: boolean;
   /** Minutes an unused on-device model stays loaded (0 = until Roci quits); unset = the default. */
   modelIdleMinutes?: number;
+  /** The model directory (Mac); unset: Roci's own folder. */
+  modelDirectory?: string;
+  /** The Mac's on-device engine (Settings › Providers › On this device); an unset field is its default. */
+  onDeviceEngine?: OnDeviceEngineSettings;
   /** Hide the per-call tool blocks in chat answers (shown by default). */
   hideToolCalls?: boolean;
   /** Settings › General › Capture: show dictation as it's spoken, with a speech model that streams. */

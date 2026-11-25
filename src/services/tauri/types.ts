@@ -9,6 +9,8 @@ export interface FileDialogOptions {
   defaultPath?: string;
   filters?: FileFilter[];
   multiple?: boolean;
+  /** Pick a folder instead of files. */
+  directory?: boolean;
 }
 
 export interface FileFilter {

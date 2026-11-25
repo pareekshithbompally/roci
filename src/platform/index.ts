@@ -47,8 +47,13 @@ export const platform = {
   canLaunchMcpServers: mac,
   /** Serves Roci's tools to coding agents over a local socket. */
   hasCodingAgents: mac,
-  /** Downloads models and runs them on this device: MLX (chat, search, voices) and transcribe.cpp (speech). */
+  /** Downloads models and runs them on this device: llama.cpp (chat, search, voices) and transcribe.cpp (speech). */
   hasLocalModels: apple,
+  /** Runs on-device chat, search and read aloud in llama.cpp's own server (llama-server, bundled; one process per model);
+   *  iPhone and iPad run llama.cpp inside the app (iOS starts no other programs). */
+  servesOnDeviceModels: mac,
+  /** Stores models in a folder the user picks (e.g. a Hugging Face cache); iPhone and iPad keep Roci's own. */
+  canChooseModelDirectory: mac,
   hasAppleIntelligence: apple,
   hasNotifications: apple,
   /** Reads calendars and reminders through EventKit (iPhone, iPad and Mac alike). */

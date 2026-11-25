@@ -3,8 +3,12 @@
 import React from 'react';
 import { AppleIntelligenceIntegration } from '@features/integrations';
 import { JOB_GLYPH, ModelDownloadButton, ModelIcon, ModelLabel, ModelSize } from '@shared/components';
-import { CardRow, ICON_TILE_PX, IconTile, Picker, Section, Status } from '@shared/ui';
+import { History, Layers, MemoryStick, Timer } from 'lucide-react';
+import { Button, CardRow, ICON_TILE_PX, IconTile, Picker, Section, Status, type TileGlyph } from '@shared/ui';
 import { useSettings } from '@shared/contexts/SettingsContext';
+import { useToast } from '@shared/contexts/ToastContext';
+import { dialogService } from '@services/tauri';
+import { setLocalModelDirectory } from '@services/localModels.service';
 import { LAYOUT } from '@config/layout.config';
 import { formatFileSize } from '@shared/utils/formatters';
 import { isIntegrationAvailable } from '@shared/utils/integrations';
@@ -12,13 +16,15 @@ import type { OnDeviceModel } from '@shared/utils/onDeviceModel';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import { READ_ALOUD_CONFIG } from '@config/readAloud.config';
 import type { LocalModel, LocalModelKind } from '@services/localModels.service';
-import { useLocalModelControls } from '@features/settings/hooks/useLocalModels';
+import { engineSettingsOf, useLocalModelControls } from '@features/settings/hooks/useLocalModels';
+import { EngineRestartRow } from '@features/settings/components/shared';
+import type { OnDeviceEngineSettings } from '@shared/types';
 import { useLocalModels } from '@shared/hooks/useLocalModels';
 import { onDeviceChatModel } from '@shared/utils/modelResolver';
 import { profileOf, shownProfile } from '@services/ai/models';
 import { platform } from '@platform/index';
 
-const { provider: ON_DEVICE, kindLabels: KIND_LABELS, page: COPY, idle: IDLE } = LOCAL_MODELS_CONFIG;
+const { provider: ON_DEVICE, kindLabels: KIND_LABELS, page: COPY, idle: IDLE, directory: DIRECTORY, engine: ENGINE } = LOCAL_MODELS_CONFIG;
 
 /** Download groups in display order. */
 const KINDS: readonly LocalModelKind[] = ['chat', 'speech', 'voice', 'embedding'];
@@ -57,24 +63,89 @@ const BuiltIn: React.FC = () => (
   </Section>
 );
 
-/** How long unused models stay loaded, for every engine on this device. */
+/** A memory setting: its icon, its name, and a pop-up of its choices (numbers, as Settings stores them). */
+const MemoryRow: React.FC<{ icon: TileGlyph; title: string; value: number; options: Array<{ value: number; label: string }>; onChange: (value: number) => void }> = ({
+  icon,
+  title,
+  value,
+  options,
+  onChange,
+}) => (
+  <CardRow
+    leading={<IconTile icon={icon} />}
+    title={title}
+    actions={
+      <div className={LAYOUT.capabilityPicker}>
+        <Picker
+          label={title}
+          value={String(value)}
+          onChange={(next) => onChange(Number(next))}
+          placeholder=""
+          groups={[{ options: options.map((o) => ({ value: String(o.value), label: o.label })) }]}
+        />
+      </div>
+    }
+  />
+);
+
+/** The Mac's engine (llama.cpp's server): memory it keeps free, each model's prompt cache, models at once, and the
+ *  restart that applies them. */
+const EngineRows: React.FC = () => {
+  const { settings, setSettings } = useSettings();
+  const engine = engineSettingsOf(settings);
+  const set = (change: OnDeviceEngineSettings) => setSettings({ onDeviceEngine: { ...settings.onDeviceEngine, ...change } });
+  return (
+    <>
+      <MemoryRow icon={MemoryStick} title={ENGINE.memoryMargin.title} value={engine.memoryMarginMib}
+        options={ENGINE.memoryMargin.options.map((o) => ({ value: o.mib, label: o.label }))} onChange={(mib) => set({ memoryMarginMib: mib })} />
+      <MemoryRow icon={History} title={ENGINE.cacheRam.title} value={engine.cacheRamMib}
+        options={ENGINE.cacheRam.options.map((o) => ({ value: o.mib, label: o.label }))} onChange={(mib) => set({ cacheRamMib: mib })} />
+      <MemoryRow icon={Layers} title={ENGINE.modelsMax.title} value={engine.modelsMax}
+        options={ENGINE.modelsMax.options.map((o) => ({ value: o.count, label: o.label }))} onChange={(count) => set({ modelsMax: count })} />
+      <EngineRestartRow />
+    </>
+  );
+};
+
+/** How long unused models stay loaded, for every engine on this device; on a Mac, the engine's memory settings too. */
 const Memory: React.FC = () => {
   const { settings, setSettings } = useSettings();
   const minutes = settings.modelIdleMinutes ?? IDLE.defaultMinutes;
   return (
-    <Section title={COPY.memory} footer={IDLE.footer}>
+    <Section title={COPY.memory} footer={platform.servesOnDeviceModels ? `${IDLE.footer} ${ENGINE.footer}` : IDLE.footer}>
+      <MemoryRow icon={Timer} title={IDLE.title} value={minutes}
+        options={IDLE.options.map((o) => ({ value: o.minutes, label: o.label }))} onChange={(next) => setSettings({ modelIdleMinutes: next })} />
+      {platform.servesOnDeviceModels && <EngineRows />}
+    </Section>
+  );
+};
+
+/** Where downloaded models are stored (Mac): Roci's folder, or one the user picks; a folder Roci can't use is refused. */
+const ModelDirectory: React.FC = () => {
+  const { settings, setSettings } = useSettings();
+  const { showToast } = useToast();
+  const dir = settings.modelDirectory;
+  const choose = async () => {
+    const picked = await dialogService.open({ directory: true, title: DIRECTORY.pickerTitle, defaultPath: dir });
+    if (typeof picked !== 'string') return;
+    try {
+      await setLocalModelDirectory(picked);
+      setSettings({ modelDirectory: picked });
+    } catch (error: unknown) {
+      console.error('[ModelDirectory] refused:', error);
+      showToast(DIRECTORY.refused, 'error');
+    }
+  };
+  return (
+    <Section footer={DIRECTORY.footer}>
       <CardRow
-        title={IDLE.title}
+        title={DIRECTORY.title}
+        description={dir ?? DIRECTORY.rociFolder}
         actions={
-          <div className={LAYOUT.capabilityPicker}>
-            <Picker
-              label={IDLE.title}
-              value={String(minutes)}
-              onChange={(value) => setSettings({ modelIdleMinutes: Number(value) })}
-              placeholder=""
-              groups={[{ options: IDLE.options.map((o) => ({ value: String(o.minutes), label: o.label })) }]}
-            />
-          </div>
+          <>
+            {dir && <Button variant="outline" onClick={() => setSettings({ modelDirectory: undefined })}>{DIRECTORY.reset}</Button>}
+            <Button variant="outline" onClick={() => void choose()}>{DIRECTORY.choose}</Button>
+          </>
         }
       />
     </Section>
@@ -104,6 +175,7 @@ export const OnDeviceDetail: React.FC = () => (
   <>
     <BuiltIn />
     {platform.hasLocalModels && <Downloads />}
+    {platform.canChooseModelDirectory && <ModelDirectory />}
     {platform.hasLocalModels && <Memory />}
   </>
 );

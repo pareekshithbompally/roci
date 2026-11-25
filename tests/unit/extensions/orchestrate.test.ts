@@ -46,6 +46,9 @@ vi.mock('@services/modalities', () => ({
   },
 }));
 
+const askChatExtras = vi.hoisted(() => vi.fn());
+vi.mock('@extensions/tool-orchestrator/chatExtras', () => ({ askChatExtras, NO_EXTRAS: { suggestions: [] } }));
+
 const invalidateQueries = vi.hoisted(() => vi.fn());
 vi.mock('@shared/query/queryClient', () => ({ queryClient: { invalidateQueries } }));
 
@@ -77,8 +80,9 @@ function replyOnce(parts: object[] = WORDS) {
 
 const callbacks = { onParts: vi.fn(), onProgress: vi.fn(), onGeneration: vi.fn() };
 const NO_EXTRAS = { title: false, suggestions: false };
-const run = (settings: Partial<AppSettings>, extras = NO_EXTRAS) =>
-  orchestrate({ messages: [], sessionId: 'c1', messageId: 'r1', model: resolved.current as never, prompt: { meetingCount: 0, timeContext: '' }, settings: settings as AppSettings, providers: [], reasoningEffort: 'provider-default', extras }, callbacks);
+const QUESTION = { id: 'q1', role: 'user' as const, parts: [{ type: 'text' as const, text: 'Plan Q3?' }], metadata: { createdAt: 0 } };
+const run = (settings: Partial<AppSettings>, extras = NO_EXTRAS, signal?: AbortSignal) =>
+  orchestrate({ messages: [QUESTION], sessionId: 'c1', messageId: 'r1', model: resolved.current as never, prompt: { meetingCount: 0, timeContext: '' }, settings: settings as AppSettings, providers: [], reasoningEffort: 'provider-default', extras, signal }, callbacks);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -88,6 +92,7 @@ beforeEach(() => {
   getWebSearchTools.mockReturnValue({ webSearch: {} });
   listStyleOf.mockResolvedValue('openai');
   resolved.current = { provider: 'openai', modelId: 'gpt', baseUrl: '', model: { id: 'gpt' } };
+  askChatExtras.mockResolvedValue({ suggestions: [] });
   replyOnce();
 });
 
@@ -153,17 +158,21 @@ describe('orchestrate — the reply as the SDK builds it', () => {
     expect(streamText.mock.calls[1][0]).not.toHaveProperty('experimental_transform');
   });
 
-  it('reads the title and follow-ups from the reply\'s finishReply, which is never shown or returned', async () => {
-    const input = { title: 'Q3 launch plan.', suggestions: ['Who owns it?', 'What is at risk?', 'Draft the email', 'One too many'] };
-    replyOnce([...WORDS, { type: 'tool-call', toolCallId: 'f1', toolName: 'finishReply', input }]);
-    const result = await run({}, { title: true, suggestions: true });
-    expect(result.parts).toEqual([{ type: 'text', text: 'Hi', state: 'done' }]);
-    expect(callbacks.onParts.mock.calls.flat(2)).not.toContainEqual(expect.objectContaining({ type: 'tool-finishReply' }));
-    expect(result.extras).toEqual({ title: 'Q3 launch plan', suggestions: ['Who owns it?', 'What is at risk?', 'Draft the email'] });
+  it('asks the same model for the title and follow-ups after the reply, from the question and the answer', async () => {
+    const want = { title: true, suggestions: true };
+    askChatExtras.mockResolvedValue({ title: 'Q3 plan', suggestions: ['Who owns it?'] });
+    const result = await run({}, want);
+    expect(await result.extras).toEqual({ title: 'Q3 plan', suggestions: ['Who owns it?'] });
+    expect(askChatExtras).toHaveBeenCalledWith(expect.objectContaining({ model: resolved.current, want, question: 'Plan Q3?', answer: 'Hi', sessionId: 'c1' }));
+    expect(Object.keys(streamText.mock.calls[0][0].tools ?? {})).not.toContain('finishReply');
   });
 
-  it('has no title or follow-ups when the reply did not call finishReply', async () => {
-    expect((await run({}, { title: true, suggestions: true })).extras).toEqual({ suggestions: [] });
+  it('asks for nothing after a stopped reply', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const result = await run({}, { title: true, suggestions: true }, controller.signal);
+    expect(await result.extras).toEqual({ suggestions: [] });
+    expect(askChatExtras).not.toHaveBeenCalled();
   });
 
   it('turns a link marker into a source pill, even split across chunks, and drops other markers', async () => {

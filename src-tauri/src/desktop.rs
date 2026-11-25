@@ -2,7 +2,7 @@
 
 use crate::{
   app_icon, app_intents, audio, call_detection, choice_menu, downloads, hex, mcp, mcp_server, meeting_reminders, meeting_spotlight, search_index,
-  menubar, mlx, models, native_alert, network, open_native, permissions, screenshot, shortcuts, stt, system_format, tts, updates, url_actions, window,
+  llama_server, menubar, mlx, models, native_alert, network, open_native, permissions, screenshot, shortcuts, stt, system_format, tts, updates, url_actions, window,
 };
 use tauri::{App, AppHandle, Builder, Emitter, RunEvent, WebviewWindowBuilder, Wry};
 
@@ -71,7 +71,9 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       models::commands::local_model_cancel,
       models::commands::local_model_free_space,
       models::commands::local_model_remove,
+      models::commands::local_model_memory,
       models::local_models_set_idle,
+      models::local_models_set_directory,
       stt::commands::stt_transcribe,
       stt::commands::stt_speech_spans,
       stt::commands::stt_set_vocabulary,
@@ -88,6 +90,10 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       tts::commands::tts_chunks,
       mlx::mlx_chat,
       mlx::mlx_cancel,
+      llama_server::local_server_address,
+      llama_server::local_server_restart,
+      llama_server::local_server_configure,
+      llama_server::local_server_restart_pending,
       search_index::search_meetings,
       search_index::search_meeting_within,
       search_index::search_chats,
@@ -186,6 +192,7 @@ pub fn on_event(app_handle: &AppHandle, event: RunEvent) {
     }
     RunEvent::Exit => {
       audio::commands::abandon_active();
+      crate::llama_server::stop();
       mcp::kill_all_children(app_handle);
     }
     _ => {}

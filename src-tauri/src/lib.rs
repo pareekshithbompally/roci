@@ -37,6 +37,11 @@ mod stt;
 mod sync;
 mod tts;
 mod mlx;
+mod engine_readings;
+#[cfg(mobile)]
+mod llama;
+#[cfg(desktop)]
+mod llama_server;
 #[cfg(desktop)]
 mod open_native;
 #[cfg(desktop)]

@@ -9,7 +9,7 @@ use std::sync::{Mutex, Once};
 use serde::Serialize;
 use transcribe_cpp::{DeviceType, Model, RunOptions, Session, SessionOptions};
 
-use super::vocabulary::{drop_prompt_echo, VocabularySlot};
+use super::vocabulary::{drop_prompt_echo, respell_transcript, VocabularySlot};
 use crate::models::catalog;
 use crate::models::gpu::{self, Priority};
 use crate::models::LocalError;
@@ -95,6 +95,7 @@ impl Engine {
 
     fn unload(&self) {
         lock(&self.loaded).take();
+        crate::engine_readings::log_memory("unloaded speech-to-text");
     }
 
     /// Lets go of a model about to be deleted (no-op when another is warm).
@@ -128,6 +129,7 @@ impl Engine {
                 if let Some(prompt) = &options.prompt {
                     drop_prompt_echo(&mut transcript, prompt);
                 }
+                respell_transcript(&mut transcript);
                 Ok(transcript)
             })?;
             let heard = timed(transcript, span);
@@ -137,7 +139,6 @@ impl Engine {
         Ok(out)
     }
 }
-
 
 /// 16-bit PCM WAV at the engine's rate, mono → samples in [-1, 1].
 pub fn decode_wav(bytes: &[u8]) -> Result<Vec<f32>, LocalError> {
@@ -164,6 +165,7 @@ fn load(id: &'static str, path: &Path) -> Result<Loaded, LocalError> {
     let session = model.session_with(&session_options).map_err(engine_error)?;
     let vocabulary = VocabularySlot::of(&model);
     log::info!("[stt] loaded {id} on {} (max {max_ms} ms per run)", model.backend());
+    crate::engine_readings::log_memory(&format!("loaded {id}"));
     Ok(Loaded {
         id,
         session,
@@ -307,5 +309,30 @@ mod tests {
         assert!(windows.iter().all(|w| w.len() <= max));
         assert_eq!(windows.last().unwrap().end, pcm.len());
     }
-}
 
+    /// Both engines in one process on the one ggml: Parakeet (transcribe.cpp) transcribes a recording, then a chat GGUF
+    /// (llama.cpp) continues a sentence. `ROCI_STT_GGUF` is a Parakeet model file, `ROCI_STT_WAV` a 16 kHz mono WAV,
+    /// `ROCI_LLAMA_GGUF` a chat model file.
+    #[test]
+    #[ignore = "needs downloaded models"]
+    fn speech_and_chat_share_one_process() {
+        use std::ffi::{CStr, CString};
+        let pcm = decode_wav(&std::fs::read(std::env::var("ROCI_STT_WAV").unwrap()).unwrap()).unwrap();
+        let model = Model::load(std::env::var("ROCI_STT_GGUF").unwrap()).unwrap();
+        let mut session = model.session_with(&SessionOptions::default()).unwrap();
+        let heard = session.run(&pcm[..pcm.len().min(SAMPLE_RATE * 20)], &RunOptions::default()).unwrap();
+        println!("PARAKEET: {}", heard.text);
+        assert!(!heard.text.trim().is_empty());
+        // SAFETY: static C string from llama.cpp.
+        println!("LLAMA BACKENDS: {}", unsafe { CStr::from_ptr(roci_llama_sys::roci_llama_system_info()) }.to_string_lossy());
+        let path = CString::new(std::env::var("ROCI_LLAMA_GGUF").unwrap()).unwrap();
+        let prompt = CString::new("The capital of France is").unwrap();
+        // SAFETY: valid C strings for the call; the returned string is ours to free.
+        let reply = unsafe { roci_llama_sys::roci_llama_probe(path.as_ptr(), prompt.as_ptr(), 12) };
+        assert!(!reply.is_null());
+        let text = unsafe { CStr::from_ptr(reply) }.to_string_lossy().into_owned();
+        unsafe { roci_llama_sys::roci_llama_free_string(reply) };
+        println!("LLAMA: {text}");
+        assert!(text.contains("Paris"), "got: {text}");
+    }
+}

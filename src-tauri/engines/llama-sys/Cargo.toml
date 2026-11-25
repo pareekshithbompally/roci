@@ -1,0 +1,15 @@
+[package]
+name = "roci-llama-sys"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "llama.cpp (engines/llama.cpp) built on transcribe.cpp's ggml, with Roci's C shim"
+# The one ggml comes from transcribe-cpp-sys: its build exports where it installed ggml (DEP_TRANSCRIBE_LIB_DIR).
+links = "roci_llama"
+build = "build.rs"
+
+[dependencies]
+transcribe-cpp-sys = { version = "=0.4.2", default-features = false }
+
+[build-dependencies]
+cmake = "0.1"

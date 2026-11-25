@@ -23,5 +23,5 @@ export const PROVIDER_DEFAULTS: Readonly<Record<string, ProviderDefaultModels>> 
   mistral: { chat: 'mistral-small-latest' },
   groq: { chat: 'openai/gpt-oss-20b', transcription: 'whisper-large-v3-turbo' },
   [APPLE_INTELLIGENCE.provider]: { chat: APPLE_INTELLIGENCE.model },
-  'on-device': { chat: 'minicpm5-2b', transcription: 'whisper-small' },
+  'on-device': { chat: 'gemma-4-e2b', transcription: 'whisper-small' },
 };

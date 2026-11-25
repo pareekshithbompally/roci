@@ -13,7 +13,7 @@ export const DEFAULT_MODELS_CONFIG = {
   /** Section footers: what each group's models do. */
   footers: {
     conversation: 'The model new chats start with.',
-    chatExtras: 'Each reply names a new chat and suggests follow-ups as it ends, with the chat’s own model.',
+    chatExtras: 'Once a reply is done, the chat’s own model names a new chat and suggests follow-ups.',
     speech: 'Speech-to-text for transcripts, imports and dictation.',
     readAloud: 'Read aloud speaks replies; play a sample to hear a voice.',
     images: 'Used when you ask chat for an image.',

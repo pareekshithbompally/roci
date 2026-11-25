@@ -1,12 +1,12 @@
-/** Sending a question and generating its reply, one at a time: begin, stream, settle (complete, failed or stopped) with
- *  the title and follow-ups the reply ended with. Given the chat store, so the store doesn't have to be imported back. */
+/** Sending a question and generating its reply, one at a time: begin, stream, settle (complete, failed or stopped), then
+ *  the title and follow-ups asked for once it's done. Given the chat store, so the store doesn't have to be imported back. */
 
 import type { StoreApi } from 'zustand';
 import type { AppSettings, ChatMessage, ChatSession } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { resolveChatModel } from '@shared/utils/modelResolver';
 import { contextPipeline } from '@extensions/context-pipeline';
-import { orchestrate } from '@extensions/tool-orchestrator';
+import { orchestrate, type ChatExtras } from '@extensions/tool-orchestrator';
 import { formatChatTimeContext, type ChatExtrasWant } from '@core/ai';
 import { logUsage } from '@extensions/usage';
 import { queryClient } from '@shared/query/queryClient';
@@ -61,7 +61,7 @@ interface ReplyRequest {
   isNewSession: boolean;
 }
 
-/** What the reply ends with, as Settings › Default Models › Titles & follow-ups say: a new chat's title, follow-ups. */
+/** What's asked for after the reply, as Settings › Default Models › Titles & follow-ups say: a new chat's title, follow-ups. */
 function extrasWanted({ settings, isNewSession }: Pick<ReplyRequest, 'settings' | 'isNewSession'>): ChatExtrasWant {
   return { title: isNewSession && settings.chatTitles !== false, suggestions: settings.followUps !== false };
 }
@@ -119,6 +119,13 @@ export function createReplies(store: StoreApi<ChatStoreState>, sessions: Session
     if (!question) return messages;
     patchMessage(reply.sessionId, question.id, (m) => withMeetings(m, meetingContext));
     return [...messages.slice(0, -1), withMeetings(question, meetingContext)];
+  }
+
+  /** A finished reply's title and follow-ups, once they arrive; follow-ups only while the reply is still the chat's last message. */
+  function applyExtras({ sessionId, messageId }: Reply, { title, suggestions }: ChatExtras): void {
+    if (title) void store.getState().renameSession(sessionId, title);
+    if (suggestions.length === 0 || sessionOf(sessionId)?.messages.at(-1)?.id !== messageId) return;
+    saveSession(patchMessage(sessionId, messageId, (m) => withMetadata(m, { suggestions })));
   }
 
   /** Streams the reply into `streamingStore`; every callback is a no-op once the reply is stopped. */
@@ -187,15 +194,11 @@ export function createReplies(store: StoreApi<ChatStoreState>, sessions: Session
 
       streamingStore.finish();
       const { parts, tokenUsage: usage, context, extras } = result;
-      saveSession(settle(reply.sessionId, reply.messageId, parts, {
-        tokensPerSecond: tokensPerSecond(usage?.outputTokens, tally.firstTextAt),
-        context,
-        usage,
-        ...(extras.suggestions.length > 0 && { suggestions: extras.suggestions }),
-      }));
+      saveSession(settle(reply.sessionId, reply.messageId, parts, { tokensPerSecond: tokensPerSecond(usage?.outputTokens, tally.firstTextAt), context, usage }));
       endReply(reply);
-      if (extras.title) void store.getState().renameSession(reply.sessionId, extras.title);
       notifyReply(reply.sessionId, messageText({ parts }));
+      // Never rejects: a failed call logs and gives none.
+      void extras.then((found) => applyExtras(reply, found));
     } catch (error: unknown) {
       if (!isLive(reply)) return; // Stopped: the abort surfaced as an error, and Stop already settled it.
       console.error('[ChatStore] Error sending message:', error);

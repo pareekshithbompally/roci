@@ -56,6 +56,10 @@ export const queryKeys = {
   hexStatus: () => ['hex-status'] as const,
   /** Roci's curated on-device models (src-tauri/src/models): speech and voice, which are downloaded */
   localModels: () => ['local-models'] as const,
+  /** Whether the Mac's on-device server runs with settings other than the current ones (a restart applies them) */
+  onDeviceRestart: () => ['on-device-restart'] as const,
+  /** The memory llama.cpp projects for a downloaded chat model at a context size and KV cache type (never changes) */
+  modelMemory: (id: string, contextTokens: number, kvType: string) => ['model-memory', id, contextTokens, kvType] as const,
   /** Bytes free for model downloads */
   localModelFreeSpace: () => ['local-model-free-space'] as const,
   /** Read aloud: the voices an engine can speak in (macOS system voices, a voice model's) */

@@ -20,12 +20,16 @@ import {
   downloadLocalModel,
   downloadPercent,
   removeLocalModel,
+  setLocalModelDirectory,
   setLocalModelIdle,
 } from '@services/localModels.service';
 import type { LocalModel, LocalModelDownload } from '@services/localModels.service';
 import { confirmModelDelete, type OnDeviceModel } from '@shared/utils/onDeviceModel';
 import type { AppSettings } from '@shared/types';
 import type { ChoiceSetup } from '@shared/utils/modelResolver';
+import { serverPresets } from '@shared/utils/modelTuning';
+import { configureOnDeviceServer, type OnDeviceEngine } from '@services/onDevice.service';
+import type { ModelTuning } from '@config/personalization.config';
 
 const report = failureLogger('useLocalModels');
 const { activityId } = LOCAL_MODELS_CONFIG;
@@ -162,6 +166,45 @@ export function useLocalModelIdle(): void {
     if (!platform.hasLocalModels || !isTauriEnvironment()) return;
     setLocalModelIdle(minutes).catch(report('idle'));
   }, [minutes]);
+}
+
+/** Keeps the model directory in step with Settings (sent at launch and on every change); which models are downloaded is
+ *  read again from the directory now in use. */
+export function useLocalModelDirectory(): void {
+  const dir = useSettings().settings.modelDirectory;
+  useEffect(() => {
+    if (!platform.canChooseModelDirectory || !isTauriEnvironment()) return;
+    setLocalModelDirectory(dir)
+      .then(() => queryClient.invalidateQueries({ queryKey: modelsKey }))
+      .catch(report('directory'));
+  }, [dir]);
+}
+
+/** The Mac's engine flags as Settings holds them: each unset one its default. */
+export function engineSettingsOf(settings: AppSettings): OnDeviceEngine {
+  return {
+    idleMinutes: settings.modelIdleMinutes ?? LOCAL_MODELS_CONFIG.idle.defaultMinutes,
+    ...LOCAL_MODELS_CONFIG.engine.defaults,
+    ...settings.onDeviceEngine,
+  };
+}
+
+/** Keeps the Mac's on-device server in step with Settings, at launch and on every change: its engine flags and each
+ *  downloaded chat model's tuning (Model Tuning), written into its presets; whether a restart would apply them is kept
+ *  for the Restart rows. */
+export function useOnDeviceServerConfig(): void {
+  const { settings } = useSettings();
+  const { data: models } = useLocalModels();
+  const chatIds = useMemo(() => (models ?? []).filter((m) => m.kind === 'chat' && m.installed).map((m) => m.id), [models]);
+  const tuning = settings.personalization?.modelTuning;
+  const config = JSON.stringify({ engine: engineSettingsOf(settings), models: serverPresets(chatIds, tuning ?? {}) });
+  useEffect(() => {
+    if (!platform.servesOnDeviceModels || !isTauriEnvironment()) return;
+    const { engine, models: presets } = JSON.parse(config) as { engine: OnDeviceEngine; models: Record<string, ModelTuning> };
+    configureOnDeviceServer(engine, presets)
+      .then((pending) => queryClient.setQueryData(queryKeys.onDeviceRestart(), pending))
+      .catch(report('server config'));
+  }, [config]);
 }
 
 /** The settings that name an on-device model, as each stores it. */

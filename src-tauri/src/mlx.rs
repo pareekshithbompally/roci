@@ -1,5 +1,5 @@
-//! On-device chat and meeting-search embeddings on MLX (RociMLX.framework, Swift over C). A role's model loads on first
-//! use and is freed after it idles (one deadline per role, re-armed by every use), on delete and on quit.
+//! On-device chat on MLX (RociMLX.framework, Swift over C), until the webview moves to `llama.rs`. The model loads on
+//! first use and is freed after it idles, and on quit.
 
 use std::collections::HashSet;
 use std::ffi::{c_char, c_void, CStr, CString};
@@ -22,9 +22,8 @@ type EventFn = extern "C" fn(*mut c_void, *const c_char);
 unsafe extern "C" {
     fn roci_mlx_chat(request: *const c_char, on_event: EventFn, context: *mut c_void) -> *mut c_char;
     fn roci_mlx_cancel(stream_id: u64);
-    fn roci_mlx_embed(request: *const c_char) -> *mut c_char;
-    fn roci_mlx_speak(request: *const c_char) -> *mut c_char;
     fn roci_mlx_unload(role: *const c_char);
+    fn roci_mlx_memory() -> *mut c_char;
     fn roci_mlx_free_string(value: *mut c_char);
     fn roci_mlx_set_load_listener(listener: extern "C" fn(*const c_char));
     fn roci_mlx_set_checkpoint(hook: extern "C" fn());
@@ -61,35 +60,25 @@ extern "C" fn on_load(report: *const c_char) {
     };
     let id = std::path::Path::new(report["modelDir"].as_str().unwrap_or_default()).file_name().and_then(|n| n.to_str());
     let (Some(app), Some(model)) = (APP.get(), id.and_then(|id| catalog::find(id).ok())) else { return };
+    if report["state"] == "loaded" {
+        log_memory(&format!("loaded {}", model.id));
+    }
     let event = json!({ "role": report["role"], "model": model.id, "name": model.name, "state": report["state"] });
     if let Err(error) = app.emit(MODEL_EVENT, event) {
         log::warn!("[mlx] load report not delivered: {error}");
     }
 }
 
-/// A model kind's slot: its name on the Swift side and how long it may idle.
+/// The one slot left on MLX.
 #[derive(Clone, Copy)]
 enum Role {
     Chat,
-    Embedding,
-    Voice,
 }
 
 impl Role {
-    fn of(kind: Kind) -> Option<Self> {
-        match kind {
-            Kind::Chat => Some(Role::Chat),
-            Kind::Embedding => Some(Role::Embedding),
-            Kind::Voice => Some(Role::Voice),
-            _ => None,
-        }
-    }
-
     fn name(self) -> &'static CStr {
         match self {
             Role::Chat => c"chat",
-            Role::Embedding => c"embedding",
-            Role::Voice => c"voice",
         }
     }
 }
@@ -98,16 +87,12 @@ impl Role {
 #[derive(Default)]
 pub struct MlxState {
     chat: AtomicU64,
-    embedding: AtomicU64,
-    voice: AtomicU64,
 }
 
 impl MlxState {
     fn uses(&self, role: Role) -> &AtomicU64 {
         match role {
             Role::Chat => &self.chat,
-            Role::Embedding => &self.embedding,
-            Role::Voice => &self.voice,
         }
     }
 }
@@ -136,6 +121,7 @@ pub async fn mlx_chat(app: AppHandle, model: String, mut request: Value, on_even
         reply
     })
     .await;
+    log_memory("chat reply");
     rearm_idle(&app, Role::Chat);
     result
 }
@@ -151,55 +137,29 @@ pub fn mlx_cancel(stream_id: u64) {
     unsafe { roci_mlx_cancel(stream_id) }
 }
 
-/// Unit-length vectors for `texts` from search's embedding model, in order, in a GPU turn at `priority` (a query someone waits
-/// for is Interactive, indexing Background); blocking, so never on the main thread. `NotDownloaded` until the model is.
-pub fn embed(app: &AppHandle, texts: &[String], priority: Priority) -> Result<Vec<Vec<f32>>, LocalError> {
-    let dir = store::installed_dir(app, catalog::search_embedder()?)?.to_string_lossy().into_owned();
-    let request = to_c(&json!({ "modelDir": dir, "texts": texts }))?;
-    // SAFETY: `request` outlives the call; the returned string is ours to free.
-    let result = take(gpu::run(priority, || unsafe { roci_mlx_embed(request.as_ptr()) }));
-    rearm_idle(app, Role::Embedding);
-    let vectors = result?.get_mut("vectors").map(Value::take).unwrap_or_default();
-    serde_json::from_value(vectors).map_err(|e| LocalError::Engine(e.to_string()))
-}
-
-/// One sentence spoken by the voice model in `dir`: mono samples and their rate (runs on the caller's thread).
-pub fn speak(dir: &std::path::Path, loads_as: Option<&str>, text: &str, voice: Option<&str>) -> Result<(Vec<f32>, u32), LocalError> {
-    use base64::Engine as _;
-    let request = to_c(&json!({ "modelDir": dir, "modelType": loads_as, "text": text, "voice": voice }))?;
-    // SAFETY: `request` outlives the call; the returned string is ours to free.
-    let reply = take(gpu::run(Priority::Interactive, || unsafe { roci_mlx_speak(request.as_ptr()) }))?;
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(reply["samples"].as_str().unwrap_or_default())
-        .map_err(|e| LocalError::Engine(e.to_string()))?;
-    let samples = bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
-    let rate = reply["sampleRate"].as_u64().and_then(|r| u32::try_from(r).ok()).ok_or_else(|| LocalError::Engine("no sample rate".into()))?;
-    Ok((samples, rate))
-}
-
-/// Frees the model of `kind` now (its files are about to be deleted).
-pub fn unload(kind: Kind) {
-    if let Some(role) = Role::of(kind) {
-        free(role);
-    }
-}
-
 /// Frees `role`'s model in a GPU turn of its own, so never while a reply, embedding or voice is using it.
 fn free(role: Role) {
     // SAFETY: a static C string.
     gpu::run(Priority::Interactive, || unsafe { roci_mlx_unload(role.name().as_ptr()) });
+    log_memory(&format!("unloaded {}", role.name().to_string_lossy()));
+}
+
+/// Logs what the app holds in memory after `event`: its whole footprint (and highest since launch) and MLX's share (peak
+/// since the last line).
+pub fn log_memory(event: &str) {
+    // SAFETY: no input; the returned string is ours to free.
+    let Ok(reading) = take(unsafe { roci_mlx_memory() }) else { return };
+    let mb = |key: &str| reading[key].as_u64().map_or_else(|| "-".to_string(), |bytes| (bytes >> 20).to_string());
+    log::info!(
+        "[memory] {event}: footprint {} MB (highest {}) · mlx active {} · cache {} · peak {} · free {} MB",
+        mb("footprint"), mb("footprintPeak"), mb("active"), mb("cache"), mb("peak"), mb("available")
+    );
 }
 
 fn model_dir(app: &AppHandle, id: &str, kind: Kind) -> Result<String, LocalError> {
     let model = catalog::find_kind(id, kind)?;
-    Ok(store::installed_dir(app, model)?.to_string_lossy().into_owned())
-}
-
-/// Marks `kind`'s model as just used, so it stays loaded until it idles.
-pub fn touch(app: &AppHandle, kind: Kind) {
-    if let Some(role) = Role::of(kind) {
-        rearm_idle(app, role);
-    }
+    let file = store::installed_path(app, model, model.main_file())?;
+    Ok(file.parent().unwrap_or(&file).to_string_lossy().into_owned())
 }
 
 /// Arms the role's idle deadline (Settings' idle time): unloads then unless used again first; none when kept until quit.
@@ -258,12 +218,11 @@ mod tests {
         events.lock().unwrap().push(serde_json::from_slice(event.to_bytes()).unwrap());
     }
 
-    /// Real models through the C bridge: `ROCI_MLX_CHAT_DIR` and `ROCI_MLX_EMBED_DIR` name downloaded model folders.
+    /// A real chat model through the C bridge: `ROCI_MLX_CHAT_DIR` names a downloaded model folder.
     #[test]
-    #[ignore = "needs downloaded MLX models"]
-    fn chat_tool_call_and_embeddings_round_trip() {
+    #[ignore = "needs a downloaded MLX model"]
+    fn chat_tool_call_round_trip() {
         let chat_dir = std::env::var("ROCI_MLX_CHAT_DIR").unwrap();
-        let embed_dir = std::env::var("ROCI_MLX_EMBED_DIR").unwrap();
         let weather = json!({"type": "function", "function": {"name": "get_weather", "description": "Current weather for a city",
             "parameters": {"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"]}}});
         let request = to_c(&json!({"streamId": 1, "modelDir": chat_dir, "temperature": 0.0, "maxTokens": 80, "tools": [weather],
@@ -276,20 +235,7 @@ mod tests {
         assert!(call["arguments"].as_str().unwrap().contains("Paris"));
         assert!(usage["completionTokens"].as_u64().unwrap() > 0);
 
-        let query = "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:";
-        let texts = [format!("{query}What is the capital of China?"), format!("{query}Explain gravity"),
-            "The capital of China is Beijing.".into(),
-            "Gravity is a force that attracts two bodies towards each other. It gives weight to physical objects and is responsible for the movement of planets around the sun.".into()];
-        let request = to_c(&json!({"modelDir": embed_dir, "texts": texts})).unwrap();
-        let reply = take(unsafe { roci_mlx_embed(request.as_ptr()) }).unwrap();
-        let v: Vec<Vec<f32>> = serde_json::from_value(reply["vectors"].clone()).unwrap();
-        let dot = |a: &[f32], b: &[f32]| a.iter().zip(b).map(|(x, y)| x * y).sum::<f32>();
-        // Qwen's published scores: 0.7646 0.1414 / 0.1355 0.6000 (8-bit weights land within 0.01).
-        for (got, want) in [(dot(&v[0], &v[2]), 0.7646), (dot(&v[0], &v[3]), 0.1414), (dot(&v[1], &v[2]), 0.1355), (dot(&v[1], &v[3]), 0.6000)] {
-            assert!((got - want).abs() < 0.01, "similarity {got} vs {want}");
-        }
         unsafe { roci_mlx_unload(c"chat".as_ptr()) };
-        unsafe { roci_mlx_unload(c"embedding".as_ptr()) };
     }
 
     /// A vision chat model on the engine's vision path sees an attached image, with tools offered alongside.

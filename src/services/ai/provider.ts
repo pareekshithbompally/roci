@@ -14,19 +14,21 @@ import { google } from '@ai-sdk/google';
 import { openai } from '@ai-sdk/openai';
 import type { SdkSpeechFamily } from '@config/transcription.config';
 import { getPlatformFetch } from '@services/platform-fetch';
-import { mlxLanguageModel } from '@services/ai/onDevice/mlxLanguageModel';
+import { onDeviceLanguageModel } from '@services/ai/onDevice/onDeviceLanguageModel';
+import { ON_DEVICE_SERVER_BASE, onDeviceFetch } from '@services/onDevice.service';
+import { platform } from '@platform/index';
 import { profileOf } from '@services/ai/models';
 import { llamaServerRequestBody } from '@services/ai/llamaServer';
 import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { ReasoningEffort } from '@shared/types';
 import type { ProviderType } from '@services/ai/types';
-import { defaultSettingsMiddleware, wrapLanguageModel } from 'ai';
+import { wrapLanguageModel } from 'ai';
 import type { ImageModel, LanguageModel, LanguageModelCallOptions, SpeechModel, streamText, ToolSet, TranscriptionModel } from 'ai';
 import type { LanguageModelV4 } from '@ai-sdk/provider';
 import { serverAppOf } from '@shared/utils/provider.utils';
 import { schemaInPromptMiddleware } from '@services/ai/schemaInPrompt';
-import { callSettings, resolveTuning } from '@shared/utils/modelTuning';
+import { resolveTuning } from '@shared/utils/modelTuning';
 
 /** Extract custom headers from provider config (for OpenRouter, etc.) */
 function buildCustomHeaders(providerConfig: ResolvedModel['providerConfig']): Record<string, string> {
@@ -51,10 +53,33 @@ export function createModel(resolved: ResolvedModel, options?: ModelOptions): La
   return serverAppOf(resolved.provider)?.ignoresSchema ? wrapLanguageModel({ model, middleware: schemaInPromptMiddleware }) : model;
 }
 
-/** A downloaded chat model with its tuning (Personalization › Model Tuning) as default call settings: a call's own win. */
-function onDeviceModel(modelId: string): LanguageModelV4 {
-  const settings = callSettings(resolveTuning(modelId));
-  return wrapLanguageModel({ model: mlxLanguageModel(modelId), middleware: defaultSettingsMiddleware({ settings }) });
+/** A downloaded chat model: the Mac's server runs it with its tuning (Personalization › Model Tuning) from its preset;
+ *  the in-app engine (iPhone, iPad) takes the same values with each request. */
+function onDeviceModel(modelId: string, options?: ModelOptions): LanguageModelV4 {
+  return platform.servesOnDeviceModels ? onDeviceServerModel(modelId, options) : onDeviceLanguageModel(modelId);
+}
+
+/** The Mac's on-device model: llama.cpp's own server, spoken to like any llama-server; a request carries only what the
+ *  call itself needs (its schema, its own cap, the chat's thinking budget). */
+function onDeviceServerModel(modelId: string, options?: ModelOptions): LanguageModelV4 {
+  return createOpenAICompatible({
+    name: 'on-device',
+    baseURL: ON_DEVICE_SERVER_BASE,
+    fetch: onDeviceFetch(getPlatformFetch()),
+    includeUsage: true,
+    supportsStructuredOutputs: true,
+    transformRequestBody: (body) => {
+      const complete = runsToCompletion(body, resolveTuning(modelId)['ctx-size']);
+      return options?.llamaServer ? llamaServerRequestBody(options.llamaServer.reasoningEffort)(complete) : complete;
+    },
+  }).chatModel(modelId);
+}
+
+/** A reply in a fixed format (a summary's schema) the call didn't cap itself runs until it's complete: capped by the
+ *  model's context, not the tuned reply length (the preset's `n-predict` caps free replies). */
+function runsToCompletion(body: Record<string, unknown>, contextTokens: number | undefined): Record<string, unknown> {
+  const fixed = body.response_format !== undefined && body.max_tokens === undefined;
+  return fixed && contextTokens ? { ...body, max_tokens: contextTokens } : body;
 }
 
 /** The provider's own AI SDK model. */
@@ -65,7 +90,7 @@ function providerModel(resolved: ResolvedModel, options?: ModelOptions): Languag
     case 'apple-intelligence':
       return appleIntelligenceModel();
     case 'on-device':
-      return onDeviceModel(resolved.modelId);
+      return onDeviceModel(resolved.modelId, options);
     case 'anthropic': {
       const customHeaders = buildCustomHeaders(resolved.providerConfig);
       const provider = createAnthropic({

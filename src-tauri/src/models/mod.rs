@@ -28,6 +28,16 @@ pub fn local_models_set_idle(minutes: u64) {
     IDLE_MINUTES.store(minutes, Ordering::Relaxed);
 }
 
+/// Applies the Settings model directory (None: Roci's own folder); refused when the folder can't be read or written,
+/// and the one in use stays.
+#[tauri::command]
+pub fn local_models_set_directory(dir: Option<String>) -> Result<(), LocalError> {
+    store::set_directory(dir.map(std::path::PathBuf::from))?;
+    #[cfg(desktop)]
+    crate::llama_server::models_changed();
+    Ok(())
+}
+
 /// The read-aloud voices' language, and a transcription's when the webview sends none.
 pub const LANGUAGE: &str = "en";
 

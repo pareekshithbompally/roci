@@ -11,7 +11,7 @@ import { HomeView } from '@features/home';
 import { useOpenMeeting } from '@features/history';
 import { SettingsPanel } from '@features/settings';
 import { useAppUpdate, useUpdateRuntime } from '@features/settings';
-import { useMenubarSpeechModels, useMenubarReports, useStorageRetention, useLocalModelDownloads, useLocalModelResume, useLocalModelIdle, freshSpeechSources } from '@features/settings';
+import { useMenubarSpeechModels, useMenubarReports, useStorageRetention, useLocalModelDownloads, useLocalModelResume, useLocalModelIdle, useLocalModelDirectory, useOnDeviceServerConfig, freshSpeechSources } from '@features/settings';
 import { useSpeechVocabulary } from '@features/personalization';
 import { RemindersView } from '@features/todos';
 import { GalleryView } from '@features/gallery';
@@ -91,6 +91,8 @@ const App: React.FC = () => {
   useLocalModelDownloads();
   useLocalModelResume();
   useLocalModelIdle();
+  useLocalModelDirectory();
+  useOnDeviceServerConfig();
   useSpeechVocabulary();
   useStorageRetention();
   useRemindersRuntime();

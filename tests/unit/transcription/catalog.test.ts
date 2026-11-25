@@ -97,8 +97,8 @@ describe('speechModelOptions', () => {
 describe('on this Mac', () => {
   const onDevice = {
     models: [
-      { id: 'parakeet-unified-en', name: 'Parakeet', maker: 'nvidia', kind: 'speech' as const, streams: true, languages: ['en'], detectsLanguage: false, bytes: 731_357_568, installed: true, downloading: false, partial: false, contextTokens: null, tools: null, vision: null },
-      { id: 'cohere-transcribe', name: 'Cohere Transcribe', maker: 'nvidia', kind: 'speech' as const, streams: false, languages: ['en'], detectsLanguage: false, bytes: 2_410_655_232, installed: false, downloading: false, partial: false, contextTokens: null, tools: null, vision: null },
+      { id: 'parakeet-unified-en', name: 'Parakeet', maker: 'nvidia', kind: 'speech' as const, streams: true, languages: ['en'], detectsLanguage: false, bytes: 731_357_568, installed: true, downloading: false, partial: false, contextTokens: null, tools: null, vision: null, quant: null, drafts: false },
+      { id: 'cohere-transcribe', name: 'Cohere Transcribe', maker: 'nvidia', kind: 'speech' as const, streams: false, languages: ['en'], detectsLanguage: false, bytes: 2_410_655_232, installed: false, downloading: false, partial: false, contextTokens: null, tools: null, vision: null, quant: null, drafts: false },
     ],
   };
 
@@ -119,7 +119,7 @@ describe('on this Mac', () => {
 
 describe('picker order', () => {
   it('lists what runs on this Mac before key-gated cloud models', () => {
-    const onDevice = { models: [{ id: 'parakeet-unified-en', name: 'Parakeet', maker: 'nvidia', kind: 'speech' as const, streams: true, languages: ['en'], detectsLanguage: false, bytes: 1, installed: false, downloading: false, partial: false, contextTokens: null, tools: null, vision: null }] };
+    const onDevice = { models: [{ id: 'parakeet-unified-en', name: 'Parakeet', maker: 'nvidia', kind: 'speech' as const, streams: true, languages: ['en'], detectsLanguage: false, bytes: 1, installed: false, downloading: false, partial: false, contextTokens: null, tools: null, vision: null, quant: null, drafts: false }] };
     const providers = Object.keys(speechModelOptions([provider('openai', [{ id: 'whisper-1' }])], { onDevice }).reduce((seen, o) => ({ ...seen, [o.provider]: true }), {} as Record<string, true>));
     expect(providers[0]).toBe('on-device');
     expect(providers.indexOf('on-device')).toBeLessThan(providers.indexOf('openai'));

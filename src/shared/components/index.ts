@@ -45,3 +45,4 @@ export { ChartView, StatsView, TableView } from './result-views';
 export { MeetingList } from './MeetingList';
 export { FieldRow } from './FieldRow';
 export { SecretInput } from './SecretInput';
+export { HelpLabel } from './HelpLabel';

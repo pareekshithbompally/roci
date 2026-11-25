@@ -16,13 +16,13 @@ export interface OrchestratorOptions {
   /** The chat's model (a chat keeps the model of its first reply). */
   model: ResolvedModel;
   /** What the system prompt needs from the chat; the orchestrator adds the tools it sends and the model's modalities. */
-  prompt: Omit<ChatPromptOptions, 'tools' | 'modalities' | 'finishReply'>;
+  prompt: Omit<ChatPromptOptions, 'tools' | 'modalities'>;
   settings: AppSettings;
   providers: ModelProvider[];
   signal?: AbortSignal;
   /** The chat's thinking level. */
   reasoningEffort: ReasoningEffort;
-  /** What the reply's finishReply carries: a title (a new chat), follow-ups. */
+  /** What the call after the reply asks for: a title (a new chat), follow-ups. */
   extras: ChatExtrasWant;
 }
 

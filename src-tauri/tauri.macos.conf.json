@@ -13,6 +13,9 @@
       "icons/agents/opencode.png": "icons/agents/opencode.png",
       "frameworks/mlx-swift_Cmlx.bundle": "mlx-swift_Cmlx.bundle",
       "icons/compiled/Assets.car": "Assets.car"
-    }
+    },
+    "externalBin": [
+      "binaries/llama-server"
+    ]
   }
 }

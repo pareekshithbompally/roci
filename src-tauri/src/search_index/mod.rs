@@ -15,7 +15,8 @@ use tauri::{AppHandle, Emitter};
 use tauri_plugin_store::index::{self, ChatLine, MeetingText, ItemKind, ChunkData};
 use tauri_plugin_store::{ChatSearchHit, MeetingChange, SearchHit};
 
-use crate::mlx;
+#[cfg(mobile)]
+use crate::llama;
 use crate::models::gpu::Priority;
 use crate::models::LocalError;
 
@@ -87,7 +88,7 @@ pub fn start(app: AppHandle) {
 
 /// Whether search's embedding model is downloaded.
 fn embedder_installed(app: &AppHandle) -> bool {
-    crate::models::catalog::search_embedder().and_then(|model| crate::models::store::installed_dir(app, model)).is_ok()
+    crate::models::catalog::search_embedder().is_ok_and(|model| crate::models::store::is_installed(app, model))
 }
 
 /// Search's embedding model finished downloading: the pieces without a vector get one.
@@ -181,7 +182,11 @@ fn with_new_vectors(app: &AppHandle, owner: ItemKind, id: &str, mut pieces: Vec<
 fn embed(app: &AppHandle, texts: &[String], priority: Priority) -> Result<Option<Vec<Vec<f32>>>, String> {
     let mut vectors = Vec::with_capacity(texts.len());
     for batch in texts.chunks(EMBED_BATCH) {
-        match mlx::embed(app, batch, priority) {
+        #[cfg(desktop)]
+        let embedded = crate::llama_server::embed(app, batch, priority);
+        #[cfg(mobile)]
+        let embedded = llama::embed(app, batch, priority);
+        match embedded {
             Ok(v) => vectors.extend(v),
             Err(LocalError::NotDownloaded) => return Ok(None),
             Err(error) => return Err(error.to_string()),

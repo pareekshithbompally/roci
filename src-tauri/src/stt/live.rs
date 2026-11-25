@@ -9,6 +9,7 @@ use tauri::{AppHandle, Manager};
 use transcribe_cpp::{Stream, StreamOptions};
 
 use super::engine::{engine_error, Loaded};
+use super::vocabulary::respell;
 use super::SttState;
 use crate::models::gpu::{self, Priority};
 use crate::models::LocalError;
@@ -24,7 +25,7 @@ pub struct LiveText {
 impl LiveText {
     fn of(stream: &Stream<'_>) -> Self {
         let text = stream.text();
-        LiveText { committed: text.committed, tentative: text.tentative }
+        LiveText { committed: respell(text.committed), tentative: respell(text.tentative) }
     }
 }
 

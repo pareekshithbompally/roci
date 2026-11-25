@@ -13,7 +13,9 @@ export type { AIReadiness, AISetupStep } from './useAIReadiness';
 export { useMenubarSpeechModels } from './useMenubarSpeechModels';
 export { useMenubarReports } from './useMenubarReports';
 export { useStorageRetention } from './useStorageRetention';
-export { useLocalModelIdle, useLocalModelControls, useLocalModelDownloads, useLocalModelResume, downloadSetup } from './useLocalModels';
+export { useOnDeviceRestart } from './useOnDeviceRestart';
+export type { OnDeviceRestart } from './useOnDeviceRestart';
+export { useLocalModelIdle, useLocalModelDirectory, useOnDeviceServerConfig, engineSettingsOf, useLocalModelControls, useLocalModelDownloads, useLocalModelResume, downloadSetup } from './useLocalModels';
 export {
   useMcpConfig,
   useMcpConnectedServers,

@@ -1,32 +1,58 @@
-import { describe, expect, it } from 'vitest';
-import { finishReplyDescription, FINISH_REPLY_RULE, buildChatSystemPrompt, NO_TOOLS } from '@core/ai/prompts';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+
+const generateStructured = vi.hoisted(() => vi.fn());
+vi.mock('@services/ai/structured', () => ({ generateStructured }));
+
+import { chatExtrasInstructions, buildChatSystemPrompt, NO_TOOLS } from '@core/ai/prompts';
 import { chatExtrasSchema } from '@core/ai/schemas';
-import { finishReplyTools } from '@extensions/tool-orchestrator/finishReply';
+import { askChatExtras } from '@extensions/tool-orchestrator/chatExtras';
 
 const both = { title: true, suggestions: true };
+const model = { provider: 'openai', modelId: 'gpt' } as never;
+const ask = (want = both) => askChatExtras({ model, want, question: 'Plan the Q3 launch?', answer: 'Here is the plan.', sessionId: 'c1' });
 
-describe('finishReply', () => {
-  it('is sent only while a title or follow-ups are wanted', () => {
-    expect(Object.keys(finishReplyTools(both))).toEqual(['finishReply']);
-    expect(finishReplyTools({ title: false, suggestions: false })).toEqual({});
+beforeEach(() => {
+  generateStructured.mockReset();
+});
+
+describe('chat extras', () => {
+  it('asks only for the fields wanted', () => {
+    expect(chatExtrasInstructions({ title: true, suggestions: false })).toContain('2 to 6 words naming its specific subject');
+    expect(chatExtrasInstructions({ title: true, suggestions: false })).not.toContain('"suggestions"');
+    expect(chatExtrasInstructions({ title: false, suggestions: true })).not.toContain('"title"');
   });
 
-  it('describes only the fields asked for', () => {
-    expect(finishReplyDescription({ title: true, suggestions: false })).toContain('2 to 6 words naming its specific subject');
-    expect(finishReplyDescription({ title: true, suggestions: false })).not.toContain('"suggestions"');
-    expect(finishReplyDescription({ title: false, suggestions: true })).not.toContain('"title"');
+  it('never tells the reply to call a tool for them', () => {
+    const prompt = buildChatSystemPrompt({ tools: NO_TOOLS, modalities: { input: ['text'], output: ['text'] }, meetingCount: 0, timeContext: '' });
+    expect(prompt).not.toMatch(/finishReply/);
   });
 
-  it('the chat instructions say to call it last only while it is sent', () => {
-    const prompt = (finishReply: boolean) =>
-      buildChatSystemPrompt({ tools: NO_TOOLS, modalities: { input: ['text'], output: ['text'] }, meetingCount: 0, timeContext: '', finishReply });
-    expect(prompt(true)).toContain(FINISH_REPLY_RULE);
-    expect(prompt(false)).not.toContain(FINISH_REPLY_RULE);
-  });
-
-  it('its input holds exactly the fields asked for', () => {
+  it('its output holds exactly the fields asked for', () => {
     expect(Object.keys(chatExtrasSchema(both).shape)).toEqual(['title', 'suggestions']);
     expect(Object.keys(chatExtrasSchema({ title: true, suggestions: false }).shape)).toEqual(['title']);
     expect(Object.keys(chatExtrasSchema({ title: false, suggestions: true }).shape)).toEqual(['suggestions']);
+  });
+
+  it('asks the chat\'s model once, from the question and the answer only, and tidies what comes back', async () => {
+    generateStructured.mockResolvedValue({ title: 'Q3 launch plan.', suggestions: ['Who owns it?', 'What is at risk?', 'Draft the email', 'One too many'] });
+    expect(await ask()).toEqual({ title: 'Q3 launch plan', suggestions: ['Who owns it?', 'What is at risk?', 'Draft the email'] });
+    expect(generateStructured).toHaveBeenCalledOnce();
+    const [call] = generateStructured.mock.calls[0] as [{ model: unknown; prompt: string; usage: object; schema: { shape: object } }];
+    expect(call.model).toBe(model);
+    expect(call.prompt).toContain('Plan the Q3 launch?');
+    expect(call.prompt).toContain('Here is the plan.');
+    expect(call.usage).toEqual({ category: 'chat', sessionId: 'c1' });
+    expect(Object.keys(call.schema.shape)).toEqual(['title', 'suggestions']);
+  });
+
+  it('gives none when the call fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    generateStructured.mockRejectedValue(new Error('rate limited'));
+    expect(await ask()).toEqual({ suggestions: [] });
+  });
+
+  it('makes no call when nothing is wanted', async () => {
+    expect(await ask({ title: false, suggestions: false })).toEqual({ suggestions: [] });
+    expect(generateStructured).not.toHaveBeenCalled();
   });
 });

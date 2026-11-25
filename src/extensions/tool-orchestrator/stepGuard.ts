@@ -35,15 +35,14 @@ export function finalStepReason(steps: readonly StepCalls[], maxToolCalls: numbe
 }
 
 /**
- * `prepareStep` for a turn of at most `maxToolCalls`: on the final step, tools are off (all but `kept`, the reply's own
- * finishReply) and the model is told to answer. The note is appended as a user message so the cached prompt prefix is kept.
+ * `prepareStep` for a turn of at most `maxToolCalls`: on the final step, tools are off and the model is told to answer. The
+ * note is appended as a user message so the cached prompt prefix is kept.
  */
-export function finalStepGuard(maxToolCalls: number, kept: string[] = []) {
+export function finalStepGuard(maxToolCalls: number) {
   return ({ steps, messages }: { steps: readonly StepCalls[]; messages: ModelMessage[] }): PrepareStepResult<ToolSet> | undefined => {
     const reason = finalStepReason(steps, maxToolCalls);
     if (!reason) return undefined;
     console.info('[Orchestrator] Final step, tools off:', reason);
-    const toolsOff = kept.length > 0 ? { activeTools: kept } : { toolChoice: 'none' as const };
-    return { ...toolsOff, messages: [...messages, { role: 'user', content: FINAL_ANSWER_PROMPT }] };
+    return { toolChoice: 'none', messages: [...messages, { role: 'user', content: FINAL_ANSWER_PROMPT }] };
   };
 }
