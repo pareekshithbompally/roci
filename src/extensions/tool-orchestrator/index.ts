@@ -14,11 +14,10 @@ import { AiError } from '@services/ai/errors';
 import { CHAT_CATALOG_COPY, SOURCE_LINK_TITLE } from '@config/chat.config';
 import { followModelLoad, generationStats, promptProgress } from '@services/ai/llamaServer';
 import { listStyleOf } from '@services/providers/listers';
-import { followLocalLoad, onDeviceServerAddress } from '@services/onDevice.service';
-import { platform } from '@platform/index';
+import { followLocalLoad, servedOnDevice, withServerAddress } from '@services/onDevice.service';
 import { toolRegistry, loadMcpSettings, loadMcpTools, generateImageTool, GENERATE_IMAGE_TOOL, showTool, suggestMemoryTool } from '@extensions/tools';
 import { toolPromptTokens } from '@extensions/tools/tool-tokens';
-import { contextTokensFor, replyTokensFor } from '@services/ai/transcription/excerpt';
+import { contextTokensFor } from '@services/ai/transcription/excerpt';
 import { memoryEnabled } from '@shared/utils/personalization';
 import type { McpSettings } from '@config/mcp.config';
 import { hasImageModel } from '@services/ai/image';
@@ -169,14 +168,6 @@ function emptyResponseError(finishReason: string | undefined): Error {
   );
 }
 
-/** On the Mac an on-device model is served by Roci's own llama-server. */
-const servedOnDevice = (resolved: ResolvedModel): boolean => platform.servesOnDeviceModels && getProviderType(resolved.provider) === 'on-device';
-
-/** An on-device model on the Mac, addressed at its server (started first when needed); any other model as it is. */
-async function withServerAddress(resolved: ResolvedModel): Promise<ResolvedModel> {
-  return servedOnDevice(resolved) ? { ...resolved, baseUrl: `${await onDeviceServerAddress()}/v1` } : resolved;
-}
-
 /** Model loads show in the reply header: llama-server's staged progress, the on-device model's start (followed before the
  *  request); returns the stop. */
 async function followLoad(resolved: ResolvedModel, llamaServer: boolean, showProgress: (progress: StreamProgress) => void): Promise<() => void> {
@@ -232,7 +223,7 @@ export async function orchestrate(
   const { input, output } = profile;
   const systemPrompt = buildChatSystemPrompt({ ...prompt, tools: toolset, modalities: { input, output } });
   const { maxToolCalls } = mcpSettings;
-  const room = messageRoom(await contextTokensFor(resolved), tokensIn(systemPrompt) + toolTokens, replyTokensFor(resolved));
+  const room = messageRoom(await contextTokensFor(resolved), tokensIn(systemPrompt) + toolTokens);
   // A local llama-server (the Mac's on-device server among them) reports loading the model and reading the prompt.
   const reportsProgress = servedOnDevice(resolved) || (await listStyleOf(resolved.provider, { baseUrl: resolved.baseUrl })) === 'llama-server';
 

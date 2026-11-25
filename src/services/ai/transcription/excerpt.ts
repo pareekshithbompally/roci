@@ -22,11 +22,6 @@ export async function contextTokensFor(resolved: ResolvedModel): Promise<number 
   return profileOf(resolved.provider, resolved.model).contextTokens;
 }
 
-/** The most a reply may take, when the model caps it: a downloaded model's tuned `n-predict` (its engine stops there); else 0. */
-export function replyTokensFor(resolved: ResolvedModel): number {
-  return getProviderType(resolved.provider) === 'on-device' ? resolveTuning(resolved.modelId)['n-predict'] ?? 0 : 0;
-}
-
 /** Characters of transcript that fit beside `instructions`; null when the window is unknown (no trimming). */
 export function transcriptBudget(contextTokens: number | null, instructions: string): number | null {
   if (!contextTokens) return null;

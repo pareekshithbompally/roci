@@ -16,7 +16,7 @@ vi.mock('@services/ai', () => ({
   toExecutableTools,
 }));
 const contextTokensFor = vi.hoisted(() => vi.fn());
-vi.mock('@services/ai/transcription/excerpt', () => ({ contextTokensFor, replyTokensFor: () => 0 }));
+vi.mock('@services/ai/transcription/excerpt', () => ({ contextTokensFor }));
 
 const resolved = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 vi.mock('@shared/utils/modelResolver', () => ({

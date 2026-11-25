@@ -29,10 +29,6 @@ describe('messageRoom', () => {
     expect(messageRoom(null, 1_000)).toBeNull();
   });
 
-  it("keeps the reply's own room when the model caps its reply", () => {
-    expect(messageRoom(16_384, 1_000, 8_192)).toBe(16_384 - 8_192 - 1_000);
-  });
-
   it('leaves history as it is when instructions and tools alone fill the window', () => {
     expect(messageRoom(4_096, 4_000)).toBeNull();
   });

@@ -7,6 +7,9 @@ import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import type { ModelTuning } from '@config/personalization.config';
 import type { ModelLoad } from '@services/localModels.service';
 import type { StreamProgress } from '@services/ai/types';
+import { platform } from '@platform/index';
+import { getProviderType } from '@shared/utils/modelResolver';
+import type { ResolvedModel } from '@shared/utils/modelResolver';
 
 /** A turn as `local_chat` takes it. */
 export interface LocalMessage {
@@ -80,15 +83,13 @@ export const configureOnDeviceServer = (engine: OnDeviceEngine, models: Record<s
 /** Whether the Mac's running on-device server started with settings other than the current ones. */
 export const onDeviceRestartPending = (): Promise<boolean> => invoke<boolean>('local_server_restart_pending');
 
-/** Where requests to the on-device server are addressed before `onDeviceFetch` puts in its port. */
-export const ON_DEVICE_SERVER_BASE = 'http://on-device/v1';
+/** On the Mac a downloaded model is served by Roci's own llama-server, an OpenAI-compatible server like any other. */
+export const servedOnDevice = (resolved: ResolvedModel): boolean =>
+  platform.servesOnDeviceModels && getProviderType(resolved.provider) === 'on-device';
 
-/** `fetch` for the on-device server: starts it when needed and sends the request to its address. */
-export function onDeviceFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
-  return async (input, init) => {
-    const target = new URL(input instanceof Request ? input.url : String(input));
-    return fetch(`${await onDeviceServerAddress()}${target.pathname}${target.search}`, init);
-  };
+/** The model at the address it's spoken to: the Mac's own server's (started first when needed); any other as it is. */
+export async function withServerAddress(resolved: ResolvedModel): Promise<ResolvedModel> {
+  return servedOnDevice(resolved) ? { ...resolved, baseUrl: `${await onDeviceServerAddress()}/v1` } : resolved;
 }
 
 

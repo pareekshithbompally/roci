@@ -21,12 +21,12 @@ function withoutFileBytes(this: unknown, key: string, value: unknown): unknown {
 
 const messageTokens = (messages: ModelMessage[]): number => tokensIn(JSON.stringify(messages, withoutFileBytes));
 
-/** Tokens the messages may take: `pruneAbove` of the window and never the reply's own room (`replyTokens`, when the model
- *  caps its reply), less what every request carries (instructions, tools); null when the window is unknown, or when that
- *  fixed part alone fills it (nothing to trim then). */
-export function messageRoom(contextTokens: number | null, fixedTokens: number, replyTokens = 0): number | null {
+/** Tokens the messages may take: `pruneAbove` of the window (the rest is the reply's room), less what every request
+ *  carries (instructions, tools); null when the window is unknown, or when that fixed part alone fills it (nothing to
+ *  trim then). */
+export function messageRoom(contextTokens: number | null, fixedTokens: number): number | null {
   if (!contextTokens) return null;
-  const room = Math.min(Math.floor(contextTokens * pruneAbove), contextTokens - replyTokens) - fixedTokens;
+  const room = Math.floor(contextTokens * pruneAbove) - fixedTokens;
   if (room > 0) return room;
   console.warn('[ContextFit] Instructions and tools alone fill the context; history left as it is:', fixedTokens);
   return null;

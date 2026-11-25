@@ -7,6 +7,7 @@ import { generateText, jsonSchema, Output } from 'ai';
 import type { z } from 'zod';
 import { jsonSchemaOf, readReply } from '@core/ai';
 import { createModel } from '@services/ai/provider';
+import { withServerAddress } from '@services/onDevice.service';
 import { extractTokenUsage } from '@services/ai/types';
 import { recordUsage } from '@extensions/usage';
 import type { UsageCategory } from '@extensions/usage';
@@ -28,7 +29,7 @@ export interface StructuredCall<S extends z.ZodObject> {
 
 async function ask<S extends z.ZodObject>(call: StructuredCall<S>, prompt: string) {
   return generateText({
-    model: createModel(call.model),
+    model: createModel(await withServerAddress(call.model)),
     instructions: call.instructions,
     prompt,
     output: Output.object({ schema: jsonSchema(jsonSchemaOf(call.schema)) }),

@@ -15,7 +15,6 @@ import { openai } from '@ai-sdk/openai';
 import type { SdkSpeechFamily } from '@config/transcription.config';
 import { getPlatformFetch } from '@services/platform-fetch';
 import { onDeviceLanguageModel } from '@services/ai/onDevice/onDeviceLanguageModel';
-import { ON_DEVICE_SERVER_BASE, onDeviceFetch } from '@services/onDevice.service';
 import { platform } from '@platform/index';
 import { profileOf } from '@services/ai/models';
 import { llamaServerRequestBody } from '@services/ai/llamaServer';
@@ -28,7 +27,6 @@ import type { ImageModel, LanguageModel, LanguageModelCallOptions, SpeechModel, 
 import type { LanguageModelV4 } from '@ai-sdk/provider';
 import { serverAppOf } from '@shared/utils/provider.utils';
 import { schemaInPromptMiddleware } from '@services/ai/schemaInPrompt';
-import { resolveTuning } from '@shared/utils/modelTuning';
 
 /** Extract custom headers from provider config (for OpenRouter, etc.) */
 function buildCustomHeaders(providerConfig: ResolvedModel['providerConfig']): Record<string, string> {
@@ -53,33 +51,21 @@ export function createModel(resolved: ResolvedModel, options?: ModelOptions): La
   return serverAppOf(resolved.provider)?.ignoresSchema ? wrapLanguageModel({ model, middleware: schemaInPromptMiddleware }) : model;
 }
 
-/** A downloaded chat model: the Mac's server runs it with its tuning (Personalization › Model Tuning) from its preset;
- *  the in-app engine (iPhone, iPad) takes the same values with each request. */
-function onDeviceModel(modelId: string, options?: ModelOptions): LanguageModelV4 {
-  return platform.servesOnDeviceModels ? onDeviceServerModel(modelId, options) : onDeviceLanguageModel(modelId);
-}
-
-/** The Mac's on-device model: llama.cpp's own server, spoken to like any llama-server; a request carries only what the
- *  call itself needs (its schema, its own cap, the chat's thinking budget). */
-function onDeviceServerModel(modelId: string, options?: ModelOptions): LanguageModelV4 {
+/** Any OpenAI-compatible server at its address: Ollama, LM Studio, vLLM, Jan, OpenRouter, a llama-server, Roci's own. */
+function openAICompatibleModel(resolved: ResolvedModel, options?: ModelOptions): LanguageModelV4 {
+  const customHeaders = buildCustomHeaders(resolved.providerConfig);
   return createOpenAICompatible({
-    name: 'on-device',
-    baseURL: ON_DEVICE_SERVER_BASE,
-    fetch: onDeviceFetch(getPlatformFetch()),
+    name: resolved.provider,
+    apiKey: resolved.apiKey,
+    baseURL: resolved.baseUrl,
+    fetch: getPlatformFetch(),
+    // Streamed replies report their tokens only when asked: the context gauge and usage need them.
     includeUsage: true,
+    // Local servers and OpenRouter take a JSON schema and decode to it.
     supportsStructuredOutputs: true,
-    transformRequestBody: (body) => {
-      const complete = runsToCompletion(body, resolveTuning(modelId)['ctx-size']);
-      return options?.llamaServer ? llamaServerRequestBody(options.llamaServer.reasoningEffort)(complete) : complete;
-    },
-  }).chatModel(modelId);
-}
-
-/** A reply in a fixed format (a summary's schema) the call didn't cap itself runs until it's complete: capped by the
- *  model's context, not the tuned reply length (the preset's `n-predict` caps free replies). */
-function runsToCompletion(body: Record<string, unknown>, contextTokens: number | undefined): Record<string, unknown> {
-  const fixed = body.response_format !== undefined && body.max_tokens === undefined;
-  return fixed && contextTokens ? { ...body, max_tokens: contextTokens } : body;
+    ...(Object.keys(customHeaders).length > 0 && { headers: customHeaders }),
+    ...(options?.llamaServer && { transformRequestBody: llamaServerRequestBody(options.llamaServer.reasoningEffort) }),
+  }).chatModel(resolved.modelId);
 }
 
 /** The provider's own AI SDK model. */
@@ -90,7 +76,8 @@ function providerModel(resolved: ResolvedModel, options?: ModelOptions): Languag
     case 'apple-intelligence':
       return appleIntelligenceModel();
     case 'on-device':
-      return onDeviceModel(resolved.modelId, options);
+      // The Mac's own llama-server (addressed by `withServerAddress`); the in-app engine on iPhone and iPad.
+      return platform.servesOnDeviceModels ? openAICompatibleModel(resolved, options) : onDeviceLanguageModel(resolved.modelId);
     case 'anthropic': {
       const customHeaders = buildCustomHeaders(resolved.providerConfig);
       const provider = createAnthropic({
@@ -119,22 +106,8 @@ function providerModel(resolved: ResolvedModel, options?: ModelOptions): Languag
       const provider = createGroq({ apiKey: resolved.apiKey, fetch });
       return provider(resolved.modelId);
     }
-    case 'openai-compat': {
-      const customHeaders = buildCustomHeaders(resolved.providerConfig);
-      const provider = createOpenAICompatible({
-        name: resolved.provider,
-        apiKey: resolved.apiKey,
-        baseURL: resolved.baseUrl,
-        fetch,
-        // Streamed replies report their tokens only when asked: the context gauge and usage need them.
-        includeUsage: true,
-        // Local servers (Ollama, LM Studio, llama-server, vLLM, Jan) and OpenRouter take a JSON schema and decode to it.
-        supportsStructuredOutputs: true,
-        ...(Object.keys(customHeaders).length > 0 && { headers: customHeaders }),
-        ...(options?.llamaServer && { transformRequestBody: llamaServerRequestBody(options.llamaServer.reasoningEffort) }),
-      });
-      return provider.chatModel(resolved.modelId);
-    }
+    case 'openai-compat':
+      return openAICompatibleModel(resolved, options);
   }
 }
 
