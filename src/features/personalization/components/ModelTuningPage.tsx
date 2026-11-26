@@ -144,11 +144,10 @@ const SpeedUpRow: React.FC<TuningProps> = ({ saved, resolved, onChange }) => {
   );
 };
 
-/** One sampling option in the Advanced… sheet: its name and ⓘ, llama.cpp's name and a plain line, its slider. */
+/** One sampling option in the Advanced… sheet: its name and ⓘ, its slider. */
 const OptionRow: React.FC<TuningProps & { option: Option }> = ({ option, saved, resolved, onChange }) => (
   <CardRow
     title={<HelpLabel label={option.label} help={option.help} />}
-    description={`${option.key} · ${option.hint}`}
     actions={
       <span className="flex items-center gap-2">
         <Slider

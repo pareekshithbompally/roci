@@ -1,5 +1,6 @@
-/** The composer while dictating: the words as they're spoken, and under them the Horizon line with the clock, Stop (the words go
- *  into the box) and Send (they're sent). An overlay that moves no layout; how it leaves is set by its ending
+/** The composer while dictating: the words as they're spoken, and under them the Horizon line with ✕, the clock, Stop (the
+ *  words go into the box) and Send (they're sent). A Mac keeps it to one row; iPhone stacks it: the words, the line from edge
+ *  to edge of the screen, the controls under it. An overlay that moves no layout; how it leaves is set by its ending
  *  (docs/plans/IN-PROGRESS/dictation-flow.md). */
 
 import React, { useMemo, useState } from 'react';
@@ -34,6 +35,8 @@ interface VoicePillProps {
   backdrop: boolean;
   /** The composer's own control size (44 pt on a phone). */
   controlSize: ControlSize;
+  /** A phone: the line gets the screen's whole width, the controls a row under it. */
+  stacked: boolean;
   onStop?: () => void;
   onSend?: () => void;
   onCancel?: () => void;
@@ -105,7 +108,7 @@ function useLastWords(liveText: LiveText | null): LiveText | null {
 }
 
 export const VoicePill: React.FC<VoicePillProps> = ({
-  pill, speechState, stream, liveText, elapsed, reduceMotion, canSend, liveLost, backdrop, controlSize, onStop, onSend, onCancel,
+  pill, speechState, stream, liveText, elapsed, reduceMotion, canSend, liveLost, backdrop, controlSize, stacked, onStop, onSend, onCancel,
 }) => {
   const beat = beatOf(speechState, pill.ending);
   const words = useLastWords(liveText);
@@ -114,12 +117,45 @@ export const VoicePill: React.FC<VoicePillProps> = ({
   const cancellable = speechState !== 'idle';
   const slot = controlSize === 'md' ? 'flex size-control-md shrink-0 items-center justify-center' : 'flex size-control-sm shrink-0 items-center justify-center';
   const variants = usePillVariants(reduceMotion);
+  const line = <Horizon stage={pill.stage} stream={stream} label={pill.label} />;
+  // A fixed slot, so the line never moves as Cancel comes and goes.
+  const cancel = (
+    <div className={slot}>
+      <AnimatePresence initial={false}>
+        {cancellable && (
+          <EndBeat key="cancel" reduceMotion={reduceMotion}>
+            <IconButton icon={X} label={DICTATION_COPY.cancel} variant="dangerTint" size={controlSize} onClick={onCancel} />
+          </EndBeat>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+  // The composer's control height, so the row never jumps as its end swaps.
+  const end = (
+    <div className={controlSize === 'md' ? 'flex h-control-md shrink-0 items-center' : 'flex h-control-sm shrink-0 items-center'}>
+      <AnimatePresence initial={false} mode="wait">
+        {beat && (
+          <EndBeat key={beat} reduceMotion={reduceMotion}>
+            <EndContent
+              beat={beat}
+              announce={words === null || liveLost}
+              elapsed={elapsed}
+              canSend={canSend}
+              controlSize={controlSize}
+              onStop={onStop}
+              onSend={onSend}
+            />
+          </EndBeat>
+        )}
+      </AnimatePresence>
+    </div>
+  );
   return (
     <motion.div
       data-testid="voice-pill"
       role="region"
       aria-label={pill.label}
-      className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-1 px-3 pb-1 pt-8"
+      className={stacked ? 'absolute inset-x-0 bottom-0 z-10 flex flex-col gap-3 px-3 pb-1 pt-8' : 'absolute inset-x-0 bottom-0 z-10 flex flex-col gap-1 px-3 pb-1 pt-8'}
       variants={variants}
       custom={pill.ending}
       initial="hidden"
@@ -129,39 +165,19 @@ export const VoicePill: React.FC<VoicePillProps> = ({
     >
       {backdrop && <Surface variant="veil" aria-hidden data-testid="voice-backdrop" className="absolute inset-0 -z-10" />}
       <LiveTranscript text={words} listening={listening} settled={!listening} liveLost={liveLost} />
-      <div className="flex items-center gap-2">
-        {/* A fixed slot, so the line never moves as Cancel comes and goes. */}
-        <div className={slot}>
-          <AnimatePresence initial={false}>
-            {cancellable && (
-              <EndBeat key="cancel" reduceMotion={reduceMotion}>
-                <IconButton icon={X} label={DICTATION_COPY.cancel} variant="dangerTint" size={controlSize} onClick={onCancel} />
-              </EndBeat>
-            )}
-          </AnimatePresence>
+      {stacked ? (
+        <>
+          {/* Out past the composer's own margins (the frame's and the pill's), to the screen's edges. */}
+          <div className="-mx-7">{line}</div>
+          <div className="flex items-center justify-between gap-2">{cancel}{end}</div>
+        </>
+      ) : (
+        <div className="flex items-center gap-2">
+          {cancel}
+          <div className="min-w-0 flex-1">{line}</div>
+          {end}
         </div>
-        <div className="min-w-0 flex-1">
-          <Horizon stage={pill.stage} stream={stream} label={pill.label} />
-        </div>
-        {/* The composer's control height, so the row never jumps as its end swaps. */}
-        <div className={controlSize === 'md' ? 'flex h-control-md shrink-0 items-center' : 'flex h-control-sm shrink-0 items-center'}>
-          <AnimatePresence initial={false} mode="wait">
-            {beat && (
-              <EndBeat key={beat} reduceMotion={reduceMotion}>
-                <EndContent
-                  beat={beat}
-                  announce={words === null || liveLost}
-                  elapsed={elapsed}
-                  canSend={canSend}
-                  controlSize={controlSize}
-                  onStop={onStop}
-                  onSend={onSend}
-                />
-              </EndBeat>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+      )}
     </motion.div>
   );
 };

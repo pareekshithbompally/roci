@@ -219,7 +219,7 @@ describe('Dictation flow', () => {
     const pill = { active: true, stage: 'recording', ending: 'box', label: 'Recording' } as const;
     render(
       <VoicePill pill={pill} speechState="recording" stream={null} liveText={null} elapsed={5} reduceMotion={false}
-        canSend liveLost={false} backdrop={false} controlSize="md" />,
+        canSend liveLost={false} backdrop={false} controlSize="md" stacked />,
     );
     expect(screen.getByTitle(STOP)).toHaveClass('h-control-md');
     expect(screen.getByTitle(SEND)).toHaveClass('h-control-md');

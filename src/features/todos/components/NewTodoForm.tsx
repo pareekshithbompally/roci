@@ -1,145 +1,138 @@
-/** The one New to-do form, for the To-dos page and a meeting's tab: the shared form
- *  (a dialog on a Mac, a sheet on iPhone). Text, the meeting (when not already fixed) and an optional due date; time once a date is set. */
+/** The one New To-do form, laid out like a new reminder: the title, then Date and Time (each a switch; a date opens its
+ *  picker), then the meeting it belongs to (None: a to-do of its own). A Mac shows it in the corner panel the + opened,
+ *  with Cancel and Add; iPhone as a full-screen page with ✕ and ✓. Opened only through `startCreate('todo')`. */
 
 import React, { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { CalendarDays, ChevronDown, Clock, Users } from 'lucide-react';
 import { useMeetingBrief, useMeetingsFound } from '@shared/hooks/useMeetings';
 import {
-  Button, CardRow, DatePicker, Icon, SearchField, Popover, PopoverContent, PopoverTrigger, Row, Section, Surface, Text, Textarea,
-  TimePicker,
+  AddForm, Button, CardRow, DatePicker, Icon, IconTile, Input, Popover, PopoverContent, PopoverTrigger, Row, SearchField,
+  Section, Surface, Switch, Text, TimePicker,
 } from '@shared/ui';
 import { buildISOFromDateInput, formatMeetingDate } from '@shared/utils/todo.utils';
-import { FormDialog } from '@shared/components';
 import { localDayKey } from '@shared/utils/localDate';
+import { useAddTodo } from '@features/todos/hooks/useAddTodo';
 import { TODOS_CONFIG } from '@config/todos.config';
+import { UNTITLED_MEETING } from '@config/meetingLive.config';
 
 const FORM = TODOS_CONFIG.form;
 
-interface MeetingSelectorProps {
-  selectedId: string;
-  onSelect: (id: string) => void;
-}
-
-/** Picks a meeting: while open it reads the store, the newest first, then those whose title has every word typed. */
-const MeetingSelector: React.FC<MeetingSelectorProps> = ({ selectedId, onSelect }) => {
+/** Picks a meeting (or none): while open it reads the store, the newest first, then those whose title has every word typed. */
+const MeetingPicker: React.FC<{ selectedId: string | null; onSelect: (id: string | null) => void }> = ({ selectedId, onSelect }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-
-  const selected = useMeetingBrief(selectedId || null);
+  const selected = useMeetingBrief(selectedId);
   const words = query.trim().split(/\s+/).filter(Boolean);
-  const filtered = useMeetingsFound(words.length > 0 ? { words } : {}, TODOS_CONFIG.meetingPicker, open);
+  const found = useMeetingsFound(words.length > 0 ? { words } : {}, TODOS_CONFIG.meetingPicker, open);
+  const pick = (id: string | null) => {
+    onSelect(id);
+    setOpen(false);
+    setQuery('');
+  };
 
   return (
     <Popover modal open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="md" className="w-full">
-          <Text variant="helper" tone={selected ? 'primary' : 'faint'} truncate className="flex-1 text-left">
-            {selected ? (selected.title || 'Untitled Meeting') : 'Select a meeting…'}
-          </Text>
+        <Button variant="ghost" size="sm">
+          <Text tone={selected ? 'primary' : 'muted'} truncate>{selected ? (selected.title || UNTITLED_MEETING) : FORM.noMeeting}</Text>
           <Icon icon={ChevronDown} size="xs" tone="faint" className="shrink-0" />
         </Button>
       </PopoverTrigger>
-
-      <PopoverContent align="start" width="trigger" className="max-h-60 overflow-hidden">
-        {/* Search within selector */}
+      <PopoverContent align="end" label={FORM.meeting} className="max-h-72 overflow-hidden">
         <Surface edge="bottom" className="p-2">
-          <SearchField value={query} onChange={setQuery} onCancel={() => setQuery('')} placeholder={FORM.searchMeetings} autoFocus />
+          <SearchField value={query} onChange={setQuery} onCancel={() => setQuery('')} placeholder={FORM.searchMeetings} />
         </Surface>
-
-        <div className="overflow-y-auto max-h-48 custom-scrollbar p-1">
-          {filtered.length === 0 ? (
-            <Text as="div" variant="helper" tone="faint" className="px-3 py-4 text-center">No meetings found</Text>
-          ) : (
-            filtered.map(h => (
-              <Row
-                key={h.id}
-                selected={h.id === selectedId}
-                onClick={() => { onSelect(h.id); setOpen(false); setQuery(''); }}
-              >
-                <Text truncate className="flex-1">{h.title || 'Untitled Meeting'}</Text>
-                <Text variant="caption" tone="faint" className="shrink-0">{formatMeetingDate(h.timestamp)}</Text>
-              </Row>
-            ))
-          )}
+        <div className="max-h-56 overflow-y-auto p-1">
+          <Row selected={selectedId === null} onClick={() => pick(null)}>
+            <Text className="flex-1">{FORM.noMeeting}</Text>
+          </Row>
+          {found.map((m) => (
+            <Row key={m.id} selected={m.id === selectedId} onClick={() => pick(m.id)}>
+              <Text truncate className="flex-1">{m.title || UNTITLED_MEETING}</Text>
+              <Text variant="caption" tone="faint" className="shrink-0">{formatMeetingDate(m.timestamp)}</Text>
+            </Row>
+          ))}
         </div>
       </PopoverContent>
     </Popover>
   );
 };
 
-interface NewTodoFormProps {
-  open: boolean;
-  onClose: () => void;
-  /** Saves it; `meetingId` is the fixed one when given, else the one picked. */
-  onSubmit: (meetingId: string, text: string, dueDate?: string) => Promise<void>;
-  /** The meeting it belongs to (a meeting's tab); omitted, the form asks (To-dos page). */
-  meetingId?: string;
+interface Draft {
+  text: string;
+  /** `YYYY-MM-DD`, or '' with Date off. */
+  date: string;
+  /** `HH:MM`, or '' with Time off. */
+  time: string;
+  meetingId: string | null;
 }
 
-export const NewTodoForm: React.FC<NewTodoFormProps> = ({ open, onClose, onSubmit, meetingId: fixedMeetingId }) => {
-  const [text, setText] = useState('');
-  const [pickedMeetingId, setPickedMeetingId] = useState('');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
+/** The fields, the same on both platforms. */
+const TodoFields: React.FC<{ draft: Draft; set: (next: Partial<Draft>) => void }> = ({ draft, set }) => {
+  const today = localDayKey(new Date());
+  return (
+    <>
+      <Section>
+        <CardRow title={<Input variant="plain" value={draft.text} onChange={(e) => set({ text: e.target.value })} placeholder={FORM.text} aria-label={FORM.text} autoFocus />} />
+      </Section>
+      <Section>
+        <CardRow
+          leading={<IconTile icon={CalendarDays} />}
+          title={FORM.date}
+          actions={(
+            <>
+              {draft.date && <DatePicker value={draft.date} onChange={(date) => set({ date })} min={today} placeholder={FORM.date} />}
+              <Switch checked={!!draft.date} onCheckedChange={(on) => set(on ? { date: today } : { date: '', time: '' })} aria-label={FORM.date} />
+            </>
+          )}
+        />
+        <CardRow
+          leading={<IconTile icon={Clock} />}
+          title={FORM.time}
+          disabled={!draft.date}
+          actions={(
+            <>
+              {draft.time && <TimePicker value={draft.time} onChange={(time) => set({ time })} />}
+              <Switch checked={!!draft.time} onCheckedChange={(on) => set({ time: on ? FORM.defaultTime : '' })} aria-label={FORM.time} />
+            </>
+          )}
+        />
+      </Section>
+      <Section>
+        <CardRow leading={<IconTile icon={Users} />} title={FORM.meeting} actions={<MeetingPicker selectedId={draft.meetingId} onSelect={(meetingId) => set({ meetingId })} />} />
+      </Section>
+    </>
+  );
+};
+
+interface NewTodoFormProps {
+  /** The meeting it starts in (a meeting's +); null starts with none. */
+  meetingId: string | null;
+  onClose: () => void;
+}
+
+export const NewTodoForm: React.FC<NewTodoFormProps> = ({ meetingId, onClose }) => {
+  const addTodo = useAddTodo();
+  const [draft, setDraft] = useState<Draft>({ text: '', date: '', time: '', meetingId });
   const [saving, setSaving] = useState(false);
-  const meetingId = fixedMeetingId ?? pickedMeetingId;
-  const canSubmit = text.trim().length > 0 && meetingId.length > 0 && !saving;
+  const set = (next: Partial<Draft>) => setDraft((d) => ({ ...d, ...next }));
+  const canSave = draft.text.trim().length > 0 && !saving;
 
-  const close = () => {
-    setText('');
-    setPickedMeetingId('');
-    setDate('');
-    setTime('');
-    onClose();
-  };
-
-  const submit = async () => {
-    if (!canSubmit) return;
+  const save = async () => {
+    if (!canSave) return;
     setSaving(true);
     try {
-      await onSubmit(meetingId, text.trim(), date ? buildISOFromDateInput(date, time || undefined) : undefined);
-      close();
+      await addTodo(draft.meetingId, draft.text.trim(), draft.date ? buildISOFromDateInput(draft.date, draft.time || undefined) : undefined);
+      onClose();
     } catch (error: unknown) {
       console.error('[NewTodoForm] Create failed:', error);
-    } finally {
       setSaving(false);
     }
   };
 
   return (
-    <FormDialog
-      open={open}
-      onOpenChange={(next) => !next && close()}
-      title={FORM.title}
-      dirty={text.trim() !== ''}
-      submit={{ label: FORM.submit, onPress: () => void submit(), disabled: !canSubmit, busy: saving }}
-    >
-      <Textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder={FORM.text}
-        spellCheck
-        autoCorrect="on"
-        autoCapitalize="sentences"
-        className="h-16"
-        autoFocus
-      />
-      <Section>
-        {fixedMeetingId === undefined && (
-          <CardRow title={FORM.meeting} stacked>
-            <MeetingSelector selectedId={pickedMeetingId} onSelect={setPickedMeetingId} />
-          </CardRow>
-        )}
-        <CardRow
-          title={FORM.due}
-          actions={
-            <>
-              <DatePicker value={date} onChange={setDate} min={localDayKey(new Date())} placeholder={FORM.dueDate} />
-              {date && <TimePicker value={time || FORM.defaultTime} onChange={setTime} />}
-            </>
-          }
-        />
-      </Section>
-    </FormDialog>
+    <AddForm title={FORM.title} onClose={onClose} onSave={() => void save()} saveLabel={FORM.submit} canSave={canSave} busy={saving}>
+      <TodoFields draft={draft} set={set} />
+    </AddForm>
   );
 };

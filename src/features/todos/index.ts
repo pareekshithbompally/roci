@@ -5,4 +5,4 @@ export { useGlobalTodos } from './hooks';
 export type { TodoFilter } from './hooks';
 
 // Components
-export { TodoList, TodoItem, RemindersView } from './components';
+export { TodoList, TodoItem, RemindersView, NewTodoForm } from './components';

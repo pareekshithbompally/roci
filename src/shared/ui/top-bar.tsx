@@ -1,6 +1,7 @@
 import React from 'react';
 import { Surface } from './surface';
 import { Text } from './text';
+import { InBarContext } from './bar-context';
 
 export interface TopBarProps {
   /** Control at the start: sidebar toggle or back. */
@@ -16,11 +17,15 @@ export function TopBar({ leading, title, trailing }: TopBarProps) {
   return (
     <Surface as="header" variant="plain" className="sticky top-0 z-20 shrink-0 pt-safe-top">
       <div className="grid h-[var(--top-bar-height)] grid-cols-[1fr_auto_1fr] items-center gap-2 px-4">
-        <div className="flex items-center gap-1 justify-self-start">{leading}</div>
+        <InBarContext.Provider value>
+          <div className="flex items-center gap-1 justify-self-start">{leading}</div>
+        </InBarContext.Provider>
         <div className="min-w-0 justify-self-center">
           {typeof title === 'string' ? <Text as="h1" variant="bodyStrong" className="truncate">{title}</Text> : title}
         </div>
-        <div className="flex items-center gap-1 justify-self-end">{trailing}</div>
+        <InBarContext.Provider value>
+          <div className="flex items-center gap-1 justify-self-end">{trailing}</div>
+        </InBarContext.Provider>
       </div>
     </Surface>
   );

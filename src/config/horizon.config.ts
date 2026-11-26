@@ -95,8 +95,10 @@ export const HORIZON_CONFIG = {
     /** How long the pill stays after capture ends, by how it ended, s (docs/plans/IN-PROGRESS/dictation-flow.md): a short
      *  beat into the box, none for a send (it leaves with the message) or a cancel, long enough to read a message otherwise. */
     hold: { box: 0.2, send: 0, empty: 1, failed: 1.1, quiet: 0 },
-    /** Live words: at most this many lines show, the oldest fading out at the top. */
-    liveText: { lines: 6, placeholder: 'Listening…' },
+    /** Live words: at most this many lines show, the oldest fading out at the top. Scrolled back to reread, they hold still
+     *  and follow the newest words again once the reader has left them still for `resumeMs` (or scrolls back down within
+     *  `slackPx` of the end). */
+    liveText: { lines: 6, placeholder: 'Listening…', resumeMs: 2000, slackPx: 8 },
   },
 
   /** Colour token per part (tokens.css `--horizon-*`): copper ribbons for your voice, teal while Roci works, danger red on failure. */

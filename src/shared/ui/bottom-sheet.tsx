@@ -7,15 +7,14 @@ import { Sheet } from 'react-modal-sheet';
 import { cn, dismissKeyboard } from './utils';
 import { NO_TOP_INSET } from './recipes';
 import { useSheetPullDown } from './bottom-sheet-pull';
-import { Check, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { IconButton } from './button';
 import { Text } from './text';
-import { Spinner } from './spinner';
 import { UI_CONFIG } from '@config/ui.config';
 import { KIT_COPY } from '@config/kitCopy.config';
 
 /**
- * The one iOS sheet. Every sheet on a phone is this: BottomSheet, InfoSheet, EditSheet, and a Dialog or Popover (their
+ * The one iOS sheet. Every sheet on a phone is this: BottomSheet, InfoSheet, and a Dialog or Popover (their
  * roots are `SheetRoot` there). One contract: the grabber and the sheet's bar (✕, title, ✓) hold still at the top and drag
  * the sheet; the content under them scrolls. react-modal-sheet moves it: it follows the finger 1:1 and settles at a stop (or
  * closes) by distance and speed. A `fit` sheet stops only at its own height (a short one sits on the bottom edge); a `full`
@@ -282,22 +281,6 @@ export function SheetBody({ children }: { children: React.ReactNode }) {
   return <div className="flex flex-col gap-section p-4 pb-sheet-end">{children}</div>;
 }
 
-export interface EditSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  /** ✓ is greyed until there is something to save. */
-  canSave: boolean;
-  onSave: () => void;
-  /** What ✓ does (Save, Add, Done), for VoiceOver. */
-  saveLabel?: string;
-  /** Saving: a spinner stands in for ✓. */
-  busy?: boolean;
-  /** Edited: a drag down keeps it open, so only ✕ (which asks) or ✓ leave. */
-  held?: boolean;
-  children: React.ReactNode;
-}
-
 /** A sheet's bar (iOS), the title centred. One rule for every sheet: one that edits has ✕ (cancel) at the leading edge and
  *  its save (`trailing`) at the trailing edge; one that only shows or picks has ✕ alone at the trailing edge, as Settings does. */
 function SheetHeader({ title, closeLabel, onClose, trailing }: { title: string; closeLabel: string; onClose: () => void; trailing?: React.ReactNode }) {
@@ -308,30 +291,6 @@ function SheetHeader({ title, closeLabel, onClose, trailing }: { title: string; 
       <Text as="h2" variant="headline">{title}</Text>
       <div className="justify-self-end">{trailing ?? close}</div>
     </header>
-  );
-}
-
-/** An iOS edit sheet (Settings › Name): ✕ cancels at the leading edge, ✓ saves at the trailing edge, the title between;
- *  the fields below in their own card, no buttons in the content. */
-export function EditSheet({ open, onOpenChange, title, canSave, onSave, saveLabel = KIT_COPY.save, busy, held, children }: EditSheetProps) {
-  return (
-    <BottomSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title={title}
-      focusField
-      held={held}
-      bar={(
-        <SheetHeader
-          title={title}
-          closeLabel={KIT_COPY.cancel}
-          onClose={() => onOpenChange(false)}
-          trailing={busy ? <Spinner /> : <IconButton icon={Check} label={saveLabel} size="fab" variant="bar" disabled={!canSave} onClick={onSave} />}
-        />
-      )}
-    >
-      <SheetBody>{children}</SheetBody>
-    </BottomSheet>
   );
 }
 

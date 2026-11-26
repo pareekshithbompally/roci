@@ -9,8 +9,6 @@ export const LIVE_NOTES_CONFIG = {
   bulletIdPrefix: 'b',
   copy: {
     yourNotes: 'Your notes',
-    /** A phone meeting's tab holding both the AI notes and yours. */
-    notesTab: 'Notes',
     /** A phone's one-word segments while recording (a segment is half the screen). */
     sectionShort: { transcript: 'Transcript', notes: 'Notes' },
     aiNotes: 'AI Summary',

@@ -5,7 +5,7 @@ import { AppStatus } from '@shared/types';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { PermissionChecklist, RecordingExitPrompt, recording, useRecordingStore, useRecordingRuntime, useStartRecording, useToggleRecording } from '@features/recording';
-import { MainLayout } from '@features/layout';
+import { CreateHost, MainLayout } from '@features/layout';
 import { endSearch, startSearch, toggleSearch } from '@shared/stores/searchStore';
 import { HomeView } from '@features/home';
 import { useOpenMeeting } from '@features/history';
@@ -333,6 +333,9 @@ const App: React.FC = () => {
       <PermissionChecklist />
       {/* Asks Stop or Cancel when quitting or closing the window mid-recording */}
       <RecordingExitPrompt />
+
+      {/* Adding a to-do, a note or a chat: one host for every + */}
+      <CreateHost />
 
       {/* The one app-wide confirm() prompt */}
       <ConfirmHost />

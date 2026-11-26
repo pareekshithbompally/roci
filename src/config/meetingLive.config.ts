@@ -69,6 +69,22 @@ export const PERMISSION_CHECKLIST_COPY = {
 
 export const MEETING_TABS = { summary: 'Summary', transcript: 'Transcript' } as const;
 
+/** A meeting with no title yet, wherever its name shows (pickers, the to-dos list, its chat). */
+export const UNTITLED_MEETING = 'Untitled Meeting';
+
+/** A meeting's one + (kit `ActionFab`): what it adds. */
+export const MEETING_ADD_COPY = {
+  add: 'Add to this meeting',
+  chat: 'Chat',
+  chatLabel: 'Chat about this meeting',
+  todo: 'To-do',
+  note: 'Note',
+  notesTitle: 'Notes',
+  newChat: 'New chat',
+  openFullChat: 'Open full chat',
+  chatAbout: (title: string) => `Chat about ${title}`,
+} as const;
+
 /** A meeting's header commands. */
 export const MEETING_HEADER_COPY = {
   actions: 'Meeting actions',

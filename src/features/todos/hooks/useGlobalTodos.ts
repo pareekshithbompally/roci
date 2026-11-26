@@ -2,8 +2,6 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchMeetingBrief } from '@shared/query/items';
-import type { HistoryItem } from '@shared/types';
 import { store, type GlobalTodoEntry } from '@services/db';
 import { reminderService } from '@services/reminder.service';
 import { queryKeys } from '@shared/query/queryKeys';
@@ -32,8 +30,6 @@ export interface UseGlobalTodosReturn {
   setSearchQuery: (q: string) => void;
   /** Toggle a todo's completion and persist */
   toggleTodo: (meetingId: string | null, todoId: string) => Promise<void>;
-  /** Create a new todo linked to a meeting */
-  addTodo: (meetingId: string, text: string, dueDate?: string) => Promise<void>;
   /** Counts (based on search-filtered set, before filter tabs) */
   counts: { total: number; pending: number; completed: number };
   /** Loading state */
@@ -101,71 +97,6 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
     },
   });
 
-  const addTodoMutate = useMutation({
-    mutationFn: async ({
-      meetingId,
-      text,
-      dueDate,
-      meetingTitle,
-    }: {
-      meetingId: string;
-      text: string;
-      dueDate?: string;
-      meetingTitle: string;
-    }) => {
-      const entry = {
-        id: crypto.randomUUID(),
-        meetingId,
-        text,
-        dueDate,
-        completed: false,
-        source: 'user' as const,
-      };
-      await store.todos.upsert(entry);
-      return {
-        id: entry.id,
-        text,
-        dueDate,
-        completed: false,
-        source: 'user' as const,
-        createdAt: new Date().toISOString(),
-        meetingId,
-        meetingTitle,
-      };
-    },
-    onMutate: async ({ meetingId, text, dueDate, meetingTitle }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.storeGlobalTodos() });
-      const previous = queryClient.getQueryData<GlobalTodoEntry[]>(queryKeys.storeGlobalTodos());
-      const optimistic: GlobalTodoEntry = {
-        id: crypto.randomUUID(),
-        text,
-        dueDate,
-        completed: false,
-        source: 'user',
-        createdAt: new Date().toISOString(),
-        meetingId,
-        meetingTitle,
-        meetingCreatedAt: queryClient.getQueryData<HistoryItem | null>(queryKeys.meetingBrief(meetingId))?.timestamp ?? null,
-      };
-      queryClient.setQueryData<GlobalTodoEntry[]>(queryKeys.storeGlobalTodos(), (old) =>
-        [optimistic, ...(old || [])]
-      );
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous !== undefined) {
-        queryClient.setQueryData(queryKeys.storeGlobalTodos(), context.previous);
-      }
-    },
-    onSuccess: (entry) => { void remindersSync.added([entry.id]); },
-    onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.storeGlobalTodos() });
-      if (variables?.meetingId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.storeTodos(variables.meetingId) });
-      }
-    },
-  });
-
   const refresh = useCallback(() => void queryClient.invalidateQueries({ queryKey: queryKeys.storeTodosAll() }), [queryClient]);
 
   const toggleTodo = useCallback(
@@ -173,14 +104,6 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
       await toggleTodoMutate.mutateAsync({ meetingId, todoId });
     },
     [toggleTodoMutate]
-  );
-
-  const addTodo = useCallback(
-    async (meetingId: string, text: string, dueDate?: string) => {
-      const meetingTitle = (await fetchMeetingBrief(meetingId))?.title || 'Untitled Meeting';
-      await addTodoMutate.mutateAsync({ meetingId, text, dueDate, meetingTitle });
-    },
-    [addTodoMutate]
   );
 
   // Search-filtered set (before tab filters)
@@ -253,7 +176,6 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
     searchQuery,
     setSearchQuery,
     toggleTodo,
-    addTodo,
     counts,
     isLoading,
     refresh,

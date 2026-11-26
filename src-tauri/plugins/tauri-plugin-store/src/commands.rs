@@ -3015,6 +3015,8 @@ pub(crate) mod tests {
 
         todos_delete_impl(&conn, "t1").unwrap();
         assert_eq!(count(&conn, "SELECT COUNT(*) FROM todos WHERE id = ?1", "t1"), 0);
+        // Deleting a child never touches its parent.
+        assert_eq!(count(&conn, "SELECT COUNT(*) FROM meetings WHERE id = ?1", "m1"), 1);
 
         // Both report NotFound on a missing id.
         assert_eq!(

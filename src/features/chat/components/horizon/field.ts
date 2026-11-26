@@ -10,7 +10,6 @@ const STEP = 1 / 240;
 const HISTORY = 512;
 const BREATH_PERIOD = 5.5;
 const HIDDEN_SCALE = 0.9;
-const HIDDEN_SOFTNESS = 3;
 const LIVE_FOLLOW = 0.55;
 const ENVELOPE_RISE = 0.022;
 const AMPLITUDE_DAMPING = 0.52;
@@ -47,7 +46,6 @@ export interface Pose {
   height: number;
   opacity: number;
   scale: number;
-  softness: number;
   /** Red (failed) mix, 0–1; the teal of transcribing spreads by `coolAt`. */
   fail: number;
   glow: number;
@@ -147,7 +145,6 @@ export class Field {
   private reach = new Spring(0);
   private opacity = new Spring(0);
   private scale = new Spring(HIDDEN_SCALE);
-  private softness = new Spring(HIDDEN_SOFTNESS);
   private cool = new Spring(0);
   private fail = new Spring(0);
   private gather = new Spring(0);
@@ -158,7 +155,6 @@ export class Field {
       height: this.tuning.height,
       opacity: clamp(this.opacity.x, 0, 1),
       scale: Math.max(this.scale.x, 0.01),
-      softness: clamp(this.softness.x, 0, HIDDEN_SOFTNESS),
       fail: clamp(this.fail.x, 0, 1),
       glow: this.glow * this.tuning.glow,
       breath: this.reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin((this.time * TAU) / BREATH_PERIOD),
@@ -269,7 +265,6 @@ export class Field {
     if (frame.reduceMotion) {
       this.reach.jump(1);
       this.scale.jump(1);
-      this.softness.jump(0);
       this.gather.jump(gather);
       this.shake.jump(0);
       this.opacity.stepTo(shown, HORIZON_CONFIG.reducedFade, h);
@@ -283,7 +278,6 @@ export class Field {
     this.reach.stepTo(shown, frame.visible ? bouncy : fade, h);
     this.opacity.stepTo(shown, fade, h);
     this.scale.stepTo(frame.visible ? 1 : HIDDEN_SCALE, bouncy, h);
-    this.softness.stepTo(frame.visible ? 0 : HIDDEN_SOFTNESS, fade, h);
     this.cool.stepTo(cool, fade, h);
     this.fail.stepTo(fail, fade, h);
     this.gather.stepTo(gather, HORIZON_CONFIG.gather, h);

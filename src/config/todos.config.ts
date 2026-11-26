@@ -5,17 +5,31 @@ export const TODOS_CONFIG = {
   meetingPicker: 50,
   /** Sidebar row, page title, meeting tab. */
   title: 'To-dos',
-  /** The action that creates one (page and meeting tab). */
+  /** The action that creates one (the + on To-dos and a meeting). */
   add: 'Add to-do',
+  /** The To-dos screen: its search, filters, counts and empty states. */
+  page: {
+    search: 'Search to-dos',
+    closeSearch: 'Close search',
+    filters: { all: 'All', pending: 'Pending', completed: 'Completed' },
+    counts: (pending: number, done: number) => `${pending} pending · ${done} done`,
+    empty: {
+      none: { message: 'No to-dos yet', description: 'To-dos from your meetings will appear here' },
+      filtered: (filter: string) => ({ message: `No ${filter} to-dos`, description: 'Try a different filter to see more items' }),
+      search: { message: 'No matching to-dos', description: 'Try different keywords or clear your search' },
+    },
+  },
   /** The new to-do form. */
   form: {
     title: 'New To-do',
     submit: 'Add',
-    text: 'What do you need to do?',
+    text: 'Title',
     meeting: 'Meeting',
+    /** A to-do of its own (the General group). */
+    noMeeting: 'None',
     searchMeetings: 'Search meetings',
-    due: 'Due',
-    dueDate: 'Due date',
+    date: 'Date',
+    time: 'Time',
     /** The time a due date starts at until one is picked. */
     defaultTime: '09:00',
   },

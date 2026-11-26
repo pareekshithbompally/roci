@@ -1,11 +1,12 @@
-/** The meeting chat: a floating mini window over the meeting, the same chat as the full view, one click to expand. */
+/** The meeting chat, the same chat as the full view: on a Mac a panel at the corner its + sits in (one click to expand); on
+ *  iPhone a screen of its own with ‹ back. Opened only through `startCreate('chat', meetingId)`. */
 
 import React, { useCallback, useEffect, useRef } from 'react';
-import { ChevronDown, Maximize2, SquarePen } from 'lucide-react';
-import { IconButton, Surface, Text } from '@shared/ui';
+import { Maximize2, SquarePen } from 'lucide-react';
+import { IconButton, PanelScreen } from '@shared/ui';
 import { useMeetingBrief } from '@shared/hooks/useMeetings';
-import { UI_CONFIG } from '@config/ui.config';
 import { MEETING_CHAT_PLACEHOLDER } from '@config/chat.config';
+import { MEETING_ADD_COPY as COPY } from '@config/meetingLive.config';
 import { closeMeetingChat, expandMeetingChat, useChatCurrentSessionId, useChatStore } from '@features/chat/stores';
 import { ChatShell } from './ChatShell';
 
@@ -36,40 +37,19 @@ function useMeetingDraft(meetingId: string): () => void {
   return start;
 }
 
-const { meetingChat, titlebar } = UI_CONFIG.layout;
-
-/** Bottom-right, `inset` from the window edges; shorter than `maxHeight` only when the window can't fit it below the titlebar. */
-const POPOUT_GEOMETRY: React.CSSProperties = {
-  right: meetingChat.inset,
-  bottom: meetingChat.inset,
-  width: meetingChat.popout.width,
-  height: `min(${meetingChat.popout.maxHeight}px, calc(100vh - ${titlebar.safeArea + meetingChat.inset}px))`,
-};
-
 export const MeetingChatPopout: React.FC<MeetingChatPopoutProps> = ({ meetingId, meetingTitle }) => {
   const startNew = useMeetingDraft(meetingId);
   // A chat exists once its first message is sent; before that the window already is a new chat.
   const hasConversation = useChatCurrentSessionId() !== null;
-
-  const header = (
-    <Surface edge="bottom" className="flex items-center gap-1 pl-4 pr-2 h-11 shrink-0">
-      <Text as="h2" variant="bodyStrong" truncate className="flex-1">{meetingTitle}</Text>
-      {hasConversation && <IconButton icon={SquarePen} label="New chat" size="sm" onClick={startNew} />}
-      <IconButton icon={Maximize2} label="Open full chat" size="sm" onClick={expandMeetingChat} />
-      <IconButton icon={ChevronDown} label="Minimize" size="sm" onClick={closeMeetingChat} />
-    </Surface>
-  );
-
   return (
-    <Surface
-      variant="floating"
-      radius="xl"
-      className="fixed z-floating flex flex-col overflow-hidden animate-content-show"
-      style={POPOUT_GEOMETRY}
-      role="dialog"
-      aria-label={`Chat about ${meetingTitle}`}
+    <PanelScreen
+      title={meetingTitle}
+      label={COPY.chatAbout(meetingTitle)}
+      onClose={closeMeetingChat}
+      actions={hasConversation && <IconButton icon={SquarePen} label={COPY.newChat} size="sm" onClick={startNew} />}
+      panelActions={<IconButton icon={Maximize2} label={COPY.openFullChat} size="sm" onClick={expandMeetingChat} />}
     >
-      <ChatShell placeholder={MEETING_CHAT_PLACEHOLDER} scopeMeetingId={meetingId} headerSlot={header} />
-    </Surface>
+      <ChatShell placeholder={MEETING_CHAT_PLACEHOLDER} scopeMeetingId={meetingId} />
+    </PanelScreen>
   );
 };

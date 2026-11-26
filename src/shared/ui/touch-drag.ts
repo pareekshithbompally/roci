@@ -1,14 +1,9 @@
 /** The one sideways touch-drag primitive (iOS): a pushed screen swiped back, the sidebar dragged open and closed (sheets
- *  move through react-modal-sheet, bottom-sheet.tsx); `release` lets go of one. Touch events, not pointer events: the first move is claimed with `preventDefault`, so the drag wins over a
+ *  move through react-modal-sheet, bottom-sheet.tsx). Touch events, not pointer events: the first move is claimed with `preventDefault`, so the drag wins over a
  *  scroll (and the scroll's bounce) instead of being cancelled by it. */
 
 import { useEffect, useRef } from 'react';
-import { animate } from 'framer-motion';
-import type { AnimationPlaybackControls, Transition } from 'framer-motion';
 import { UI_CONFIG } from '@config/ui.config';
-import { motionFor, spring } from './motion';
-
-const MS_PER_S = 1000;
 
 const { edgePx, commitSpeed } = UI_CONFIG.gesture;
 
@@ -58,20 +53,10 @@ export function commits(moved: number, speed: number, size: number, share: numbe
   return moved > size * share || speed > commitSpeed;
 }
 
-/** How anything a finger lets go of moves on: the `follow` spring, starting at the finger's `speed` (px per ms), so the move
- *  carries on from the finger instead of restarting. */
-export function releaseMotion(speed: number, reduce: boolean): Transition {
-  return reduce ? motionFor('follow', true) : spring('follow', speed * MS_PER_S);
-}
-
-/** Lets go of `node`, dragged sideways to `from` px: it springs on to `to` px (`releaseMotion`), then `done` runs. Returns
- *  the move, so a new drag can stop a spring-back still under way instead of fighting it. */
-export function release(node: HTMLElement, from: number, to: number, speed: number, reduce: boolean, done?: () => void): AnimationPlaybackControls {
-  const controls = animate(node, { x: [from, to] }, releaseMotion(speed, reduce));
-  controls.finished
-    .then(() => done?.())
-    .catch((error: unknown) => console.error('[touchDrag] release failed:', error));
-  return controls;
+/** Slides `node` to `translate` on its own CSS transition (iOS curve), then calls `done`. */
+export function slideOff(node: HTMLElement, translate: string, done: () => void): void {
+  node.addEventListener('transitionend', done, { once: true });
+  node.style.translate = translate;
 }
 
 const along = (_axis: DragAxis, touch: Touch) => touch.clientX;

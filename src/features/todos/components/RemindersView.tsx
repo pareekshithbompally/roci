@@ -1,24 +1,26 @@
-/** To-dos: every meeting's action items, grouped by meeting, filterable, with create support; opened from the sidebar row. */
+/** To-dos: every meeting's action items, grouped by meeting, filterable; the + at the corner adds one. Opened from the sidebar row. */
 
 import React, { useCallback, useState } from 'react';
-import { Inbox, Search, Plus, X } from 'lucide-react';
+import { Inbox, ListTodo, Search, X } from 'lucide-react';
 import { useGlobalTodos } from '@features/todos/hooks/useGlobalTodos';
 import type { TodoFilter } from '@features/todos/hooks/useGlobalTodos';
 import type { GlobalTodoEntry } from '@services/db';
-import { IconButton, SearchField, Surface, Tabs, Text, ViewHeader, ViewScroll, cn } from '@shared/ui';
+import { ActionFab, IconButton, SearchField, Surface, Tabs, Text, ViewHeader, ViewScroll, cn } from '@shared/ui';
 import { ScreenState } from '@shared/components';
 import { formatMeetingDate } from '@shared/utils/todo.utils';
-import { NewTodoForm } from './NewTodoForm';
+import { startCreate } from '@shared/stores/createStore';
 import TodoItem from './TodoItem';
 import { LAYOUT } from '@config/layout.config';
 import { TODOS_CONFIG } from '@config/todos.config';
 
 // ── Filter chip config ──────────────────────────────────────────
 
+const PAGE = TODOS_CONFIG.page;
+
 const FILTERS: { key: TodoFilter; label: string; countKey: 'total' | 'pending' | 'completed' }[] = [
-  { key: 'all', label: 'All', countKey: 'total' },
-  { key: 'pending', label: 'Pending', countKey: 'pending' },
-  { key: 'completed', label: 'Completed', countKey: 'completed' },
+  { key: 'all', label: PAGE.filters.all, countKey: 'total' },
+  { key: 'pending', label: PAGE.filters.pending, countKey: 'pending' },
+  { key: 'completed', label: PAGE.filters.completed, countKey: 'completed' },
 ];
 
 // ── Todo row ────────────────────────────────────────────────────
@@ -43,8 +45,7 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, onToggle, onReminderChanged }) 
 // ── Main component ──────────────────────────────────────────────
 
 export const RemindersView: React.FC = () => {
-  const { groups, filter, setFilter, searchQuery, setSearchQuery, toggleTodo, addTodo, refresh, counts, isLoading } = useGlobalTodos();
-  const [isCreating, setIsCreating] = useState(false);
+  const { groups, filter, setFilter, searchQuery, setSearchQuery, toggleTodo, refresh, counts, isLoading } = useGlobalTodos();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const handleToggle = useCallback(async (meetingId: string | null, todoId: string) => {
@@ -77,42 +78,28 @@ export const RemindersView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden animate-fade-in">
-      {/* Title and counts (or the search field), Search and Add; the filters under it */}
+      {/* Title and counts (or the search field) and Search; the filters under it */}
       <ViewHeader
         title={TODOS_CONFIG.title}
-        detail={counts.total > 0 && `${counts.pending} pending · ${counts.completed} done`}
+        detail={counts.total > 0 && PAGE.counts(counts.pending, counts.completed)}
         replaceTitle={isSearchOpen && (
           <>
             <SearchField value={searchQuery} onChange={setSearchQuery} onCancel={handleSearchToggle} autoFocus className="flex-1" />
-            <IconButton icon={X} label="Close search" size="sm" onClick={handleSearchToggle} />
+            <IconButton icon={X} label={PAGE.closeSearch} size="sm" onClick={handleSearchToggle} />
           </>
         )}
-        accessory={
-          <>
-            {!isSearchOpen && <IconButton icon={Search} label="Search to-dos" size="sm" onClick={handleSearchToggle} />}
-            <IconButton icon={Plus} label={TODOS_CONFIG.add} size="sm" onClick={() => setIsCreating(true)} disabled={isCreating} />
-          </>
-        }
+        accessory={!isSearchOpen && <IconButton icon={Search} label={PAGE.search} size="sm" onClick={handleSearchToggle} />}
       >
         <Tabs items={filterTabs} value={filter} onValueChange={setFilter} />
       </ViewHeader>
 
       {/* The list in the page column; no fade, as each meeting's heading pins to the top. */}
       <ViewScroll fade={false}>
-        <NewTodoForm open={isCreating} onClose={() => setIsCreating(false)} onSubmit={addTodo} />
-
         <ScreenState
           loading={isLoading}
           empty={!hasContent && {
             icon: searchQuery ? Search : Inbox,
-            message: searchQuery
-              ? 'No matching to-dos'
-              : filter === 'all' ? 'No to-dos yet' : `No ${filter} to-dos`,
-            description: searchQuery
-              ? 'Try different keywords or clear your search'
-              : filter === 'all'
-                ? 'To-dos from your meetings will appear here'
-                : 'Try a different filter to see more items',
+            ...(searchQuery ? PAGE.empty.search : filter === 'all' ? PAGE.empty.none : PAGE.empty.filtered(filter)),
           }}
           className="py-2"
         >
@@ -148,6 +135,8 @@ export const RemindersView: React.FC = () => {
           ))}
         </ScreenState>
       </ViewScroll>
+
+      <ActionFab label={TODOS_CONFIG.add} actions={[{ id: 'todo', label: TODOS_CONFIG.add, icon: ListTodo, onSelect: () => startCreate('todo') }]} />
     </div>
   );
 };

@@ -7,7 +7,7 @@ import {
   Button,
   CardRow,
   Dialog,
-  EditSheet,
+  EditPage,
   type DialogContentProps,
   DialogBody,
   DialogClose,
@@ -68,7 +68,7 @@ const MacFooter: React.FC<Pick<FormDialogProps, 'submit' | 'aside' | 'viewOnly' 
   </>
 );
 
-/** Settings form dialog: a sheet on a Mac with its footer; on a phone the iOS edit sheet (✕ / title / ✓), the side
+/** Settings form dialog: a sheet on a Mac with its footer; on a phone the iOS edit page (✕ / title / ✓), the side
  *  command as an action row at its end. Outside clicks are ignored so a half-filled form is never lost. */
 export const FormDialog: React.FC<FormDialogProps> = (props) =>
   useFormFactor() === 'phone' ? <PhoneForm {...props} /> : <DesktopForm {...props} />;
@@ -92,21 +92,21 @@ const askDiscard = () => confirm({ title: KIT_COPY.discard.title, confirmLabel: 
 const stay = () => Promise.resolve(false);
 
 /** Inside a navigation stack (Settings) a form is a pushed page with ✓ in its bar (Settings › Wi-Fi › Other); anywhere
- *  else, the iOS edit sheet (✕ / title / ✓). */
+ *  else, the full-screen iOS edit page (✕ / title / ✓). */
 const PhoneForm: React.FC<FormDialogProps> = ({ open, onOpenChange, title, submit, dirty, ...body }) => {
   const stacked = useOptionalNavStack() !== null;
   const canSave = !submit.disabled && !submit.busy;
   if (!stacked) {
-    // ✕, the scrim and Escape ask before dropping edits; a drag down keeps the sheet (held).
+    // ✕ and Escape ask before dropping edits.
     const close = (next: boolean) => {
       if (next || submit.busy) return;
       if (!dirty) return onOpenChange(false);
       askDiscard().then((yes) => yes && onOpenChange(false)).catch((error: unknown) => console.error('[FormDialog] ask failed:', error));
     };
     return (
-      <EditSheet open={open} onOpenChange={close} title={title} canSave={canSave} onSave={submit.onPress} saveLabel={submit.label} busy={submit.busy} held={dirty || submit.busy}>
+      <EditPage open={open} onOpenChange={close} title={title} canSave={canSave} onSave={submit.onPress} saveLabel={submit.label} busy={submit.busy}>
         <PhoneFormBody {...body} />
-      </EditSheet>
+      </EditPage>
     );
   }
   return (

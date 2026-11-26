@@ -1,20 +1,17 @@
-/** App layout: resizable sidebar, content area, and the floating meeting chat; a phone gets `PhoneShell`. */
+/** App layout: resizable sidebar, content area, and a meeting's floating +; a phone gets `PhoneShell`. */
 
 import React, { useCallback, useRef, useMemo } from 'react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useSmallScreen } from '@shared/hooks/useMediaQuery';
 import { useFloatingSidebarControls } from '@shared/hooks/useFloatingSidebarControls';
-import { useAppStatus, useSelectedHistoryId, useCurrentView } from '@shared/stores/appStore';
-import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { useActivityItems } from '@shared/stores/activityStore';
 import { Sidebar } from './Sidebar';
 import { CommandPalette } from '@features/palette';
-import { MeetingChat, startNewChat } from '@features/chat';
-import { useRecordingScreenMeetingId } from '@features/recording';
+import { startNewChat } from '@features/chat';
 import { PanelLeft, SquarePen } from 'lucide-react';
 import { useFormFactor } from '@platform/formFactor';
 import { PhoneShell } from './PhoneShell';
-import { AppStatus } from '@shared/types';
+import { MeetingFab } from './MeetingFab';
 import { LAYOUT } from '@config/layout.config';
 import { Badge, Button, Drawer, Icon, Separator, Surface, TitlebarDragRegion } from '@shared/ui';
 
@@ -27,10 +24,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
   const { open: isLeftPanelOpen, setLeftPanel, width: sidebarWidth, setLeftPanelWidth } = useLeftPanel();
   const isSmallScreen = useSmallScreen();
-  const status = useAppStatus();
-  const selectedHistoryId = useSelectedHistoryId();
-  const currentView = useCurrentView();
-  const recordingScreenMeetingId = useRecordingScreenMeetingId();
   const activityItems = useActivityItems();
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
@@ -62,12 +55,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   }, [sidebarWidth, setLeftPanelWidth]);
 
   const shouldOffsetMacControls = useFloatingSidebarControls();
-
-  // Meeting chat (its button or its window) only on a meeting's page, the record screen included: other destinations keep the
-  // meeting selected underneath.
-  const meetingResultsId = status === AppStatus.RESULTS ? selectedHistoryId : null;
-  const chatMeetingId = currentView === 'home' ? recordingScreenMeetingId ?? meetingResultsId : null;
-  const chatMeeting = useMeetingBrief(chatMeetingId);
 
   if (formFactor === 'phone') return <PhoneShell>{children}</PhoneShell>;
 
@@ -139,7 +126,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             {children}
           </div>
 
-          {chatMeetingId && <MeetingChat meetingId={chatMeetingId} meetingTitle={chatMeeting?.title || 'Meeting'} />}
+          <MeetingFab />
         </div>
       </div>
     </Surface>

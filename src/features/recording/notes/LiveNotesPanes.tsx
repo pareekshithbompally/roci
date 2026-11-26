@@ -21,6 +21,8 @@ export interface AiNotesProps {
 export interface NotesPaneProps {
   onType: (text: string) => void;
   ai?: AiNotesProps;
+  /** Opened to write a note (the meeting's + › Note): your notes show, with the caret in them. */
+  focus?: boolean;
 }
 
 /** A pane's heading row: the title or a switch, then trailing content. */
@@ -80,8 +82,8 @@ export const NOTES_TABS = [
 
 /** Mac and iPad: while recording, Your notes alone (typing takes the focus); after, the AI summary (first, and open) or Your
  *  notes behind a switch. */
-export const NotesPane: React.FC<NotesPaneProps> = ({ onType, ai }) => {
-  const [view, setView] = useState<NotesView>('ai');
+export const NotesPane: React.FC<NotesPaneProps> = ({ onType, ai, focus }) => {
+  const [view, setView] = useState<NotesView>(focus ? 'notes' : 'ai');
   if (!ai) {
     return (
       <section className="flex h-full min-h-0 flex-col">
@@ -95,7 +97,7 @@ export const NotesPane: React.FC<NotesPaneProps> = ({ onType, ai }) => {
       <PaneHeader>
         <Tabs items={NOTES_TABS} value={view} onValueChange={setView} label={NOTES.copy.yourNotes} />
       </PaneHeader>
-      {view === 'notes' ? <YourNotes onType={onType} autoFocus={false} /> : <AiNotes {...ai} />}
+      {view === 'notes' ? <YourNotes onType={onType} autoFocus={!!focus} /> : <AiNotes {...ai} />}
     </section>
   );
 };

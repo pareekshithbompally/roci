@@ -13,6 +13,7 @@ export const KIT_COPY = {
   /** A setting's ⓘ button, read out. */
   aboutSetting: (label: string) => `About ${label}`,
   close: 'Close',
+  minimize: 'Minimize',
   back: 'Back',
   delete: 'Delete',
   more: 'More',
@@ -62,5 +63,10 @@ export const KIT_COPY = {
   search: 'Search',
   closeNamed: (name: string) => `Close ${name}`,
   activityCount: (n: number) => `Activity (${n})`,
-  deletePrompt: (noun: string) => ({ title: `Delete this ${noun}?`, description: 'This can’t be undone.', confirmLabel: 'Delete' }),
+  /** `goes`: what is deleted with it (a parent's children), said before it happens. */
+  deletePrompt: (noun: string, goes?: string) => ({
+    title: `Delete this ${noun}?`,
+    description: goes ? `${goes} This can’t be undone.` : 'This can’t be undone.',
+    confirmLabel: 'Delete',
+  }),
 } as const;

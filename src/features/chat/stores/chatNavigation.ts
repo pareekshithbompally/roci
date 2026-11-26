@@ -2,6 +2,7 @@
 
 import type { MutableRefObject } from 'react';
 import { useAppStore } from '@shared/stores/appStore';
+import { endCreate, startCreate } from '@shared/stores/createStore';
 import { AppStatus } from '@shared/types';
 import { useChatStore } from './chatStore';
 
@@ -18,16 +19,16 @@ export function focusChatComposer(): void {
     return;
   }
   composerFocusPending = true;
-  const { selectedHistoryId, setCurrentView, setMeetingChatOpen } = useAppStore.getState();
+  const { selectedHistoryId, setCurrentView } = useAppStore.getState();
   setCurrentView('home');
-  if (selectedHistoryId) setMeetingChatOpen(true);
+  if (selectedHistoryId) startCreate('chat', selectedHistoryId);
 }
 
 /** The meeting chat full screen: the same chat, now the selected one in the sidebar (or the home composer if unsent). */
 export function expandMeetingChat(): void {
   const app = useAppStore.getState();
   const { currentSessionId } = useChatStore.getState();
-  app.setMeetingChatOpen(false);
+  endCreate();
   app.setCurrentView('home');
   app.setSelectedHistoryId(null);
   app.setStatus(currentSessionId ? AppStatus.CHAT : AppStatus.IDLE);
@@ -35,7 +36,7 @@ export function expandMeetingChat(): void {
 
 /** Closes the meeting chat; an unsent draft (and its meeting chip) goes with it. */
 export function closeMeetingChat(): void {
-  useAppStore.getState().setMeetingChatOpen(false);
+  endCreate();
   const chat = useChatStore.getState();
   if (chat.currentSessionId) return;
   chat.newChat();

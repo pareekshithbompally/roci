@@ -9,11 +9,12 @@ import { Surface } from './surface';
 import { Text } from './text';
 import { cn } from './utils';
 import { TitlebarSpacer } from './page-scroll';
-import { BackBar } from './nav-stack';
+import { TopBar } from './top-bar';
 
-/** Back to where a place was opened from, supplied by a shell that presents places as pushed pages (iPhone: back to the
- *  sidebar). Absent (a Mac, iPad), a place keeps its large title. */
-export const ViewBackContext = createContext<(() => void) | null>(null);
+/** The top bar's leading control, supplied by a shell that shows each place full screen with its own bar (iPhone: the
+ *  sidebar button, as on home). Absent (a Mac, iPad), a place keeps its large title. A place is a top-level screen, so it
+ *  never has ‹; only what is opened from it does. */
+export const ViewLeadingContext = createContext<React.ReactNode>(null);
 
 export interface ViewHeaderProps {
   title: string;
@@ -30,14 +31,15 @@ export interface ViewHeaderProps {
 }
 
 export function ViewHeader({ title, detail, accessory, replaceTitle, children, fullWidth }: ViewHeaderProps) {
-  const back = useContext(ViewBackContext);
-  if (back) {
-    // A pushed page (iPhone): ‹ back, the title centred, the place's controls at the end; its rows (a search, filters) under it.
+  const leading = useContext(ViewLeadingContext);
+  if (leading) {
+    // iPhone: the shell's top bar (the sidebar button, the title centred, the place's controls at the end); its rows (a
+    // search, filters) under it.
     return (
-      <header className="shrink-0 pt-safe-top">
-        <BackBar title={title} onBack={back} action={accessory && <div className="flex items-center gap-1">{accessory}</div>} />
-        {(replaceTitle || children) && <div className={cn('space-y-3 pb-3', LAYOUT.listGutter)}>{replaceTitle && <div className="flex items-center gap-2">{replaceTitle}</div>}{children}</div>}
-      </header>
+      <>
+        <TopBar leading={leading} title={title} trailing={accessory} />
+        {(replaceTitle || children) && <div className={cn('shrink-0 space-y-3 pb-3', LAYOUT.listGutter)}>{replaceTitle && <div className="flex items-center gap-2">{replaceTitle}</div>}{children}</div>}
+      </>
     );
   }
   // The title line is one control tall and the controls align to it, so every view's title sits at the same spot with or

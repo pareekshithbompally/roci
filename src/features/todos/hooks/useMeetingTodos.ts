@@ -52,48 +52,6 @@ export function useMeetingTodos(meetingId: string | null) {
   const aiTodos = data?.aiTodos ?? [];
   const queryError = error ? (error instanceof Error ? error.message : 'Failed to load todos') : null;
 
-  const addTodoMutate = useMutation({
-    mutationFn: async ({ text, dueDate }: { text: string; dueDate?: string }) => {
-      const entry = {
-        id: crypto.randomUUID(),
-        meetingId: meetingId!,
-        text,
-        dueDate,
-        completed: false,
-        source: 'user' as const,
-      };
-      await store.todos.upsert(entry);
-      return entry;
-    },
-    onMutate: async ({ text, dueDate }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.storeTodos(meetingId!) });
-      const previous = queryClient.getQueryData<MeetingTodosData>(queryKeys.storeTodos(meetingId!));
-      const optimistic: ActionItem = {
-        id: crypto.randomUUID(),
-        text,
-        dueDate,
-        completed: false,
-      };
-      queryClient.setQueryData<MeetingTodosData>(
-        queryKeys.storeTodos(meetingId!),
-        (old) => ({
-          userTodos: [optimistic, ...(old?.userTodos ?? [])],
-          aiTodos: old?.aiTodos ?? [],
-        })
-      );
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous !== undefined) {
-        queryClient.setQueryData(queryKeys.storeTodos(meetingId!), context.previous);
-      }
-    },
-    onSuccess: (entry) => { void remindersSync.added([entry.id]); },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.storeTodos(meetingId!) });
-    },
-  });
-
   const updateTodoMutate = useMutation({
     mutationFn: async ({
       todoId,
@@ -196,14 +154,6 @@ export function useMeetingTodos(meetingId: string | null) {
 
   const refresh = useCallback(() => void queryClient.invalidateQueries({ queryKey: queryKeys.storeTodosAll() }), [queryClient]);
 
-  const addTodo = useCallback(
-    async (text: string, dueDate?: string) => {
-      if (!meetingId) return;
-      await addTodoMutate.mutateAsync({ text, dueDate });
-    },
-    [meetingId, addTodoMutate]
-  );
-
   const updateTodo = useCallback(
     async (todoId: string, updates: { text?: string; dueDate?: string }) => {
       if (!meetingId) return;
@@ -234,7 +184,6 @@ export function useMeetingTodos(meetingId: string | null) {
     isLoading,
     error: queryError,
     meetingId,
-    addTodo,
     updateTodo,
     deleteTodo,
     toggleTodo,

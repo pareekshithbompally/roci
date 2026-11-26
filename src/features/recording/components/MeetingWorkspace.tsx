@@ -73,7 +73,7 @@ const Columns: React.FC<MeetingWorkspaceProps> = ({ transcript, notes }) => (
 
 /** A phone's notes on one page: the summary's AI notes (after the meeting), then yours, each under its label (no switch, so
  *  no second row of tabs). */
-const StackedNotes: React.FC<NotesPaneProps> = ({ onType, ai }) => (
+const StackedNotes: React.FC<NotesPaneProps> = ({ onType, ai, focus }) => (
   <div className="flex h-full min-h-0 flex-col">
     {ai && (
       <>
@@ -82,7 +82,7 @@ const StackedNotes: React.FC<NotesPaneProps> = ({ onType, ai }) => (
       </>
     )}
     <PaneHeader><Text variant="label" tone="muted">{NOTES.copy.yourNotes}</Text></PaneHeader>
-    <YourNotes onType={onType} autoFocus={false} />
+    <YourNotes onType={onType} autoFocus={!!focus} />
   </div>
 );
 

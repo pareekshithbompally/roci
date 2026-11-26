@@ -1,10 +1,11 @@
 /** A meeting after Stop: Summary, Transcript (the record screen's view kept — the transcript beside the notes) and To-dos. One
  *  status at a time: a badge while it works, a notice when it needs you. */
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { endCreate, useCreateFlow } from '@shared/stores/createStore';
 import { motion } from 'framer-motion';
 import { ANIMATION_CONFIG } from '@config/animations.config';
-import { Plus, Clock, Users, ExternalLink, VolumeX } from 'lucide-react';
+import { Clock, Users, ExternalLink, VolumeX } from 'lucide-react';
 import { useActiveResultTab, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
 import { useMeetingResult } from '@shared/hooks/useMeetingResult';
 import type { ResultTab } from '@shared/stores/appStore';
@@ -31,13 +32,14 @@ import type { HistoryItem, ProcessedResult } from '@shared/types';
 import { isMeetingBusy, type MeetingPhase } from '@shared/types/meetingPhase';
 import { meetingPhaseDetail } from '@config/meetingPhase.config';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
-import { MEETING_LIVE_CONFIG as LIVE, MEETING_TABS } from '@config/meetingLive.config';
+import { MEETING_ADD_COPY, MEETING_LIVE_CONFIG as LIVE, MEETING_TABS } from '@config/meetingLive.config';
 import {
   Badge,
   Button,
   Icon,
-  IconButton,
+  PushedPage,
   Surface,
+  useListBesideDetail,
   Tabs,
   TitleBlock,
   Text,
@@ -49,12 +51,11 @@ import { TODOS_CONFIG } from '@config/todos.config';
 
 const VIEW = ANIMATION_CONFIG.view;
 
-/** One segmented control (HIG: one, few segments). A phone gives the notes their own tab (a Mac shows them beside the
- *  transcript); Related needs a Mac's room. */
+/** One segmented control (HIG: one, few segments). Notes sit beside the transcript on a Mac and open from the + on a phone;
+ *  Related needs a Mac's room. */
 const TAB_ITEMS: readonly TabItem<ResultTab>[] = [
   { value: 'summary', label: MEETING_TABS.summary },
   { value: 'transcript', label: MEETING_TABS.transcript },
-  { value: 'notes', label: NOTES.copy.notesTab, only: 'phone' },
   { value: 'todo', label: TODOS_CONFIG.title },
   { value: 'related', label: KNOWLEDGE_GRAPH.tab, only: 'desktop' },
 ];
@@ -134,7 +135,7 @@ const MeetingTitle: React.FC<{ title: string }> = ({ title }) => (
 
 /** The Transcript tab: the saved transcript (or the in-call one until it is saved) beside the meeting's notes, whose AI lines
  *  are the summary's filled-in notes and key points. Keyed by meeting, so each meeting's notes load fresh. */
-const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phase: MeetingPhase; only: 'transcript' | 'notes' }> = ({ meetingId, result, phase, only }) => {
+const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phase: MeetingPhase; only: 'transcript' | 'notes'; focusNotes?: boolean }> = ({ meetingId, result, phase, only, focusNotes }) => {
   const { type, modelProblem } = useLiveNotes(meetingId);
   const draft = useDraftSegments(meetingId);
   const summary = result.structuredSummary;
@@ -152,7 +153,7 @@ const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phas
   return (
     <MeetingWorkspace
       transcript={transcript}
-      notes={{ onType: type, ai: { modelProblem, bullets, writing: busy } }}
+      notes={{ onType: type, ai: { modelProblem, bullets, writing: busy }, focus: focusNotes }}
       only={only}
     />
   );
@@ -175,10 +176,18 @@ export const ResultsView: React.FC = () => {
 
   /** The ⋯ menu's sheets: rename the meeting, or see its details. */
   const [sheet, setSheet] = useState<'rename' | 'details' | null>(null);
-  /** The To-dos tab's new-item form is open; closed when the meeting changes. */
-  const [addingTodo, setAddingTodo] = useState(false);
-
-  useEffect(() => setAddingTodo(false), [selectedHistoryId]);
+  // Notes sit beside the transcript (Mac, iPad): + › Note goes there. Without the room (iPhone) they open as a screen.
+  const notesBeside = useListBesideDetail();
+  const flow = useCreateFlow();
+  const writingNote = flow?.kind === 'note' && flow.meetingId === selectedHistoryId;
+  /** Each + › Note beside the transcript: the Transcript tab, with its notes open and the caret in them. */
+  const [noteVisit, setNoteVisit] = useState(0);
+  useEffect(() => {
+    if (!writingNote || !notesBeside) return;
+    setActiveResultTab('transcript');
+    setNoteVisit((n) => n + 1);
+    endCreate();
+  }, [writingNote, notesBeside, setActiveResultTab]);
 
 
   if (loading) return <LoadingPane />;
@@ -230,6 +239,13 @@ export const ResultsView: React.FC = () => {
         </div>
       </TitleBlock>
 
+      {/* iPhone: + › Note opens the meeting's notes as a screen of their own. */}
+      {!notesBeside && currentHistoryItem && (
+        <PushedPage open={writingNote} title={MEETING_ADD_COPY.notesTitle} onBack={endCreate} over="app" fill>
+          <TranscriptTab meetingId={currentHistoryItem.id} result={result} phase={phase} only="notes" focusNotes />
+        </PushedPage>
+      )}
+
       <RenameModal open={sheet === 'rename'} onOpenChange={(open) => !open && setSheet(null)} currentTitle={shownTitle} onConfirm={saveTitle} />
       {currentHistoryItem && (
         <MeetingDetailsDialog meetingId={currentHistoryItem.id} open={sheet === 'details'} onOpenChange={(open) => !open && setSheet(null)} />
@@ -239,16 +255,6 @@ export const ResultsView: React.FC = () => {
       <Surface edge="bottom" className={LAYOUT.pageGutter}>
       <div className={`${LAYOUT.pageColumn} flex items-center gap-2 h-11`}>
         <Tabs items={TAB_ITEMS} value={activeResultTab} onValueChange={setActiveResultTab} />
-        {activeResultTab === 'todo' && (
-          <IconButton
-            icon={Plus}
-            label={TODOS_CONFIG.add}
-            size="sm"
-            className="ml-auto"
-            disabled={addingTodo}
-            onClick={() => setAddingTodo(true)}
-          />
-        )}
       </div>
       </Surface>
 
@@ -269,11 +275,11 @@ export const ResultsView: React.FC = () => {
       )}
 
       {/* Tab content: the Transcript tab's panes scroll inside themselves; the other tabs scroll as a page. */}
-      {(activeResultTab === 'transcript' || activeResultTab === 'notes') && currentHistoryItem ? (
+      {activeResultTab === 'transcript' && currentHistoryItem ? (
         // the record screen's frame exactly: the panes run to the window's bottom edge, open there
         <div className={`${LAYOUT.pageGutter} flex-1 overflow-hidden pt-4`}>
           <div className={`${LAYOUT.pageColumn} h-full flex flex-col min-h-0`}>
-            <TranscriptTab key={currentHistoryItem.id} meetingId={currentHistoryItem.id} result={result} phase={phase} only={activeResultTab === 'notes' ? 'notes' : 'transcript'} />
+            <TranscriptTab key={`${currentHistoryItem.id}-${noteVisit}`} meetingId={currentHistoryItem.id} result={result} phase={phase} only="transcript" focusNotes={noteVisit > 0} />
           </div>
         </div>
       ) : activeResultTab === 'summary' ? (
@@ -285,7 +291,7 @@ export const ResultsView: React.FC = () => {
         </TabPage>
       ) : (
         <TabPage>
-          <TodoList creating={addingTodo} onCreatingChange={setAddingTodo} />
+          <TodoList />
         </TabPage>
       )}
     </motion.div>

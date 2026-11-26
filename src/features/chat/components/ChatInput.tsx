@@ -370,6 +370,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   liveLost={speechLiveLost}
                   backdrop={overContent}
                   controlSize={glyphSize}
+                  stacked={phone}
                   onCancel={onSpeechCancel}
                 />
               )}

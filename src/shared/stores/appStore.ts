@@ -4,7 +4,7 @@ import { AppStatus } from '@shared/types';
 export type ViewType = 'home' | 'settings' | 'reminders' | 'calendar' | 'gallery' | 'dictations';
 export type SettingsPanel = 'general' | 'storage' | 'defaultModels' | 'personalization' | 'providers' | 'integrations' | 'notifications' | 'mcp' | 'usage' | 'shortcuts' | 'about';
 /** `notes`: a phone's own tab for the meeting's notes (the Mac shows them beside the transcript). */
-export type ResultTab = 'transcript' | 'notes' | 'summary' | 'todo' | 'related';
+export type ResultTab = 'transcript' | 'summary' | 'todo' | 'related';
 
 /** What the user asked for while a recording was capturing. */
 export type ExitPromptKind = 'quit' | 'close';
@@ -24,7 +24,6 @@ interface AppStoreState {
   /** Counts every way into a panel (sidebar, ⌘K, openSettings), so the panel starts again at its top each time, even when it
    *  is the one already open (System Settings). */
   settingsVisit: number;
-  meetingChatOpen: boolean;
   permissionChecklistOpen: boolean;
   /** Quit or window close asked while recording: which one, or none. */
   recordingExitPrompt: ExitPromptKind | null;
@@ -39,7 +38,6 @@ interface AppStoreState {
   setSelectedHistoryId: (id: string | null) => void;
   setActiveResultTab: (t: ResultTab) => void;
   setActiveSettingsPanel: (p: SettingsPanel) => void;
-  setMeetingChatOpen: (open: boolean) => void;
   setPermissionChecklistOpen: (open: boolean) => void;
   setRecordingExitPrompt: (prompt: ExitPromptKind | null) => void;
 }
@@ -54,7 +52,6 @@ export const useAppStore = create<AppStoreState>((set) => ({
   settingsPage: null,
   settingsVisit: 0,
   settingsRequest: null,
-  meetingChatOpen: false,
   permissionChecklistOpen: false,
   recordingExitPrompt: null,
 
@@ -74,23 +71,15 @@ export const useAppStore = create<AppStoreState>((set) => ({
     set((s) => (s.currentView === 'settings' ? { currentView: s.viewBeforeSettings, settingsRequest: null } : {})),
 
   setStatus: (s) =>
-    set({
-      status: s,
-      ...(s !== AppStatus.RESULTS && { meetingChatOpen: false }),
-    }),
+    set({ status: s }),
 
 
   setSelectedHistoryId: (id) =>
-    set({
-      selectedHistoryId: id,
-      ...(id === null && { meetingChatOpen: false }),
-    }),
+    set({ selectedHistoryId: id }),
 
   setActiveResultTab: (t) => set({ activeResultTab: t }),
 
   setActiveSettingsPanel: (p) => set((s) => ({ activeSettingsPanel: p, settingsPage: null, settingsVisit: s.settingsVisit + 1 })),
-
-  setMeetingChatOpen: (open) => set({ meetingChatOpen: open }),
 
   setPermissionChecklistOpen: (open) => set({ permissionChecklistOpen: open }),
 
@@ -104,7 +93,6 @@ export const useSelectedHistoryId = () => useAppStore((s) => s.selectedHistoryId
 export const useActiveResultTab = () => useAppStore((s) => s.activeResultTab);
 export const useSettingsPage = () => useAppStore((s) => s.settingsPage);
 export const useSettingsVisit = () => useAppStore((s) => s.settingsVisit);
-export const useMeetingChatOpen = () => useAppStore((s) => s.meetingChatOpen);
 export const usePermissionChecklistOpen = () => useAppStore((s) => s.permissionChecklistOpen);
 export const useRecordingExitPrompt = () => useAppStore((s) => s.recordingExitPrompt);
 
@@ -117,7 +105,6 @@ export const useAppActions = () => {
   const setSelectedHistoryId = useAppStore((s) => s.setSelectedHistoryId);
   const setActiveResultTab = useAppStore((s) => s.setActiveResultTab);
   const setActiveSettingsPanel = useAppStore((s) => s.setActiveSettingsPanel);
-  const setMeetingChatOpen = useAppStore((s) => s.setMeetingChatOpen);
 
   return {
     setCurrentView,
@@ -127,6 +114,5 @@ export const useAppActions = () => {
     setSelectedHistoryId,
     setActiveResultTab,
     setActiveSettingsPanel,
-    setMeetingChatOpen,
   };
 };

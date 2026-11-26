@@ -16,10 +16,12 @@ export const UI_CONFIG = {
       dragHeight: 36,
     },
     /** Onboarding panel's top edge: pinned, so a taller or shorter next step grows downward instead of re-centring. */
-    /** Meeting chat, anchored bottom-right `inset` from the window edges: its floating button, or its window (never taller than the space below the titlebar). */
-    meetingChat: {
+    /** The bottom-right corner (Mac): the floating + button (kit `ActionFab`) and the panel it opens (kit `CornerPanel`: a
+     *  new to-do, the meeting chat), `inset` from the window edges, never taller than the space below the titlebar. */
+    cornerPanel: {
       inset: 16,
-      popout: { width: 400, maxHeight: 600 },
+      width: 400,
+      maxHeight: 600,
     },
     /** Page scrollers (kit `PageScroll`): length of a faded bottom edge (matches the titlebar band). */
     pageScroll: {

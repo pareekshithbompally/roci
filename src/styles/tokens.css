@@ -289,9 +289,8 @@ html.platform-ios {
   --row-icon-gap: 14px;
   --section-gap: 24px;
   --top-bar-height: 4rem;
-  /* The composer and sheets ride the keyboard on the `follow` spring (motion.config.ts): its inertia, not a short tween
-     that lands before the keyboard does. */
-  transition: --keyboard-inset var(--motion-follow);
+  /* The composer and sheets ride the keyboard on its own length and curve (motion.config.ts), so they land together. */
+  transition: --keyboard-inset var(--motion-keyboard);
 }
 
 html.platform-ios.dark {

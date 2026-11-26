@@ -1,1 +1,1 @@
-export { MainLayout, Sidebar } from './components';
+export { CreateHost, MainLayout, Sidebar } from './components';

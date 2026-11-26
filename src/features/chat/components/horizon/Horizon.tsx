@@ -182,7 +182,6 @@ function draw(ctx: CanvasRenderingContext2D, field: Field, theme: Theme, deviceS
   ctx.translate(width / 2 + pose.shake, pose.height / 2);
   ctx.scale(pose.scale, pose.scale);
   ctx.globalAlpha = pose.opacity;
-  ctx.filter = pose.softness > 0.05 ? `blur(${pose.softness * 0.72}px)` : 'none';
   drawGlow(p);
   ctx.globalCompositeOperation = theme.blend;
   if (p.half > 0.5) {

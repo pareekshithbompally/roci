@@ -237,18 +237,17 @@ export const PERSONALIZATION_CONFIG = {
       temp: 0.8, 'top-p': 0.95, 'top-k': 40, 'min-p': 0.05, 'repeat-penalty': 1, 'presence-penalty': 0, 'frequency-penalty': 0,
       'repeat-last-n': 64, 'dry-multiplier': 0,
     },
-    /** The Advanced… sheet: every sampling option Roci tunes, by llama-server's own name, in its group; the hint is the
-     *  row's line, the help its ⓘ. */
+    /** The Advanced… sheet: every sampling option Roci tunes, by llama-server's own name, in its group, with its ⓘ. */
     options: [
-      { key: 'temp', group: 'sampling', label: 'Temperature', min: 0, max: 2, step: 0.05, hint: 'Lower is steadier; higher is more varied.', help: 'How playful the model is with words. Turn it down for steady, predictable answers; turn it up for more variety and ideas, with more slip-ups.' },
-      { key: 'top-p', group: 'sampling', label: 'Top P', min: 0.05, max: 1, step: 0.05, hint: 'How many likely words it weighs; 1 weighs them all.', help: 'How many likely words the model considers before picking one. Lower keeps it on the obvious choices; 1 lets it consider them all.' },
-      { key: 'top-k', group: 'sampling', label: 'Top K', min: 0, max: 200, step: 1, hint: 'A cap on the words it chooses between; 0 is no cap.', help: 'A hard cap on how many likely words the model chooses between. Lower keeps it focused; 0 means no cap.' },
-      { key: 'min-p', group: 'sampling', label: 'Min P', min: 0, max: 0.5, step: 0.01, hint: 'Skips long-shot words; 0 is off.', help: 'Tells the model to ignore words that are a long shot. A little, like 0.05, cuts out odd words; 0 leaves it off.' },
-      { key: 'repeat-penalty', group: 'repeats', label: 'Repeat Penalty', min: 1, max: 1.5, step: 0.01, hint: 'Steers away from words just used; 1 is off.', help: 'Nudges the model away from words it just used, so it doesn’t go in circles. 1 is off; too high and it avoids words it actually needs.' },
-      { key: 'presence-penalty', group: 'repeats', label: 'Presence Penalty', min: 0, max: 2, step: 0.05, hint: 'Favours bringing up something new; 0 is off.', help: 'Encourages the model to bring up something new instead of circling back to what it already said. 0 is off.' },
-      { key: 'frequency-penalty', group: 'repeats', label: 'Frequency Penalty', min: 0, max: 2, step: 0.05, hint: 'Pushes harder the more a word is used; 0 is off.', help: 'Discourages the model from leaning on the same word or phrase again and again; the more it’s used, the stronger the push. 0 is off.' },
-      { key: 'dry-multiplier', group: 'repeats', label: 'DRY Multiplier', min: 0, max: 2, step: 0.05, hint: 'Stops whole phrases repeating; 0 is off.', help: 'Stops the model repeating whole runs of words it already wrote ("Don’t Repeat Yourself"). Higher stops them sooner; 0 is off.' },
-      { key: 'repeat-last-n', group: 'repeats', label: 'Penalties Look Back', min: 0, max: 512, step: 16, unit: 'tokens', hint: 'How far back repeats are spotted, in tokens.', help: 'How far back the repeat, presence and frequency penalties look when spotting repeats, counted in tokens (a token is about ¾ of a word). 0 turns them off.' },
+      { key: 'temp', group: 'sampling', label: 'Temperature', min: 0, max: 2, step: 0.05, help: 'How playful the model is with words. Turn it down for steady, predictable answers; turn it up for more variety and ideas, with more slip-ups.' },
+      { key: 'top-p', group: 'sampling', label: 'Top P', min: 0.05, max: 1, step: 0.05, help: 'How many likely words the model considers before picking one. Lower keeps it on the obvious choices; 1 lets it consider them all.' },
+      { key: 'top-k', group: 'sampling', label: 'Top K', min: 0, max: 200, step: 1, help: 'A hard cap on how many likely words the model chooses between. Lower keeps it focused; 0 means no cap.' },
+      { key: 'min-p', group: 'sampling', label: 'Min P', min: 0, max: 0.5, step: 0.01, help: 'Tells the model to ignore words that are a long shot. A little, like 0.05, cuts out odd words; 0 leaves it off.' },
+      { key: 'repeat-penalty', group: 'repeats', label: 'Repeat Penalty', min: 1, max: 1.5, step: 0.01, help: 'Nudges the model away from words it just used, so it doesn’t go in circles. 1 is off; too high and it avoids words it actually needs.' },
+      { key: 'presence-penalty', group: 'repeats', label: 'Presence Penalty', min: 0, max: 2, step: 0.05, help: 'Encourages the model to bring up something new instead of circling back to what it already said. 0 is off.' },
+      { key: 'frequency-penalty', group: 'repeats', label: 'Frequency Penalty', min: 0, max: 2, step: 0.05, help: 'Discourages the model from leaning on the same word or phrase again and again; the more it’s used, the stronger the push. 0 is off.' },
+      { key: 'dry-multiplier', group: 'repeats', label: 'DRY Multiplier', min: 0, max: 2, step: 0.05, help: 'Stops the model repeating whole runs of words it already wrote ("Don’t Repeat Yourself"). Higher stops them sooner; 0 is off.' },
+      { key: 'repeat-last-n', group: 'repeats', label: 'Penalties Look Back', min: 0, max: 512, step: 16, unit: 'tokens', help: 'How far back the repeat, presence and frequency penalties look when spotting repeats, counted in tokens (a token is about ¾ of a word). 0 turns them off.' },
     ],
     /** Context sizes offered: powers of two from the smallest that holds Roci's chat (its instructions and tools take
      *  about 5,000 tokens before any history) up to the model's own maximum. */

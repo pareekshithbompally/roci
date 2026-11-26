@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Loader2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
@@ -9,12 +9,13 @@ import { LIST_ART_PX } from './icon-tile';
 import { UI_CONFIG } from '@config/ui.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { motionFor } from './motion';
+import { InBarContext } from './bar-context';
 
 /** Canonical button: colour lives in `variant`, shape in `size`; call sites never pass colour or padding classes. Square
  *  sizes never shrink: a crowded row can't squeeze a round button into a pill. */
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'record' | 'dangerTint' | 'success' | 'accentTint' | 'ghost' | 'glyph' | 'dangerGhost' | 'link' | 'ai' | 'bar';
 
-export type ButtonSize = 'inline' | 'toolbar' | 'sm' | 'md' | 'lg' | 'icon' | 'iconSm' | 'iconXs' | 'fab';
+export type ButtonSize = 'inline' | 'toolbar' | 'sm' | 'md' | 'lg' | 'icon' | 'iconSm' | 'iconXs' | 'fab' | 'float';
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   /** The main action, in the brand colour on every device; plain grey while it can't be used (Messages' send). */
@@ -67,6 +68,8 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
   iconXs: 'whitespace-nowrap h-control-xs w-control-xs shrink-0 rounded-md',
   /** Round 44 pt action: the meeting chat's floating button, the iOS sheet's Back and Close */
   fab: 'whitespace-nowrap h-11 w-11 shrink-0 rounded-full',
+  /** The floating + button at a screen's corner (kit `ActionFab`): larger, lifted over the content. */
+  float: 'whitespace-nowrap h-14 w-14 shrink-0 rounded-full shadow-floating',
 };
 
 const BASE_CLASSES = cn(
@@ -111,7 +114,7 @@ export function Button({ variant = 'primary', size = 'sm', loading, className, t
 export type IconButtonProps = Omit<ButtonProps, 'size' | 'children'> & {
   /** Accessible name — required: an icon alone has none. */
   label: string;
-  size?: 'xs' | 'toolbar' | 'sm' | 'md' | 'fab';
+  size?: 'xs' | 'toolbar' | 'sm' | 'md' | 'fab' | 'float';
   /** Solid glyph (stop / play / pause) */
   filled?: boolean;
   /** Rotate the glyph while work runs (Rescan, Sync) */
@@ -133,6 +136,7 @@ const ICON_BUTTON_SIZES: Record<NonNullable<IconButtonProps['size']>, { button: 
   sm: { button: 'iconSm', icon: 'sm' },
   md: { button: 'icon', icon: 'md' },
   fab: { button: 'fab', icon: 'md' },
+  float: { button: 'float', icon: 'lg' },
 };
 
 /** The glyph of a `morph` button: keyed by what the button does, so a change swaps the old glyph out as the new one comes in. */
@@ -148,7 +152,11 @@ function SwappedGlyph({ id, children }: { id: string; children: React.ReactNode 
   );
 }
 
-export function IconButton({ icon, image, appIcon, label, size = 'md', variant = 'ghost', filled, spin, morph, className, ...props }: IconButtonProps) {
+export function IconButton({ icon, image, appIcon, label, size: asked = 'md', variant: askedVariant = 'ghost', filled, spin, morph, className, ...props }: IconButtonProps) {
+  // In a top bar every icon button is a bar button (InBarContext).
+  const inBar = useContext(InBarContext);
+  const size = inBar ? 'fab' : asked;
+  const variant = inBar ? 'bar' : askedVariant;
   const shape = ICON_BUTTON_SIZES[size];
   const imagePx = appIcon ? Math.round(LIST_ART_PX / UI_CONFIG.appIconBody) : LIST_ART_PX;
   const glyph = icon && <Icon icon={icon} size={shape.icon} className={cn(filled && 'fill-current', spin && 'animate-spin')} />;

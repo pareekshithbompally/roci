@@ -53,10 +53,10 @@ export function settleConfirm(confirmed: boolean): void {
 export const useConfirmRequest = () => useConfirmStore((s) => s.request);
 export const useConfirmOpen = () => useConfirmStore((s) => s.resolve !== null);
 
-/** The standard delete prompt: `Delete this <noun>?` with a red Delete. */
-export function confirmDelete(noun: string): Promise<boolean> {
+/** The standard delete prompt: `Delete this <noun>?` with a red Delete; `goes` names what is deleted with it. */
+export function confirmDelete(noun: string, goes?: string): Promise<boolean> {
   return confirm({
-    ...KIT_COPY.deletePrompt(noun),
+    ...KIT_COPY.deletePrompt(noun, goes),
     tone: 'danger',
   });
 }

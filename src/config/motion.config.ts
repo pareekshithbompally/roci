@@ -12,20 +12,20 @@ export type Curve = readonly [number, number, number, number];
 
 export const MOTION = {
   spring: {
-    /** Whatever a finger lets go of (a sheet, the sidebar, a swipe back) and the keyboard: it starts at the finger's speed. */
-    follow: { visualDuration: 0.4, bounce: 0 },
-    /** Something a tap set moving: a screen pushed or popped, the sidebar or a sheet opened by a button, a view gliding. */
-    move: { visualDuration: 0.35, bounce: 0 },
+    /** A sheet a finger lets go of (react-modal-sheet): it carries on at the finger's speed. */
+    follow: { visualDuration: 0.28, bounce: 0 },
+    /** Anything that slides: a screen pushed or popped, a full-screen page rising, the sidebar, a swipe back let go. */
+    move: { visualDuration: 0.28, bounce: 0 },
     /** Something small changing in place, with a touch of life: a menu popping from its button, a glyph swap. */
-    pop: { visualDuration: 0.3, bounce: 0.2 },
+    pop: { visualDuration: 0.25, bounce: 0.2 },
   },
   /** Appearing and disappearing (seconds): in on the iOS curve, out on an accelerating one. Everything leaving fades out,
    *  so an exit is over when it looks over (a spring's settling tail would hold up what waits for it). */
-  fade: { in: 0.2, out: 0.2 },
+  fade: { in: 0.15, out: 0.12 },
+  /** The composer riding the keyboard (seconds, `curve.in`): as long as iOS's own keyboard move, so the two land together. */
+  keyboard: 0.25,
   /** A control answering the pointer (hover, press, focus colour), seconds. */
   quick: 0.15,
-  /** A screen pushed over another moves the one beneath a share of its own travel (iOS parallax). */
-  parallax: 0.3,
   /** Reduce Motion: every motion is this one short fade, seconds. */
   reduced: 0.16,
   curve: {

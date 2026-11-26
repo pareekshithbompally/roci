@@ -1,4 +1,4 @@
-/** Todos view listing user-created todos and AI-generated action items; the tab bar's Add opens its create form. */
+/** A meeting's to-dos: the ones typed and the AI's action items. The meeting's + adds one (`startCreate`). */
 
 import React from 'react';
 import { ListTodo } from 'lucide-react';
@@ -10,19 +10,15 @@ import { confirmDelete } from '@shared/stores/confirmStore';
 import { TODOS_CONFIG } from '@config/todos.config';
 import { Progress, Separator, Text, cn, showToast } from '@shared/ui';
 import TodoItem from './TodoItem';
-import { NewTodoForm } from './NewTodoForm';
 
 interface TodoListProps {
-  /** The create form is open (the meeting's tab bar Add opens it). */
-  creating: boolean;
-  onCreatingChange: (creating: boolean) => void;
   className?: string;
 }
 
-const TodoList: React.FC<TodoListProps> = ({ creating, onCreatingChange, className = '' }) => {
+const TodoList: React.FC<TodoListProps> = ({ className = '' }) => {
   const selectedHistoryId = useSelectedHistoryId();
   const meeting = useMeetingBrief(selectedHistoryId);
-  const { userTodos, aiTodos, isLoading, addTodo, updateTodo, deleteTodo, toggleTodo, refresh } = useMeetingTodos(selectedHistoryId);
+  const { userTodos, aiTodos, isLoading, updateTodo, deleteTodo, toggleTodo, refresh } = useMeetingTodos(selectedHistoryId);
 
   const handleDeleteTodo = async (todoId: string) => {
     if (!(await confirmDelete('to-do'))) return;
@@ -57,14 +53,6 @@ const TodoList: React.FC<TodoListProps> = ({ creating, onCreatingChange, classNa
           <Progress percent={progress} tone="success" className="w-32" />
         </div>
       )}
-
-      {/* New to-do: the shared form, fixed to this meeting. */}
-      <NewTodoForm
-        open={creating}
-        onClose={() => onCreatingChange(false)}
-        meetingId={meetingId}
-        onSubmit={(_meeting, text, dueDate) => addTodo(text, dueDate)}
-      />
 
       {/* Content: empty state or item list */}
       {totalCount === 0 ? (

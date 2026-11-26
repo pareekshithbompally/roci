@@ -11,22 +11,27 @@ const stateRoles = (part, suffix = '') =>
 const ms = (seconds) => `${Math.round(seconds * 1000)}ms`;
 const bezier = (curve) => `cubic-bezier(${curve.join(', ')})`;
 /** How close to its end a spring counts as there: an entrance settles fully; an exit ends once the rest is off-screen. */
-const SETTLED = { enter: 0.002, exit: 0.02 };
+const SETTLED = { enter: 0.01, exit: 0.02 };
 const SAMPLE_MS = 5;
-/** A spring as CSS (`<duration> linear(…)`): framer-motion's own spring, sampled until it stays within `rest` of its end,
- *  so CSS and framer-motion move on one curve. */
-function springCss(spec, rest = SETTLED.enter) {
+/** A spring as CSS (its length and `linear(…)` easing): framer-motion's own spring, sampled until it stays within `rest` of
+ *  its end, so CSS and framer-motion move on one curve. */
+function springParts(spec, rest = SETTLED.enter) {
   const curve = springCurve({ keyframes: [0, 1], ...spec });
   const away = (t) => Math.abs(1 - curve.next(t).value);
   let last = 0;
   for (let t = 0; t <= 3000; t += SAMPLE_MS) if (away(t) >= rest) last = t;
   const duration = last + SAMPLE_MS;
   const end = curve.next(duration).value;
-  return `${duration}ms ${generateLinearEasing((p) => curve.next(p * duration).value / end, duration)}`;
+  return { duration: `${duration}ms`, easing: generateLinearEasing((p) => curve.next(p * duration).value / end, duration) };
 }
+/** `<duration> <easing>`, for an animation shorthand. */
+const springCss = (spec, rest) => {
+  const { duration, easing } = springParts(spec, rest);
+  return `${duration} ${easing}`;
+};
 const MOVE = springCss(MOTION.spring.move);
 const MOVE_AWAY = springCss(MOTION.spring.move, SETTLED.exit);
-const FOLLOW = springCss(MOTION.spring.follow);
+const MOVE_PARTS = springParts(MOTION.spring.move);
 const POP = springCss(MOTION.spring.pop);
 /** Appearing and disappearing (scrim, popovers, menus, tooltips, a view mounting). */
 const ENTER = `${ms(MOTION.fade.in)} ${bezier(MOTION.curve.in)}`;
@@ -122,8 +127,9 @@ export default {
       // A table cell takes its row's height as a minimum (tables ignore min-height on cells).
       height: { row: 'var(--row-min-h)' },
       // `transition` alone answers the pointer (quick); `duration-fade` is a fade's length.
-      transitionTimingFunction: { DEFAULT: bezier(MOTION.curve.in) },
-      transitionDuration: { DEFAULT: ms(MOTION.quick), fade: ms(MOTION.fade.in) },
+      // `duration-move ease-move`: the `move` spring as a CSS transition (the phone's sidebar sliding).
+      transitionTimingFunction: { DEFAULT: bezier(MOTION.curve.in), move: MOVE_PARTS.easing },
+      transitionDuration: { DEFAULT: ms(MOTION.quick), fade: ms(MOTION.fade.in), move: MOVE_PARTS.duration },
       // ─── macOS text styles (SF Pro). `reading` is the one exception: long-form chat/transcript ───
       /** Plain `border` / `divide` lines are one hairline (tokens.css `--hairline`). */
       borderWidth: { DEFAULT: 'var(--hairline)' },
@@ -164,9 +170,9 @@ export default {
         'menu-pop-hide': { from: { opacity: '1', scale: '1' }, to: { opacity: '0', scale: '0.85' } },
         'push-in': { from: { translate: '100% 0' }, to: { translate: '0 0' } },
         'push-out': { from: { translate: '0 0' }, to: { translate: '100% 0' } },
-        // The screen beneath moves a share of the way (iOS parallax): aside as one is pushed over it, back as that one leaves.
-        'push-under': { from: { translate: '0 0' }, to: { translate: `${-MOTION.parallax * 100}% 0` } },
-        'push-uncover': { from: { translate: `${-MOTION.parallax * 100}% 0` }, to: { translate: '0 0' } },
+        // A full-screen page (kit CoverPage): up from the bottom edge, back down to it.
+        'cover-in': { from: { translate: '0 100%' }, to: { translate: '0 0' } },
+        'cover-out': { from: { translate: '0 0' }, to: { translate: '0 100%' } },
         'drawer-start-show': SLIDE_START.show,
         'drawer-start-hide': SLIDE_START.hide,
         'drawer-end-show': SLIDE_END.show,
@@ -205,8 +211,8 @@ export default {
         'menu-pop-hide': `menu-pop-hide ${EXIT} both`,
         'push-in': `push-in ${MOVE}`,
         'push-out': `push-out ${MOVE_AWAY} both`,
-        'push-under': `push-under ${MOVE}`,
-        'push-uncover': `push-uncover ${MOVE_AWAY}`,
+        'cover-in': `cover-in ${MOVE}`,
+        'cover-out': `cover-out ${MOVE_AWAY} both`,
         'drawer-start-show': `drawer-start-show ${MOVE}`,
         'drawer-start-hide': `drawer-start-hide ${MOVE_AWAY}`,
         'drawer-end-show': `drawer-end-show ${MOVE}`,
@@ -226,7 +232,7 @@ export default {
     ({ addBase }) => addBase({
       ':root': {
         '--motion-quick': QUICK,
-        '--motion-follow': FOLLOW,
+        '--motion-keyboard': `${ms(MOTION.keyboard)} ${bezier(MOTION.curve.in)}`,
       },
     }),
   ],
