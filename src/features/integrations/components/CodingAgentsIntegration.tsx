@@ -36,9 +36,9 @@ export const CodingAgentsIntegration: React.FC = () => {
 };
 
 const ServerStatus: React.FC<{ server: McpHostStatus | undefined }> = ({ server }) => {
-  if (!server?.listening || !server.ready) return <Status tone="muted">{COPY.server.starting}</Status>;
-  if (server.clients > 0) return <Status tone="success">{COPY.server.connected(server.clients)}</Status>;
-  return <Status tone="success">{COPY.server.ready}</Status>;
+  if (!server?.listening || !server.ready) return <Status state="preparing">{COPY.server.starting}</Status>;
+  if (server.clients > 0) return <Status state="ready">{COPY.server.connected(server.clients)}</Status>;
+  return <Status state="ready">{COPY.server.ready}</Status>;
 };
 
 /** "Claude Code, Codex and OpenCode". */

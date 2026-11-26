@@ -7,14 +7,15 @@ import { useHexControls } from '@features/integrations/hooks/useHexControls';
 import { IntegrationRow } from './IntegrationRow';
 import { IntegrationIcon } from './IntegrationIcon';
 import type { HexEventsState } from '@services/hex';
+import type { StateKind } from '@config/states.config';
 
 const COPY = INTEGRATIONS_CONFIG.hex;
 
-const EVENTS: Record<HexEventsState | 'none', { tone: 'success' | 'warning' | 'muted'; label: string }> = {
-  live: { tone: 'success', label: 'Arrive as they finish' },
-  'labs-off': { tone: 'warning', label: 'Turn on Labs › Meeting finished event in Hex' },
-  waiting: { tone: 'muted', label: 'Waiting for Hex' },
-  none: { tone: 'muted', label: 'Waiting for Hex' },
+const EVENTS: Record<HexEventsState | 'none', { state: StateKind; label: string }> = {
+  live: { state: 'ready', label: 'Arrive as they finish' },
+  'labs-off': { state: 'attention', label: 'Turn on Labs › Meeting finished event in Hex' },
+  waiting: { state: 'queued', label: 'Waiting for Hex' },
+  none: { state: 'queued', label: 'Waiting for Hex' },
 };
 
 export const HexIntegration: React.FC = () => {
@@ -25,10 +26,10 @@ export const HexIntegration: React.FC = () => {
     <IntegrationRow {...hex} icon={<IntegrationIcon app={COPY.app} logo={COPY.icon} />} title={COPY.title} description={COPY.description}>
       <CardRow
         title={COPY.rows.app}
-        status={hex.running && <Status tone="success">{COPY.rows.running}</Status>}
+        status={hex.running && <Status state="ready">{COPY.rows.running}</Status>}
         action={hex.running ? undefined : { label: COPY.rows.open, onPress: hex.openHex }}
       />
-      <CardRow title={COPY.rows.newMeetings} status={<Status tone={events.tone}>{events.label}</Status>} />
+      <CardRow title={COPY.rows.newMeetings} status={<Status state={events.state}>{events.label}</Status>} />
       <CardRow
         title={COPY.rows.meetings}
         description={hex.syncError}

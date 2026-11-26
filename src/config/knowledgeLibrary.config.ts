@@ -1,6 +1,8 @@
 /** Knowledge: the documents you add (PDFs, text, Markdown), kept in the library for Roci to read; searchable by name. */
 
 import { ATTACHMENT_TYPES } from '@config/chat.config';
+import type { StateKind } from '@config/states.config';
+import type { SourceState } from '@shared/types/native';
 
 const { pdf, text } = ATTACHMENT_TYPES;
 
@@ -26,8 +28,12 @@ export const KNOWLEDGE_LIBRARY = {
   loadFailed: 'Couldn’t load your documents',
   /** A text file shown as Markdown (headings, lists) rather than as plain words. */
   markdown: { mediaType: 'text/markdown', extension: 'md' },
-  /** A document's index state, on its row and page. */
-  states: { pending: 'Indexing…', ready: 'Ready', failed: 'Couldn’t read' },
+  /** A document's index state, on its row and page: its words, and the app state that draws it (states.config). */
+  states: {
+    pending: { label: 'Indexing…', state: 'indexing' },
+    ready: { label: 'Ready', state: 'ready' },
+    failed: { label: 'Couldn’t read', state: 'failed' },
+  } satisfies Record<SourceState, { label: string; state: StateKind }>,
   /** Rust → webview: a source's index state changed. */
   sourceEvent: 'knowledge://source',
   /** The sources about the same thing as a document, under its pages. */

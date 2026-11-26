@@ -1,36 +1,32 @@
-/** Words, colour and icon for each meeting status; read only by `MeetingStatus`. */
+/** Words for each meeting status and the app state it is (states.config draws it); read by `MeetingStatus`. */
 
-import { AlertCircle, AudioWaveform, Loader2, Mic, Pause, type LucideIcon } from 'lucide-react';
+import { AudioWaveform } from 'lucide-react';
 import type { MeetingPhase, MeetingPipelineStage } from '@shared/types/meetingPhase';
+import type { StateKind } from '@config/states.config';
 import { MENU_SYMBOLS } from '@config/ui.config';
 
 type Kind = MeetingPhase['kind'];
-type BadgeTone = 'default' | 'warning' | 'error' | 'info';
-type IconTone = 'muted' | 'warning' | 'danger' | 'ai';
 
 /** Words the meeting's phase notice shows besides its phase (the AI isn't set up yet). */
 export const MEETING_PHASE_COPY = { setUpAI: 'Set up AI' } as const;
 
-export interface MeetingPhaseStyle {
-  icon: LucideIcon;
-  iconTone: IconTone;
-  spin: boolean;
-  badge: BadgeTone;
-}
-
 /** Meetings transcribing or summarizing at once that get an activity row (a handful at most in practice). */
 export const BUSY_MEETINGS_SHOWN = 20;
 
-export const MEETING_PHASE_STYLE: Record<Kind, MeetingPhaseStyle> = {
-  recording: { icon: Mic, iconTone: 'danger', spin: false, badge: 'error' },
-  paused: { icon: Pause, iconTone: 'warning', spin: false, badge: 'warning' },
-  pending: { icon: Mic, iconTone: 'warning', spin: false, badge: 'warning' },
-  transcribing: { icon: Loader2, iconTone: 'ai', spin: true, badge: 'info' },
-  transcribed: { icon: AlertCircle, iconTone: 'warning', spin: false, badge: 'warning' },
-  summarizing: { icon: Loader2, iconTone: 'ai', spin: true, badge: 'info' },
-  failed: { icon: AlertCircle, iconTone: 'danger', spin: false, badge: 'error' },
-  ready: { icon: AudioWaveform, iconTone: 'muted', spin: false, badge: 'default' },
+/** Each meeting phase as the app state it is: waiting on a step (not transcribed or summarized yet) is queued. */
+export const MEETING_PHASE_STATE: Record<Kind, StateKind> = {
+  recording: 'recording',
+  paused: 'paused',
+  pending: 'queued',
+  transcribing: 'transcribing',
+  transcribed: 'queued',
+  summarizing: 'summarizing',
+  failed: 'failed',
+  ready: 'ready',
 };
+
+/** A finished meeting's mark in a list: what it is (a meeting), not a state. */
+export const MEETING_GLYPH = AudioWaveform;
 
 /** What a failed step reads as, wherever a meeting's failure is named (status, tray, notification). */
 export const MEETING_FAILED_LABEL: Record<MeetingPipelineStage, string> = {

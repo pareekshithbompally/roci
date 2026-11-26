@@ -1,5 +1,5 @@
 import React from 'react';
-import { Badge, Disclosure, Icon, Text } from '@shared/ui';
+import { Disclosure, Icon, StateBadge, Text } from '@shared/ui';
 import type { DisclosureVariant } from '@shared/ui';
 import { ServerIcon } from '@shared/components';
 import { useMcpServerInfo } from '@features/settings/hooks';
@@ -8,6 +8,7 @@ import { formatExecutionMs, toolCallTitle } from './toolCallTitle';
 import { toolCallIcon } from './toolCallIcons';
 import { ToolCallBody } from './ToolCallBody';
 import { ActivityHeader } from './ActivityHeader';
+import { CHAT_ACTIVITY_COPY } from '@config/chat.config';
 
 /** The MCP server's own icon, looked up from the connected servers. */
 function McpToolGlyph({ source }: { source: string }) {
@@ -23,7 +24,7 @@ function ToolCallGlyph({ part }: { part: ToolCallView }) {
 
 /** Trailing meta: a failure badge on error, the duration once complete. */
 function ToolCallMeta({ part }: { part: ToolCallView }) {
-  if (part.status === 'error') return <Badge variant="error" className="shrink-0">Failed</Badge>;
+  if (part.status === 'error') return <StateBadge state="failed">{CHAT_ACTIVITY_COPY.toolFailed}</StateBadge>;
   const ms = part.result?.executionMs;
   if (part.status !== 'complete' || ms === undefined) return null;
   return <Text variant="caption" tone="faint" className="shrink-0">{formatExecutionMs(ms)}</Text>;

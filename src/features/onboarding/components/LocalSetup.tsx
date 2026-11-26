@@ -99,7 +99,7 @@ export const LocalSetup: React.FC = () => {
               leading={<ProvidersAvatar provider={row.id} />}
               title={getProviderTitle(row.id)}
               description={row.baseUrl}
-              status={row.id === detected?.id && <Status tone="success">{COPY.connected}</Status>}
+              status={row.id === detected?.id && <Status state="ready">{COPY.connected}</Status>}
               action={row.id === detected?.id ? undefined : { label: ACTIONS.use, onPress: () => setChosen(detectedServer(row)) }}
             />
           ))}

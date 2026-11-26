@@ -1,6 +1,5 @@
 import React from 'react';
 import { cn } from './utils';
-import { Text } from './text';
 
 /** Canonical container: features pick a role, corner and hairline edges, never background, border, shadow or radius. */
 const VARIANT = {
@@ -134,23 +133,12 @@ const DOT_TONE = {
 
 export type DotTone = keyof typeof DOT_TONE;
 
-/** Status dot: recording, running/stopped, unread… */
-export function Dot({ tone = 'muted', size = 'sm', pulse }: { tone?: DotTone; size?: 'xs' | 'sm'; pulse?: boolean }) {
+/** A plain coloured dot (a legend, an affordance like Record's); what something is doing is the state kit's `StateMark`. */
+export function Dot({ tone = 'muted', size = 'sm' }: { tone?: DotTone; size?: 'xs' | 'sm' }) {
   return (
     <span
       aria-hidden
-      className={cn('inline-block shrink-0 rounded-full', size === 'xs' ? 'w-1.5 h-1.5' : 'w-2 h-2', DOT_TONE[tone], pulse && 'animate-pulse')}
+      className={cn('inline-block shrink-0 rounded-full', size === 'xs' ? 'w-1.5 h-1.5' : 'w-2 h-2', DOT_TONE[tone])}
     />
-  );
-}
-
-/** A status dot and label (Connected, Waiting for Hex…); the label is muted unless warning or danger. */
-export function Status({ tone = 'muted', pulse, children }: { tone?: DotTone; pulse?: boolean; children: React.ReactNode }) {
-  const textTone = tone === 'warning' || tone === 'danger' ? tone : 'muted';
-  return (
-    <Text variant="helper" tone={textTone} className="inline-flex items-center gap-1.5 whitespace-nowrap">
-      <Dot tone={tone} size="xs" pulse={pulse} />
-      {children}
-    </Text>
   );
 }

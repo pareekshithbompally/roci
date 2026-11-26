@@ -6,6 +6,10 @@ const roles = (prefix, names) => Object.fromEntries(names.map((n) => [n, `var(--
 const STATES = ['danger', 'warning', 'success', 'info'];
 const stateRoles = (part, suffix = '') =>
   Object.fromEntries(STATES.map((s) => [`${s}${suffix}`, `var(--${s}-${part})`]));
+/** What something is doing (kit StateMark / StateBadge): each tone's mark, label ink and badge wash (tokens.css `--state-*`). */
+const STATE_TONES = ['live', 'working', 'waiting', 'done', 'failed', 'idle'];
+const stateTones = (suffix = '') =>
+  Object.fromEntries(STATE_TONES.map((t) => [`state-${t}${suffix}`, `var(--state-${t}${suffix})`]));
 
 // ─── Motion: every CSS timing is made from the one vocabulary (src/config/motion.config.ts) ───
 const ms = (seconds) => `${Math.round(seconds * 1000)}ms`;
@@ -80,6 +84,8 @@ export default {
           'grouped', 'grouped-card']),
         ...stateRoles('bg', '-subtle'),
         ...stateRoles('solid'),
+        ...stateTones(),
+        ...stateTones('-wash'),
         separator: 'var(--border-muted)',
         ai: 'var(--ai-accent)',
         'ai-wash': 'var(--ai-wash)',
@@ -90,6 +96,8 @@ export default {
       textColor: {
         ...roles('text', ['primary', 'muted', 'faint', 'accent', 'inverse', 'on-accent']),
         ...stateRoles('fg'),
+        ...stateTones(),
+        ...stateTones('-ink'),
         ai: 'var(--ai-accent)',
         event: 'color-mix(in srgb, var(--event-tint, var(--bg-accent)) var(--event-text-mix), var(--text-primary))',
         'event-meta': 'color-mix(in srgb, var(--event-tint, var(--bg-accent)) var(--event-meta-mix), var(--text-primary))',
@@ -180,6 +188,13 @@ export default {
           from: { backgroundPosition: '100% 0' },
           to: { backgroundPosition: '-100% 0' },
         },
+        // A live state's ring spreading from its dot (Recording), in its own colour.
+        'state-live': {
+          '0%': { boxShadow: '0 0 0 0 color-mix(in srgb, currentColor 55%, transparent)' },
+          '100%': { boxShadow: '0 0 0 0.45em transparent' },
+        },
+        // Work under way breathing (Indexing…, Transcribing…).
+        'state-breathe': { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0.45' } },
         // AI output landing: the copper wash fades out of a new or changed line.
         'ai-arrive': { from: { backgroundColor: 'var(--ai-wash)' }, to: { backgroundColor: 'transparent' } },
         // Landing glow blobs; translate(-50%, -50%) makes `left/top` mark each blob's centre.
@@ -216,6 +231,9 @@ export default {
         'drawer-end-show': `drawer-end-show ${MOVE}`,
         'drawer-end-hide': `drawer-end-hide ${MOVE_AWAY}`,
         'text-shimmer': `text-shimmer ${ms(ambient.shimmer)} linear infinite`,
+        'state-live': `state-live ${ms(ambient.stateLive)} ${LOOP} infinite`,
+        'state-breathe': `state-breathe ${ms(ambient.stateBreathe)} ${LOOP} infinite`,
+        'state-spin': `spin ${ms(ambient.stateSpin)} linear infinite`,
         'ai-sweep': `text-shimmer ${ms(ambient.aiSweep)} linear infinite`,
         'ai-arrive': `ai-arrive ${ms(ambient.aiArrive)} ${bezier(MOTION.curve.in)}`,
         'glow-drift-1': `glow-drift-1 ${ms(ambient.glowDrift[0])} ${LOOP} infinite`,

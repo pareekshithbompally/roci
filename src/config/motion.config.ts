@@ -51,6 +51,10 @@ export const MOTION = {
     textReveal: 0.5,
     progressFill: 0.5,
     progressSweep: 1.5,
+    /** States (kit StateMark): a live dot's ring spreading, work breathing, a spinner's turn. */
+    stateLive: 1.6,
+    stateBreathe: 1.8,
+    stateSpin: 0.9,
   },
 } as const satisfies {
   spring: Record<string, SpringSpec>;

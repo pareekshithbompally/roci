@@ -180,6 +180,8 @@ export const CHAT_ACTIVITY_COPY = {
   thought: 'Thought',
   tools: (count: number) => `Used ${count} ${count === 1 ? 'tool' : 'tools'}`,
   failed: (count: number) => `${count} failed`,
+  /** One tool call that failed. */
+  toolFailed: 'Failed',
 } as const;
 
 /** The composer's thinking levels, in menu order, with their names. */

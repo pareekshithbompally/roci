@@ -1,6 +1,7 @@
 /** Activity maths: order, each row's mark and detail line, and the iPhone activity button's label; read from the store's items as they are. */
 
 import type { ActivityItem, ActivityStatus, ActivityType } from '@shared/stores/activityStore';
+import type { StateKind } from '@config/states.config';
 import { formatClock } from '@shared/utils/formatters';
 import { PLAYER_CONFIG } from '@config/player.config';
 import type { MinimizedAudio } from './useMinimizedAudio';
@@ -13,26 +14,23 @@ export function sortActivity(items: readonly ActivityItem[]): ActivityItem[] {
   return [...items].sort((a, b) => TYPE_ORDER[a.type] - TYPE_ORDER[b.type] || STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
 }
 
-/** What leads a row: a recording's or playback's dot, a spinner while work runs, or a still glyph for waiting and finished states. */
-export type ActivityMark =
-  | { kind: 'dot'; tone: 'danger' | 'warning' | 'info' | 'success'; pulse: boolean }
-  | { kind: 'spinner' }
-  | { kind: 'glyph'; glyph: 'download' | 'waiting' | 'done' | 'failed' | 'cancelled' };
-
 const hasAction = (item: ActivityItem, icon: string) => item.actions.some((a) => a.icon === icon);
 
-export function activityMark(item: ActivityItem): ActivityMark {
-  if (item.status === 'error') return { kind: 'glyph', glyph: 'failed' };
-  if (item.status === 'complete') return { kind: 'glyph', glyph: 'done' };
-  if (item.status === 'cancelled') return { kind: 'glyph', glyph: 'cancelled' };
-  if (item.type === 'playback') return { kind: 'dot', tone: 'success', pulse: hasAction(item, 'pause') };
+/** What work under way is, by its type (a model download, the search index; anything else is being prepared). */
+const WORKING: Partial<Record<ActivityType, StateKind>> = { download: 'downloading', indexing: 'indexing' };
+
+/** The app state a row is in (the state kit draws its mark): finished, a recording or playback live or paused, waiting, or at work. */
+export function activityState(item: ActivityItem): StateKind {
+  if (item.status === 'error') return 'failed';
+  if (item.status === 'complete') return 'ready';
+  if (item.status === 'cancelled') return 'cancelled';
+  if (item.type === 'playback') return hasAction(item, 'pause') ? 'playing' : 'paused';
   if (item.type === 'recording') {
-    if (hasAction(item, 'play')) return { kind: 'dot', tone: 'warning', pulse: false };
-    if (hasAction(item, 'square')) return { kind: 'dot', tone: 'danger', pulse: true };
-    return { kind: 'dot', tone: 'info', pulse: false };
+    if (hasAction(item, 'play')) return 'paused';
+    return hasAction(item, 'square') ? 'recording' : 'preparing';
   }
-  if (item.status === 'waiting') return { kind: 'glyph', glyph: item.type === 'download' ? 'download' : 'waiting' };
-  return { kind: 'spinner' };
+  if (item.status === 'waiting') return 'queued';
+  return WORKING[item.type] ?? 'preparing';
 }
 
 /** "2/4 · 120 MB of 300 MB · 40%": step, then the reason (on failure) or detail, then percent. */

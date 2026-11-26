@@ -27,7 +27,7 @@ const IndexActionRow: React.FC<{
   <CardRow
     title={label}
     description={total != null && indexed !== undefined ? COPY.counts(indexed, total, detail ?? '') : detail}
-    status={indexed === undefined ? <Status>{PENDING}</Status> : <IndexStatus indexed={indexed} total={total} />}
+    status={indexed === undefined ? <Status state="preparing">{PENDING}</Status> : <IndexStatus indexed={indexed} total={total} />}
     action={{ label: busy ? COPY.indexing : COPY.reindex(label), onPress: onReindex, busy, disabled }}
   />
 );
@@ -35,9 +35,9 @@ const IndexActionRow: React.FC<{
 /** Synced / Stale against a total; Active / Empty without one. Counts live in the description. */
 const IndexStatus: React.FC<{ indexed: number; total?: number }> = ({ indexed, total }) => {
   if (total == null) {
-    return indexed > 0 ? <Status tone="success">{COPY.status.active}</Status> : <Status>{COPY.status.empty}</Status>;
+    return indexed > 0 ? <Status state="ready">{COPY.status.active}</Status> : <Status state="idle">{COPY.status.empty}</Status>;
   }
-  return indexed >= total ? <Status tone="success">{COPY.status.synced}</Status> : <Status tone="warning">{COPY.status.stale}</Status>;
+  return indexed >= total ? <Status state="ready">{COPY.status.synced}</Status> : <Status state="queued">{COPY.status.stale}</Status>;
 };
 
 export const SearchIndexSection: React.FC = () => {

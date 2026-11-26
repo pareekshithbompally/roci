@@ -5,7 +5,6 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { isManagedSDK } from '@shared/utils/modelResolver';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { CardRow, Section, Status } from '@shared/ui';
-import type { DotTone } from '@shared/ui';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ConnectionStatus, ProviderConnection as Connection } from '@features/settings/hooks/useProviderConnection';
 import { renderWithLinks } from '@shared/components';
@@ -13,6 +12,7 @@ import { formatRelativeTime } from '@shared/utils/formatters';
 import { FieldRow } from '@shared/components';
 import { PROVIDER_COPY } from '@config/settingsCopy.config';
 import { META_SEPARATOR } from '@config/ui.config';
+import type { StateKind } from '@config/states.config';
 
 interface ProviderConnectionProps {
   provider: ModelProvider;
@@ -22,8 +22,7 @@ interface ProviderConnectionProps {
 
 interface StatusView {
   label: string;
-  tone: DotTone;
-  pulse?: boolean;
+  state: StateKind;
 }
 
 const COPY = PROVIDER_COPY;
@@ -33,22 +32,22 @@ const STATE = COPY.state;
 function statusView(status: ConnectionStatus): StatusView {
   switch (status.state) {
     case 'incomplete':
-      return { label: STATE.notSetUp, tone: 'muted' };
+      return { label: STATE.notSetUp, state: 'idle' };
     case 'untested':
-      return { label: STATE.notTested, tone: 'muted' };
+      return { label: STATE.notTested, state: 'idle' };
     case 'checking':
-      return { label: STATE.checking, tone: 'info', pulse: true };
+      return { label: STATE.checking, state: 'preparing' };
     case 'connected':
-      return { label: [STATE.connected, modelCount(status.models.length)].join(META_SEPARATOR), tone: 'success' };
+      return { label: [STATE.connected, modelCount(status.models.length)].join(META_SEPARATOR), state: 'ready' };
     case 'failed':
-      return { label: STATE.failed, tone: 'danger' };
+      return { label: STATE.failed, state: 'failed' };
     case 'checked': {
       // a test from an earlier session, said with when it ran
       const { ok, at, models } = status.check;
       const when = COPY.tested(formatRelativeTime(at));
       return ok
-        ? { label: [STATE.connected, models === undefined ? null : modelCount(models), when].filter(Boolean).join(META_SEPARATOR), tone: 'success' }
-        : { label: [STATE.failed, when].join(META_SEPARATOR), tone: 'danger' };
+        ? { label: [STATE.connected, models === undefined ? null : modelCount(models), when].filter(Boolean).join(META_SEPARATOR), state: 'ready' }
+        : { label: [STATE.failed, when].join(META_SEPARATOR), state: 'failed' };
     }
   }
 }
@@ -62,11 +61,11 @@ function testDescription(status: ConnectionStatus, title: string, needsUrl: bool
 
 /** The key's state as a value, then Test Connection as a tinted action row (iOS). */
 const TestRows: React.FC<{ connection: Connection }> = ({ connection: { status, test } }) => {
-  const { label, tone, pulse } = statusView(status);
+  const { label, state } = statusView(status);
   const canTest = status.state !== 'incomplete' && status.state !== 'checking';
   return (
     <>
-      <CardRow title={COPY.status} actions={<Status tone={tone} pulse={pulse}>{label}</Status>} />
+      <CardRow title={COPY.status} actions={<Status state={state}>{label}</Status>} />
       <CardRow title={COPY.testConnection} tone={canTest ? 'accent' : undefined} onPress={canTest ? test : undefined} />
     </>
   );

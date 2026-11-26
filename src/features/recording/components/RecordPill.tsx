@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Square } from 'lucide-react';
-import { Button, Dot, Icon } from '@shared/ui';
+import { Button, Dot, Icon, StateMark } from '@shared/ui';
 import { isTauriEnvironment } from '@services/tauri';
 import { recording, useRecordingBusy, useRecordingMeetingId } from '@features/recording/stores/recordingStore';
 import { useStartRecording } from '@features/recording/hooks';
@@ -30,7 +30,7 @@ export const RecordPill: React.FC = () => {
   }
   return (
     <Button variant="outline" size="sm" className="tabular-nums" onClick={() => void recording.stop().catch(report('stop'))} disabled={busy} aria-label="Stop recording">
-      <Dot tone="danger" pulse={!busy} />
+      <StateMark state={busy ? 'saving' : 'recording'} size="sm" />
       {busy ? LIVE.copy.stopping : [meetingPhaseLabel(RECORDING), clock].filter(Boolean).join(' · ')}
       {!busy && <Icon icon={Square} size="xs" className="fill-current" />}
     </Button>

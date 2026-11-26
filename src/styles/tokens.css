@@ -197,6 +197,27 @@
   --info-border: var(--teal-300);
   --info-solid: var(--teal-600);
 
+  /* States: what something is doing (Recording, Indexing…, Ready, Couldn't read), one set for every feature. Each tone's
+     mark, the ink of its words, and the wash behind a badge; built from the status roles above, so dark follows them. */
+  --state-live: var(--danger-solid);
+  --state-live-ink: var(--danger-fg);
+  --state-working: var(--ai-accent);
+  --state-working-ink: var(--ai-accent);
+  --state-waiting: var(--warning-solid);
+  --state-waiting-ink: var(--warning-fg);
+  --state-done: var(--success-solid);
+  --state-done-ink: var(--success-fg);
+  --state-failed: var(--danger-solid);
+  --state-failed-ink: var(--danger-fg);
+  --state-idle: var(--text-faint);
+  --state-idle-ink: var(--text-muted);
+  --state-live-wash: color-mix(in srgb, var(--state-live) 14%, transparent);
+  --state-working-wash: color-mix(in srgb, var(--state-working) 14%, transparent);
+  --state-waiting-wash: color-mix(in srgb, var(--state-waiting) 16%, transparent);
+  --state-done-wash: color-mix(in srgb, var(--state-done) 14%, transparent);
+  --state-failed-wash: color-mix(in srgb, var(--state-failed) 14%, transparent);
+  --state-idle-wash: color-mix(in srgb, var(--state-idle) 14%, transparent);
+
   --shadow-input: #0000001a 0 1px 1.5px 0, #00000024 0 0 0 0.5px;
   --shadow-raised: #0000000a 0 2px 4px 0, #00000014 0 1px 2px -1px, #0000001f 0 0 0 0.5px;
   --shadow-floating: #0000000a 0 8px 16px 0, #00000014 0 4px 8px 0, #0000001f 0 0 0 0.5px;

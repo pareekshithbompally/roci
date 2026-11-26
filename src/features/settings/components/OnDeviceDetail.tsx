@@ -54,7 +54,7 @@ const BuiltIn: React.FC = () => (
         <CardRow
           leading={<IconTile icon={JOB_GLYPH.readAloud} />}
           title={READ_ALOUD_CONFIG.system.label}
-          status={<Status tone="success">{READ_ALOUD_CONFIG.system.hint}</Status>}
+          status={<Status state="ready">{READ_ALOUD_CONFIG.system.hint}</Status>}
         />
       </Section>
     )}

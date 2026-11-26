@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, Library, Plus, Trash2 } from 'lucide-react';
-import { Icon, IconButton, ListDetail, PageScroll, PdfFrame, Row, SearchField, Surface, Text, useFilePicker, useListBesideDetail, ViewHeader } from '@shared/ui';
+import { Icon, IconButton, ListDetail, PageScroll, PdfFrame, Row, SearchField, StateBadge, StateMark, Surface, Text, useFilePicker, useListBesideDetail, ViewHeader } from '@shared/ui';
 import { Markdown, ScreenState } from '@shared/components';
 import { useKeptFileUrl, useObjectUrl } from '@shared/hooks';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -23,15 +23,17 @@ import { useKnowledge } from '@features/knowledge/hooks/useKnowledge';
 import { useKnowledgeStore } from '@shared/stores/knowledgeStore';
 import { RelatedSources } from '@features/knowledge/components/RelatedSources';
 
-/** "PDF · 1.2 MB · Today · Ready": a document still saving or not yet indexed says Indexing…. */
-function factsOf(document: KnowledgeDocument, status: SourceStatus | undefined): string {
+/** "PDF · 1.2 MB · Today". */
+function factsOf(document: KnowledgeDocument): string {
   return [
     fileExtension(document.name).toUpperCase(),
     document.bytes !== undefined && formatFileSize(document.bytes),
     formatDayLabel(document.createdAt),
-    KNOWLEDGE_LIBRARY.states[status?.state ?? 'pending'],
   ].filter(Boolean).join(' · ');
 }
+
+/** How far indexing a document has got: a document still saving or not yet indexed is indexing. */
+const indexingOf = (status: SourceStatus | undefined) => KNOWLEDGE_LIBRARY.states[status?.state ?? 'pending'];
 
 const isMarkdown = (document: KnowledgeDocument) =>
   document.mediaType === KNOWLEDGE_LIBRARY.markdown.mediaType || fileExtension(document.name) === KNOWLEDGE_LIBRARY.markdown.extension;
@@ -43,8 +45,8 @@ interface DocumentListProps {
   onSelect: (id: string) => void;
 }
 
-/** The documents under one heading, each its name with kind · size · day · state under it; one still being saved can't be
- *  opened yet. */
+/** The documents under one heading, each its name with kind · size · day under it and its indexing state's mark beside it;
+ *  one still being saved can't be opened yet. */
 const DocumentList: React.FC<DocumentListProps> = ({ documents, statusOf, selectedId, onSelect }) => (
   <section>
     <Text as="h2" variant="label" tone="muted" className="px-2.5 pb-1">{KNOWLEDGE_LIBRARY.documents}</Text>
@@ -56,8 +58,13 @@ const DocumentList: React.FC<DocumentListProps> = ({ documents, statusOf, select
         leading={<Icon icon={FileText} size="xs" tone="muted" />}
         onClick={() => onSelect(document.id)}
       >
-        <Text as="span" truncate className="block">{document.name}</Text>
-        <Text as="span" variant="helper" tone="muted" truncate className="block">{factsOf(document, statusOf(document.id))}</Text>
+        <span className="flex items-center gap-2">
+          <span className="min-w-0 flex-1">
+            <Text as="span" truncate className="block">{document.name}</Text>
+            <Text as="span" variant="helper" tone="muted" truncate className="block">{factsOf(document)}</Text>
+          </span>
+          <StateMark state={indexingOf(statusOf(document.id)).state} label={indexingOf(statusOf(document.id)).label} />
+        </span>
       </Row>
     ))}
   </section>
@@ -109,7 +116,10 @@ const DocumentDetail: React.FC<DocumentDetailProps> = ({ document, status, onDel
     <Surface as="header" edge="bottom" className={`flex items-start gap-2 ${LAYOUT.listGutter} py-4`}>
       <div className="min-w-0 flex-1">
         <Text as="h2" variant="title" truncate>{document.name}</Text>
-        <Text variant="helper" tone="muted">{factsOf(document, status)}</Text>
+        <span className="flex flex-wrap items-center gap-2">
+          <Text variant="helper" tone="muted">{factsOf(document)}</Text>
+          <StateBadge state={indexingOf(status).state}>{indexingOf(status).label}</StateBadge>
+        </span>
         {status?.error && <Text variant="helper" tone="muted">{status.error}</Text>}
       </div>
       <IconButton icon={Trash2} label={KNOWLEDGE_LIBRARY.delete} size="sm" variant="dangerGhost" onClick={onDelete} />

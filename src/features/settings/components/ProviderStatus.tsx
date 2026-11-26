@@ -2,14 +2,14 @@
 
 import React from 'react';
 import { Status } from '@shared/ui';
-import type { DotTone } from '@shared/ui';
+import type { StateKind } from '@config/states.config';
 import { providerSetting } from '@shared/utils/provider.utils';
 import type { ModelProvider } from '@shared/types/modelProviders';
 
 /** On and usable (key set, server running), on but not usable yet, its last connection test failed, or off. */
 export type ProviderRowState = 'ready' | 'attention' | 'failed' | 'off';
 
-const ROW_TONE: Record<ProviderRowState, DotTone> = { ready: 'success', attention: 'warning', failed: 'danger', off: 'muted' };
+const ROW_STATE: Record<ProviderRowState, StateKind> = { ready: 'ready', attention: 'attention', failed: 'failed', off: 'idle' };
 
 const ROW_LABEL: Record<ProviderRowState, string> = { ready: 'On', attention: 'Needs key', failed: "Can't connect", off: 'Off' };
 
@@ -23,5 +23,5 @@ export function cloudRowState(provider: ModelProvider): ProviderRowState {
 
 /** A provider's state as a dot and a word, or a server's own line ("localhost:11434 · 5 models") in the state's colour. */
 export const ProviderStatus: React.FC<{ state: ProviderRowState; label?: string }> = ({ state, label }) => (
-  <Status tone={ROW_TONE[state]}>{label ?? ROW_LABEL[state]}</Status>
+  <Status state={ROW_STATE[state]}>{label ?? ROW_LABEL[state]}</Status>
 );

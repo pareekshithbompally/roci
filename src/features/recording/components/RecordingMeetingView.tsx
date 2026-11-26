@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { Clock, Pause, Play, Square } from 'lucide-react';
 import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { CommandBar, Dot, IconButton, Text, TitleBlock, cn, motionFor, useCommandBarSize } from '@shared/ui';
+import { CommandBar, IconButton, StateMark, Text, TitleBlock, cn, motionFor, useCommandBarSize } from '@shared/ui';
 import { MeetingStatus, ModelCreditLine } from '@shared/components';
 import type { MeetingPhase } from '@shared/types/meetingPhase';
 import { LAYOUT } from '@config/layout.config';
@@ -85,7 +85,7 @@ const RecordingClock: React.FC<{ paused: boolean; clock: string }> = ({ paused, 
   }
   return (
     <div className="flex items-center gap-2">
-      <Dot tone={paused ? 'muted' : 'danger'} pulse={!paused} />
+      <StateMark state={paused ? 'paused' : 'recording'} size="sm" />
       <Text variant="timer" tone="muted">{clock}</Text>
     </div>
   );

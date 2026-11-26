@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activityDetail, activityMark, activitySummary, isSettled, playbackItem, sortActivity } from '@shared/components/activity/activityModel';
+import { activityDetail, activityState, activitySummary, isSettled, playbackItem, sortActivity } from '@shared/components/activity/activityModel';
 import type { ActivityItem } from '@shared/stores/activityStore';
 
 const item = (over: Partial<ActivityItem>): ActivityItem => ({
@@ -19,13 +19,14 @@ describe('activity model', () => {
   });
 
   it('marks each state', () => {
-    expect(activityMark(item({ type: 'recording', actions: [action('pause'), action('square')] }))).toEqual({ kind: 'dot', tone: 'danger', pulse: true });
-    expect(activityMark(item({ type: 'recording', actions: [action('play'), action('square')] }))).toEqual({ kind: 'dot', tone: 'warning', pulse: false });
-    expect(activityMark(item({ type: 'recording', actions: [action('sparkles')] }))).toEqual({ kind: 'dot', tone: 'info', pulse: false });
-    expect(activityMark(item({ type: 'download', status: 'waiting' }))).toEqual({ kind: 'glyph', glyph: 'download' });
-    expect(activityMark(item({ id: 'local-model:chat', status: 'active' }))).toEqual({ kind: 'spinner' });
-    expect(activityMark(item({ status: 'error' }))).toEqual({ kind: 'glyph', glyph: 'failed' });
-    expect(activityMark(item({ status: 'complete' }))).toEqual({ kind: 'glyph', glyph: 'done' });
+    expect(activityState(item({ type: 'recording', actions: [action('pause'), action('square')] }))).toBe('recording');
+    expect(activityState(item({ type: 'recording', actions: [action('play'), action('square')] }))).toBe('paused');
+    expect(activityState(item({ type: 'recording', actions: [action('sparkles')] }))).toBe('preparing');
+    expect(activityState(item({ type: 'download', status: 'waiting' }))).toBe('queued');
+    expect(activityState(item({ type: 'download', status: 'active' }))).toBe('downloading');
+    expect(activityState(item({ id: 'local-model:chat', status: 'active' }))).toBe('preparing');
+    expect(activityState(item({ status: 'error' }))).toBe('failed');
+    expect(activityState(item({ status: 'complete' }))).toBe('ready');
   });
 
   it('builds the detail line from what the item carries', () => {
@@ -48,12 +49,12 @@ describe('activity model', () => {
   it('shows playing audio as an ordinary row: green dot (pulsing while it plays), clock as its detail, actions with Stop last', () => {
     const audio = { title: 'Standup', duration: 40, currentTime: 10, isPlaying: true, toggle: () => {}, skip: () => {}, stop: () => {} };
     const playing = playbackItem(audio);
-    expect(activityMark(playing)).toEqual({ kind: 'dot', tone: 'success', pulse: true });
+    expect(activityState(playing)).toBe('playing');
     expect(activityDetail(playing)).toBe('00:10 / 00:40');
     expect(playing.percent).toBe(25);
     expect(playing.actions.map((a) => a.icon)).toEqual(['pause', 'skip-forward', 'square']);
     const paused = playbackItem({ ...audio, isPlaying: false });
-    expect(activityMark(paused)).toEqual({ kind: 'dot', tone: 'success', pulse: false });
+    expect(activityState(paused)).toBe('paused');
     expect(paused.actions[0].icon).toBe('play');
   });
 });
