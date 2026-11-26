@@ -163,7 +163,7 @@ pub(crate) fn sync_chat_assets(tx: &Connection, chat_id: &str, paths: &[String])
     Ok(())
 }
 
-/// Which files a page lists: one kind's (the Gallery), or every file kept in the library (Knowledge).
+/// Which files a page lists: one kind's (a Gallery folder), or the documents kept in the library (Knowledge).
 #[derive(Clone, Copy)]
 pub(crate) enum Listing<'a> {
     Kind(&'a str),
@@ -175,7 +175,7 @@ pub(crate) fn page(db: &Connection, listing: Listing, before: Option<&ItemCursor
     let (at, id) = before.map_or((i64::MAX, String::new()), |c| (c.at, c.id.clone()));
     let (kind, library) = match listing {
         Listing::Kind(kind) => (Some(kind), false),
-        Listing::Library => (None, true),
+        Listing::Library => (Some(FILE_KIND), true),
     };
     let rows = db
         .prepare(
@@ -481,13 +481,14 @@ pub async fn assets_page(state: State<'_, StoreState>, kind: String, before: Opt
     on_db(&state, move |db| page(db, Listing::Kind(&kind), before.as_ref(), limit)).await
 }
 
-/// The Knowledge library a page at a time: every file kept there, newest first.
+/// The Knowledge library a page at a time: every document kept there, newest first.
 #[tauri::command]
 pub async fn assets_library(state: State<'_, StoreState>, before: Option<ItemCursor>, limit: u32) -> Result<Vec<AssetRow>, StoreError> {
     on_db(&state, move |db| page(db, Listing::Library, before.as_ref(), limit)).await
 }
 
-/// Deletes a file kept in the library (its file after commit); files a meeting or chat owns go with their parent.
+/// Deletes a kept file (a library document, saved speech; its file after commit); files a meeting or chat owns go with
+/// their parent.
 #[tauri::command]
 pub async fn assets_delete(state: State<'_, StoreState>, id: String) -> Result<(), StoreError> {
     on_db(&state, move |db| {
@@ -631,7 +632,8 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
 
-    /// The library lists only kept files; deleting one takes its file, passages and index state, and leaves a chat's file be.
+    /// The library lists only kept documents (not kept speech); deleting one takes its file, passages and index state,
+    /// and leaves a chat's file be.
     #[test]
     fn a_library_file_is_listed_and_deleted_with_its_index() {
         let db = open_migrated_test_db();
@@ -641,6 +643,7 @@ mod tests {
             "INSERT INTO chats (id, title, created_at, last_message_at) VALUES ('c1', 'Chat', 0, 0);
              INSERT INTO assets (id, kind, path, created_at, kept) VALUES ('k', 'file', 'assets/k.pdf', 0, 1);
              INSERT INTO assets (id, kind, path, chat_id, created_at) VALUES ('a', 'file', 'assets/a.pdf', 'c1', 0);
+             INSERT INTO assets (id, kind, path, created_at, kept) VALUES ('s', 'speech', 'assets/s.wav', 0, 1);
              INSERT INTO chunks (owner_kind, owner_id, chunk_index, chunk_text, chunk_type) VALUES ('file', 'k', 0, 'Q3 pricing', 'text');
              INSERT INTO index_state (owner_kind, owner_id, text_hash, version, state, attempted_at) VALUES ('file', 'k', 'h', 1, 'ready', 0);",
         )
@@ -655,7 +658,7 @@ mod tests {
         let left = |sql: &str| db.query_row(sql, [], |r| r.get::<_, i64>(0)).unwrap();
         assert_eq!(left("SELECT COUNT(*) FROM chunks"), 0);
         assert_eq!(left("SELECT COUNT(*) FROM index_state"), 0);
-        assert_eq!(left("SELECT COUNT(*) FROM assets"), 1);
+        assert_eq!(left("SELECT COUNT(*) FROM assets"), 2, "the chat's file and the kept speech stay");
         assert!(!root.join("assets/k.pdf").exists());
         std::fs::remove_dir_all(root).unwrap();
     }

@@ -1,4 +1,4 @@
-//! Tauri commands for read aloud: list an engine's voices, speak a reply, stop.
+//! Tauri commands for read aloud: list an engine's voices, speak a reply, stop, and render one to a WAV file (Save).
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -54,18 +54,7 @@ pub async fn tts_speak(app: AppHandle, id: u64, text: String, engine: String, vo
         if engine == SYSTEM_VOICES {
             return system::speak(&chunks, voice.as_deref(), &stop, on_chunk);
         }
-        let model = catalog::find_kind(&engine, Kind::Voice)?;
-        store::installed_path(&app, model, model.main_file())?;
-        // The Mac: llama-server's speech endpoint; iPhone and iPad: llama.cpp in the app.
-        #[cfg(desktop)]
-        let synthesize = |chunk: &str| crate::llama_server::speak(&app, model.id, chunk, voice.as_deref());
-        #[cfg(mobile)]
-        let synthesize = {
-            let projector = model.files.iter().find(|f| f.name.contains("mmproj")).ok_or(LocalError::NotDownloaded)?;
-            let (path, projector) = (store::installed_path(&app, model, model.main_file())?, store::installed_path(&app, model, projector)?);
-            move |chunk: &str| crate::llama::speak(model.id, &path, &projector, chunk, voice.as_deref())
-        };
-        voice_model::speak(chunks, stop, on_chunk, synthesize)
+        voice_model::speak(chunks, stop, on_chunk, model_voice(&app, &engine, voice)?)
     })
     .await;
     #[cfg(target_os = "ios")]
@@ -73,6 +62,49 @@ pub async fn tts_speak(app: AppHandle, id: u64, text: String, engine: String, vo
     #[cfg(mobile)]
     crate::llama::touch(&used, Kind::Voice);
     spoken
+}
+
+/// The downloaded voice model `engine` as a maker of one chunk's sound (mono samples and their rate) in `voice`: the Mac's
+/// llama-server speech endpoint, or llama.cpp in the app on iPhone and iPad.
+fn model_voice(app: &AppHandle, engine: &str, voice: Option<String>) -> Result<impl FnMut(&str) -> Result<(Vec<f32>, u32), LocalError>, LocalError> {
+    let model = catalog::find_kind(engine, Kind::Voice)?;
+    store::installed_path(app, model, model.main_file())?;
+    #[cfg(desktop)]
+    let synthesize = {
+        let app = app.clone();
+        move |chunk: &str| crate::llama_server::speak(&app, model.id, chunk, voice.as_deref())
+    };
+    #[cfg(mobile)]
+    let synthesize = {
+        let projector = model.files.iter().find(|f| f.name.contains("mmproj")).ok_or(LocalError::NotDownloaded)?;
+        let (path, projector) = (store::installed_path(app, model, model.main_file())?, store::installed_path(app, model, projector)?);
+        move |chunk: &str| crate::llama::speak(model.id, &path, &projector, chunk, voice.as_deref())
+    };
+    Ok(synthesize)
+}
+
+/// A reply's markdown spoken by `engine` in `voice` into a WAV file's bytes, without playing it (Save in Read Aloud).
+#[tauri::command]
+pub async fn tts_render(app: AppHandle, text: String, engine: String, voice: Option<String>) -> Result<tauri::ipc::Response, LocalError> {
+    let chunks = text::chunks(&text::speakable(&text));
+    if chunks.is_empty() {
+        return Err(LocalError::Engine("There's nothing to read in this reply".into()));
+    }
+    #[cfg(mobile)]
+    let used = app.clone();
+    let wav = blocking(move || {
+        let parts = if engine == SYSTEM_VOICES {
+            system::render(&chunks, voice.as_deref())?
+        } else {
+            let mut synthesize = model_voice(&app, &engine, voice)?;
+            chunks.iter().map(|chunk| synthesize(chunk)).collect::<Result<Vec<_>, _>>()?
+        };
+        super::wav_of(parts).map_err(LocalError::Engine)
+    })
+    .await;
+    #[cfg(mobile)]
+    crate::llama::touch(&used, Kind::Voice);
+    Ok(tauri::ipc::Response::new(wav?))
 }
 
 /// A reply's markdown as the plain speech every engine reads, in chunks of at most `max_chars` (cloud voices, called from the webview).

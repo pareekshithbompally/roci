@@ -1,9 +1,17 @@
-/** Gallery: every image made in chat, newest first, grouped by day. */
+/** Gallery: what Roci makes, by folder (Images, Audio, Video), newest first, grouped by day. */
 
 export const GALLERY_CONFIG = {
   /** Sidebar row and page title. */
   title: 'Gallery',
-  empty: 'Images you create in chat appear here.',
+  /** The folders, in order: what Roci makes, by kind (an asset kind each). */
+  folders: [
+    { kind: 'image', label: 'Images', noun: 'image', empty: 'Images you create in chat appear here.' },
+    { kind: 'speech', label: 'Audio', noun: 'recording', empty: 'Replies you save from Read Aloud appear here.' },
+    { kind: 'video', label: 'Video', noun: 'video', empty: 'Videos Roci makes appear here.' },
+  ],
+  foldersLabel: 'Folder',
+  deleteNoun: { speech: 'recording', video: 'video' },
+  deleteFailed: 'Couldn’t delete it',
   openChat: 'Open chat',
   /** Thumbnails written beside each image: longest side in px, JPEG quality. */
   thumbnail: { maxPx: 512, quality: 0.82 },

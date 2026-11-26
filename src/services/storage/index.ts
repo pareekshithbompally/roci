@@ -6,6 +6,8 @@ import { cacheService } from './cache.service';
 export { pathsService } from './paths.service';
 export { recordingsService } from './recordings.service';
 export { imagesService } from './images.service';
+export { mediaService } from './media.service';
+export type { GalleryMedia, MediaKind as GalleryMediaKind, SpeechMeta } from './media.service';
 export { documentsService, documentFormat } from './documents.service';
 export type { DocumentFormat, KnowledgeDocument } from './documents.service';
 export { assetsService } from './assets.service';

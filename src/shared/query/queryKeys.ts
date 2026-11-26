@@ -9,6 +9,9 @@ export const queryKeys = {
   gallery: () => ['gallery'] as const,
   galleryPages: () => ['gallery', 'pages'] as const,
   galleryCount: () => ['gallery', 'count'] as const,
+  /** A Gallery folder of sound or video (Audio, Video), page by page, and its count */
+  galleryMedia: (kind: string) => ['gallery', 'media', kind] as const,
+  galleryMediaCount: (kind: string) => ['gallery', 'media', kind, 'count'] as const,
   /** Dictations made in the app (Dictations). */
   dictations: () => ['dictations'] as const,
   /** The Knowledge library: every file kept there, newest first */

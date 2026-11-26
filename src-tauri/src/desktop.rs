@@ -85,6 +85,7 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       audio::live::meeting_echo_signals,
       tts::commands::tts_voices,
       tts::commands::tts_speak,
+      tts::commands::tts_render,
       tts::commands::tts_stop,
       tts::commands::tts_chunks,
       llama_server::local_server_address,

@@ -1,12 +1,17 @@
 //! System voices via AVFAudio (Mac, iPhone, iPad); the delegate fires on the main thread, so speaking waits on a channel.
+//! Rendering (Save in Read Aloud) writes the same speech to buffers instead of the speaker.
 
+use std::ptr::NonNull;
 use std::sync::mpsc::{self, Sender};
+use std::time::Duration;
+
+use block2::RcBlock;
 
 use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
 use objc2::{define_class, msg_send, AllocAnyThread, DefinedClass};
 use objc2_avf_audio::{
-    AVSpeechBoundary, AVSpeechSynthesisVoice, AVSpeechSynthesisVoiceQuality, AVSpeechSynthesisVoiceTraits,
+    AVAudioBuffer, AVAudioCommonFormat, AVAudioPCMBuffer, AVSpeechBoundary, AVSpeechSynthesisVoice, AVSpeechSynthesisVoiceQuality, AVSpeechSynthesisVoiceTraits,
     AVSpeechSynthesizer, AVSpeechSynthesizerDelegate, AVSpeechUtterance,
 };
 use objc2_foundation::{NSObject, NSObjectProtocol, NSString};
@@ -131,6 +136,70 @@ pub fn speak(chunks: &[String], voice: Option<&str>, halt: &Halt, mut on_chunk: 
         }
     }
     Ok(())
+}
+
+/// How long one chunk may take to render before it is given up (the synthesizer answers in well under this).
+const RENDER_TIMEOUT: Duration = Duration::from_secs(60);
+
+/// What rendering one utterance sends back: a buffer of mono samples at a rate, then its end (an empty buffer).
+enum Rendered {
+    Audio(Vec<f32>, u32),
+    Done,
+}
+
+/// The first channel of a rendered buffer as floats in [-1, 1] (float or 16-bit PCM, interleaved or not).
+fn rendered(buffer: &AVAudioBuffer) -> Rendered {
+    let Some(pcm) = buffer.downcast_ref::<AVAudioPCMBuffer>() else { return Rendered::Done };
+    let frames = unsafe { pcm.frameLength() as usize };
+    if frames == 0 {
+        return Rendered::Done;
+    }
+    let format = unsafe { pcm.format() };
+    let rate = unsafe { format.sampleRate() as u32 };
+    let step = if unsafe { format.isInterleaved() } { unsafe { format.channelCount() as usize } } else { 1 };
+    let samples = match unsafe { format.commonFormat() } {
+        AVAudioCommonFormat::PCMFormatFloat32 => {
+            let channel = unsafe { *pcm.floatChannelData() }.as_ptr();
+            (0..frames).map(|i| unsafe { *channel.add(i * step) }).collect()
+        }
+        AVAudioCommonFormat::PCMFormatInt16 => {
+            let channel = unsafe { *pcm.int16ChannelData() }.as_ptr();
+            (0..frames).map(|i| f32::from(unsafe { *channel.add(i * step) }) / f32::from(i16::MAX)).collect()
+        }
+        _ => Vec::new(),
+    };
+    Rendered::Audio(samples, rate)
+}
+
+/// `chunks` spoken in `voice` into sound without playing it (AVSpeechSynthesizer's write): each chunk's mono samples and
+/// rate, in order. The buffers arrive on the main queue, so call it off the main thread (it waits for them).
+pub fn render(chunks: &[String], voice: Option<&str>) -> Result<Vec<(Vec<f32>, u32)>, LocalError> {
+    let voice = voice.filter(|id| *id != SYSTEM_VOICE).and_then(|id| unsafe { AVSpeechSynthesisVoice::voiceWithIdentifier(&NSString::from_str(id)) });
+    let synthesizer = unsafe { AVSpeechSynthesizer::new() };
+    let mut parts = Vec::with_capacity(chunks.len());
+    for chunk in chunks {
+        let (sender, inbox) = mpsc::channel();
+        let callback = RcBlock::new(move |buffer: NonNull<AVAudioBuffer>| {
+            let _ = sender.send(rendered(unsafe { buffer.as_ref() })); // rendering may have been given up
+        });
+        unsafe { synthesizer.writeUtterance_toBufferCallback(&utterance(chunk, voice.as_deref()), RcBlock::as_ptr(&callback)) };
+        let mut samples = Vec::new();
+        let mut rate = 0;
+        loop {
+            match inbox.recv_timeout(RENDER_TIMEOUT) {
+                Ok(Rendered::Audio(more, at)) => {
+                    samples.extend(more);
+                    rate = at;
+                }
+                Ok(Rendered::Done) => break,
+                Err(_) => return Err(LocalError::Engine("The system voice didn't render this".into())),
+            }
+        }
+        if rate > 0 {
+            parts.push((samples, rate));
+        }
+    }
+    Ok(parts)
 }
 
 /// One chunk to speak: in `voice`, or with the Spoken Content voice and rate.

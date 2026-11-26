@@ -21,6 +21,10 @@ export const READ_ALOUD_CONFIG = {
   } as Record<string, { voices: readonly string[] }>,
   /** Longest text sent to a cloud voice in one request (characters, under OpenAI's 4096); a reply is read in sentence chunks of this size. */
   cloudChunkChars: 2000,
+  /** The rate a cloud voice's chunks are joined at when a reply is saved (Gallery › Audio). */
+  saveSampleRate: 24_000,
+  /** Save in Read Aloud: the reply read and kept in Gallery › Audio. */
+  save: { label: 'Save audio', saving: 'Saving audio…', saved: 'Saved to Gallery › Audio' },
 } as const;
 
 /** `macos`, or a downloaded voice model's id (`soprano`). */

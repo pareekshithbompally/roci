@@ -1,4 +1,5 @@
-/** Read aloud: voices, speak a reply's markdown (reporting each chunk as it starts), and stop; system and downloaded voices in Rust, cloud voices here. */
+/** Read aloud: voices, speak a reply's markdown (reporting each chunk as it starts), stop, and render it to a WAV file (Save);
+ *  system and downloaded voices in Rust, cloud voices here. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -9,6 +10,7 @@ import { platform } from '@platform/index';
 import type { LocalErrorPayload } from '@services/localModels.service';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { cloudVoices, speechAudio } from '@services/ai/speech';
+import { encodeWavInt16, toMonoSamples } from '@shared/utils/wav.utils';
 import { parseModelKey } from '@services/ai/models';
 import type { ModelRef } from '@services/ai/models';
 
@@ -79,6 +81,17 @@ async function speakCloud(text: string, engine: ModelRef, { voice, providers }: 
   }
 }
 
+/** A cloud voice's reading as one WAV: each chunk fetched and decoded, joined at one rate. */
+async function renderCloud(text: string, engine: ModelRef, { voice, providers }: SpeakWith): Promise<Uint8Array> {
+  const rate = READ_ALOUD_CONFIG.saveSampleRate;
+  const chunks = await invoke<string[]>('tts_chunks', { text, maxChars: READ_ALOUD_CONFIG.cloudChunkChars });
+  const parts: Float32Array[] = [];
+  for (const chunk of chunks) parts.push(await toMonoSamples(await speechAudio({ text: chunk, engine, voice, providers }), rate));
+  const joined = new Float32Array(parts.reduce((sum, part) => sum + part.length, 0));
+  parts.reduce((at, part) => (joined.set(part, at), at + part.length), 0);
+  return encodeWavInt16(joined, rate);
+}
+
 /** Ends any read in progress, cloud or Rust: one read at a time. */
 async function stopAll(): Promise<void> {
   cloudRead?.abort();
@@ -113,4 +126,15 @@ export const readAloud = {
   },
 
   stop: stopAll,
+
+  /** The reply read by `speaker` as one WAV file's bytes, without playing it (Save in Read Aloud). */
+  async render(text: string, speaker: SpeakWith): Promise<Uint8Array> {
+    const cloud = parseModelKey(speaker.engine);
+    if (cloud) return renderCloud(text, cloud, speaker);
+    try {
+      return new Uint8Array(await invoke<ArrayBuffer>('tts_render', { text, engine: speaker.engine, voice: speaker.voice ?? null }));
+    } catch (error: unknown) {
+      throw new Error(readAloudErrorMessage(error), { cause: error });
+    }
+  },
 };

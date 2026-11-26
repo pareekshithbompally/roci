@@ -52,7 +52,7 @@ sha2 = "0.10"
 transcribe-cpp = "=0.4.2"
 # Chat, search and read aloud on device: llama.cpp built on transcribe.cpp's ggml (engines/llama-sys).
 roci-llama-sys = { path = "engines/llama-sys" }
-objc2-avf-audio = { version = "0.3.2", default-features = false, features = ["std", "AVSpeechSynthesis", "AVAudioSession", "AVAudioSessionTypes", "AVAudioApplication", "block2"] }
+objc2-avf-audio = { version = "0.3.2", default-features = false, features = ["std", "AVSpeechSynthesis", "AVAudioSession", "AVAudioSessionTypes", "AVAudioApplication", "AVAudioBuffer", "AVAudioFormat", "AVAudioTypes", "block2"] }
 cpal = "0.18.2"
 rubato = "5.0.1"
 base64 = "0.22"

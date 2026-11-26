@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { formatDayAndTime } from '@shared/utils/formatters';
-import { Copy, Check, Loader2, MoreHorizontal, Square, Volume2 } from 'lucide-react';
-import type { ReadAloud, ReadAloudState } from '@shared/hooks/useReadAloud';
+import { Copy, Check, Download, Loader2, MoreHorizontal, Square, Volume2 } from 'lucide-react';
+import { useSaveSpeech, type ReadAloud, type ReadAloudState } from '@shared/hooks/useReadAloud';
+import { READ_ALOUD_CONFIG } from '@config/readAloud.config';
 import SuggestionsList from './SuggestionsList';
 import SourcesList from './SourcesList';
 import { DocumentCitations } from './DocumentCitations';
@@ -59,6 +60,13 @@ const ReplyDetailsMenu: React.FC<ReplyDetails> = ({ timestamp, provider, model, 
       </PopoverContent>
     </Popover>
   );
+};
+
+/** Save in Read Aloud: the reply read with the Settings voice and kept in Gallery › Audio. */
+const SaveSpeechButton: React.FC<{ text: string }> = ({ text }) => {
+  const { saving, save } = useSaveSpeech(text);
+  const { label, saving: busy } = READ_ALOUD_CONFIG.save;
+  return <IconButton icon={saving ? Loader2 : Download} spin={saving} label={saving ? busy : label} size="sm" onClick={save} />;
 };
 
 interface AssistantActionBarProps extends ReplyDetails {
@@ -155,6 +163,7 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
               onClick={readAloud.toggle}
             />
           )}
+          {platform.hasLocalModels && <SaveSpeechButton text={text} />}
           <ReplyDetailsMenu {...details} />
         </div>
       </div>

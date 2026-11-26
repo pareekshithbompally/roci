@@ -64,6 +64,7 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       audio::live::meeting_echo_signals,
       tts::commands::tts_voices,
       tts::commands::tts_speak,
+      tts::commands::tts_render,
       tts::commands::tts_stop,
       tts::commands::tts_chunks,
       mcp::commands::get_mcp_configs,
