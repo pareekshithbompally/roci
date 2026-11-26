@@ -3,13 +3,15 @@
 
 import React, { useState } from 'react';
 import { FileText, FileX, ImageOff, VideoOff, VolumeX, type LucideIcon } from 'lucide-react';
-import { Icon, Row, Surface, Text, Thumbnail, Viewer, showToast } from '@shared/ui';
+import { Button, Icon, Row, Surface, Text, Thumbnail, Viewer, showToast } from '@shared/ui';
 import { platform } from '@platform/index';
 import { openAttachment } from '@features/chat/utils';
 import { AudioPlayer, RemovedNotice, VideoPlayer } from '@shared/components';
 import { StorageConfig } from '@config/storage.config';
 import { ATTACHMENT_COPY } from '@config/chat.config';
-import { attachmentInput, mediaKind, type MediaKind } from '@shared/utils/chatParts';
+import { attachmentInput, isSearchableDocument, mediaKind, type MediaKind } from '@shared/utils/chatParts';
+import type { FileUIPart } from '@shared/types';
+import { useKeepInKnowledge } from '@features/knowledge/hooks/useKeepInKnowledge';
 import { useObjectUrl } from '@shared/hooks';
 import { keptPathOf, useMediaSrc, type ChatMedia } from '@features/chat/hooks/useMediaSrc';
 
@@ -31,7 +33,15 @@ function PdfViewer({ src, title, open, onOpenChange }: { src: string; title: str
   return <Viewer media={{ kind: 'pdf', src: objectUrl, title }} open={open} onOpenChange={onOpenChange} />;
 }
 
-/** A document by its name: a PDF opens in the viewer (every platform); any other, on the Mac, in its default app. */
+/** Keep in Knowledge for a document attached here, until it is in the library. */
+function KeepInKnowledge({ part }: { part: FileUIPart }) {
+  const { kept, keep } = useKeepInKnowledge(part);
+  if (kept) return null;
+  return <Button variant="ghost" size="inline" className="mr-3" onClick={keep}>{ATTACHMENT_COPY.keep}</Button>;
+}
+
+/** A document by its name: a PDF opens in the viewer (every platform); any other, on the Mac, in its default app. One
+ *  attached here can be kept in Knowledge. */
 function DocumentChip({ media, src, name }: { media: ChatMedia; src?: string; name?: string }) {
   const [open, setOpen] = useState(false);
   const label = name ?? 'file';
@@ -48,12 +58,13 @@ function DocumentChip({ media, src, name }: { media: ChatMedia; src?: string; na
     else if (src) void openAttachment(label, src);
   };
   return (
-    <Surface variant="subtle" radius="lg" className="my-1 inline-flex">
+    <Surface variant="subtle" radius="lg" className="my-1 inline-flex items-center">
       {opens ? (
         <Row className="w-auto" aria-label={`Open ${label}`} onClick={onOpen}>{body}</Row>
       ) : (
         <div className="flex items-center gap-2 px-3 py-2">{body}</div>
       )}
+      {'url' in media && isSearchableDocument(media) && <KeepInKnowledge part={media} />}
       {pdf && src && <PdfViewer src={src} title={label} open={open} onOpenChange={setOpen} />}
     </Surface>
   );

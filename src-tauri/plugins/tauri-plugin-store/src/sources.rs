@@ -100,14 +100,14 @@ pub(crate) fn set_state_impl(
     Ok(())
 }
 
-/// Sources to index at launch: library files not ready at `version` (new, failed, or read by an older indexer), and
-/// meetings and chats whose last indexing failed (the rest are indexed as they're saved).
+/// Sources to index at launch: files (in the library or attached) not ready at `version` (new, failed, or read by an older
+/// indexer), and meetings and chats whose last indexing failed (the rest are indexed as they're saved).
 pub(crate) fn needing_index_impl(db: &Connection, version: i64) -> Result<Vec<(ItemKind, String)>, StoreError> {
     let files = db
         .prepare(
             "SELECT a.id FROM assets a
              LEFT JOIN index_state s ON s.owner_kind = 'file' AND s.owner_id = a.id
-             WHERE a.kind = 'file' AND a.kept = 1 AND (s.state IS NULL OR s.state != 'ready' OR s.version != ?1)
+             WHERE a.kind = 'file' AND (s.state IS NULL OR s.state != 'ready' OR s.version != ?1)
              ORDER BY a.created_at DESC",
         )?
         .query_map([version], |row| row.get::<_, String>(0))?

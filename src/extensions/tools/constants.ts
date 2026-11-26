@@ -19,6 +19,9 @@ export const MAX_CITATION_EXCERPT_CHARS = 300;
 /** Max transcript characters included in formatForLLM output */
 export const MAX_TRANSCRIPT_FOR_LLM = 4_000;
 
+/** Most of one document `read` returns (its first pages); find in documents looks up the rest. */
+export const MAX_DOCUMENT_FOR_LLM = 12_000;
+
 // ── Tool-specific limits ──
 
 /** Most messages read reads back from a chat */

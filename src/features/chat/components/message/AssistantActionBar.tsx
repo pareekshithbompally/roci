@@ -4,6 +4,8 @@ import { Copy, Check, Loader2, MoreHorizontal, Square, Volume2 } from 'lucide-re
 import type { ReadAloud, ReadAloudState } from '@shared/hooks/useReadAloud';
 import SuggestionsList from './SuggestionsList';
 import SourcesList from './SourcesList';
+import { DocumentCitations } from './DocumentCitations';
+import type { DocumentCitation } from '@extensions/tools/types';
 import type { ActionProps, CitationHandlers } from './types';
 import type { ContextTokens, MeetingCitation, WebCitation } from '@shared/types';
 import { Tabs, Button, IconButton, Popover, PopoverContent, PopoverFact, PopoverHeader, PopoverTrigger, Separator, Dot, Text } from '@shared/ui';
@@ -66,6 +68,8 @@ interface AssistantActionBarProps extends ReplyDetails {
   isCopied?: boolean;
   actions: ActionProps;
   meetingCitations?: MeetingCitation[];
+  /** The document pages the reply drew on, shown as pills under it. */
+  documentCitations?: DocumentCitation[];
   suggestions?: string[];
   onSuggestionClick?: (suggestion: string) => void;
   citationHandlers: CitationHandlers;
@@ -76,7 +80,7 @@ interface AssistantActionBarProps extends ReplyDetails {
 
 const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
   id, text, isLastMessage, isCopied,
-  actions, meetingCitations,
+  actions, meetingCitations, documentCitations,
   suggestions, onSuggestionClick,
   citationHandlers, webCitations, readAloud, ...details
 }) => {
@@ -154,6 +158,12 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
           <ReplyDetailsMenu {...details} />
         </div>
       </div>
+
+      {documentCitations && documentCitations.length > 0 && (
+        <div className="mt-2">
+          <DocumentCitations citations={documentCitations} />
+        </div>
+      )}
 
       {/* Tab content: suggestions, or sources when expanded via the tab */}
       {hasTabs && hasSuggestions && (

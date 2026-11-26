@@ -13,6 +13,7 @@ import { useTauriEvent } from '@shared/hooks';
 import type { SourceStatus } from '@shared/types/native';
 import { attachmentMediaType } from '@shared/utils/chatParts';
 import { KNOWLEDGE_LIBRARY } from '@config/knowledgeLibrary.config';
+import { libraryQuery } from './libraryQuery';
 
 /** A document still being saved: shown in the list, opened once it is in. */
 function adding(file: File): KnowledgeDocument {
@@ -32,11 +33,7 @@ export function useKnowledge(query: string) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const key = queryKeys.knowledgeLibrary();
-  const { data: all = [], isLoading } = useQuery({
-    queryKey: key,
-    queryFn: () => documentsService.list(KNOWLEDGE_LIBRARY.listLimit),
-    enabled: isTauriEnvironment(),
-  });
+  const { data: all = [], isLoading } = useQuery(libraryQuery);
   const { data: statuses = [] } = useQuery({
     queryKey: queryKeys.sourceStates('file'),
     queryFn: () => store.sources.states('file'),

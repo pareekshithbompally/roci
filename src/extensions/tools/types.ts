@@ -82,12 +82,28 @@ export interface MeetingCitation {
   score: number;
 }
 
+// ── Document Citation (UI-only, not sent to LLM) ──
+
+/** A document passage an answer drew on: the document (by its app path), its page, the words. */
+export interface DocumentCitation {
+  path: string;
+  name: string;
+  /** From 1; none for a text file. */
+  page: number | null;
+  excerpt: string;
+  score: number;
+  /** In the Knowledge library (opens there), rather than a chat's attachment. */
+  kept: boolean;
+}
+
 export interface ToolResultMeta {
   toolName: string;
   executionMs: number;
   resultCount?: number;
   /** UI-only citation cards: the meetings a find or read drew on */
   citations?: MeetingCitation[];
+  /** UI-only citation rows: the document passages a find or read drew on, each with its page */
+  documentCitations?: DocumentCitation[];
   /** UI-only: an image the tool made, shown in the reply where the tool ran (generate_image). */
   image?: GeneratedImage;
   /** UI-only: the MCP App screen an MCP tool declared, shown in the reply where the tool ran. */

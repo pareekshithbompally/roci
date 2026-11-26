@@ -1,4 +1,4 @@
-export { attachedFileText, attachedMeetingsText, buildChatSystemPrompt, unreadableFileText, FINAL_ANSWER_PROMPT, NO_TOOLS, TOOL_SEARCH_TOOL } from './chat.prompt';
+export { attachedFileText, attachedMeetingsText, buildChatSystemPrompt, unreadableFileText, searchableFileText, FINAL_ANSWER_PROMPT, NO_TOOLS, TOOL_SEARCH_TOOL } from './chat.prompt';
 export type { ChatModalities, ChatPromptOptions, ChatToolset } from './chat.prompt';
 
 export { buildTranscriptionPrompt, verbatimTranscribePrompt } from './transcription.prompt';

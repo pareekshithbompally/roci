@@ -34,6 +34,8 @@ pub struct ChunkHit {
     pub chunk_text: String,
     pub chunk_type: String,
     pub score: f64,
+    /// The page it is on (a document's), when it has one.
+    pub page: Option<i32>,
 }
 
 /// RRF's smoothing constant (60 is the standard).
@@ -73,7 +75,7 @@ fn fused(legs: &[&str]) -> String {
     let union: Vec<String> = (0..legs.len()).map(|i| format!("SELECT chunk_id, rank FROM leg{i}")).collect();
     format!(
         "WITH {}
-         SELECT c.owner_id, c.chunk_text, c.chunk_type, s.score
+         SELECT c.owner_id, c.chunk_text, c.chunk_type, s.score, c.page
          FROM (SELECT chunk_id, SUM(1.0 / (:rrf_k + rank)) AS score FROM ({}) GROUP BY chunk_id) s
          JOIN chunks c ON c.id = s.chunk_id
          ORDER BY s.score DESC",
@@ -130,7 +132,7 @@ pub fn hybrid_search(conn: &Connection, q: &SearchQuery) -> Result<Vec<ChunkHit>
     let params: Vec<(&str, &dyn rusqlite::ToSql)> = named.into_iter().filter(|(name, _)| sql.contains(name)).collect();
     let rows = stmt
         .query_map(params.as_slice(), |row| {
-            Ok(ChunkHit { owner_id: row.get(0)?, chunk_text: row.get(1)?, chunk_type: row.get(2)?, score: row.get(3)? })
+            Ok(ChunkHit { owner_id: row.get(0)?, chunk_text: row.get(1)?, chunk_type: row.get(2)?, score: row.get(3)?, page: row.get(4)? })
         })
         .map_err(|e| format!("search: {e}"))?;
     let ranked = rows.collect::<Result<Vec<_>, _>>().map_err(|e| format!("search row: {e}"))?;

@@ -18,7 +18,7 @@ mod session_search;
 mod sources;
 mod usage;
 
-pub use changes::{meeting_detail, meeting_ids, on_chat_saved, on_database_open, on_file_kept, on_meeting_change, setting, MeetingChange};
+pub use changes::{meeting_detail, meeting_ids, on_chat_saved, on_database_open, on_file_added, on_meeting_change, setting, MeetingChange};
 pub use commands::ChatSearchHit;
 pub use search::SearchHit;
 pub use commands::{MeetingCreateInput, MeetingDetail, MeetingStatus, NoteRow, SummaryRow, TodoRow, TranscriptRow};
@@ -82,6 +82,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             assets::assets_exists,
             assets::assets_library,
             assets::assets_delete,
+            assets::assets_keep,
             sources::index_states,
             sources::related_sources,
             assets::notices_owed,

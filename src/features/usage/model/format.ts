@@ -26,10 +26,7 @@ const SECONDS = new Intl.NumberFormat(undefined, { style: 'unit', unit: 'second'
 /** A duration, in the unit that reads: "171 ms", "1.5 sec". */
 export const formatMs = (ms: number): string => (ms < 1000 ? MILLISECONDS.format(ms) : SECONDS.format(ms / 1000));
 
-const TOKENS = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
-
-/** A token count in the locale's compact form: "254K", "1.2M". */
-export const formatTokens = (tokens: number): string => TOKENS.format(Math.round(tokens));
+export { formatTokens } from '@shared/utils/formatters';
 
 /** A bucket's date: short for axis labels ("18 Oct", "Oct"), long for table rows ("Mon 10 Nov", "October 2026"). */
 export function bucketLabel(key: string, bucket: UsageBucketSize, style: 'short' | 'long'): string {

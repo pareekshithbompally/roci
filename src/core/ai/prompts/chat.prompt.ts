@@ -143,6 +143,11 @@ export function attachedFileText(name: string, contents: string, totalChars = co
   return `## File the user attached: ${name}\n\n${contents}${cut}`;
 }
 
+/** A file the user attached to be searched rather than sent whole: named with its document id, for find and read. */
+export function searchableFileText(name: string, documentId: string): string {
+  return `(The user attached "${name}" (document id: ${documentId}). It isn't included here: look up what you need in it with find in documents and document "${documentId}", or read it whole.)`;
+}
+
 /** A file the user attached that this model can't read, named so it can say so instead of guessing. */
 export function unreadableFileText(name: string): string {
   return `(The user attached "${name}", which you can't read. If it matters to the answer, say so.)`;

@@ -16,6 +16,8 @@ use tauri::State;
 pub const ASSETS_DIR: &str = "assets";
 /// The folders files lived in by kind before v17, moved into `ASSETS_DIR` at the first open after the upgrade.
 const OLD_DIRS: &[&str] = &["recordings", "images", "speech"];
+/// The kind of a file you gave Roci (an attachment, or a document in the library).
+pub(crate) const FILE_KIND: &str = "file";
 /// How long an unclaimed asset or an untracked file waits for its owner (a save in flight, an import half done).
 const UNCLAIMED_GRACE_MS: i64 = 24 * 60 * 60 * 1000;
 
@@ -441,17 +443,36 @@ pub(crate) fn move_inline_attachments(db: &Connection, root: &Path) -> Result<us
 
 #[tauri::command]
 pub async fn assets_create(state: State<'_, StoreState>, asset: NewAsset) -> Result<String, StoreError> {
-    let kept = asset.kept;
+    let file = asset.kind == FILE_KIND;
     let id = on_db(&state, move |db| {
         let id = crate::commands::generate_id();
         create(db, &id, &asset, now_millis())?;
         Ok(id)
     })
     .await?;
-    if kept {
-        crate::changes::notify_file_kept(&id);
+    if file {
+        crate::changes::notify_file_added(&id);
     }
     Ok(id)
+}
+
+/// Keeps a chat's attached file in the Knowledge library: no chat owns it any more, so it outlives the chat; the chats that
+/// show it still do. Returns its id, or none when the path is no file.
+pub(crate) fn keep(db: &Connection, path: &str) -> Result<Option<String>, StoreError> {
+    let id: Option<String> = db.query_row("SELECT id FROM assets WHERE path = ?1 AND kind = ?2", [path, FILE_KIND], |row| row.get(0)).optional()?;
+    if let Some(id) = &id {
+        db.execute("UPDATE assets SET chat_id = NULL, kept = 1 WHERE id = ?1", [id])?;
+    }
+    Ok(id)
+}
+
+/// Keep in Knowledge: the attached file at `path` joins the library (and its index, if it isn't there yet).
+#[tauri::command]
+pub async fn assets_keep(state: State<'_, StoreState>, path: String) -> Result<(), StoreError> {
+    if let Some(id) = on_db(&state, move |db| keep(db, &path)).await? {
+        crate::changes::notify_file_added(&id);
+    }
+    Ok(())
 }
 
 /// The Gallery a page at a time.
@@ -637,6 +658,24 @@ mod tests {
         assert_eq!(left("SELECT COUNT(*) FROM assets"), 1);
         assert!(!root.join("assets/k.pdf").exists());
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    /// A chat's attachment goes with the chat unless it is kept in Knowledge; a kept one survives the chat.
+    #[test]
+    fn a_kept_attachment_survives_its_chat_and_an_unkept_one_goes_with_it() {
+        let db = open_migrated_test_db();
+        db.execute_batch(
+            "INSERT INTO chats (id, title, created_at, last_message_at) VALUES ('c1', 'Chat', 0, 0);
+             INSERT INTO assets (id, kind, path, chat_id, created_at) VALUES ('a', 'file', 'assets/a.pdf', 'c1', 0);
+             INSERT INTO assets (id, kind, path, chat_id, created_at) VALUES ('b', 'file', 'assets/b.pdf', 'c1', 0);",
+        )
+        .unwrap();
+        assert_eq!(keep(&db, "assets/a.pdf").unwrap().as_deref(), Some("a"));
+        assert_eq!(keep(&db, "assets/none.pdf").unwrap(), None);
+        crate::commands::chats_delete_impl(&db, "c1").unwrap();
+        let left: Vec<(String, i64)> = db.prepare("SELECT id, kept FROM assets").unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().collect::<Result<_, _>>().unwrap();
+        assert_eq!(left, vec![("a".to_string(), 1)]);
     }
 
     /// The first open after v17 moves every file and track folder out of the by-kind folders into `assets/`.

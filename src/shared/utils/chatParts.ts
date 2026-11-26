@@ -1,10 +1,10 @@
 /** Reads a chat message's SDK parts: its text, what its tools returned (citations, an image, a screen or view), its web sources. */
 
 import { getToolName, isTextUIPart, isToolUIPart } from 'ai';
-import type { ChatMessage, ChatPart, GeneratedImage, MeetingCitation, WebCitation } from '@shared/types';
-import type { ToolResult, ToolView } from '@extensions/tools/types';
+import type { ChatMessage, ChatPart, FileUIPart, GeneratedImage, MeetingCitation, WebCitation } from '@shared/types';
+import type { DocumentCitation, ToolResult, ToolView } from '@extensions/tools/types';
 import { isRecord } from '@shared/utils/validators';
-import { ATTACHMENT_TYPES } from '@config/chat.config';
+import { ATTACHMENT_SEND_KEY, ATTACHMENT_TYPES } from '@config/chat.config';
 import { StorageConfig } from '@config/storage.config';
 import type { Modality } from '@config/modelSpine.config';
 
@@ -38,6 +38,24 @@ export function attachmentInput(mediaType: string, filename = ''): Modality | nu
   if (mediaType === pdf.mediaType || hasExtension(filename, [pdf.extension])) return 'pdf';
   const textType = mediaType.startsWith(text.mediaTypePrefix) || (text.mediaTypes as readonly string[]).includes(mediaType);
   return textType || hasExtension(filename, text.extensions) ? 'text' : null;
+}
+
+/** Whether an attached file is a kept document a model can look things up in (a PDF or a text file), not media. */
+export function isSearchableDocument(part: FileUIPart): boolean {
+  const input = attachmentInput(part.mediaType, part.filename);
+  return isAssetPath(part.url) && (input === 'pdf' || input === 'text');
+}
+
+/** Whether the user chose Send whole for this document; Search (looked up in when needed) is the default. */
+export function sendsWhole(part: FileUIPart): boolean {
+  return part.providerMetadata?.[ATTACHMENT_SEND_KEY]?.send === 'whole';
+}
+
+/** The file part set to go whole, or back to Search (Roci's note left off, so a model is never sent it). */
+export function withSendWhole(part: FileUIPart, whole: boolean): FileUIPart {
+  const others = Object.fromEntries(Object.entries(part.providerMetadata ?? {}).filter(([key]) => key !== ATTACHMENT_SEND_KEY));
+  const providerMetadata = whole ? { ...others, [ATTACHMENT_SEND_KEY]: { send: 'whole' } } : others;
+  return { ...part, providerMetadata: Object.keys(providerMetadata).length > 0 ? providerMetadata : undefined };
 }
 
 /** A part the reply shows: words, thinking or a tool call; the empty blocks some providers open (Gemini's signed text,
@@ -83,6 +101,17 @@ export function meetingCitationsOf(parts: readonly ChatPart[]): MeetingCitation[
   for (const citation of parts.flatMap((part) => toolResultOf(part)?.meta?.citations ?? [])) {
     const kept = best.get(citation.meetingId);
     if (!kept || citation.score > kept.score) best.set(citation.meetingId, citation);
+  }
+  return [...best.values()];
+}
+
+/** The document passages a message's tools cited, each document page once (its best passage), in the order they came. */
+export function documentCitationsOf(parts: readonly ChatPart[]): DocumentCitation[] {
+  const best = new Map<string, DocumentCitation>();
+  for (const citation of parts.flatMap((part) => toolResultOf(part)?.meta?.documentCitations ?? [])) {
+    const key = `${citation.path}#${citation.page ?? ''}`;
+    const kept = best.get(key);
+    if (!kept || citation.score > kept.score) best.set(key, citation);
   }
   return [...best.values()];
 }

@@ -105,6 +105,11 @@ export function formatFigure(value: number, unit?: string): string {
   return unit === '%' ? `${number}%` : `${number} ${unit}`;
 }
 
+const TOKENS = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
+
+/** A token count in the locale's compact form: "254K", "1.2M". */
+export const formatTokens = (tokens: number): string => TOKENS.format(Math.round(tokens));
+
 /** A running clock, fixed width: "02:13", minutes past the hour kept ("75:03"). */
 export function formatClock(seconds: number): string {
   const pad = (n: number) => Math.floor(n).toString().padStart(2, '0');

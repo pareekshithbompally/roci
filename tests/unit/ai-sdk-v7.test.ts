@@ -9,12 +9,13 @@ vi.mock('@services/storage', () => ({ assetsService: { dataUrl } }));
 import { jsonSchema, tool } from 'ai';
 import type { ToolSet } from 'ai';
 import { toModelMessages } from '@services/ai/message-converter';
-import { attachedFileText, formatSentAt, unreadableFileText } from '@core/ai';
+import { attachedFileText, formatSentAt, searchableFileText, unreadableFileText } from '@core/ai';
+import { withSendWhole } from '@shared/utils/chatParts';
 import type { Modality } from '@config/modelSpine.config';
 import { ATTACHMENT_TYPES } from '@config/chat.config';
 import { extractTokenUsage } from '@services/ai/types';
 import { chatModelOf } from '@features/chat/utils';
-import type { ChatMessage, ChatMetadata, ChatPart } from '@shared/types';
+import type { ChatMessage, ChatMetadata, ChatPart, FileUIPart } from '@shared/types';
 import type { ToolResult } from '@extensions/tools/types';
 
 const schema = jsonSchema<Record<string, unknown>>({ type: 'object' });
@@ -107,6 +108,20 @@ describe('conversation history (convertToModelMessages)', () => {
       expect(await sentWith(kept('assets/q3.pdf'), ['text', 'pdf'])).toMatchObject({ type: 'file', mediaType: 'application/pdf' });
       expect(dataUrl).toHaveBeenCalledWith('assets/q3.pdf', 'application/pdf');
       expect(await sentWith(kept('assets/gone.pdf'), ['text', 'pdf'])).toEqual({ type: 'text', text: unreadableFileText('q3.pdf') });
+    });
+
+    it('sends a document set to Search as a note naming it, and one set to Send whole as itself', async () => {
+      const doc: FileUIPart = { type: 'file', mediaType: 'application/pdf', url: 'assets/q3.pdf', filename: 'q3.pdf' };
+      const lookUp: ToolSet = { ...TOOLS, find: rociTool, read: rociTool };
+      const last = async (part: FileUIPart, tools: ToolSet) => {
+        const [sent] = await toModelMessages([{ ...question, parts: [...question.parts, part] }], tools, ['text', 'pdf']);
+        return (sent.content as Array<{ type: string; text?: string; providerOptions?: unknown }>).at(-1);
+      };
+      expect(await last(doc, lookUp)).toEqual({ type: 'text', text: searchableFileText('q3.pdf', 'assets/q3.pdf') });
+      const whole = await last(withSendWhole(doc, true), lookUp);
+      expect(whole).toMatchObject({ type: 'file', mediaType: 'application/pdf' });
+      expect(whole?.providerOptions).toBeUndefined();
+      expect(await last(doc, TOOLS), 'a model that can\'t look things up gets it whole').toMatchObject({ type: 'file' });
     });
 
     it('sends a text file as its contents, to any model, even when the system gave it no type', async () => {

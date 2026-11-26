@@ -20,6 +20,7 @@ import { platform } from '@platform/index';
 import { LAYOUT } from '@config/layout.config';
 import { KNOWLEDGE_LIBRARY } from '@config/knowledgeLibrary.config';
 import { useKnowledge } from '@features/knowledge/hooks/useKnowledge';
+import { useKnowledgeStore } from '@features/knowledge/stores/knowledgeStore';
 import { RelatedSources } from '@features/knowledge/components/RelatedSources';
 
 /** "PDF · 1.2 MB · Today · Ready": a document still saving or not yet indexed says Indexing…. */
@@ -123,17 +124,18 @@ export const KnowledgeView: React.FC = () => {
   const [query, setQuery] = useState('');
   const { documents, hasAny, isLoading, statusOf, addFiles, remove } = useKnowledge(query);
   const beside = useListBesideDetail();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedId = useKnowledgeStore((s) => s.selected);
+  const setSelectedId = useKnowledgeStore((s) => s.select);
   const picker = useRef<HTMLInputElement>(null);
 
   // Beside the list (a Mac) one document is always open (the newest saved match until another is picked); pushed (iPhone),
   // only the one tapped.
   const opened = documents.filter((d) => d.appPath);
-  const selected = opened.find((d) => d.id === selectedId) ?? (beside ? opened[0] : undefined);
+  const selected = opened.find((d) => d.id === selectedId || d.appPath === selectedId) ?? (beside ? opened[0] : undefined);
 
   const deleteDocument = async (document: KnowledgeDocument) => {
     if (!(await confirmDelete(KNOWLEDGE_LIBRARY.noun))) return;
-    if (document.id === selectedId) setSelectedId(null);
+    if (document.id === selected?.id) setSelectedId(null);
     remove(document.id);
   };
 

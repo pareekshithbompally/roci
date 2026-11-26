@@ -25,6 +25,11 @@ export const assets = {
     await call<void>('assets_delete', { id });
   },
 
+  /** Keep in Knowledge: the attached file at `path` joins the library and outlives its chat. */
+  async keep(path: string): Promise<void> {
+    await call<void>('assets_keep', { path });
+  },
+
   /** How many files of `kind` are kept. */
   async count(kind: string): Promise<number> {
     return call<number>('assets_count', { kind });

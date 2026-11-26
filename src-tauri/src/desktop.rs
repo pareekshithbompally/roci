@@ -93,6 +93,8 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       llama_server::local_server_restart_pending,
       search_index::search_meetings,
       search_index::search_chats,
+      search_index::search_documents,
+      search_index::document_pages,
       search_index::index_stretch,
       search_index::rebuild_search_index,
       // MCP client (servers, tools, calls)

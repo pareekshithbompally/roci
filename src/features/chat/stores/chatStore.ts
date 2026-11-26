@@ -16,7 +16,7 @@ import type { ModelRef } from '@services/ai/models';
 // the live store alone (a light module), not the whole recording feature
 import { runningTranscript } from '@features/recording/live/meetingLiveStore';
 import { attachmentPart } from './chatMessages';
-import { attachmentMediaType } from '@shared/utils/chatParts';
+import { attachmentMediaType, withSendWhole } from '@shared/utils/chatParts';
 import { createSessions } from './chatSessions';
 import { createReplies } from './chatReply';
 
@@ -78,6 +78,8 @@ export interface ChatStoreState {
   setReasoningEffort: (effort: ReasoningEffort) => void;
   addAttachment: (file: File) => Promise<void>;
   removeAttachment: (index: number) => void;
+  /** A pending document goes whole (true) or is looked up in when needed (false, the default). */
+  setAttachmentSendWhole: (index: number, whole: boolean) => void;
   addScreenshotAttachment: (base64: string, name: string) => Promise<void>;
   /** A fresh, unsaved chat about `meeting`, with the meeting attached as context; thinking Off while the meeting records, so
    *  answers come quickly (the picker still raises it). */
@@ -199,6 +201,9 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
 
   removeAttachment: (index) =>
     set((state) => ({ pendingAttachments: state.pendingAttachments.filter((_, i) => i !== index) })),
+
+  setAttachmentSendWhole: (index, whole) =>
+    set((state) => ({ pendingAttachments: state.pendingAttachments.map((part, i) => (i === index ? withSendWhole(part, whole) : part)) })),
 
   addScreenshotAttachment: (base64, name) =>
     get().addAttachment(new File([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))], name, { type: 'image/png' })),

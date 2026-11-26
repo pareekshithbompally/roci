@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_store::index::{self, ChatLine, ChunkData, FileSource, ItemKind, MeetingText, SourceState};
+use tauri_plugin_store::index::{self, ChatLine, ChunkData, FileHit, FileSource, ItemKind, MeetingText, SourceState};
 use tauri_plugin_store::{ChatSearchHit, MeetingChange, SearchHit};
 
 #[cfg(mobile)]
@@ -79,7 +79,7 @@ struct Progress {
 
 // ── Lifecycle ──
 
-/// Follows meeting and chat saves and files kept in the library; called once from setup. Once the database opens, the library
+/// Follows meeting and chat saves and files you gave Roci (attached, or kept in the library); called once from setup. Once the database opens, the library
 /// files not yet ready and the sources that failed are indexed again, and (with search's model downloaded) the pieces still
 /// without a vector (after an upgrade, or a save while the model was busy) get one.
 pub fn start(app: AppHandle) {
@@ -103,7 +103,7 @@ pub fn start(app: AppHandle) {
         let _ = chats.send(Input::Saved(ItemKind::Chat, id.to_string()));
     });
     let files = sender.clone();
-    tauri_plugin_store::on_file_kept(move |id| {
+    tauri_plugin_store::on_file_added(move |id| {
         let _ = files.send(Input::Saved(ItemKind::File, id.to_string()));
     });
     let _ = SENDER.set(sender);
@@ -379,6 +379,37 @@ pub async fn search_chats(app: AppHandle, query: String, limit: usize) -> Result
     off_main(move || {
         let vector = query_vector(&app, &query)?;
         index::search_chats(&app, &query, vector, limit).map_err(|e| e.to_string())
+    })
+    .await
+}
+
+/// Documents' passages matching `query`, best first, each with its page: within the files at `paths` (a chat's attachments),
+/// or the whole library.
+#[tauri::command]
+pub async fn search_documents(app: AppHandle, query: String, limit: usize, paths: Option<Vec<String>>) -> Result<Vec<FileHit>, String> {
+    off_main(move || {
+        let vector = query_vector(&app, &query)?;
+        index::search_files(&app, &query, vector, limit, paths).map_err(|e| e.to_string())
+    })
+    .await
+}
+
+/// A document's name and its text page by page (a text file is one page), as `document_pages` returns them.
+#[derive(Serialize)]
+pub struct DocumentPages {
+    name: String,
+    pages: Vec<String>,
+    /// In the Knowledge library, rather than a chat's attachment.
+    kept: bool,
+}
+
+/// A document's text, page by page, read from its file: what `read` and Send whole's token count take.
+#[tauri::command]
+pub async fn document_pages(app: AppHandle, path: String) -> Result<DocumentPages, String> {
+    off_main(move || {
+        let id = index::file_id_of(&app, &path).map_err(|e| e.to_string())?.ok_or_else(|| format!("No document at {path}"))?;
+        let file = index::file_source(&app, &id).map_err(|e| e.to_string())?.ok_or_else(|| format!("No document at {path}"))?;
+        Ok(DocumentPages { pages: document_text(&app, &file)?.pages, name: file.name, kept: file.kept })
     })
     .await
 }

@@ -37,7 +37,20 @@ export const ATTACHMENT_TYPES = {
 
 export const ATTACHMENT_COPY = {
   openFailed: (name: string) => `Couldn't open ${name}`,
+  /** How a document goes to the model: looked up in when needed (the default), or sent whole. */
+  send: { label: 'How it’s sent', search: 'Search', whole: 'Send whole', wholeTokens: (tokens: string) => `Send whole · ${tokens} tokens` },
+  keep: 'Keep in Knowledge',
+  kept: 'Kept in Knowledge',
+  keepFailed: (name: string) => `Couldn't keep ${name}`,
 } as const;
+
+/** How an answer names a document page it drew on. */
+export const CITATION_COPY = {
+  document: (name: string, page: number | null) => (page ? `${name} · p. ${page}` : name),
+} as const;
+
+/** Roci's own note on an attached file part (`providerMetadata` under this key, never sent): how it is sent. */
+export const ATTACHMENT_SEND_KEY = 'roci';
 
 /** A new chat's title is the question's first this-many characters until the model names it. */
 export const CHAT_TITLE_MAX_CHARS = 30;

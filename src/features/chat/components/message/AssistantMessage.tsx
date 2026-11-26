@@ -6,7 +6,7 @@ import { GlyphSlot, ICON_SIZE_PX, Progress, Text } from '@shared/ui';
 import { ModelIcon } from '@shared/components';
 import { useReadAloud } from '@shared/hooks/useReadAloud';
 import { useSpeechHighlight } from '@shared/hooks/useSpeechHighlight';
-import { meetingCitationsOf, messageText, webCitationsOf } from '@shared/utils/chatParts';
+import { documentCitationsOf, meetingCitationsOf, messageText, webCitationsOf } from '@shared/utils/chatParts';
 import PartsList from './PartsList';
 import { loadingStatusOf } from './loadingStatus';
 import { useReplyCost } from '@features/chat/hooks/useChatCost';
@@ -50,6 +50,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   const { provider, model, state = 'complete', isError, context, tokensPerSecond, usage, suggestions, createdAt } = metadata;
   const text = useMemo(() => messageText({ parts }), [parts]);
   const meetingCitations = useMemo(() => meetingCitationsOf(parts), [parts]);
+  const documentCitations = useMemo(() => documentCitationsOf(parts), [parts]);
   const webCitations = useMemo(() => webCitationsOf(parts), [parts]);
   const cost = useReplyCost({ provider, model, usage });
   const isLoading = state === 'loading';
@@ -102,6 +103,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
               cost={cost}
               actions={actions}
               meetingCitations={meetingCitations}
+              documentCitations={documentCitations}
               suggestions={suggestions}
               onSuggestionClick={onSuggestionClick}
               citationHandlers={citationHandlers}

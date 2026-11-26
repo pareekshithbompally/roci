@@ -1,16 +1,18 @@
-/** find: the user's own meetings, chats, to-dos, memories or knowledge — searched when there is a query, newest first when
- *  there isn't. Meetings and chats search the hybrid index (meaning and keywords); to-dos are read from roci.db; memories are
+/** find: the user's own meetings, chats, documents, to-dos, memories or knowledge — searched when there is a query, newest
+ *  first when there isn't. Meetings, chats and documents search the hybrid index (meaning and keywords; a document's passages
+ *  each with its page, in the Knowledge library or one file attached to the chat); to-dos are read from roci.db; memories are
  *  matched word for word (a short list, already in chat's prompt); knowledge (people, projects, topics…) by name in the
  *  graph. Every result carries the id `read` and the suggest tools take. */
 
 import { z } from 'zod';
-import type { MeetingCitation, MeetingRow, ToolResult } from '@extensions/tools/types';
+import type { DocumentCitation, MeetingCitation, MeetingRow, ToolResult } from '@extensions/tools/types';
 import { day, defineTool, idFrom, ok, text, toolDate } from '@extensions/tools/contract';
 import { findMeeting, meetingNotFound, todoLine } from '@extensions/tools/data';
 import { MAX_CITATION_EXCERPT_CHARS, MAX_SNIPPET_CHARS, MAX_TODOS_FOR_LLM } from '@extensions/tools/constants';
-import { searchChats, searchMeetings } from '@extensions/rag/searchIndex';
+import { searchChats, searchDocuments, searchMeetings, type DocumentSearchResult } from '@extensions/rag/searchIndex';
 import { SCORE_HIGH, SCORE_MEDIUM } from '@extensions/rag/constants';
 import { store, type GlobalTodoEntry } from '@services/db';
+import { documentsService } from '@services/storage';
 import { fetchMeetings } from '@shared/query/items';
 import { queryClient } from '@shared/query/queryClient';
 import { memoriesQuery } from '@shared/query/memories';
@@ -20,7 +22,7 @@ import { matchesAllWords } from '@shared/utils/textMatch';
 import { TODOS_CONFIG } from '@config/todos.config';
 import { ROCI_SCREENS } from '@config/mcp.config';
 
-const SCOPES = ['meetings', 'chats', 'todos', 'memories', 'knowledge'] as const;
+const SCOPES = ['meetings', 'chats', 'documents', 'todos', 'memories', 'knowledge'] as const;
 
 /** Default and most results: a search returns the best few, a list the newest. */
 const COUNTS = { search: { fallback: 5, max: 20 }, list: { fallback: 10, max: 50 } };
@@ -28,11 +30,12 @@ const COUNTS = { search: { fallback: 5, max: 20 }, list: { fallback: 10, max: 50
 const input = z.object({
   in: z
     .enum(SCOPES)
-    .describe('meetings: what was said or decided. chats: only when the user means an earlier chat. todos: their to-dos. memories: what Roci remembers. knowledge: the people, organizations, projects, events and topics across meetings and memory, each with how many meetings discussed it; read one by its id for everything about it.'),
+    .describe('meetings: what was said or decided. chats: only when the user means an earlier chat. documents: the files the user added to Knowledge, or one attached to this chat (give its document id), searched passage by passage, each with its page. todos: their to-dos. memories: what Roci remembers. knowledge: the people, organizations, projects, events and topics across meetings and memory, each with how many meetings discussed it; read one by its id for everything about it.'),
   query: text('Words to look for: topics, names, keywords. Leave out to list the newest.').optional(),
   from_date: day.optional().describe('meetings without a query: only those on or after this day, YYYY-MM-DD.'),
   to_date: day.optional().describe('meetings without a query: only those on or before this day, YYYY-MM-DD.'),
   status: z.enum(['open', 'done', 'all']).default('open').describe('todos: open (not done yet), done, or all.'),
+  document: idFrom('the attached file\'s note or find in documents', 'documents: search only this document (its document id, e.g. an attached file).').optional(),
   meeting_id: idFrom('find in meetings', "todos: only this meeting's to-dos. meetings with a query: this meeting's passages that match (a long meeting, or the one being recorded).").optional(),
   limit: z.coerce.number().int().min(1).max(COUNTS.list.max).optional().describe(`How many to return: a search up to ${COUNTS.search.max}, a list up to ${COUNTS.list.max}.`),
 });
@@ -132,6 +135,49 @@ async function listChats(count: number): Promise<ToolResult> {
   return ok([`${chats.length} recent chat(s):`, '', ...lines].join('\n'), { resultCount: chats.length });
 }
 
+// ── Documents ──
+
+/** "page 3" where the passage has one. */
+const onPage = (page: number | null) => (page ? `, page ${page}` : '');
+
+/** The passages worth citing, each document page once: a match by meaning alone ranks lower than one by words too, so the
+ *  bar is a fair match. */
+function documentCitationsOf(results: DocumentSearchResult[]): DocumentCitation[] {
+  const seen = new Set<string>();
+  return results
+    .filter((r) => r.score >= SCORE_MEDIUM && !seen.has(`${r.path}#${r.page}`) && seen.add(`${r.path}#${r.page}`))
+    .map((r) => ({ path: r.path, name: r.name, page: r.page, excerpt: r.chunkText.slice(0, MAX_CITATION_EXCERPT_CHARS), score: r.score, kept: r.kept }));
+}
+
+async function searchDocumentsFor(query: string, count: number, document: string | undefined): Promise<ToolResult> {
+  const results = await searchDocuments(query, count, document ? [document] : undefined);
+  if (results.length === 0) {
+    return ok(document ? 'Nothing in that document matches. Try other words, or read it.' : 'No documents match that search. Try other words, or find documents without a query to list them.', { resultCount: 0 });
+  }
+  const lines = results.flatMap((r, i) => [
+    `${i + 1}. "${r.name}"${onPage(r.page)} — Relevance: ${confidenceOf(r.score)}`,
+    `   "${r.chunkText.replace(/\n/g, ' ')}"`,
+    `   Document ID: ${r.path}`,
+    '',
+  ]);
+  return ok([`Found ${results.length} passage(s):\n`, ...lines].join('\n'), { resultCount: results.length, documentCitations: documentCitationsOf(results) });
+}
+
+async function listDocuments(count: number): Promise<ToolResult> {
+  const documents = await documentsService.list(count);
+  if (documents.length === 0) return ok('No documents in Knowledge yet.', { resultCount: 0 });
+  const lines = documents.map((d, i) => `${i + 1}. "${d.name}" — added ${toolDate(d.createdAt)} — Document ID: ${d.appPath}`);
+  return ok([`${documents.length} document(s) in Knowledge, newest first:`, '', ...lines].join('\n'), { resultCount: documents.length });
+}
+
+/** Documents: the passages that match (in one document when given), or the library's newest. */
+function documentsFor({ query, document, ...args }: Input): Promise<ToolResult> {
+  const count = countOf({ query, document, ...args });
+  if (query) return searchDocumentsFor(query, count, document);
+  if (document) return Promise.resolve(ok('Give words to look for in that document, or read it.', { resultCount: 0 }));
+  return listDocuments(count);
+}
+
 // ── To-dos ──
 
 const STATUS = { open: false, done: true, all: undefined } as const;
@@ -194,6 +240,7 @@ async function findKnowledge(query: string | undefined, count: number): Promise<
 const FIND: Record<(typeof SCOPES)[number], (args: Input) => Promise<ToolResult>> = {
   meetings: (args) => meetingsFor(args),
   chats: (args) => (args.query ? searchChatsFor(args.query, countOf(args)) : listChats(countOf(args))),
+  documents: documentsFor,
   todos: findTodos,
   memories: (args) => findMemories(args.query),
   knowledge: (args) => findKnowledge(args.query, countOf(args)),
@@ -203,7 +250,7 @@ export const findTool = defineTool({
   name: 'find',
   screen: ROCI_SCREENS.meetings.uri,
   description:
-    "Find the user's own meetings, chats, to-dos, memories or knowledge (the people, projects and topics in them); not for " +
+    "Find the user's own meetings, chats, documents, to-dos, memories or knowledge (the people, projects and topics in them); not for " +
     'facts about the world. Set `in`. With a query: the ' +
     'best matches, by meaning and keywords. Without: the newest. Results carry ids; read one only when the snippets do not answer.',
   input,

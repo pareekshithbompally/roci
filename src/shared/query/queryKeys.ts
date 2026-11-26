@@ -110,6 +110,8 @@ export const queryKeys = {
   appFileUrl: (appPath: string) => ['app-file-url', appPath] as const,
   /** A kept text file's words (a Knowledge document's page) */
   appFileText: (appPath: string) => ['app-file-text', appPath] as const,
+  /** A document's text page by page (Send whole's token count) */
+  documentPages: (appPath: string) => ['document-pages', appPath] as const,
   /** Every kept file's URL, read again after Keep or Delete All removes files. */
   appFileUrls: () => ['app-file-url'] as const,
   /** Every usage query: totals and sessions (a price set later reprices them all) */

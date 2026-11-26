@@ -3,8 +3,8 @@
 
 import { convertToModelMessages, pruneMessages } from 'ai';
 import type { DataUIPart, FileUIPart, ModelMessage, TextPart, TextUIPart, ToolSet } from 'ai';
-import { attachedFileText, attachedMeetingsText, formatSentAt, unreadableFileText } from '@core/ai';
-import { attachmentInput, isAssetPath } from '@shared/utils/chatParts';
+import { attachedFileText, attachedMeetingsText, formatSentAt, searchableFileText, unreadableFileText } from '@core/ai';
+import { attachmentInput, isAssetPath, isSearchableDocument, sendsWhole, withSendWhole } from '@shared/utils/chatParts';
 import { assetsService } from '@services/storage';
 import { dataUrlText } from '@shared/utils/file.utils';
 import { ATTACHMENT_TYPES, CHAT_DRAFT_COPY } from '@config/chat.config';
@@ -41,22 +41,28 @@ const readableParts = (message: ChatMessage, input: readonly Modality[]): ChatMe
   parts: message.parts.map((part): ChatPart => (part.type === 'file' ? readableFile(part, input) : part)),
 });
 
-/** An attached file kept in `assets/` with its bytes read in as the `data:` URL the SDK sends; one whose file is gone is a
- *  line saying so. */
-async function withFileData(part: FileUIPart): Promise<FileUIPart | TextUIPart> {
+/** An attached file kept in `assets/` as the model takes it: a document set to Search (the default, when the model can look
+ *  things up) as a line naming it and its document id; any other with its bytes read in as the `data:` URL the SDK sends.
+ *  One whose file is gone is a line saying so. */
+async function withFileData(part: FileUIPart, canLookUp: boolean): Promise<FileUIPart | TextUIPart> {
   if (!isAssetPath(part.url)) return part;
+  const name = part.filename || CHAT_DRAFT_COPY.untitledAttachment;
+  if (canLookUp && isSearchableDocument(part) && !sendsWhole(part)) return { type: 'text', text: searchableFileText(name, part.url) };
   try {
-    return { ...part, url: await assetsService.dataUrl(part.url, part.mediaType) };
+    return { ...withSendWhole(part, false), url: await assetsService.dataUrl(part.url, part.mediaType) };
   } catch (error: unknown) {
     console.warn('[toModelMessages] Attachment not read:', part.url, error);
-    return { type: 'text', text: unreadableFileText(part.filename || CHAT_DRAFT_COPY.untitledAttachment) };
+    return { type: 'text', text: unreadableFileText(name) };
   }
 }
 
-const withFilesRead = async (message: ChatMessage): Promise<ChatMessage> => ({
+const withFilesRead = async (message: ChatMessage, canLookUp: boolean): Promise<ChatMessage> => ({
   ...message,
-  parts: await Promise.all(message.parts.map((part): Promise<ChatPart> | ChatPart => (part.type === 'file' ? withFileData(part) : part))),
+  parts: await Promise.all(message.parts.map((part): Promise<ChatPart> | ChatPart => (part.type === 'file' ? withFileData(part, canLookUp) : part))),
 });
+
+/** The tools a document set to Search is looked up with; without them every document goes whole. */
+const LOOKUP_TOOLS = ['find', 'read'] as const;
 
 /** Every tool the conversation called. */
 function toolNamesIn(messages: ModelMessage[]): string[] {
@@ -70,7 +76,8 @@ function toolNamesIn(messages: ModelMessage[]): string[] {
  *  pruned, as providers refuse a history naming tools they weren't given; a stopped reply's unfinished tool calls are left
  *  out. */
 export async function toModelMessages(messages: ChatMessage[], tools: ToolSet, input: readonly Modality[]): Promise<ModelMessage[]> {
-  const read = await Promise.all(messages.filter(isConversation).map(withFilesRead));
+  const canLookUp = LOOKUP_TOOLS.every((name) => name in tools);
+  const read = await Promise.all(messages.filter(isConversation).map((message) => withFilesRead(message, canLookUp)));
   const sent = read.map((message) => readableParts(message, input));
   const conversation = await convertToModelMessages(sent, {
     tools,

@@ -8,6 +8,7 @@ use crate::commands::{
 use crate::error::StoreError;
 use crate::search::{hybrid_search, ChunkHit, SearchHit, SearchQuery};
 use rusqlite::{Connection, OptionalExtension};
+use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Manager, Runtime};
 
@@ -143,32 +144,95 @@ pub fn all_ids<R: Runtime>(app: &AppHandle<R>, owner: ItemKind) -> Result<Vec<St
     let sql = match owner {
         ItemKind::Meeting => "SELECT id FROM meetings ORDER BY created_at DESC",
         ItemKind::Chat => "SELECT c.id FROM chats c WHERE EXISTS (SELECT 1 FROM chat_messages WHERE chat_id = c.id) ORDER BY last_message_at DESC",
-        ItemKind::File => "SELECT id FROM assets WHERE kind = 'file' AND kept = 1 ORDER BY created_at DESC",
+        ItemKind::File => "SELECT id FROM assets WHERE kind = 'file' ORDER BY created_at DESC",
     };
     Ok(with_db(app, |db| Ok(db.prepare(sql)?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?))?.unwrap_or_default())
 }
 
-/// A file kept in the library as indexing reads it: where it is (its app-data path) and what it is.
+/// A file you gave Roci as indexing reads it: where it is (its app-data path), what it is, and whether it is in the library.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FileSource {
     pub path: String,
     pub name: String,
     pub media_type: String,
+    /// In the Knowledge library, rather than a chat's attachment.
+    pub kept: bool,
 }
 
-/// The library file's path, name and media type; `None` when it isn't kept (gone, or a chat's attachment).
+/// The file's path, name and media type (in the library or a chat's attachment); `None` when it is gone.
 pub fn file_source<R: Runtime>(app: &AppHandle<R>, id: &str) -> Result<Option<FileSource>, StoreError> {
     Ok(with_db(app, |db| {
         Ok(db
             .query_row(
-                "SELECT path, COALESCE(json_extract(meta, '$.name'), path), COALESCE(json_extract(meta, '$.mediaType'), '')
-                 FROM assets WHERE id = ?1 AND kind = 'file' AND kept = 1",
+                "SELECT path, COALESCE(json_extract(meta, '$.name'), path), COALESCE(json_extract(meta, '$.mediaType'), ''), kept
+                 FROM assets WHERE id = ?1 AND kind = 'file'",
                 [id],
-                |row| Ok(FileSource { path: row.get(0)?, name: row.get(1)?, media_type: row.get(2)? }),
+                |row| Ok(FileSource { path: row.get(0)?, name: row.get(1)?, media_type: row.get(2)?, kept: row.get(3)? }),
             )
             .optional()?)
     })?
     .flatten())
+}
+
+/// The id of the file at this app-data path (what the model and the webview know a document by); `None` when it is gone.
+pub fn file_id_of<R: Runtime>(app: &AppHandle<R>, path: &str) -> Result<Option<String>, StoreError> {
+    Ok(with_db(app, |db| Ok(db.query_row("SELECT id FROM assets WHERE path = ?1 AND kind = 'file'", [path], |row| row.get(0)).optional()?))?
+        .flatten())
+}
+
+/// A passage of a document as search returns it: the document (by its path), the words, its page.
+#[derive(Debug, Clone, Serialize)]
+pub struct FileHit {
+    pub path: String,
+    pub name: String,
+    pub chunk_text: String,
+    pub page: Option<i32>,
+    pub score: f64,
+    /// In the Knowledge library (opens there), rather than a chat's attachment.
+    pub kept: bool,
+}
+
+/// The ids of the files searched: those at `paths` (a chat's attachments), or every file in the library.
+fn searched_files(db: &Connection, paths: Option<&[String]>) -> Result<Vec<String>, StoreError> {
+    let rows = match paths {
+        Some(paths) => {
+            let json = serde_json::to_string(paths).map_err(|e| StoreError::from(e.to_string()))?;
+            db.prepare("SELECT id FROM assets WHERE kind = 'file' AND path IN (SELECT value FROM json_each(?1))")?
+                .query_map([json], |row| row.get(0))?
+                .collect::<Result<_, _>>()?
+        }
+        None => db.prepare("SELECT id FROM assets WHERE kind = 'file' AND kept = 1")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?,
+    };
+    Ok(rows)
+}
+
+/// Documents' passages matching `query` (by meaning when `embedding` is given, by words always), best first, each with its
+/// page: within the files at `paths`, or the whole library.
+pub fn search_files<R: Runtime>(
+    app: &AppHandle<R>,
+    query: &str,
+    embedding: Option<Vec<f32>>,
+    limit: usize,
+    paths: Option<Vec<String>>,
+) -> Result<Vec<FileHit>, StoreError> {
+    Ok(with_db(app, |db| {
+        let ids = searched_files(db, paths.as_deref())?;
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let q = SearchQuery { kind: ItemKind::File.index_kind(), text: query, embedding: embedding.as_deref(), limit, within: Some(&ids) };
+        let hits = hybrid_search(db, &q).map_err(StoreError::from)?;
+        let mut file = db.prepare("SELECT path, COALESCE(json_extract(meta, '$.name'), path), kept FROM assets WHERE id = ?1")?;
+        let mut out = Vec::with_capacity(hits.len());
+        for hit in hits {
+            let found: Option<(String, String, bool)> = file.query_row([&hit.owner_id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).optional()?;
+            if let Some((path, name, kept)) = found {
+                out.push(FileHit { path, name, chunk_text: hit.chunk_text, page: hit.page, score: hit.score, kept });
+            }
+        }
+        Ok(out)
+    })?
+    .unwrap_or_default())
 }
 
 /// What the source was last indexed from (its text's hash, the indexer's version, whether it went well); `None` before its first.
@@ -272,6 +336,18 @@ mod tests {
             assert!(lines.contains(&line), "{line} is searchable");
         }
         assert_eq!(summary_text("Only this.", "not json"), "Only this.");
+    }
+
+    #[test]
+    fn documents_are_searched_in_the_library_or_in_the_attachments_asked_for() {
+        let conn = db();
+        conn.execute_batch(
+            "INSERT INTO assets (id, kind, path, created_at, kept) VALUES ('lib', 'file', 'assets/lib.pdf', 0, 1);
+             INSERT INTO assets (id, kind, path, created_at) VALUES ('att', 'file', 'assets/att.pdf', 0);",
+        )
+        .unwrap();
+        assert_eq!(searched_files(&conn, None).unwrap(), vec!["lib".to_string()], "the library only");
+        assert_eq!(searched_files(&conn, Some(&["assets/att.pdf".into()])).unwrap(), vec!["att".to_string()]);
     }
 
     #[test]

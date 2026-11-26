@@ -1879,7 +1879,7 @@ pub struct ItemCursor {
 }
 
 /// One kind of item: a meeting (by when it was made) or a chat that has messages (by its last message); and, for the search
-/// index only, a file kept in the Knowledge library (no list shows it as an item).
+/// index only, a file you gave Roci (kept in the Knowledge library, or a chat's attachment; no list shows it as an item).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ItemKind {
@@ -1903,7 +1903,7 @@ impl ItemKind {
         let sql = match self {
             ItemKind::Meeting => "SELECT EXISTS (SELECT 1 FROM meetings WHERE id = ?1)",
             ItemKind::Chat => "SELECT EXISTS (SELECT 1 FROM chats WHERE id = ?1)",
-            ItemKind::File => "SELECT EXISTS (SELECT 1 FROM assets WHERE id = ?1 AND kind = 'file' AND kept = 1)",
+            ItemKind::File => "SELECT EXISTS (SELECT 1 FROM assets WHERE id = ?1 AND kind = 'file')",
         };
         Ok(db.query_row(sql, [id], |row| row.get(0))?)
     }

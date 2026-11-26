@@ -1,5 +1,6 @@
-/** The search index as the webview uses it. Rust indexes meetings and chats as they're saved (their pieces and vectors never
- *  come here); the webview searches, adds a recording's new stretches, and asks for a rebuild. */
+/** The search index as the webview uses it. Rust indexes meetings, chats and documents as they're saved (their pieces and
+ *  vectors never come here); the webview searches, reads a document's pages, adds a recording's new stretches, and asks for
+ *  a rebuild. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
@@ -23,6 +24,27 @@ export interface ChatSearchResult {
   lastMessageAt: number;
 }
 
+/** A document's passage that matched: the document (by its app path, which the model knows it by), its page, the words. */
+export interface DocumentSearchResult {
+  path: string;
+  name: string;
+  chunkText: string;
+  /** From 1; none for a text file. */
+  page: number | null;
+  score: number;
+  /** In the Knowledge library (opens there), rather than a chat's attachment. */
+  kept: boolean;
+}
+
+/** A document's text, page by page (a text file is one page). */
+export interface DocumentPages {
+  name: string;
+  pages: string[];
+  /** In the Knowledge library, rather than a chat's attachment. */
+  kept: boolean;
+}
+
+interface DocumentHit { path: string; name: string; chunk_text: string; page: number | null; score: number; kept: boolean }
 interface MeetingHit { meeting_id: string; meeting_title: string; chunk_text: string; chunk_type: string; score: number; created_at: number }
 interface ChatHit { chat_id: string; chat_title: string; chunk_text: string; chunk_type: string; score: number; last_message_at: number }
 
@@ -53,6 +75,19 @@ export async function searchChats(query: string, limit: number): Promise<ChatSea
     score: hit.score,
     lastMessageAt: hit.last_message_at,
   }));
+}
+
+/** Documents' passages matching `query`, best first, each with its page: in the files at `paths` (a chat's attachments), or
+ *  the whole Knowledge library. */
+export async function searchDocuments(query: string, limit: number, paths?: string[]): Promise<DocumentSearchResult[]> {
+  if (!isTauriEnvironment()) return [];
+  const hits = await invoke<DocumentHit[]>('search_documents', { query, limit, paths: paths ?? null });
+  return hits.map((hit) => ({ path: hit.path, name: hit.name, chunkText: hit.chunk_text, page: hit.page, score: hit.score, kept: hit.kept }));
+}
+
+/** A document's name and text page by page, read from its file (PDFKit for a PDF); throws when it is gone or unreadable. */
+export async function documentPages(path: string): Promise<DocumentPages> {
+  return invoke<DocumentPages>('document_pages', { path });
 }
 
 /** A recording's new stretch of transcript, indexed as it's spoken; resolves the piece texts it added. */
