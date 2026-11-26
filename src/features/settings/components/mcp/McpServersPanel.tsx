@@ -76,7 +76,15 @@ export const McpServersPanel: React.FC = () => {
 
   return (
     <PanelShell>
-      {/* The page's two actions first, then the servers, then how their tools run. */}
+      {/* Fixed order, both platforms: how tools run (permissions, limits), the two actions, then the servers added. */}
+      <Section title={MCP_COPY.permissions} footer={MCP_COPY.permissionsFooter}>
+        <McpPermissionsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
+      </Section>
+
+      <Section title={MCP_COPY.limits} footer={MCP_COPY.limitsFooter}>
+        <McpLimitsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
+      </Section>
+
       <Section>
         <CardRow title={MCP_COPY.addServer} tone="accent" disabled={busy} onPress={() => setEditing({ name: null })} />
         <CardRow title={MCP_COPY.editAll} tone="accent" disabled={busy} onPress={() => setJsonOpen(true)} />
@@ -102,14 +110,6 @@ export const McpServersPanel: React.FC = () => {
             />
           ))
         )}
-      </Section>
-
-      <Section title={MCP_COPY.permissions} footer={MCP_COPY.permissionsFooter}>
-        <McpPermissionsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
-      </Section>
-
-      <Section title={MCP_COPY.limits} footer={MCP_COPY.limitsFooter}>
-        <McpLimitsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
       </Section>
 
       <AddEditMcpServerDialog

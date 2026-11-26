@@ -12,12 +12,11 @@ interface ModelIconProps {
   size?: number;
   /** The model is loading or replying: a light runs round the tile. */
   working?: boolean;
-  fallback?: 'provider' | 'none';
 }
 
-export const ModelIcon: React.FC<ModelIconProps> = ({ provider, modelId, size, working, fallback = 'provider' }) => {
+export const ModelIcon: React.FC<ModelIconProps> = ({ provider, modelId, size, working }) => {
   const org = useModelAvatarOrg(provider, modelId);
-  const providerIcon = fallback === 'provider' ? <ProvidersAvatar provider={provider} size={size} working={working} /> : null;
+  const providerIcon = <ProvidersAvatar provider={provider} size={size} working={working} />;
   if (!org) return providerIcon;
-  return <ModelAvatar org={org} size={size} working={working} fallback={providerIcon ?? undefined} />;
+  return <ModelAvatar org={org} size={size} working={working} fallback={providerIcon} />;
 };

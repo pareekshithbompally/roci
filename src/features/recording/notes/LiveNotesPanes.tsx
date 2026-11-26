@@ -2,7 +2,7 @@
  *  at a time behind a switch, where only the lines being written shimmer. */
 
 import React, { useMemo, useState } from 'react';
-import { AiLine, Icon, RociMark, Tabs, Text, Textarea } from '@shared/ui';
+import { AiLine, Tabs, Text, Textarea } from '@shared/ui';
 import { LIVE_NOTES_CONFIG as NOTES, type NotesView } from '@config/liveNotes.config';
 import { aiRows, type Bullet } from './liveNotes';
 import { useLiveNotesStore } from './liveNotesStore';
@@ -76,7 +76,7 @@ export const AiNotes: React.FC<AiNotesProps> = (props) => {
 };
 
 export const NOTES_TABS = [
-  { value: 'ai' as const, label: <span className="inline-flex items-center gap-1"><Icon icon={RociMark} size="xs" tone="ai" />{NOTES.copy.aiNotes}</span>, text: NOTES.copy.aiNotes },
+  { value: 'ai' as const, label: NOTES.copy.aiNotes },
   { value: 'notes' as const, label: NOTES.copy.yourNotes },
 ];
 

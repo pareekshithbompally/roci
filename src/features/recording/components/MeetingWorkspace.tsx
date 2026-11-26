@@ -7,7 +7,7 @@ import { Callout, Surface, Tabs, Text, useListBesideDetail } from '@shared/ui';
 import { LIVE_NOTES_CONFIG as NOTES, type PhoneSection } from '@config/liveNotes.config';
 import { ParsedTranscript } from '@features/transcription';
 import type { StoredTranscriptSegment } from '@shared/types';
-import { AiNotes, EmptyLine, NotesPane, PaneHeader, YourNotes, type NotesPaneProps } from '@features/recording/notes/LiveNotesPanes';
+import { EmptyLine, NotesPane, PaneHeader, YourNotes, type NotesPaneProps } from '@features/recording/notes/LiveNotesPanes';
 
 export interface WorkspaceTranscript {
   label: string;
@@ -71,25 +71,10 @@ const Columns: React.FC<MeetingWorkspaceProps> = ({ transcript, notes }) => (
   </Surface>
 );
 
-/** A phone's notes on one page: the summary's AI notes (after the meeting), then yours, each under its label (no switch, so
- *  no second row of tabs). */
-const StackedNotes: React.FC<NotesPaneProps> = ({ onType, ai, focus }) => (
-  <div className="flex h-full min-h-0 flex-col">
-    {ai && (
-      <>
-        <PaneHeader><Text variant="label" tone="muted">{NOTES.copy.aiNotes}</Text></PaneHeader>
-        <AiNotes {...ai} />
-      </>
-    )}
-    <PaneHeader><Text variant="label" tone="muted">{NOTES.copy.yourNotes}</Text></PaneHeader>
-    <YourNotes onType={onType} autoFocus={!!focus} />
-  </div>
-);
-
-/** A phone inside the meeting's tabs: the one part the tabs picked. */
+/** A phone: the one part asked for. Its notes are only yours (the AI's are the meeting's Summary). */
 const OnePart: React.FC<MeetingWorkspaceProps & { only: 'transcript' | 'notes' }> = ({ transcript, notes, only }) => (
   <div className="flex h-full min-h-0 flex-col overflow-hidden pt-3">
-    {only === 'transcript' ? <TranscriptBody {...transcript} /> : <StackedNotes {...notes} />}
+    {only === 'transcript' ? <TranscriptBody {...transcript} /> : <YourNotes onType={notes.onType} autoFocus={!!notes.focus} />}
   </div>
 );
 

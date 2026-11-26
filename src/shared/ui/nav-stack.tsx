@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft } from 'lucide-react';
+import { Check, ChevronLeft } from 'lucide-react';
 import { IconButton } from './button';
+import { Spinner } from './spinner';
 import { InBarContext } from './bar-context';
 import { usePresence } from './presence';
 import { Surface } from './surface';
@@ -138,15 +139,8 @@ export function NavStack({ title, action, initial, children, onBack }: NavStackP
       <div ref={setRootNode} className="relative min-h-0 flex-1 overflow-hidden transition-[translate] duration-move ease-move data-[dragging]:transition-none">
         <Screen
           covered={!!top}
-          header={onBack ? (
-            <header className="shrink-0 px-4 pt-2">
-              <div className="flex items-center justify-between gap-2">
-                <IconButton icon={ChevronLeft} label={KIT_COPY.back} size="fab" variant="bar" onClick={() => onBack(false)} />
-                {action}
-              </div>
-              <Text as="h1" variant="display">{title}</Text>
-            </header>
-          ) : (
+          // Opened over the app, its root is a pushed page like the screens it opens: ‹, the title centred.
+          header={onBack ? <BackBar title={title} onBack={() => onBack(false)} action={action} /> : (
             <header className="flex shrink-0 items-start justify-between gap-2 px-4 pt-2">
               <Text as="h1" variant="display" className="pt-10">{title}</Text>
               {action}
@@ -243,28 +237,38 @@ export interface PushedPageProps {
   over?: 'view' | 'app';
   /** Its content fills the page and scrolls itself (a chat, a notes editor), instead of scrolling as a page. */
   fill?: boolean;
+  /** Asked before ‹ or a swipe leaves (unsaved edits): resolves whether to leave. */
+  confirmBack?: () => Promise<boolean>;
   children: React.ReactNode;
 }
 
 /** One page pushed over something that is not a stack (iPhone): the stack's own bar with ‹, push and pop, and a swipe from
  *  the left edge to go back. It leaves showing what it last showed. */
-export function PushedPage({ open, title, onBack, action, over = 'view', fill, children }: PushedPageProps) {
+export function PushedPage({ open, title, onBack, action, over = 'view', fill, confirmBack, children }: PushedPageProps) {
   const [node, setNode] = useState<HTMLDivElement | null>(null);
   const { shown, hide, onAnimationEnd } = usePresence(open);
   const last = useRef({ title, children });
   if (open) last.current = { title, children };
-  // A swipe has already carried it off the screen: it goes at once, with no second slide.
+  const ask = (leave: () => void) => {
+    if (!confirmBack) return leave();
+    confirmBack().then((yes) => yes && leave()).catch((error: unknown) => console.error('[PushedPage] confirmBack failed:', error));
+  };
+  // A swipe has already carried it off the screen: it goes at once, with no second slide. With edits, it springs back and asks.
   useEdgeSwipeBack(node, () => {
     hide();
     onBack();
-  });
+  }, confirmBack && (() => {
+    ask(onBack);
+    return true;
+  }));
   if (!shown) return null;
   return (
     <div
       ref={setNode}
       {...PUSHED_PAGE_MARK}
       className={cn(
-        over === 'app' ? 'fixed inset-0 z-modal' : 'absolute inset-0 z-10',
+        // Over the view it was opened from, its bar included (a place's top bar is sticky above its content).
+        over === 'app' ? 'fixed inset-0 z-modal' : 'absolute inset-0 z-floating',
         'transition-[translate] duration-move ease-move data-[dragging]:transition-none',
         open ? 'animate-push-in' : 'animate-push-out',
       )}
@@ -274,12 +278,47 @@ export function PushedPage({ open, title, onBack, action, over = 'view', fill, c
           it covers. */}
       <Surface variant="page" className={cn('absolute inset-0 flex flex-col pt-safe-top', over === 'app' && 'pb-safe-bottom')}>
         <TitlebarSpacer />
-        <BackBar title={last.current.title} onBack={onBack} action={action} />
+        <BackBar title={last.current.title} onBack={() => ask(onBack)} action={action} />
         {fill
           ? <div className="flex min-h-0 flex-1 flex-col">{last.current.children}</div>
           : <PageScroll underTitlebar={false} className="flex-1">{last.current.children}</PageScroll>}
       </Surface>
     </div>
+  );
+}
+
+export interface FormPageProps {
+  open: boolean;
+  title: string;
+  /** ‹ (or a swipe back), after `confirmBack` agrees. */
+  onClose: () => void;
+  /** ✓ is greyed until there is something to save. */
+  canSave: boolean;
+  onSave: () => void;
+  /** What ✓ does (Save, Add), for VoiceOver. */
+  saveLabel?: string;
+  /** Saving: a spinner stands in for ✓, and back waits. */
+  busy?: boolean;
+  /** Asked before leaving with edits. */
+  confirmBack?: () => Promise<boolean>;
+  /** The fields, in their cards. */
+  children: React.ReactNode;
+}
+
+/** iPhone's one page for making or editing one thing outside a stack (a new to-do, a rename): pushed over the app with ‹,
+ *  its title, and ✓ in the bar; the fields below in their cards. */
+export function FormPage({ open, title, onClose, canSave, onSave, saveLabel = KIT_COPY.save, busy, confirmBack, children }: FormPageProps) {
+  return (
+    <PushedPage
+      open={open}
+      title={title}
+      onBack={onClose}
+      over="app"
+      confirmBack={busy ? () => Promise.resolve(false) : confirmBack}
+      action={busy ? <Spinner /> : <IconButton icon={Check} label={saveLabel} size="fab" variant="bar" disabled={!canSave} onClick={onSave} />}
+    >
+      <PageBody>{children}</PageBody>
+    </PushedPage>
   );
 }
 

@@ -4,6 +4,7 @@ import { Surface } from './surface';
 import { UI_CONFIG } from '@config/ui.config';
 import { commits, inPushedPage, inSidewaysControl, useTouchDrag } from './touch-drag';
 import { KIT_COPY } from '@config/kitCopy.config';
+import { MOTION } from '@config/motion.config';
 
 export interface RevealLayoutProps {
   open: boolean;
@@ -21,7 +22,8 @@ export interface RevealLayoutProps {
 /**
  * iOS sidebar: the main view slides aside — still in view, with rounded corners — to reveal the pane beneath it.
  * A swipe from the left edge opens it; a swipe back, a tap on the main view or Escape closes it; while open the main view takes no input and focus moves into the pane.
- * The slide is a CSS transition on the `move` spring, so the compositor runs it and nothing on the page can stall it.
+ * The slide is a CSS transition on the `move` spring, so the compositor runs it and nothing on the page can stall it. It
+ * has depth: the main view steps back as it goes aside, the sidebar comes forward to meet it (motion.config.ts `depth`).
  */
 /** The main view follows a sideways drag from anywhere on it 1:1; let go past a share of the pane's width or with a flick
  *  and it opens or closes, otherwise it slides back. Each release carries on from where the finger left it. */
@@ -35,20 +37,41 @@ function useRevealDrag(main: HTMLDivElement | null, paneRef: React.RefObject<HTM
       const pane = paneRef.current;
       if (!main || !pane) return;
       const width = pane.offsetWidth;
-      main.dataset.dragging = '';
-      main.style.transform = `translateX(${Math.min(width, Math.max(0, (open ? width : 0) + dx))}px)`;
+      const at = Math.min(width, Math.max(0, (open ? width : 0) + dx));
+      follow(main, pane, at, at / width);
     },
     onEnd: (dx, speed) => {
       const pane = paneRef.current;
       if (!main || !pane) return;
-      // The transition takes over from the finger's spot: back on, then the inline offset goes and it slides to its side.
-      delete main.dataset.dragging;
-      main.style.transform = '';
+      // The transition takes over from the finger's spot: back on, then the inline pose goes and both slide to their side.
+      settle(main, pane);
       const { edgeShare } = UI_CONFIG.gesture;
       if (open && commits(-dx, -speed, pane.offsetWidth, edgeShare)) onClose();
       else if (!open && commits(dx, speed, pane.offsetWidth, edgeShare)) onOpen();
     },
   });
+}
+
+const between = (from: number, to: number, share: number) => from + (to - from) * share;
+
+/** Both layers where the finger has them: the main view `at` px aside, `share` of the way open, stepping back as it goes;
+ *  the sidebar coming forward to meet it. */
+function follow(main: HTMLElement, pane: HTMLElement, at: number, share: number): void {
+  const { behind, pane: paneScale, paneDim } = MOTION.depth;
+  main.dataset.dragging = '';
+  pane.dataset.dragging = '';
+  main.style.transform = `translateX(${at}px) scale(${between(1, behind, share)})`;
+  pane.style.transform = `scale(${between(paneScale, 1, share)})`;
+  pane.style.opacity = String(between(paneDim, 1, share));
+}
+
+/** Lets go of both: their transitions carry them on from where the finger left them. */
+function settle(main: HTMLElement, pane: HTMLElement): void {
+  delete main.dataset.dragging;
+  delete pane.dataset.dragging;
+  main.style.transform = '';
+  pane.style.transform = '';
+  pane.style.opacity = '';
 }
 
 /** Whether the main view is aside by any amount: open, or still sliding home after closing. Its corners round and its
@@ -96,7 +119,11 @@ export function RevealLayout({ open, onOpen, onClose, pane, paneLabel, children 
         tabIndex={-1}
         aria-label={paneLabel}
         inert={!open || undefined}
-        className="absolute inset-y-0 left-0 flex w-[var(--drawer-start-width)] flex-col pt-safe-top pb-safe-bottom outline-none"
+        className={cn(
+          'absolute inset-y-0 left-0 flex w-[var(--drawer-start-width)] origin-left flex-col pt-safe-top pb-safe-bottom outline-none',
+          'transition-[transform,opacity] duration-move ease-move data-[dragging]:transition-none',
+          !open && 'scale-pane opacity-pane',
+        )}
       >
         {pane}
       </nav>
@@ -106,8 +133,8 @@ export function RevealLayout({ open, onOpen, onClose, pane, paneLabel, children 
         // Only the offset moves (compositor-cheap); corners and shadow switch while it is aside, rather than repainting per frame.
         // clip-path, not only overflow + radius: WebKit leaves composited children (the blurred wash) unclipped by a radius.
         className={cn(
-          'absolute inset-0 flex flex-col overflow-hidden transition-transform duration-move ease-move will-change-transform data-[dragging]:transition-none',
-          open && 'translate-x-[var(--drawer-start-width)]',
+          'absolute inset-0 flex origin-left flex-col overflow-hidden transition-transform duration-move ease-move will-change-transform data-[dragging]:transition-none',
+          open && 'translate-x-[var(--drawer-start-width)] scale-behind',
           'data-[dragging]:rounded-sheet data-[dragging]:shadow-overlay data-[dragging]:[clip-path:inset(0_round_var(--radius-sheet))]',
           aside && 'rounded-sheet shadow-overlay [clip-path:inset(0_round_var(--radius-sheet))]',
         )}

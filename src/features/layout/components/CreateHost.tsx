@@ -2,23 +2,31 @@
  *  a corner panel on a Mac, a new screen on iPhone). A meeting's chat shows only while that meeting is on screen; its note
  *  belongs to the meeting's own notes editor (the meeting screen opens it). Mounted once by the app. */
 
-import React from 'react';
-import { endCreate, useCreateFlow } from '@shared/stores/createStore';
+import React, { useState } from 'react';
+import { endCreate, useCreateFlow, type CreateFlow } from '@shared/stores/createStore';
 import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { NewTodoForm } from '@features/todos';
 import { MeetingChatPopout } from '@features/chat';
 import { useMeetingOnScreen } from '@features/layout/hooks/useMeetingOnScreen';
 import { UNTITLED_MEETING } from '@config/meetingLive.config';
 
-const MeetingChatHost: React.FC<{ meetingId: string }> = ({ meetingId }) => {
+const MeetingChatHost: React.FC<{ open: boolean; meetingId: string }> = ({ open, meetingId }) => {
   const onScreen = useMeetingOnScreen().meetingId === meetingId;
   const title = useMeetingBrief(meetingId)?.title || UNTITLED_MEETING;
-  return onScreen ? <MeetingChatPopout meetingId={meetingId} meetingTitle={title} /> : null;
+  return <MeetingChatPopout open={open && onScreen} meetingId={meetingId} meetingTitle={title} />;
 };
 
-export const CreateHost: React.FC = () => {
+/** The last flow started, kept while its surface slides away after it ends. */
+function useLastFlow(): { last: CreateFlow | null; open: boolean } {
   const flow = useCreateFlow();
-  if (flow?.kind === 'todo') return <NewTodoForm key={flow.meetingId ?? 'none'} meetingId={flow.meetingId} onClose={endCreate} />;
-  if (flow?.kind === 'chat' && flow.meetingId) return <MeetingChatHost meetingId={flow.meetingId} />;
+  const [last, setLast] = useState(flow);
+  if (flow && flow !== last) setLast(flow);
+  return { last, open: flow !== null && flow === last };
+}
+
+export const CreateHost: React.FC = () => {
+  const { last, open } = useLastFlow();
+  if (last?.kind === 'todo') return <NewTodoForm key={last.id} open={open} meetingId={last.meetingId} onClose={endCreate} />;
+  if (last?.kind === 'chat' && last.meetingId) return <MeetingChatHost key={last.id} open={open} meetingId={last.meetingId} />;
   return null;
 };

@@ -25,7 +25,7 @@ import { MeetingDetailsDialog } from './MeetingDetailsDialog';
 import { MeetingSourceIcon } from './MeetingSourceIcon';
 import { SummaryTab } from './SummaryTab';
 import { RelatedTab } from './RelatedTab';
-import { TabPage } from './TabPage';
+import { TabFlowContext, TabPage } from './TabPage';
 import { KNOWLEDGE_GRAPH } from '@config/knowledge.config';
 import { useMeetingStats } from '@features/home/hooks/useMeetingStats';
 import type { HistoryItem, ProcessedResult } from '@shared/types';
@@ -37,8 +37,10 @@ import {
   Badge,
   Button,
   Icon,
+  PageScroll,
   PushedPage,
   Surface,
+  cn,
   useListBesideDetail,
   Tabs,
   TitleBlock,
@@ -202,17 +204,91 @@ export const ResultsView: React.FC = () => {
   };
 
   const exportPart = activeResultTab === 'transcript' ? 'transcript' : 'summary';
-  const statusAndMenu = (
+  const menu = (
+    <MeetingActionsMenu
+      result={result}
+      part={exportPart}
+      recordingPath={stats?.recording?.path ?? null}
+      onRetranscribe={recordingFileName && phase.kind === 'ready' ? handleTranscribe : undefined}
+      onRename={() => setSheet('rename')}
+      onDetails={() => setSheet('details')}
+    />
+  );
+
+  const header = (
+    <TitleBlock
+        title={
+          <>
+            <MeetingSourceIcon inputSource={currentHistoryItem?.inputSource} />
+            <MeetingTitle title={shownTitle} />
+          </>
+        }
+        meta={currentHistoryItem && <MeetingMetaLine categories={result.categories ?? []} meetingId={currentHistoryItem.id} />}
+        status={isMeetingBusy(phase) && <MeetingStatus phase={phase} display="badge" />}
+        accessory={menu}
+      >
+        {currentHistoryItem?.scheduledStart && <CalendarMetaRow item={currentHistoryItem} />}
+        <div className="empty:hidden">
+          <MeetingPhaseNotice phase={phase} onAction={currentHistoryItem ? handleTranscribe : undefined} />
+        </div>
+    </TitleBlock>
+  );
+
+  const tabs = (
+    <Surface variant="page" edge="bottom" className={cn(LAYOUT.pageGutter, !notesBeside && 'sticky top-0 z-10')}>
+      <div className={`${LAYOUT.pageColumn} flex items-center gap-2 h-11`}>
+        <Tabs items={TAB_ITEMS} value={activeResultTab} onValueChange={setActiveResultTab} />
+      </div>
+    </Surface>
+  );
+
+  const media = (
     <>
-      {isMeetingBusy(phase) && <MeetingStatus phase={phase} display="badge" />}
-      <MeetingActionsMenu
-        result={result}
-        part={exportPart}
-        recordingPath={stats?.recording?.path ?? null}
-        onRetranscribe={recordingFileName && phase.kind === 'ready' ? handleTranscribe : undefined}
-        onRename={() => setSheet('rename')}
-        onDetails={() => setSheet('details')}
-      />
+      {recordingFileName && (
+        <ResultsAudioPlayer recordingFileName={recordingFileName} meetingId={currentHistoryItem?.id || ''} title={currentHistoryItem?.title || ''} />
+      )}
+      {audioRemoved && (
+        <div className={`${LAYOUT.pageGutter} py-2`}>
+          <div className={LAYOUT.pageColumn}>
+            <RemovedNotice icon={VolumeX} label={StorageConfig.removed.audio} />
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  // The Transcript tab's panes scroll inside themselves beside each other (a Mac); the other tabs scroll as a page.
+  const body = activeResultTab === 'transcript' && currentHistoryItem ? (
+    <div className={cn(LAYOUT.pageGutter, 'pt-4', notesBeside ? 'flex-1 overflow-hidden' : LAYOUT.meetingChatClearance)}>
+      <div className={cn(LAYOUT.pageColumn, notesBeside && 'h-full flex flex-col min-h-0')}>
+        <TranscriptTab key={`${currentHistoryItem.id}-${noteVisit}`} meetingId={currentHistoryItem.id} result={result} phase={phase} only="transcript" focusNotes={noteVisit > 0} />
+      </div>
+    </div>
+  ) : activeResultTab === 'summary' ? (
+    <SummaryTab result={result} phase={phase} meetingId={currentHistoryItem?.id} />
+  ) : activeResultTab === 'related' && currentHistoryItem ? (
+    // Keyed by meeting: opening a related meeting starts its tab fresh, at the top.
+    <TabPage key={currentHistoryItem.id}>
+      <RelatedTab meetingId={currentHistoryItem.id} />
+    </TabPage>
+  ) : (
+    <TabPage>
+      <TodoList />
+    </TabPage>
+  );
+
+  const sheets = (
+    <>
+      {/* iPhone: + › Note opens the meeting's notes as a screen of their own. */}
+      {!notesBeside && currentHistoryItem && (
+        <PushedPage open={writingNote} title={MEETING_ADD_COPY.notesTitle} onBack={endCreate} over="app" fill>
+          <TranscriptTab meetingId={currentHistoryItem.id} result={result} phase={phase} only="notes" focusNotes />
+        </PushedPage>
+      )}
+      <RenameModal open={sheet === 'rename'} onOpenChange={(open) => !open && setSheet(null)} currentTitle={shownTitle} onConfirm={saveTitle} />
+      {currentHistoryItem && (
+        <MeetingDetailsDialog meetingId={currentHistoryItem.id} open={sheet === 'details'} onOpenChange={(open) => !open && setSheet(null)} />
+      )}
     </>
   );
 
@@ -223,76 +299,22 @@ export const ResultsView: React.FC = () => {
       animate={VIEW.shown}
       transition={motionFor(VIEW.enter)}
     >
-      <TitleBlock
-        title={
-          <>
-            <MeetingSourceIcon inputSource={currentHistoryItem?.inputSource} />
-            <MeetingTitle title={shownTitle} />
-          </>
-        }
-        meta={currentHistoryItem && <MeetingMetaLine categories={result.categories ?? []} meetingId={currentHistoryItem.id} />}
-        accessory={statusAndMenu}
-      >
-        {currentHistoryItem?.scheduledStart && <CalendarMetaRow item={currentHistoryItem} />}
-        <div className="empty:hidden">
-          <MeetingPhaseNotice phase={phase} onAction={currentHistoryItem ? handleTranscribe : undefined} />
-        </div>
-      </TitleBlock>
-
-      {/* iPhone: + › Note opens the meeting's notes as a screen of their own. */}
-      {!notesBeside && currentHistoryItem && (
-        <PushedPage open={writingNote} title={MEETING_ADD_COPY.notesTitle} onBack={endCreate} over="app" fill>
-          <TranscriptTab meetingId={currentHistoryItem.id} result={result} phase={phase} only="notes" focusNotes />
-        </PushedPage>
-      )}
-
-      <RenameModal open={sheet === 'rename'} onOpenChange={(open) => !open && setSheet(null)} currentTitle={shownTitle} onConfirm={saveTitle} />
-      {currentHistoryItem && (
-        <MeetingDetailsDialog meetingId={currentHistoryItem.id} open={sheet === 'details'} onOpenChange={(open) => !open && setSheet(null)} />
-      )}
-
-      {/* Tabs Navigation */}
-      <Surface edge="bottom" className={LAYOUT.pageGutter}>
-      <div className={`${LAYOUT.pageColumn} flex items-center gap-2 h-11`}>
-        <Tabs items={TAB_ITEMS} value={activeResultTab} onValueChange={setActiveResultTab} />
-      </div>
-      </Surface>
-
-      {/* Audio Player - always visible above content when recording file exists */}
-      {recordingFileName && (
-        <ResultsAudioPlayer
-          recordingFileName={recordingFileName}
-          meetingId={currentHistoryItem?.id || ''}
-          title={currentHistoryItem?.title || ''}
-        />
-      )}
-      {audioRemoved && (
-        <div className={`${LAYOUT.pageGutter} py-2`}>
-          <div className={LAYOUT.pageColumn}>
-            <RemovedNotice icon={VolumeX} label={StorageConfig.removed.audio} />
-          </div>
-        </div>
-      )}
-
-      {/* Tab content: the Transcript tab's panes scroll inside themselves; the other tabs scroll as a page. */}
-      {activeResultTab === 'transcript' && currentHistoryItem ? (
-        // the record screen's frame exactly: the panes run to the window's bottom edge, open there
-        <div className={`${LAYOUT.pageGutter} flex-1 overflow-hidden pt-4`}>
-          <div className={`${LAYOUT.pageColumn} h-full flex flex-col min-h-0`}>
-            <TranscriptTab key={`${currentHistoryItem.id}-${noteVisit}`} meetingId={currentHistoryItem.id} result={result} phase={phase} only="transcript" focusNotes={noteVisit > 0} />
-          </div>
-        </div>
-      ) : activeResultTab === 'summary' ? (
-        <SummaryTab result={result} phase={phase} meetingId={currentHistoryItem?.id} />
-      ) : activeResultTab === 'related' && currentHistoryItem ? (
-        // Keyed by meeting: opening a related meeting starts its tab fresh, at the top.
-        <TabPage key={currentHistoryItem.id}>
-          <RelatedTab meetingId={currentHistoryItem.id} />
-        </TabPage>
+      {sheets}
+      {notesBeside ? (
+        <>
+          {header}
+          {tabs}
+          {media}
+          {body}
+        </>
       ) : (
-        <TabPage>
-          <TodoList />
-        </TabPage>
+        // iPhone: one page. The title, its details and the player scroll away; the tabs pin under the bar.
+        <PageScroll underTitlebar={false} className="flex flex-1 flex-col">
+          {header}
+          {media}
+          {tabs}
+          <TabFlowContext.Provider value>{body}</TabFlowContext.Provider>
+        </PageScroll>
       )}
     </motion.div>
   );

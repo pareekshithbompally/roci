@@ -47,6 +47,12 @@ export const CHAT_MESSAGE_MENU_COPY = {
   question: 'Message',
   copy: 'Copy',
   details: 'Reply details',
+  /** The details card's rows. */
+  speed: 'Speed',
+  tokens: 'Tokens',
+  cost: 'Cost',
+  tokensPerSecond: (n: number) => `${n} tok/s`,
+  tokensInOut: (prompt: number, reply: number) => `${prompt.toLocaleString()} in · ${reply.toLocaleString()} out`,
 } as const;
 
 /** The markdown link title that marks a link as a source the reply cites: drawn as a pill, named by its site. */
@@ -192,4 +198,4 @@ export const COMPOSER_COPY = {
   voice: 'Voice input',
 } as const;
 
-export const COMPOSER_ADD_COPY = { title: 'Add', meeting: 'Meeting', record: 'Record', attach: 'Attach' } as const;
+export const COMPOSER_ADD_COPY = { title: 'Add', record: 'Record' } as const;

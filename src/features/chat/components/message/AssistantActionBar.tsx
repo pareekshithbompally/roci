@@ -6,8 +6,8 @@ import SuggestionsList from './SuggestionsList';
 import SourcesList from './SourcesList';
 import type { ActionProps, CitationHandlers } from './types';
 import type { ContextTokens, MeetingCitation, WebCitation } from '@shared/types';
-import { Tabs, Button, IconButton, Separator, Dot, Text } from '@shared/ui';
-import { Menu, type MenuEntry } from '@shared/components';
+import { Tabs, Button, CardRow, IconButton, Popover, PopoverContent, PopoverTrigger, Section, Separator, Dot, Text } from '@shared/ui';
+import { ModelIcon } from '@shared/components';
 import { useModelLabel } from '@shared/hooks/useModelLabel';
 import { CHAT_MESSAGE_MENU_COPY as MENU_COPY } from '@config/chat.config';
 import { platform } from '@platform/index';
@@ -27,18 +27,38 @@ interface ReplyDetails {
   cost?: string | null;
 }
 
-/** The reply's ⋯: its details as the menu's heading lines (as Gemini and iOS Messages show a message's info). */
+interface DetailRow {
+  title: string;
+  value: string;
+}
+
+/** The reply's ⋯: a details card (as Messages and Gemini show a message's info): the model's logo and name with when it
+ *  wrote, then its speed, tokens and cost as rows. A popover on a Mac, a sheet on iPhone. */
 const ReplyDetailsMenu: React.FC<ReplyDetails> = ({ timestamp, provider, model, context, tokensPerSecond, cost }) => {
   const modelLabel = useModelLabel(provider, model);
-  const usage = [
-    tokensPerSecond != null && `${tokensPerSecond} tok/s`,
-    context && `${context.prompt} in / ${context.reply} out`,
-    cost,
-  ].filter(Boolean).join(' · ');
-  const lines = [timestamp && formatDayAndTime(timestamp), modelLabel, usage].filter((line): line is string => !!line);
-  const items: MenuEntry[] = lines.map((label) => ({ type: 'label', label }));
-  if (items.length === 0) return null;
-  return <Menu label={MENU_COPY.details} trigger={<IconButton icon={MoreHorizontal} label={MENU_COPY.details} size="sm" />} items={items} />;
+  const rows = ([
+    tokensPerSecond != null && { title: MENU_COPY.speed, value: MENU_COPY.tokensPerSecond(tokensPerSecond) },
+    context && { title: MENU_COPY.tokens, value: MENU_COPY.tokensInOut(context.prompt, context.reply) },
+    cost && { title: MENU_COPY.cost, value: cost },
+  ] as (DetailRow | false | null | undefined | '')[]).filter((row): row is DetailRow => !!row);
+  if (!modelLabel && !timestamp && rows.length === 0) return null;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <IconButton icon={MoreHorizontal} label={MENU_COPY.details} size="sm" />
+      </PopoverTrigger>
+      <PopoverContent label={MENU_COPY.details} align="start" className="flex flex-col gap-3 p-3">
+        <div className="flex items-center gap-3">
+          {provider && <ModelIcon provider={provider} modelId={model} />}
+          <div className="min-w-0">
+            {modelLabel && <Text as="p" variant="headline" truncate>{modelLabel}</Text>}
+            {timestamp && <Text as="p" variant="helper" tone="muted">{formatDayAndTime(timestamp)}</Text>}
+          </div>
+        </div>
+        {rows.length > 0 && <Section>{rows.map((row) => <CardRow key={row.title} title={row.title} value={row.value} />)}</Section>}
+      </PopoverContent>
+    </Popover>
+  );
 };
 
 interface AssistantActionBarProps extends ReplyDetails {

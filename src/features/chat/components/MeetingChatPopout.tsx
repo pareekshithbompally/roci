@@ -11,6 +11,7 @@ import { closeMeetingChat, expandMeetingChat, useChatCurrentSessionId, useChatSt
 import { ChatShell } from './ChatShell';
 
 interface MeetingChatPopoutProps {
+  open: boolean;
   meetingId: string;
   meetingTitle: string;
 }
@@ -37,12 +38,13 @@ function useMeetingDraft(meetingId: string): () => void {
   return start;
 }
 
-export const MeetingChatPopout: React.FC<MeetingChatPopoutProps> = ({ meetingId, meetingTitle }) => {
+export const MeetingChatPopout: React.FC<MeetingChatPopoutProps> = ({ open, meetingId, meetingTitle }) => {
   const startNew = useMeetingDraft(meetingId);
   // A chat exists once its first message is sent; before that the window already is a new chat.
   const hasConversation = useChatCurrentSessionId() !== null;
   return (
     <PanelScreen
+      open={open}
       title={meetingTitle}
       label={COPY.chatAbout(meetingTitle)}
       onClose={closeMeetingChat}

@@ -8,8 +8,7 @@ import { IconButton } from './button';
 import { FormActions } from './form-actions';
 import { Surface } from './surface';
 import { Text } from './text';
-import { EditPage } from './cover-page';
-import { PushedPage } from './nav-stack';
+import { FormPage, PushedPage } from './nav-stack';
 import { useFormFactor } from '@platform/formFactor';
 import { KIT_COPY } from '@config/kitCopy.config';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './dropdown-menu';
@@ -93,6 +92,8 @@ function PanelBar({ title, actions, close }: { title: string; actions?: React.Re
 }
 
 export interface AddFormProps {
+  /** False slides it away (iPhone) or puts it away (Mac). */
+  open: boolean;
   title: string;
   onClose: () => void;
   onSave: () => void;
@@ -105,15 +106,16 @@ export interface AddFormProps {
 }
 
 /** Making one new thing from a + (a to-do): on a Mac the corner panel with Cancel and the save button; on iPhone a
- *  full-screen page with ✕ and ✓. The fields are the same on both. */
-export function AddForm({ title, onClose, onSave, saveLabel, canSave, busy, children }: AddFormProps) {
+ *  page pushed over the app with ‹ and ✓. The fields are the same on both. */
+export function AddForm({ open, title, onClose, onSave, saveLabel, canSave, busy, children }: AddFormProps) {
   if (useFormFactor() === 'phone') {
     return (
-      <EditPage open onOpenChange={(open) => !open && onClose()} title={title} canSave={canSave} onSave={onSave} saveLabel={saveLabel} busy={busy}>
+      <FormPage open={open} title={title} onClose={onClose} canSave={canSave} onSave={onSave} saveLabel={saveLabel} busy={busy}>
         {children}
-      </EditPage>
+      </FormPage>
     );
   }
+  if (!open) return null;
   return (
     <CornerPanel label={title} header={<PanelBar title={title} close={<IconButton icon={X} label={KIT_COPY.close} size="sm" onClick={onClose} />} />}>
       <form
@@ -132,6 +134,8 @@ export function AddForm({ title, onClose, onSave, saveLabel, canSave, busy, chil
 }
 
 export interface PanelScreenProps {
+  /** False slides it away (iPhone) or puts it away (Mac). */
+  open: boolean;
   title: string;
   /** Its name for VoiceOver (a Mac's panel). */
   label: string;
@@ -147,8 +151,9 @@ export interface PanelScreenProps {
 
 /** Something a + opened that you stay in (a meeting's chat): a full-height corner panel on a Mac, its own screen with ‹ on
  *  iPhone. */
-export function PanelScreen({ title, label, onClose, actions, panelActions, children }: PanelScreenProps) {
-  if (useFormFactor() === 'phone') return <PushedPage open title={title} onBack={onClose} action={actions} over="app" fill>{children}</PushedPage>;
+export function PanelScreen({ open, title, label, onClose, actions, panelActions, children }: PanelScreenProps) {
+  if (useFormFactor() === 'phone') return <PushedPage open={open} title={title} onBack={onClose} action={actions} over="app" fill>{children}</PushedPage>;
+  if (!open) return null;
   return (
     <CornerPanel
       label={label}

@@ -120,7 +120,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false, iconO
                 key={`${provider}-${model.value}`}
                 value={`${model.label} ${getProviderTitle(model.provider)}`}
                 onSelect={() => handleSelectModel(model.value)}
-                leading={<ModelIcon provider={model.provider} modelId={model.modelId} size={14} fallback="none" />}
+                leading={<ModelIcon provider={model.provider} modelId={model.modelId} />}
                 label={model.label}
                 // Capabilities sit in the row's meta column: one line, aligned down the list, never wrapping.
                 meta={<ModelChips profile={model.profile} />}

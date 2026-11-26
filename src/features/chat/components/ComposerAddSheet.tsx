@@ -1,12 +1,13 @@
-/** Phone (iOS): the composer's + sheet — attach, import a meeting, the chat's thinking and tools; nothing that can't work is shown. */
+/** Phone (iOS): the composer's + sheet — a row of tiles to record, attach or import a meeting, then the chat's thinking and
+ *  tools; nothing that can't work is shown. */
 
 import React from 'react';
 import { Mic } from 'lucide-react';
 import { useRecordingMeetingId, useStartRecording } from '@features/recording';
 import { platform } from '@platform/index';
-import { IMPORT_MEETING_LABEL, useImportMeetingActions } from '@features/import';
+import { useImportMeetingActions } from '@features/import';
 import { useAppActions } from '@shared/stores/appStore';
-import { CardRow, Icon, InfoSheet, Section } from '@shared/ui';
+import { InfoSheet, TileStrip, type StripTile } from '@shared/ui';
 import { ChatToolRows } from './tools/ChatToolRows';
 import type { ContextUsage } from '@shared/hooks/useContextUsage';
 import type { AttachOption } from '@features/chat/hooks/useAttachOptions';
@@ -37,30 +38,19 @@ export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpen
     action();
   };
 
+  // What starts something, as one row of tiles: record, each kind of attachment, each import.
+  const tiles: StripTile[] = [
+    ...(platform.canRecord && !recordingNow
+      ? [{ id: 'record', label: COPY.record, icon: Mic, onPress: closeThen(() => startRecording().catch((error: unknown) => console.error('[ComposerAddSheet] Record failed:', error))) }]
+      : []),
+    ...(onPickFiles ? attachOptions.map(({ label, icon, accept }) => ({ id: `attach-${label}`, label, icon, onPress: closeThen(() => onPickFiles(accept)) })) : []),
+    ...importActions.map(({ id, label, icon, run }) => ({ id: `import-${id}`, label, icon, onPress: closeThen(run) })),
+  ];
+
   return (
     <InfoSheet open={open} onOpenChange={onOpenChange} title={COPY.title}>
-        {platform.canRecord && !recordingNow && (
-          <Section title={COPY.meeting}>
-            <CardRow
-              title={COPY.record}
-              leading={<Icon icon={Mic} size="sm" />}
-              onPress={closeThen(() => startRecording().catch((error: unknown) => console.error('[ComposerAddSheet] Record failed:', error)))}
-            />
-          </Section>
-        )}
-        {onPickFiles && (
-          <Section title={COPY.attach}>
-            {attachOptions.map(({ label, icon, accept }) => (
-              <CardRow key={label} title={label} leading={<Icon icon={icon} size="sm" />} onPress={closeThen(() => onPickFiles(accept))} />
-            ))}
-          </Section>
-        )}
-        <Section title={IMPORT_MEETING_LABEL}>
-          {importActions.map(({ id, label, icon, run }) => (
-            <CardRow key={id} title={label} leading={<Icon icon={icon} size="sm" />} onPress={closeThen(run)} />
-          ))}
-        </Section>
-        <ChatToolRows catalog={toolCatalog} onChooseImageModel={closeThen(() => openSettings('defaultModels'))} contextUsage={contextUsage} />
+      <TileStrip label={COPY.title} tiles={tiles} />
+      <ChatToolRows catalog={toolCatalog} onChooseImageModel={closeThen(() => openSettings('defaultModels'))} contextUsage={contextUsage} />
     </InfoSheet>
   );
 };

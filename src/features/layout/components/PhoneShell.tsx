@@ -3,14 +3,14 @@
  *  button, never ‹ (only what is opened from it has ‹). Settings opens full screen over everything, with ‹ back to where it
  *  was opened from and its pages drilling in. The model picker is a chat's, so only the chat screens show it. */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { PanelLeft, SquarePen } from 'lucide-react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useAppActions, useAppStatus, useAppStore, useCurrentView, useSelectedHistoryId } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { ModelPicker, startNewChat, useChatStore } from '@features/chat';
 import { SettingsHome, settingsScreen } from '@features/settings';
-import { IconButton, PresentedStack, RevealLayout, Surface, TopBar, ViewLeadingContext } from '@shared/ui';
+import { IconButton, PresentedStack, RevealLayout, ShellBarContext, Surface, TopBar, ViewLeadingContext } from '@shared/ui';
 import { SearchScreen } from '@features/palette';
 import { Sidebar } from './Sidebar';
 import { MeetingFab } from './MeetingFab';
@@ -33,7 +33,8 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children }) => {
   // New chat only leaves something: hidden on a new chat already (no chat or meeting open).
   const sessionOpen = useChatStore((s) => s.currentSessionId) !== null;
   const historyOpen = useSelectedHistoryId() !== null;
-  const canStartNew = sessionOpen || historyOpen;
+  // The bar's trailing end: New chat in a chat; a meeting's own controls (its ⋯) on a meeting, sent up by its header.
+  const [barSlot, setBarSlot] = useState<HTMLElement | null>(null);
   const { leaveSettings } = useAppActions();
   const settingsRequest = useAppStore((s) => s.settingsRequest);
   const settingsVisit = useAppStore((s) => s.settingsVisit);
@@ -47,14 +48,18 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children }) => {
           <TopBar
             leading={sidebarButton}
             title={chatting ? <ModelPicker compact bar /> : undefined}
-            trailing={canStartNew ? <IconButton icon={SquarePen} size="fab" variant="bar" label={SHELL_COPY.newChat} onClick={startNewChat} /> : undefined}
+            trailing={historyOpen
+              ? <div ref={setBarSlot} className="flex items-center gap-1" />
+              : sessionOpen && <IconButton icon={SquarePen} size="fab" variant="bar" label={SHELL_COPY.newChat} onClick={startNewChat} />}
           />
         )}
         {/* Clear of the home indicator once, for every screen; a place's bar carries the sidebar button. */}
         <ViewLeadingContext.Provider value={place ? sidebarButton : null}>
-          <div className="relative flex min-h-0 flex-1 flex-col pb-safe-bottom">
-            {children}
-          </div>
+          <ShellBarContext.Provider value={historyOpen ? barSlot : null}>
+            <div className="relative flex min-h-0 flex-1 flex-col pb-safe-bottom">
+              {children}
+            </div>
+          </ShellBarContext.Provider>
           <MeetingFab />
         </ViewLeadingContext.Provider>
       </Surface>

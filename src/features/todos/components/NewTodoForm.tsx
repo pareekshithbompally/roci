@@ -106,12 +106,13 @@ const TodoFields: React.FC<{ draft: Draft; set: (next: Partial<Draft>) => void }
 };
 
 interface NewTodoFormProps {
+  open: boolean;
   /** The meeting it starts in (a meeting's +); null starts with none. */
   meetingId: string | null;
   onClose: () => void;
 }
 
-export const NewTodoForm: React.FC<NewTodoFormProps> = ({ meetingId, onClose }) => {
+export const NewTodoForm: React.FC<NewTodoFormProps> = ({ open, meetingId, onClose }) => {
   const { add } = useTodoActions();
   const [draft, setDraft] = useState<Draft>({ text: '', date: '', time: '', meetingId });
   const [saving, setSaving] = useState(false);
@@ -131,7 +132,7 @@ export const NewTodoForm: React.FC<NewTodoFormProps> = ({ meetingId, onClose }) 
   };
 
   return (
-    <AddForm title={FORM.title} onClose={onClose} onSave={() => void save()} saveLabel={FORM.submit} canSave={canSave} busy={saving}>
+    <AddForm open={open} title={FORM.title} onClose={onClose} onSave={() => void save()} saveLabel={FORM.submit} canSave={canSave} busy={saving}>
       <TodoFields draft={draft} set={set} />
     </AddForm>
   );

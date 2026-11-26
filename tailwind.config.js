@@ -128,6 +128,9 @@ export default {
       height: { row: 'var(--row-min-h)' },
       // `transition` alone answers the pointer (quick); `duration-fade` is a fade's length.
       // `duration-move ease-move`: the `move` spring as a CSS transition (the phone's sidebar sliding).
+      // iPhone sidebar's depth (motion.config.ts `depth`): `scale-behind` the main view, `scale-pane` / `opacity-pane` the sidebar.
+      scale: { behind: String(MOTION.depth.behind), pane: String(MOTION.depth.pane) },
+      opacity: { pane: String(MOTION.depth.paneDim) },
       transitionTimingFunction: { DEFAULT: bezier(MOTION.curve.in), move: MOVE_PARTS.easing },
       transitionDuration: { DEFAULT: ms(MOTION.quick), fade: ms(MOTION.fade.in), move: MOVE_PARTS.duration },
       // ─── macOS text styles (SF Pro). `reading` is the one exception: long-form chat/transcript ───
@@ -170,9 +173,6 @@ export default {
         'menu-pop-hide': { from: { opacity: '1', scale: '1' }, to: { opacity: '0', scale: '0.85' } },
         'push-in': { from: { translate: '100% 0' }, to: { translate: '0 0' } },
         'push-out': { from: { translate: '0 0' }, to: { translate: '100% 0' } },
-        // A full-screen page (kit CoverPage): up from the bottom edge, back down to it.
-        'cover-in': { from: { translate: '0 100%' }, to: { translate: '0 0' } },
-        'cover-out': { from: { translate: '0 0' }, to: { translate: '0 100%' } },
         'drawer-start-show': SLIDE_START.show,
         'drawer-start-hide': SLIDE_START.hide,
         'drawer-end-show': SLIDE_END.show,
@@ -211,8 +211,6 @@ export default {
         'menu-pop-hide': `menu-pop-hide ${EXIT} both`,
         'push-in': `push-in ${MOVE}`,
         'push-out': `push-out ${MOVE_AWAY} both`,
-        'cover-in': `cover-in ${MOVE}`,
-        'cover-out': `cover-out ${MOVE_AWAY} both`,
         'drawer-start-show': `drawer-start-show ${MOVE}`,
         'drawer-start-hide': `drawer-start-hide ${MOVE_AWAY}`,
         'drawer-end-show': `drawer-end-show ${MOVE}`,
