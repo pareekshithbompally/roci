@@ -279,9 +279,10 @@ html.platform-ios {
   --control-sm: 36px;
   --control-md: 44px;
   --control-lg: 50px;
-  /* Inset grouped lists (UIKit): systemGroupedBackground page, secondarySystemGroupedBackground cards; iOS 26 corners. */
-  --bg-grouped: #f2f2f7;
-  --bg-grouped-card: #ffffff;
+  /* Inset grouped lists keep the app's one ground (--bg-grouped is --bg-base everywhere, so no screen changes colour from
+     the next); their cards stand out by the card fill, as on the Mac. iOS 26 corners. The sidebar is that ground too: its
+     depth comes from the main view's shadow and its own zoom (kit RevealLayout), not a second colour. */
+  --bg-deep-glass: var(--bg-base);
   --radius-card: 26px;
   --radius-sheet: 38px;
   --radius-block: 12px;
@@ -294,12 +295,10 @@ html.platform-ios {
 }
 
 html.platform-ios.dark {
-  --bg-grouped: #000000;
-  --bg-grouped-card: #1c1c1e;
   /* The glass roles are macOS window vibrancy (the desktop through the window); iOS has none, so its views are solid —
      nothing beneath a view (the sidebar under the chat) may show through. Floating controls keep raised-glass. */
   --bg-base-glass: var(--bg-base);
-  --bg-deep-glass: var(--bg-deep);
+  --bg-deep-glass: var(--bg-base);
 }
 
 /* ─── Tier 2: roles (dark) ─────────────────────────────── */

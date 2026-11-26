@@ -4,6 +4,7 @@ import { Surface } from './surface';
 import { Text } from './text';
 import { cn } from './utils';
 import { FLOATING_SURFACE, NO_INSETS } from './recipes';
+import { popFromTrigger } from './pop-origin';
 import { useFormFactor } from '@platform/formFactor';
 import { SheetContent, SheetRoot } from './bottom-sheet';
 import { DialogTrigger } from './dialog';
@@ -64,7 +65,17 @@ export function PopoverContent({ className, sideOffset = 4, width = 'lg', label 
   }
   return (
     <PopoverPrimitive.Portal>
-      <PopoverPrimitive.Content sideOffset={sideOffset} className={cn(FLOATING_SURFACE, WIDTH[width], className)} {...props}>{children}</PopoverPrimitive.Content>
+      <PopoverPrimitive.Content
+        sideOffset={sideOffset}
+        className={cn(FLOATING_SURFACE, WIDTH[width], className)}
+        {...props}
+        onAnimationStart={(e) => {
+          popFromTrigger(e);
+          props.onAnimationStart?.(e);
+        }}
+      >
+        {children}
+      </PopoverPrimitive.Content>
     </PopoverPrimitive.Portal>
   );
 }

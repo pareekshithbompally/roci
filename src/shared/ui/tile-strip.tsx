@@ -18,7 +18,7 @@ export interface StripTile {
 export function TileStrip({ label, tiles }: { label: string; tiles: readonly StripTile[] }) {
   if (tiles.length === 0) return null;
   return (
-    <div role="group" aria-label={label} className="-mx-4 flex gap-3.5 overflow-x-auto px-4 pb-1">
+    <div role="group" aria-label={label} className="scrollbar-none -mx-4 flex gap-3.5 overflow-x-auto px-4 pb-1">
       {tiles.map(({ id, label: name, icon, onPress }) => (
         <button key={id} type="button" onClick={onPress} className="group flex w-16 shrink-0 flex-col items-center gap-1.5">
           <span className={cn(GROUPED_SURFACE, 'flex size-15 items-center justify-center transition motion-safe:group-active:scale-95')}>

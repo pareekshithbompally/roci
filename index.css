@@ -68,6 +68,17 @@ code, pre {
   background-color: var(--text-faint);
 }
 
+/* A row that scrolls sideways (kit TileStrip): no bar at all, as iOS hides a horizontal row's indicator; it still scrolls
+   with the finger's momentum. */
+.scrollbar-none {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* Read aloud: the sentence being spoken (READ_ALOUD_CONFIG.highlight; useSpeechHighlight). */
 ::highlight(read-aloud) {
   background-color: var(--bg-speaking);

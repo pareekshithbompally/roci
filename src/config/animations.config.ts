@@ -55,8 +55,6 @@ export const ANIMATION_CONFIG = {
    *  after a phase starts) of what waits for what. */
   voice: {
     beats: {
-      /** The composer comes back once the pill has started to clear. */
-      composerIn: 0.1,
       /** The old end beat has gone before the new one comes in. */
       controlIn: 0.1,
       /** The pill owns the return before the chrome around the composer trails in. */

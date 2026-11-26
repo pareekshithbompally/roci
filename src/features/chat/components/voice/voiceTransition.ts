@@ -1,5 +1,6 @@
 /** Shared voice-pill choreography: which motion each part takes (the app's one vocabulary, `motionFor`) and when, as beats.
- *  Arrivals move on the `move` spring or fade in; everything leaving fades out, so an exit is done when it looks done. */
+ *  The voice area and the composer it stands in for cross over together on the `soft` motion, in and out, so neither
+ *  pops; the line's end beats (clock, buttons, messages) fade. */
 
 import type { MotionProps, Transition } from 'framer-motion';
 import { motionFor } from '@shared/ui';
@@ -9,22 +10,22 @@ import { MOTION } from '@config/motion.config';
 
 const { beats: VOICE_BEATS, pill: PILL, beat: BEAT, chrome: CHROME } = ANIMATION_CONFIG.voice;
 
-/** Min mic-press → recording-UI delay (ms): the pill's entrance (`move`), so the flip never lands mid-enter; capture starts
- *  at once. */
-export const VOICE_ENTER_BEAT_MS = MOTION.spring.move.visualDuration * 1000;
+/** Min mic-press → recording-UI delay (ms): the pill's entrance (`softIn`), so the flip never lands mid-enter; capture
+ *  starts at once. */
+export const VOICE_ENTER_BEAT_MS = MOTION.soft.in * 1000;
 
 type VoicePhase = 'pillIn' | 'pillOut' | 'composerIn' | 'composerOut' | 'controlIn' | 'controlOut';
 
 const PHASE_MOTION: Record<VoicePhase, MotionName> = {
-  pillIn: 'move',
-  pillOut: 'fadeOut',
-  composerIn: 'fadeIn',
-  composerOut: 'fadeOut',
+  pillIn: 'softIn',
+  pillOut: 'softOut',
+  composerIn: 'softIn',
+  composerOut: 'softOut',
   controlIn: 'fadeIn',
   controlOut: 'fadeOut',
 };
 
-const PHASE_BEAT: Partial<Record<VoicePhase, number>> = { composerIn: VOICE_BEATS.composerIn, controlIn: VOICE_BEATS.controlIn };
+const PHASE_BEAT: Partial<Record<VoicePhase, number>> = { controlIn: VOICE_BEATS.controlIn };
 
 /** Transition for one phase; Reduce Motion makes every phase the one short fade. */
 export function voiceTransition(reduceMotion: boolean, phase: VoicePhase): Transition {

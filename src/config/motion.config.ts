@@ -24,6 +24,9 @@ export const MOTION = {
   fade: { in: 0.15, out: 0.12 },
   /** The composer riding the keyboard (seconds, `curve.in`): as long as iOS's own keyboard move, so the two land together. */
   keyboard: 0.25,
+  /** Something taking another's place, gently (dictation's voice area and the composer it stands in for): longer than a
+   *  fade, on the decelerating iOS curve both ways, so it starts at once and lands softly. Seconds. */
+  soft: { in: 0.34, out: 0.26 },
   /** A control answering the pointer (hover, press, focus colour), seconds. */
   quick: 0.15,
   /** iPhone's sidebar comes forward from under the main view: from `pane` of its size and `paneDim` of its opacity. */
@@ -58,4 +61,4 @@ export const MOTION = {
 export type SpringName = keyof typeof MOTION.spring;
 /** Every motion by name: a spring, a fade in or out, or the pointer's quick answer. Config names a motion; the kit
  *  (`motionFor`) turns the name into a transition. */
-export type MotionName = SpringName | 'fadeIn' | 'fadeOut' | 'quick';
+export type MotionName = SpringName | 'fadeIn' | 'fadeOut' | 'softIn' | 'softOut' | 'quick';

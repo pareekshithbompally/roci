@@ -1,12 +1,11 @@
-/** The meeting's one actions menu (⋯): which models wrote it (quiet lines at the top), rename, details, re-transcribe,
- *  copy, download, and show the recording in Finder. */
+/** The meeting's one actions menu (⋯), short: Rename, Details (which models wrote it live there), Re-transcribe, then Copy ▸
+ *  and Download ▸ as submenus, and Show in Finder. */
 
 import React from 'react';
 import { Ellipsis } from 'lucide-react';
 import { IconButton, showToast } from '@shared/ui';
-import { Menu, type MenuEntry, type ModelCreditItem } from '@shared/components';
-import { useSettings } from '@shared/contexts/SettingsContext';
-import { modelNameOf } from '@shared/hooks/useModelLabel';
+import { Menu, type MenuEntry } from '@shared/components';
+import { MENU_SYMBOLS } from '@config/ui.config';
 import { saveTextFile } from '@services/tauri';
 import { platform } from '@platform/index';
 import { MEETING_PHASE_ACTION_SYMBOL } from '@config/meetingPhase.config';
@@ -25,8 +24,6 @@ interface MeetingActionsMenuProps {
   onRetranscribe?: () => void;
   onRename: () => void;
   onDetails: () => void;
-  /** Who wrote it ("Transcribed by …"), as lines heading the menu; a role with no model is left out. */
-  credits: readonly ModelCreditItem[];
 }
 
 const COPY = MEETING_HEADER_COPY;
@@ -61,36 +58,36 @@ async function download(result: ProcessedResult, format: ExportFormat, scope: Ex
 }
 
 /** Re-transcribe (when it can), Copy, Download, and Show in Finder (when there is a recording and a file manager). */
-function menuItems({ result, part, recordingPath, onRetranscribe, onRename, onDetails }: MeetingActionsMenuProps, credits: string[]): MenuEntry[] {
+function menuItems({ result, part, recordingPath, onRetranscribe, onRename, onDetails }: MeetingActionsMenuProps): MenuEntry[] {
   return [
-    ...credits.map((label) => ({ type: 'label' as const, label })),
-    ...(credits.length > 0 ? [{ type: 'separator' as const }] : []),
     { type: 'item', label: MEETING_HEADER_COPY.rename, onSelect: onRename },
     { type: 'item', label: MEETING_HEADER_COPY.details, onSelect: onDetails },
     { type: 'separator' },
     ...(onRetranscribe ? [{ type: 'item' as const, label: COPY.retranscribe, symbol: MEETING_PHASE_ACTION_SYMBOL['Re-transcribe'], onSelect: onRetranscribe }, { type: 'separator' as const }] : []),
-    { type: 'label', label: COPY.copy },
-    { type: 'item', label: COPY.summary, onSelect: () => void copy(result.summary, COPY.summary) },
-    { type: 'item', label: COPY.transcript, onSelect: () => void copy(result.transcript, COPY.transcript) },
-    { type: 'separator' },
-    { type: 'label', label: COPY.download },
-    ...DOWNLOADS.map(({ label, format, scope }) => ({ type: 'item' as const, label, onSelect: () => void download(result, format, scope, part) })),
+    {
+      type: 'submenu',
+      label: COPY.copy,
+      symbol: MENU_SYMBOLS.copy,
+      items: [
+        { type: 'item', label: COPY.summary, onSelect: () => void copy(result.summary, COPY.summary) },
+        { type: 'item', label: COPY.transcript, onSelect: () => void copy(result.transcript, COPY.transcript) },
+      ],
+    },
+    {
+      type: 'submenu',
+      label: COPY.download,
+      items: DOWNLOADS.map(({ label, format, scope }) => ({ type: 'item' as const, label, onSelect: () => void download(result, format, scope, part) })),
+    },
     ...(platform.hasFileManager && recordingPath
       ? [{ type: 'separator' as const }, { type: 'item' as const, label: SHOW_IN_FINDER, onSelect: () => showInFinder(recordingPath) }]
       : []),
   ];
 }
 
-/** "Transcribed by Parakeet": each role's model by its name. */
-function useCreditLines(credits: readonly ModelCreditItem[]): string[] {
-  const { providers, settings } = useSettings();
-  return credits.flatMap(({ label, credit }) => (credit ? [`${label} ${modelNameOf(providers, settings, credit.provider, credit.model)}`] : []));
-}
-
 export const MeetingActionsMenu: React.FC<MeetingActionsMenuProps> = (props) => (
   <Menu
     label={MEETING_HEADER_COPY.actions}
     trigger={<IconButton icon={Ellipsis} variant="secondary" size="sm" label={MEETING_HEADER_COPY.actions} />}
-    items={menuItems(props, useCreditLines(props.credits))}
+    items={menuItems(props)}
   />
 );

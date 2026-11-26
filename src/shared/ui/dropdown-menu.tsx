@@ -7,6 +7,7 @@ import { Icon } from './icon';
 import { MENU_LABEL } from './recipes';
 import { keepClick, MENU_PARTS, MenuRowBody } from './menu-parts';
 import { UI_CONFIG } from '@config/ui.config';
+import { popFromTrigger } from './pop-origin';
 
 const { list: LIST, item: ITEM, separator: SEPARATOR } = MENU_PARTS;
 
@@ -14,10 +15,20 @@ export const DropdownMenu = DropdownMenuPrimitive.Root;
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 export const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 
-export function DropdownMenuContent({ className, sideOffset = 4, ...props }: ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+export function DropdownMenuContent({ className, sideOffset = 4, onAnimationStart, ...props }: ComponentProps<typeof DropdownMenuPrimitive.Content>) {
   return (
     <DropdownMenuPrimitive.Portal>
-      <DropdownMenuPrimitive.Content sideOffset={sideOffset} collisionPadding={UI_CONFIG.picker.collisionPadding} className={cn(LIST, className)} onClick={keepClick} {...props} />
+      <DropdownMenuPrimitive.Content
+        sideOffset={sideOffset}
+        collisionPadding={UI_CONFIG.picker.collisionPadding}
+        className={cn(LIST, className)}
+        onClick={keepClick}
+        onAnimationStart={(e) => {
+          popFromTrigger(e);
+          onAnimationStart?.(e);
+        }}
+        {...props}
+      />
     </DropdownMenuPrimitive.Portal>
   );
 }

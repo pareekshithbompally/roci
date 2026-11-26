@@ -53,9 +53,7 @@ import {
 } from '@shared/ui';
 import type { TabItem } from '@shared/ui';
 import { TODOS_CONFIG } from '@config/todos.config';
-import { SUMMARY_CONFIG } from '@config/summary.config';
 
-const SUMMARY_COPY = SUMMARY_CONFIG.copy;
 
 const VIEW = ANIMATION_CONFIG.view;
 
@@ -236,10 +234,6 @@ export const ResultsView: React.FC = () => {
       onRetranscribe={recordingFileName && phase.kind === 'ready' ? handleTranscribe : undefined}
       onRename={() => setSheet('rename')}
       onDetails={() => setSheet('details')}
-      credits={[
-        { label: SUMMARY_COPY.transcribedBy, credit: stats?.transcribedBy ?? null },
-        { label: SUMMARY_COPY.summarizedBy, credit: stats?.summarizedBy ?? null },
-      ]}
     />
   );
 

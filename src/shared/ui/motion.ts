@@ -18,6 +18,8 @@ export function spring(name: SpringName, velocity?: number): Transition {
 const TWEENS: Record<Exclude<MotionName, SpringName>, Transition> = {
   fadeIn: { duration: MOTION.fade.in, ease: MOTION.curve.in },
   fadeOut: { duration: MOTION.fade.out, ease: MOTION.curve.out },
+  softIn: { duration: MOTION.soft.in, ease: MOTION.curve.in },
+  softOut: { duration: MOTION.soft.out, ease: MOTION.curve.in },
   quick: { duration: MOTION.quick, ease: MOTION.curve.in },
 };
 

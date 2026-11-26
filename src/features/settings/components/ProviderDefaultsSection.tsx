@@ -1,14 +1,13 @@
-/** Provider defaults: a row per provider's set (every model it uses, In Use on the one in use) that opens a page listing every
+/** Provider defaults: a row per provider's set (its logo and name, In Use on the one in use) that opens a page listing every
  *  job's model and Use … Defaults. Below it, the page's job sections are headed "Build your own". */
 
 import React from 'react';
 import { CardRow, Section, Spinner, Text } from '@shared/ui';
 import { ProvidersAvatar } from '@shared/components';
 import { DEFAULT_MODELS_CONFIG } from '@config/defaultModels.config';
-import { ONBOARDING_CONFIG } from '@config/onboarding.config';
 import { useProviderDefaultRows } from '@features/settings/hooks/useProviderDefaultRows';
 import type { ProviderDefaultRow } from '@features/settings/hooks/useProviderDefaultRows';
-import { DefaultsList, useModelsLine } from './DefaultsList';
+import { DefaultsList } from './DefaultsList';
 import { SettingsPage } from './shared';
 
 const COPY = DEFAULT_MODELS_CONFIG.providerDefaults;
@@ -41,7 +40,6 @@ export const ProviderDefaultsPage: React.FC<{ rowKey: string; onBack: () => void
 
 export const ProviderDefaultsSection: React.FC<{ onOpen: (row: ProviderDefaultRow) => void }> = ({ onOpen }) => {
   const rows = useProviderDefaultRows();
-  const modelsOf = useModelsLine();
   if (rows.length === 0) return null;
   return (
     <>
@@ -51,7 +49,6 @@ export const ProviderDefaultsSection: React.FC<{ onOpen: (row: ProviderDefaultRo
             key={row.key}
             leading={<ProvidersAvatar provider={row.provider} />}
             title={row.title}
-            description={modelsOf(row.defaults) || ONBOARDING_CONFIG.setup.defaults.notSetUp}
             value={row.inUse ? COPY.inUse : undefined}
             onOpen={() => onOpen(row)}
           />

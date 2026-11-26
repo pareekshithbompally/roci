@@ -387,7 +387,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             <motion.div
               data-testid="composer-box"
               initial={false}
-              animate={{ opacity: voiceActive ? 0 : 1 }}
+              // It hands over only once the voice area can come in (iPhone: after the keyboard has gone), so the two cross over
+              // in one move and the slot is never empty.
+              animate={{ opacity: voiceActive && keyboardSettled ? 0 : 1 }}
               transition={voiceTransition(reduceMotion, voiceActive ? 'composerOut' : 'composerIn')}
               aria-hidden={voiceActive || undefined}
               inert={voiceActive || undefined}

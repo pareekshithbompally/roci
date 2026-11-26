@@ -33,15 +33,6 @@ export function useModelName(): (ref: ModelRef | null, none: string) => string {
   }, [localModels, providers]);
 }
 
-/** Every model a set uses, each once, in job order: "GPT-6 Luna, GPT-4o mini Transcribe, GPT-4o mini TTS". */
-export function useModelsLine(): (defaults: SetupDefaults) => string {
-  const nameOf = useModelName();
-  return useCallback((defaults) => {
-    const refs = [defaults.chat, defaults.transcription, defaults.readAloud, defaults.images].filter((ref): ref is ModelRef => !!ref);
-    return [...new Set(refs.map((ref) => nameOf(ref, '')))].join(', ');
-  }, [nameOf]);
-}
-
 interface DefaultsListProps {
   defaults: SetupDefaults;
   /** What the choice itself has to say (a download's size); otherwise where to change them. */
