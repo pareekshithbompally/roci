@@ -11,6 +11,8 @@ export const queryKeys = {
   galleryCount: () => ['gallery', 'count'] as const,
   /** Dictations made in the app (Dictations). */
   dictations: () => ['dictations'] as const,
+  /** The Knowledge library: every file kept there, newest first */
+  knowledgeLibrary: () => ['knowledge-library'] as const,
   /** Settings › Personalization › Memory, and what chat reads of it. */
   memories: () => ['memories'] as const,
   /** The knowledge graph drawn around `focus` (null: the whole graph) and one entity's detail: under `memories`, so a memory
@@ -102,6 +104,8 @@ export const queryKeys = {
   sessionUsage: (sessionId: string) => ['usage', 'session', sessionId] as const,
   /** The URL the webview loads for a file in app data (chat images) */
   appFileUrl: (appPath: string) => ['app-file-url', appPath] as const,
+  /** A kept text file's words (a Knowledge document's page) */
+  appFileText: (appPath: string) => ['app-file-text', appPath] as const,
   /** Every kept file's URL, read again after Keep or Delete All removes files. */
   appFileUrls: () => ['app-file-url'] as const,
   /** Every usage query: totals and sessions (a price set later reprices them all) */

@@ -7,7 +7,6 @@ import type { ChatSession, FileUIPart, ReasoningEffort } from '@shared/types';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import { chatService } from '@services/chat.service';
 import type { StreamProgress } from '@services/ai/types';
-import { attachmentBytes, fileExtension } from '@shared/utils/file.utils';
 import { assetsService } from '@services/storage';
 import { itemEdits, refreshItems } from '@shared/query/items';
 import { CHAT_MAX_ATTACHMENTS } from '@config/chat.config';
@@ -190,7 +189,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
     if (get().pendingAttachments.length >= CHAT_MAX_ATTACHMENTS) return;
     try {
       const mediaType = attachmentMediaType(file.type, file.name);
-      const saved = await assetsService.save('file', { data: await attachmentBytes(file), extension: fileExtension(file.name) }, { meta: { name: file.name, mediaType } });
+      const saved = await assetsService.saveFile(file, mediaType);
       const part = attachmentPart(mediaType, saved.appPath, file.name);
       set((state) => ({ pendingAttachments: [...state.pendingAttachments, part] }));
     } catch (error: unknown) {

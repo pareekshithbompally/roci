@@ -103,7 +103,7 @@ export { FormActions } from './form-actions';
 export type { FormActionsProps, FormCommand } from './form-actions';
 export { AddForm, CornerPanel, FabButton, PanelScreen } from './action-fab';
 export type { AddFormProps, CornerPanelProps, FabButtonProps, PanelScreenProps } from './action-fab';
-export { Viewer } from './viewer';
+export { PdfFrame, Viewer } from './viewer';
 export type { ViewerMedia, ViewerProps } from './viewer';
 export { Picker } from './picker';
 export type { PickerGroup, PickerOption, PickerProps } from './picker';

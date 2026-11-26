@@ -79,6 +79,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             assets::assets_page,
             assets::assets_count,
             assets::assets_exists,
+            assets::assets_library,
+            assets::assets_delete,
             assets::notices_owed,
             assets::notices_cleared,
             retention::storage_purge,

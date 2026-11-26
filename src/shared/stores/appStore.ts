@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { AppStatus } from '@shared/types';
 
-export type ViewType = 'home' | 'settings' | 'reminders' | 'calendar' | 'gallery' | 'dictations';
+export type ViewType = 'home' | 'settings' | 'reminders' | 'calendar' | 'gallery' | 'dictations' | 'knowledge';
 export type SettingsPanel = 'general' | 'storage' | 'defaultModels' | 'personalization' | 'providers' | 'integrations' | 'notifications' | 'mcp' | 'usage' | 'shortcuts' | 'about';
 /** `notes`: a phone's own tab for the meeting's notes (the Mac shows them beside the transcript). */
 export type ResultTab = 'transcript' | 'summary' | 'todo' | 'related';

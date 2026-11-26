@@ -7,4 +7,8 @@ export type NewAsset = { kind: string, path: string, preview_path: string | null
 /**
  * JSON the kind defines (an image: prompt, model, aspect ratio).
  */
-meta: string | null, };
+meta: string | null, 
+/**
+ * Kept in the Knowledge library: no parent ever claims it and no sweep takes it.
+ */
+kept: boolean, };

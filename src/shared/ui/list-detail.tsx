@@ -16,6 +16,8 @@ export function useListBesideDetail(): boolean {
 
 export interface ListDetailProps {
   title: string;
+  /** Controls at the end of the title row (an add button). */
+  accessory?: React.ReactNode;
   /** The list (and its search). */
   list: React.ReactNode;
   /** The list column's width beside the open item (a Mac). */
@@ -28,11 +30,11 @@ export interface ListDetailProps {
   onCloseDetail: () => void;
 }
 
-export function ListDetail({ title, list, listClassName, detail, detailTitle, onCloseDetail }: ListDetailProps) {
+export function ListDetail({ title, accessory, list, listClassName, detail, detailTitle, onCloseDetail }: ListDetailProps) {
   const beside = useListBesideDetail();
   return (
     <div className="relative flex h-full min-w-0 flex-col">
-      <ViewHeader title={title} />
+      <ViewHeader title={title} accessory={accessory} />
       <ViewBody className="gap-6">
         <div className={cn('flex min-h-0 min-w-0 flex-col gap-3', beside ? listClassName : 'flex-1')}>{list}</div>
         {beside && detail && (

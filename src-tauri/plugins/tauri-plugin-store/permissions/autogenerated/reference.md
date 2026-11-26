@@ -20,6 +20,8 @@ Allows all store plugin commands
 - `allow-assets-page`
 - `allow-assets-count`
 - `allow-assets-exists`
+- `allow-assets-library`
+- `allow-assets-delete`
 - `allow-notices-owed`
 - `allow-notices-cleared`
 - `allow-storage-purge`
@@ -131,6 +133,32 @@ Denies the assets_create command without any pre-configured scope.
 <tr>
 <td>
 
+`store:allow-assets-delete`
+
+</td>
+<td>
+
+Enables the assets_delete command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-assets-delete`
+
+</td>
+<td>
+
+Denies the assets_delete command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `store:allow-assets-exists`
 
 </td>
@@ -150,6 +178,32 @@ Enables the assets_exists command without any pre-configured scope.
 <td>
 
 Denies the assets_exists command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-assets-library`
+
+</td>
+<td>
+
+Enables the assets_library command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-assets-library`
+
+</td>
+<td>
+
+Denies the assets_library command without any pre-configured scope.
 
 </td>
 </tr>

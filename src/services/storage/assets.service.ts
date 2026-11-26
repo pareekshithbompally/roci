@@ -6,7 +6,8 @@ import { appDataDir, join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { StorageConfig } from '@config/storage.config';
 import { store } from '@services/db';
-import { blobToDataUrl } from '@shared/utils/file.utils';
+import { attachmentBytes, blobToDataUrl, fileExtension } from '@shared/utils/file.utils';
+import type { FileMeta } from '@shared/types';
 
 export type AssetKind = (typeof StorageConfig.assetKinds)[number];
 
@@ -26,6 +27,8 @@ export interface SaveAssetOptions {
   /** What the kind records about the file (an image: prompt, model, aspect ratio). */
   meta?: object;
   durationSeconds?: number;
+  /** Kept in the Knowledge library: no chat claims it and no sweep takes it. */
+  kept?: boolean;
 }
 
 /** Where a saved asset lives: inside app data (what chats keep) and on this device now. */
@@ -77,12 +80,26 @@ export const assetsService = {
         preview_path: previewPath,
         duration_seconds: options.durationSeconds ?? null,
         meta: options.meta ? JSON.stringify(options.meta) : null,
+        kept: options.kept ?? false,
       });
     } catch (error: unknown) {
       await discard(written);
       throw error;
     }
     return { appPath: `${folder}/${name}`, path };
+  },
+
+  /** A file you gave Roci, saved as a `file` asset with its name, type and size: a chat's attachment (its chat claims it),
+   *  or one kept in the Knowledge library. Throws past the size limit or when it can't be written. */
+  async saveFile(file: File, mediaType: string, kept = false): Promise<SavedAsset> {
+    const meta: FileMeta = { name: file.name, mediaType, bytes: file.size };
+    const data = await attachmentBytes(file);
+    return assetsService.save('file', { data, extension: fileExtension(file.name) }, { meta, kept });
+  },
+
+  /** A kept text file's words (UTF-8); throws when the file is gone. */
+  async text(appPath: string): Promise<string> {
+    return new TextDecoder().decode(await readFile(await join(await appDataPath(), appPath)));
   },
 
   /** The assets folder on this device (a recording's file is read there by name). */

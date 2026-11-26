@@ -93,6 +93,9 @@ pub struct NewAsset {
     pub duration_seconds: Option<f64>,
     /// JSON the kind defines (an image: prompt, model, aspect ratio).
     pub meta: Option<String>,
+    /// Kept in the Knowledge library: no parent ever claims it and no sweep takes it.
+    #[serde(default)]
+    pub kept: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -136,8 +139,8 @@ pub(crate) fn create(db: &Connection, id: &str, asset: &NewAsset, created_at: i6
         return Err(StoreError::from(format!("Refused asset {} ({})", asset.path, asset.kind)));
     }
     db.execute(
-        "INSERT INTO assets (id, kind, path, preview_path, duration_seconds, meta, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        rusqlite::params![id, asset.kind, asset.path, asset.preview_path, asset.duration_seconds, asset.meta, created_at],
+        "INSERT INTO assets (id, kind, path, preview_path, duration_seconds, meta, created_at, kept) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        rusqlite::params![id, asset.kind, asset.path, asset.preview_path, asset.duration_seconds, asset.meta, created_at, asset.kept],
     )?;
     Ok(())
 }
@@ -158,16 +161,28 @@ pub(crate) fn sync_chat_assets(tx: &Connection, chat_id: &str, paths: &[String])
     Ok(())
 }
 
-/// One page of `kind`'s files, newest first, after `before` (the last row of the page before it).
-pub(crate) fn page(db: &Connection, kind: &str, before: Option<&ItemCursor>, limit: u32) -> Result<Vec<AssetRow>, StoreError> {
+/// Which files a page lists: one kind's (the Gallery), or every file kept in the library (Knowledge).
+#[derive(Clone, Copy)]
+pub(crate) enum Listing<'a> {
+    Kind(&'a str),
+    Library,
+}
+
+/// One page of the listing's files, newest first, after `before` (the last row of the page before it).
+pub(crate) fn page(db: &Connection, listing: Listing, before: Option<&ItemCursor>, limit: u32) -> Result<Vec<AssetRow>, StoreError> {
     let (at, id) = before.map_or((i64::MAX, String::new()), |c| (c.at, c.id.clone()));
+    let (kind, library) = match listing {
+        Listing::Kind(kind) => (Some(kind), false),
+        Listing::Library => (None, true),
+    };
     let rows = db
         .prepare(
             "SELECT id, kind, path, preview_path, meeting_id, chat_id, duration_seconds, meta, created_at
-             FROM assets WHERE kind = ?1 AND (created_at < ?2 OR (created_at = ?2 AND id < ?3))
-             ORDER BY created_at DESC, id DESC LIMIT ?4",
+             FROM assets WHERE (?1 IS NULL OR kind = ?1) AND (?2 = 0 OR kept = 1)
+               AND (created_at < ?3 OR (created_at = ?3 AND id < ?4))
+             ORDER BY created_at DESC, id DESC LIMIT ?5",
         )?
-        .query_map(rusqlite::params![kind, at, id, limit], |row| {
+        .query_map(rusqlite::params![kind, library, at, id, limit], |row| {
             Ok(AssetRow {
                 id: row.get(0)?,
                 kind: row.get(1)?,
@@ -182,6 +197,12 @@ pub(crate) fn page(db: &Connection, kind: &str, before: Option<&ItemCursor>, lim
         })?
         .collect::<Result<_, _>>()?;
     Ok(rows)
+}
+
+/// Deletes a file kept in the library: its row goes, and the triggers queue the file and take its passages and index
+/// state. A file a meeting or chat owns goes only with its parent, so it is left alone here. Returns whether one went.
+pub(crate) fn delete_kept(db: &Connection, id: &str) -> Result<bool, StoreError> {
+    Ok(db.execute("DELETE FROM assets WHERE id = ?1 AND kept = 1", [id])? > 0)
 }
 
 fn owed_notices(db: &Connection) -> Result<Vec<OwedNotice>, StoreError> {
@@ -431,7 +452,25 @@ pub async fn assets_create(state: State<'_, StoreState>, asset: NewAsset) -> Res
 /// The Gallery a page at a time.
 #[tauri::command]
 pub async fn assets_page(state: State<'_, StoreState>, kind: String, before: Option<ItemCursor>, limit: u32) -> Result<Vec<AssetRow>, StoreError> {
-    on_db(&state, move |db| page(db, &kind, before.as_ref(), limit)).await
+    on_db(&state, move |db| page(db, Listing::Kind(&kind), before.as_ref(), limit)).await
+}
+
+/// The Knowledge library a page at a time: every file kept there, newest first.
+#[tauri::command]
+pub async fn assets_library(state: State<'_, StoreState>, before: Option<ItemCursor>, limit: u32) -> Result<Vec<AssetRow>, StoreError> {
+    on_db(&state, move |db| page(db, Listing::Library, before.as_ref(), limit)).await
+}
+
+/// Deletes a file kept in the library (its file after commit); files a meeting or chat owns go with their parent.
+#[tauri::command]
+pub async fn assets_delete(state: State<'_, StoreState>, id: String) -> Result<(), StoreError> {
+    on_db(&state, move |db| {
+        if delete_kept(db, &id)? {
+            drain_files(db);
+        }
+        Ok(())
+    })
+    .await
 }
 
 /// How many files of `kind` are kept (the Gallery's "N images").
@@ -512,7 +551,7 @@ mod tests {
     fn a_chat_save_claims_referenced_files_and_drops_the_rest() {
         let db = open_migrated_test_db();
         db.execute_batch("INSERT INTO chats (id, title, created_at, last_message_at) VALUES ('c1', 'Chat', 0, 0);").unwrap();
-        let image = |path: &str| NewAsset { kind: "image".into(), path: path.into(), preview_path: None, duration_seconds: None, meta: None };
+        let image = |path: &str| NewAsset { kind: "image".into(), path: path.into(), preview_path: None, duration_seconds: None, meta: None, kept: false };
         create(&db, "a1", &image("assets/kept.png"), 0).unwrap();
         create(&db, "a2", &image("assets/dropped.png"), 0).unwrap();
         create(&db, "a3", &image("assets/other.png"), 0).unwrap();
@@ -530,7 +569,7 @@ mod tests {
     #[test]
     fn create_refuses_paths_outside_managed_folders() {
         let db = open_migrated_test_db();
-        let asset = |path: &str| NewAsset { kind: "image".into(), path: path.into(), preview_path: None, duration_seconds: None, meta: None };
+        let asset = |path: &str| NewAsset { kind: "image".into(), path: path.into(), preview_path: None, duration_seconds: None, meta: None, kept: false };
         assert!(create(&db, "a", &asset("assets/x.png"), 0).is_ok());
         for bad in ["roci.db", "assets/../roci.db", "/etc/x", "cache/x.png", "assets/a/b.png", "images/x.png"] {
             assert!(create(&db, bad, &asset(bad), 0).is_err(), "{bad} accepted");
@@ -563,6 +602,35 @@ mod tests {
         let left: Vec<(String, Option<String>)> = db.prepare("SELECT id, chat_id FROM assets").unwrap()
             .query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().collect::<Result<_, _>>().unwrap();
         assert_eq!(left, vec![("k".into(), None)], "the kept file stays the library's; the unclaimed one goes");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    /// The library lists only kept files; deleting one takes its file, passages and index state, and leaves a chat's file be.
+    #[test]
+    fn a_library_file_is_listed_and_deleted_with_its_index() {
+        let db = open_migrated_test_db();
+        let root = scratch("library");
+        std::fs::write(root.join("assets/k.pdf"), b"x").unwrap();
+        db.execute_batch(
+            "INSERT INTO chats (id, title, created_at, last_message_at) VALUES ('c1', 'Chat', 0, 0);
+             INSERT INTO assets (id, kind, path, created_at, kept) VALUES ('k', 'file', 'assets/k.pdf', 0, 1);
+             INSERT INTO assets (id, kind, path, chat_id, created_at) VALUES ('a', 'file', 'assets/a.pdf', 'c1', 0);
+             INSERT INTO chunks (owner_kind, owner_id, chunk_index, chunk_text, chunk_type) VALUES ('file', 'k', 0, 'Q3 pricing', 'text');
+             INSERT INTO index_state (owner_kind, owner_id, text_hash, version, state, attempted_at) VALUES ('file', 'k', 'h', 1, 'ready', 0);",
+        )
+        .unwrap();
+        let listed: Vec<String> = page(&db, Listing::Library, None, 10).unwrap().into_iter().map(|row| row.id).collect();
+        assert_eq!(listed, vec!["k".to_string()]);
+
+        assert!(!delete_kept(&db, "a").unwrap(), "a chat's file goes only with its chat");
+        assert!(delete_kept(&db, "k").unwrap());
+        drain_files_in(&db, &root).unwrap();
+
+        let left = |sql: &str| db.query_row(sql, [], |r| r.get::<_, i64>(0)).unwrap();
+        assert_eq!(left("SELECT COUNT(*) FROM chunks"), 0);
+        assert_eq!(left("SELECT COUNT(*) FROM index_state"), 0);
+        assert_eq!(left("SELECT COUNT(*) FROM assets"), 1);
+        assert!(!root.join("assets/k.pdf").exists());
         std::fs::remove_dir_all(root).unwrap();
     }
 

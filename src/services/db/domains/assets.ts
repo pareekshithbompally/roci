@@ -15,6 +15,16 @@ export const assets = {
     return call<AssetRow[]>('assets_page', { kind, before, limit });
   },
 
+  /** One page of the Knowledge library (every file kept there), newest first, after `before`. */
+  async library(before: ItemCursor | null, limit: number): Promise<AssetRow[]> {
+    return call<AssetRow[]>('assets_library', { before, limit });
+  },
+
+  /** Deletes a file kept in the library, with its passages and index state; files a meeting or chat owns go with it. */
+  async remove(id: string): Promise<void> {
+    await call<void>('assets_delete', { id });
+  },
+
   /** How many files of `kind` are kept. */
   async count(kind: string): Promise<number> {
     return call<number>('assets_count', { kind });

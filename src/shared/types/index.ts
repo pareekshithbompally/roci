@@ -86,6 +86,14 @@ export interface TranscriptSegment {
   timestamp: number;
 }
 
+/** What a `file` asset (a file you gave Roci) records about itself: its own name, media type and size (files written out of
+ *  older chats have no size). */
+export interface FileMeta {
+  name: string;
+  mediaType: string;
+  bytes?: number;
+}
+
 /** An image a tool made, kept in the app's data folder by its path inside it (`assets/….png`); the folder itself can move (iOS app updates). */
 export interface GeneratedImage {
   mediaType: string;

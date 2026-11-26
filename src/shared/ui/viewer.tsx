@@ -23,9 +23,14 @@ export interface ViewerProps {
 
 const nameOf = (media: ViewerMedia) => (media.kind === 'image' ? media.alt : media.title);
 
+/** A PDF drawn by WebKit, filling its column (the viewer's, or a document's page). */
+export function PdfFrame({ src, title, raised }: { src: string; title: string; raised?: boolean }) {
+  return <iframe src={src} title={title} className={cn('min-h-0 w-full flex-1 rounded-lg bg-base', raised && 'shadow-overlay')} />;
+}
+
 function Body({ media }: { media: ViewerMedia }) {
   if (media.kind === 'image') return <img src={media.src} alt={media.alt} className="min-h-0 max-w-full rounded-lg object-contain shadow-overlay" />;
-  return <iframe src={media.src} title={media.title} className="min-h-0 w-full flex-1 rounded-lg bg-base shadow-overlay" />;
+  return <PdfFrame src={media.src} title={media.title} raised />;
 }
 
 /** An image or a PDF over the whole window (portalled, so no panel clips it): scrim, Escape or a click outside closes it. */
