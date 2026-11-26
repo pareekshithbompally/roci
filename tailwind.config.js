@@ -128,9 +128,6 @@ export default {
       height: { row: 'var(--row-min-h)' },
       // `transition` alone answers the pointer (quick); `duration-fade` is a fade's length.
       // `duration-move ease-move`: the `move` spring as a CSS transition (the phone's sidebar sliding).
-      // iPhone sidebar's depth (motion.config.ts `depth`): `scale-behind` the main view, `scale-pane` / `opacity-pane` the sidebar.
-      scale: { behind: String(MOTION.depth.behind), pane: String(MOTION.depth.pane) },
-      opacity: { pane: String(MOTION.depth.paneDim) },
       transitionTimingFunction: { DEFAULT: bezier(MOTION.curve.in), move: MOVE_PARTS.easing },
       transitionDuration: { DEFAULT: ms(MOTION.quick), fade: ms(MOTION.fade.in), move: MOVE_PARTS.duration },
       // ─── macOS text styles (SF Pro). `reading` is the one exception: long-form chat/transcript ───
