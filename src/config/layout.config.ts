@@ -45,8 +45,9 @@ export const LAYOUT = {
   /** Meeting title: longer titles end in an ellipsis (full title on hover) so the actions after it stay put */
   meetingTitle: 'max-w-2xl',
 
-  /** Room under a meeting tab's last line, so the floating + button (kit `ActionFab`, `UI_CONFIG.layout.cornerPanel.inset` from the edge) never covers it */
-  meetingChatClearance: 'pb-16',
+  /** Room under a screen's last line wherever the floating + sits (kit `FabButton`: 56 px, `cornerPanel.inset` from the edge),
+   *  so it never covers that line */
+  fabClearance: 'pb-24',
 
   /** Page gutter around the page column */
   pageGutter: 'px-6 md:px-8',

@@ -68,7 +68,7 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
   iconXs: 'whitespace-nowrap h-control-xs w-control-xs shrink-0 rounded-md',
   /** Round 44 pt action: the meeting chat's floating button, the iOS sheet's Back and Close */
   fab: 'whitespace-nowrap h-11 w-11 shrink-0 rounded-full',
-  /** The floating + button at a screen's corner (kit `ActionFab`): larger, lifted over the content. */
+  /** The floating + button at a screen's corner (kit `FabButton`): larger, lifted over the content. */
   float: 'whitespace-nowrap h-14 w-14 shrink-0 rounded-full shadow-floating',
 };
 

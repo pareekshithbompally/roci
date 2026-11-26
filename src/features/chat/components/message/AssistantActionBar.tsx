@@ -33,7 +33,7 @@ interface DetailRow {
 }
 
 /** The reply's ⋯: a details card (as Messages and Gemini show a message's info): the model's logo and name with when it
- *  wrote, then its speed, tokens and cost as rows. A popover on a Mac, a sheet on iPhone. */
+ *  wrote, then its speed, tokens and cost as rows. An inline popover beside the button on both platforms. */
 const ReplyDetailsMenu: React.FC<ReplyDetails> = ({ timestamp, provider, model, context, tokensPerSecond, cost }) => {
   const modelLabel = useModelLabel(provider, model);
   const rows = ([
@@ -43,7 +43,7 @@ const ReplyDetailsMenu: React.FC<ReplyDetails> = ({ timestamp, provider, model, 
   ] as (DetailRow | false | null | undefined | '')[]).filter((row): row is DetailRow => !!row);
   if (!modelLabel && !timestamp && rows.length === 0) return null;
   return (
-    <Popover>
+    <Popover anchored>
       <PopoverTrigger asChild>
         <IconButton icon={MoreHorizontal} label={MENU_COPY.details} size="sm" />
       </PopoverTrigger>

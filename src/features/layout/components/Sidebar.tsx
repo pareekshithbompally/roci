@@ -68,9 +68,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (isSmallScreen) setLeftPanel(false);
   };
 
+  // The phone's Settings opens over the sidebar, so ‹ comes back to it; a narrow Mac window's drawer closes under its page.
   const handleSettingsClick = () => {
     openSettings();
-    if (isSmallScreen) setLeftPanel(false);
+    if (isSmallScreen && !sheet) setLeftPanel(false);
   };
 
   const handleSelectItem = useCallback(async (item: UnifiedSidebarItem) => {

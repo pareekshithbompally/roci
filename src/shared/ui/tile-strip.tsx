@@ -1,5 +1,6 @@
-/** A sheet's quick actions as one row of larger tiles that scrolls sideways (iOS's share-sheet actions): a glyph above a
- *  short label, on the grouped card surface. For the few actions that start something; settings stay as rows below it. */
+/** A sheet's quick actions as one row of tiles that scrolls sideways (iOS's share-sheet actions): a glyph above its label, in
+ *  the same ink and text as the rows below, each tile as wide as its label. For the few actions that start something;
+ *  settings stay as rows below it. */
 
 import type { LucideIcon } from 'lucide-react';
 import { Icon } from './icon';
@@ -23,10 +24,10 @@ export function TileStrip({ label, tiles }: { label: string; tiles: readonly Str
           key={id}
           type="button"
           onClick={onPress}
-          className={cn(GROUPED_SURFACE, 'flex w-24 shrink-0 flex-col items-center gap-2 px-2 py-3 transition motion-safe:active:scale-95')}
+          className={cn(GROUPED_SURFACE, 'flex shrink-0 flex-col items-center gap-2 px-4 py-3 transition motion-safe:active:scale-95')}
         >
-          <Icon icon={icon} size="md" tone="accent" />
-          <Text variant="caption" className="w-full text-center" truncate>{name}</Text>
+          <Icon icon={icon} size="md" />
+          <Text variant="body" className="whitespace-nowrap">{name}</Text>
         </button>
       ))}
     </div>

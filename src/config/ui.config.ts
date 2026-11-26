@@ -1,4 +1,4 @@
-import { AudioWaveform, Copy, Pencil, RotateCw, Sparkles, Trash2, X, type LucideIcon } from 'lucide-react';
+import { AudioWaveform, Copy, ListTodo, MessageCircle, NotebookPen, Pencil, RotateCw, Sparkles, Trash2, X, type LucideIcon } from 'lucide-react';
 /** UI dimensions, spacing and layout constants. */
 
 export const UI_CONFIG = {
@@ -16,7 +16,7 @@ export const UI_CONFIG = {
       dragHeight: 36,
     },
     /** Onboarding panel's top edge: pinned, so a taller or shorter next step grows downward instead of re-centring. */
-    /** The bottom-right corner (Mac): the floating + button (kit `ActionFab`) and the panel it opens (kit `CornerPanel`: a
+    /** The bottom-right corner (Mac): the floating + button (kit `FabButton`) and the panel it opens (kit `CornerPanel`: a
      *  new to-do, the meeting chat), `inset` from the window edges, never taller than the space below the titlebar. */
     cornerPanel: {
       inset: 16,
@@ -238,6 +238,9 @@ export const MENU_SYMBOLS = {
   transcribe: 'waveform',
   summarize: 'sparkles',
   copy: 'doc.on.doc',
+  chat: 'bubble.left',
+  todo: 'checklist',
+  note: 'note.text',
 } as const;
 
 /** Each menu symbol's glyph where the app draws the menu itself (iPhone): the same picture the Mac's native menu shows. */
@@ -249,6 +252,9 @@ export const MENU_SYMBOL_ICONS: Record<(typeof MENU_SYMBOLS)[keyof typeof MENU_S
   waveform: AudioWaveform,
   sparkles: Sparkles,
   'doc.on.doc': Copy,
+  'bubble.left': MessageCircle,
+  checklist: ListTodo,
+  'note.text': NotebookPen,
 };
 
 export const BREAKPOINTS = {

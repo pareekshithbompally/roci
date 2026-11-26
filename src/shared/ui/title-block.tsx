@@ -25,11 +25,13 @@ export function TitleBlock({ title, meta, status, accessory, children }: TitleBl
   const phone = useFormFactor() === 'phone';
   const bar = useContext(ShellBarContext);
   const end = (status || accessory) && <div className="ml-auto flex shrink-0 items-center gap-2">{status}{accessory}</div>;
-  const metaEnd = phone && status && <div className="ml-auto flex shrink-0 items-center gap-2">{status}</div>;
+  // iPhone: the commands go up to the shell's bar when it has one; without one they end the meta line with the status.
+  const inBar = phone && bar !== null;
+  const metaEnd = phone && (status || (!inBar && accessory)) && <div className="ml-auto flex shrink-0 items-center gap-2">{status}{!inBar && accessory}</div>;
   return (
     <>
       <TitlebarSpacer />
-      {phone && bar && accessory && createPortal(accessory, bar)}
+      {inBar && accessory && createPortal(accessory, bar)}
       <header className={`${LAYOUT.pageGutter} py-3`}>
         <div className={`${LAYOUT.pageColumn} space-y-2`}>
           <div className="flex items-center gap-2">{title}{!phone && end}</div>

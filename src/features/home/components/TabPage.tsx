@@ -11,6 +11,6 @@ export const TabFlowContext = createContext(false);
 
 export const TabPage: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const column = <div className={cn(LAYOUT.pageColumn, 'flex flex-1 flex-col gap-6')}>{children}</div>;
-  if (useContext(TabFlowContext)) return <div className={cn('pt-4', LAYOUT.pageGutter, LAYOUT.meetingChatClearance)}>{column}</div>;
-  return <FadeScroll fill className={cn('flex-1 pt-4', LAYOUT.pageGutter, LAYOUT.meetingChatClearance)}>{column}</FadeScroll>;
+  if (useContext(TabFlowContext)) return <div className={cn('pt-4', LAYOUT.pageGutter, LAYOUT.fabClearance)}>{column}</div>;
+  return <FadeScroll fill className={cn('flex-1 pt-4', LAYOUT.pageGutter, LAYOUT.fabClearance)}>{column}</FadeScroll>;
 };

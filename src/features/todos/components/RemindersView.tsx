@@ -1,11 +1,11 @@
 /** To-dos: every meeting's action items, grouped by meeting, filterable; the + at the corner adds one. Opened from the sidebar row. */
 
 import React, { useCallback, useState } from 'react';
-import { Inbox, ListTodo, Search, X } from 'lucide-react';
+import { Inbox, Search, X } from 'lucide-react';
 import { useGlobalTodos } from '@features/todos/hooks/useGlobalTodos';
 import type { TodoFilter } from '@features/todos/hooks/useGlobalTodos';
 import type { GlobalTodoEntry } from '@services/db';
-import { ActionFab, IconButton, SearchField, Surface, Tabs, Text, ViewHeader, ViewScroll, cn } from '@shared/ui';
+import { FabButton, IconButton, SearchField, Surface, Tabs, Text, ViewHeader, ViewScroll, cn } from '@shared/ui';
 import { ScreenState } from '@shared/components';
 import { formatMeetingDate } from '@shared/utils/todo.utils';
 import { startCreate } from '@shared/stores/createStore';
@@ -90,7 +90,7 @@ export const RemindersView: React.FC = () => {
       </ViewHeader>
 
       {/* The list in the page column; no fade, as each meeting's heading pins to the top. */}
-      <ViewScroll fade={false}>
+      <ViewScroll fade={false} className={LAYOUT.fabClearance}>
         <ScreenState
           loading={isLoading}
           empty={!hasContent && {
@@ -132,7 +132,7 @@ export const RemindersView: React.FC = () => {
         </ScreenState>
       </ViewScroll>
 
-      <ActionFab label={TODOS_CONFIG.add} actions={[{ id: 'todo', label: TODOS_CONFIG.add, icon: ListTodo, onSelect: () => startCreate('todo') }]} />
+      <FabButton label={TODOS_CONFIG.add} onClick={() => startCreate('todo')} />
     </div>
   );
 };

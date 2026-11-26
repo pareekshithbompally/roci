@@ -259,7 +259,7 @@ export const ResultsView: React.FC = () => {
 
   // The Transcript tab's panes scroll inside themselves beside each other (a Mac); the other tabs scroll as a page.
   const body = activeResultTab === 'transcript' && currentHistoryItem ? (
-    <div className={cn(LAYOUT.pageGutter, 'pt-4', notesBeside ? 'flex-1 overflow-hidden' : LAYOUT.meetingChatClearance)}>
+    <div className={cn(LAYOUT.pageGutter, 'pt-4', notesBeside ? 'flex-1 overflow-hidden' : LAYOUT.fabClearance)}>
       <div className={cn(LAYOUT.pageColumn, notesBeside && 'h-full flex flex-col min-h-0')}>
         <TranscriptTab key={`${currentHistoryItem.id}-${noteVisit}`} meetingId={currentHistoryItem.id} result={result} phase={phase} only="transcript" focusNotes={noteVisit > 0} />
       </div>

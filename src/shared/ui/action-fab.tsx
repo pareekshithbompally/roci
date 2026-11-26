@@ -1,5 +1,5 @@
-/** The one floating + button at the bottom-right corner (To-dos, a meeting), and the panel it opens on a Mac. One action: a
- *  tap does it. Several: a tap fans out a menu from the button (UIMenu), each row a label and its glyph. */
+/** The one floating + button at the bottom-right corner (To-dos, a meeting), and what it opens: a corner panel on a Mac, a
+ *  pushed screen on iPhone. */
 
 import React from 'react';
 import { ChevronDown, Plus, X } from 'lucide-react';
@@ -11,7 +11,7 @@ import { Text } from './text';
 import { FormPage, PushedPage } from './nav-stack';
 import { useFormFactor } from '@platform/formFactor';
 import { KIT_COPY } from '@config/kitCopy.config';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './dropdown-menu';
+import { cn } from './utils';
 import { UI_CONFIG } from '@config/ui.config';
 
 const { inset, width, maxHeight } = UI_CONFIG.layout.cornerPanel;
@@ -20,35 +20,26 @@ const { safeArea } = UI_CONFIG.layout.titlebar;
 /** Bottom-right, clear of the home indicator and the keyboard on a phone (`--safe-bottom`). */
 const CORNER: React.CSSProperties = { right: inset, bottom: `calc(var(--safe-bottom) + ${inset}px)` };
 
-export interface FabAction {
-  id: string;
+export type FabButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children'> & {
+  /** Its name (VoiceOver, tooltip). */
   label: string;
-  icon: LucideIcon;
-  onSelect: () => void;
-}
-
-export interface ActionFabProps {
-  /** The button's name (VoiceOver, tooltip) when it fans out; one action names it itself. */
-  label: string;
-  actions: FabAction[];
-  /** One action that isn't adding (a meeting's chat while it records): its own glyph, on the AI fill. */
+  /** Not adding (a meeting's chat while it records): its own glyph, on the AI fill. Else the +. */
   glyph?: LucideIcon;
-}
+  ref?: React.Ref<HTMLButtonElement>;
+};
 
-export function ActionFab({ label, actions, glyph }: ActionFabProps) {
-  const button = (props: { label: string; onClick?: () => void }) => (
-    <IconButton icon={glyph ?? Plus} variant={glyph ? 'ai' : 'primary'} size="float" className="fixed z-floating animate-content-show" style={CORNER} {...props} />
-  );
-  if (actions.length === 1) return button({ label: actions[0].label, onClick: actions[0].onSelect });
+/** The floating button. A tap does its one action, or it is the trigger of the screen's add menu (`Menu`, native on a Mac). */
+export function FabButton({ label, glyph, className, style, ...props }: FabButtonProps) {
   return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>{button({ label })}</DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="end">
-        {actions.map((action) => (
-          <DropdownMenuItem key={action.id} icon={action.icon} onSelect={action.onSelect}>{action.label}</DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <IconButton
+      icon={glyph ?? Plus}
+      variant={glyph ? 'ai' : 'primary'}
+      size="float"
+      label={label}
+      className={cn('fixed z-floating animate-content-show', className)}
+      style={{ ...CORNER, ...style }}
+      {...props}
+    />
   );
 }
 
