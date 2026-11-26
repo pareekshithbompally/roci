@@ -86,6 +86,8 @@ export interface ChatStoreState {
   /** A fresh, unsaved chat about `meeting`, with the meeting attached as context; thinking Off while the meeting records, so
    *  answers come quickly (the picker still raises it). */
   startMeetingChat: (meeting: MeetingListItem) => void;
+  /** A fresh, unsaved chat about a kept document: the document attached, looked up in as the answer needs it (Search). */
+  startDocumentChat: (document: { name: string; mediaType: string; appPath: string }) => void;
   /** Writes a session to disk and its row to the chat list; never rejects. */
   persistSession: (session: ChatSession) => Promise<void>;
   /** Changes the chats in memory (useChatRuntime: the open chat loaded, others let go). */
@@ -219,6 +221,15 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
       input: '',
       pendingAttachments: [],
       draftReasoningEffort: runningTranscript(meeting.id) === null ? 'provider-default' : 'none',
+    }),
+
+  startDocumentChat: (document) =>
+    set({
+      currentSessionId: null,
+      draftMeetingId: null,
+      selectedMeetingRefs: [],
+      input: '',
+      pendingAttachments: [attachmentPart(document.mediaType, document.appPath, document.name)],
     }),
 
   // ── Sending ──

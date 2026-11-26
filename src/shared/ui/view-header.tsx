@@ -10,6 +10,7 @@ import { Text } from './text';
 import { cn } from './utils';
 import { TitlebarSpacer } from './page-scroll';
 import { TopBar } from './top-bar';
+import { PrimaryAction, type PrimaryActionSpec } from './primary-action';
 
 /** The top bar's leading control, supplied by a shell that shows each place full screen with its own bar (iPhone: the
  *  sidebar button, as on home). Absent (a Mac, iPad), a place keeps its large title. A place is a top-level screen, so it
@@ -22,6 +23,8 @@ export interface ViewHeaderProps {
   detail?: React.ReactNode;
   /** Controls at the end of the title row. */
   accessory?: React.ReactNode;
+  /** The place's one primary action: last in the title row on a Mac, the floating button on iPhone. */
+  primaryAction?: PrimaryActionSpec;
   /** Takes the title's place while it is open (a search field). */
   replaceTitle?: React.ReactNode;
   /** A row under the title row (filters, a day's controls). */
@@ -30,7 +33,8 @@ export interface ViewHeaderProps {
   fullWidth?: boolean;
 }
 
-export function ViewHeader({ title, detail, accessory, replaceTitle, children, fullWidth }: ViewHeaderProps) {
+export function ViewHeader({ title, detail, accessory: controls, primaryAction, replaceTitle, children, fullWidth }: ViewHeaderProps) {
+  const accessory = primaryAction ? <>{controls}<PrimaryAction action={primaryAction} /></> : controls;
   const leading = useContext(ViewLeadingContext);
   if (leading) {
     // iPhone: the shell's top bar (the sidebar button, the title centred, the place's controls at the end); its rows (a

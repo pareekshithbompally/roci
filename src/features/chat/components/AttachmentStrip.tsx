@@ -4,8 +4,8 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FileText, Film, Image as ImageIcon, Music, X, type LucideIcon } from 'lucide-react';
-import { Button, Icon, IconButton, Surface, Text, Thumbnail, Viewer } from '@shared/ui';
+import { Film, Music, X, type LucideIcon } from 'lucide-react';
+import { Button, FileTypeIcon, Icon, IconButton, Surface, Text, Thumbnail, Viewer } from '@shared/ui';
 import { Menu } from '@shared/components';
 import type { FileUIPart } from '@shared/types';
 import { isSearchableDocument, mediaKind, sendsWhole, type MediaKind } from '@shared/utils/chatParts';
@@ -20,7 +20,8 @@ import { useChatStore } from '@features/chat/stores/chatStore';
 /** What an attachment without a name is called, by its kind. */
 const UNNAMED: Record<MediaKind, string> = { image: 'Image', audio: 'Audio', video: 'Video', document: 'File' };
 
-const KIND_ICON: Record<MediaKind, LucideIcon> = { image: ImageIcon, audio: Music, video: Film, document: FileText };
+/** The glyph of sound and video attachments (an image shows itself, a document its file type). */
+const KIND_ICON: Record<'audio' | 'video', LucideIcon> = { audio: Music, video: Film };
 
 /** An image attachment's tile (its kept file, once its URL is in); it opens the image full size. */
 function ImageTile({ part, name }: { part: FileUIPart; name: string }) {
@@ -69,7 +70,9 @@ function AttachmentChip({ part, index, lookUp, onRemove }: { part: FileUIPart; i
   const name = part.filename || UNNAMED[kind];
   return (
     <Surface variant="inset" radius="md" className="flex items-center gap-1.5 px-2 py-1">
-      {kind === 'image' ? <ImageTile part={part} name={name} /> : <Icon icon={KIND_ICON[kind]} size="xs" />}
+      {kind === 'image' && <ImageTile part={part} name={name} />}
+      {kind === 'document' && <FileTypeIcon name={name} />}
+      {kind !== 'image' && kind !== 'document' && <Icon icon={KIND_ICON[kind]} size="xs" />}
       <Text variant="helper" tone="muted" truncate className="max-w-32">{name}</Text>
       {lookUp && isSearchableDocument(part) && <SendChoice part={part} index={index} />}
       {onRemove && <IconButton icon={X} label="Remove attachment" size="sm" onClick={onRemove} />}

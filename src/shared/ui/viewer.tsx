@@ -24,7 +24,7 @@ export interface ViewerProps {
 const nameOf = (media: ViewerMedia) => (media.kind === 'image' ? media.alt : media.title);
 
 /** A PDF drawn by WebKit, filling its column (the viewer's, or a document's page). */
-export function PdfFrame({ src, title, raised }: { src: string; title: string; raised?: boolean }) {
+function PdfFrame({ src, title, raised }: { src: string; title: string; raised?: boolean }) {
   return <iframe src={src} title={title} className={cn('min-h-0 w-full flex-1 rounded-lg bg-base', raised && 'shadow-overlay')} />;
 }
 

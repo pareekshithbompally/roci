@@ -6,7 +6,7 @@ export const TODOS_CONFIG = {
   /** Sidebar row, page title, meeting tab. */
   title: 'To-dos',
   /** The action that creates one (the + on To-dos and a meeting). */
-  add: 'Add to-do',
+  add: 'New To-do',
   /** The To-dos screen: its search, what it shows (the ⋯ menu), its sections, counts and empty states. */
   page: {
     search: 'Search to-dos',

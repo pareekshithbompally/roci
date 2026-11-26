@@ -211,6 +211,16 @@
   --state-failed-ink: var(--danger-fg);
   --state-idle: var(--text-faint);
   --state-idle-ink: var(--text-muted);
+  /* File types: a document's page, its fold and edge, and the band naming its type (kit FileTypeIcon). A page is paper in
+     both appearances. */
+  --file-sheet: var(--grey-100);
+  --file-fold: var(--grey-400);
+  --file-edge: var(--grey-400);
+  --file-pdf: var(--red-600);
+  --file-md: var(--copper-600);
+  --file-txt: var(--grey-600);
+  --file-csv: var(--green-600);
+  --file-json: var(--yellow-600);
   --state-live-wash: color-mix(in srgb, var(--state-live) 14%, transparent);
   --state-working-wash: color-mix(in srgb, var(--state-working) 14%, transparent);
   --state-waiting-wash: color-mix(in srgb, var(--state-waiting) 16%, transparent);

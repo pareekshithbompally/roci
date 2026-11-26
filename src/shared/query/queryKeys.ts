@@ -14,6 +14,8 @@ export const queryKeys = {
   dictations: () => ['dictations'] as const,
   /** The Knowledge library: every file kept there, newest first */
   knowledgeLibrary: () => ['knowledge-library'] as const,
+  /** The meetings or chats Knowledge lists beside its documents */
+  knowledgeSources: (kind: string) => ['knowledge-library', 'sources', kind] as const,
   /** How far indexing each source of a kind has got; read again when Rust reports a change */
   sourceStates: (kind: string) => ['knowledge-library', 'states', kind] as const,
   /** The sources about the same thing as one; under the library, so a change there reads them again */

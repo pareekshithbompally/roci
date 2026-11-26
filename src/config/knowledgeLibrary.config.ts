@@ -1,4 +1,5 @@
-/** Knowledge: the documents you add (PDFs, text, Markdown), kept in the library for Roci to read; searchable by name. */
+/** Knowledge: everything Roci reads (the documents you add, then your meetings and chats), searchable by name, each with
+ *  how far indexing it has got. */
 
 import { ATTACHMENT_TYPES } from '@config/chat.config';
 import type { StateKind } from '@config/states.config';
@@ -9,11 +10,12 @@ const { pdf, text } = ATTACHMENT_TYPES;
 export const KNOWLEDGE_LIBRARY = {
   /** Sidebar row and page title. */
   title: 'Knowledge',
-  empty: 'Add PDFs, text and Markdown files with +. Roci keeps them here to read.',
+  emptyTitle: 'Ask about your documents',
+  empty: 'Add PDFs, text and Markdown. Roci reads them on this device, and any chat can answer from them with the page it came from.',
   /** The Mac's empty screen adds where files can go. */
-  emptyDrop: 'Add PDFs, text and Markdown files with +, or drop them here. Roci keeps them here to read.',
+  emptyDrop: 'Add PDFs, text and Markdown, or drop them here. Roci reads them on this Mac, and any chat can answer from them with the page it came from.',
   searchPlaceholder: 'Search knowledge',
-  noMatch: 'No documents match',
+  noMatch: 'Nothing matches',
   documents: 'Documents',
   add: 'Add files',
   delete: 'Delete document',
@@ -45,8 +47,33 @@ export const KNOWLEDGE_LIBRARY = {
     limit: 5,
     kinds: { meeting: 'Meeting', chat: 'Chat', file: 'Document' },
   },
+  /** Meetings and chats listed under the documents (each, newest first). */
+  conversationLimit: 50,
+  sections: { meetings: 'Meetings', chats: 'Chats' },
   /** How many the page loads (newest first). */
   listLimit: 500,
   /** Mac: the list column beside the open document. */
   listColumn: 'w-80 shrink-0',
+} as const;
+
+/** The reader's pages (shared PdfPages, pdf.js). */
+export const PDF_PAGES = {
+  /** A page's height to width before its own is read (US Letter). */
+  letterRatio: 11 / 8.5,
+  /** How far ahead of the view a page is drawn. */
+  renderAhead: '800px',
+  /** The widest a page is drawn, in px (a wide window reads a column, not a billboard). */
+  maxWidth: 860,
+  pageLabel: (n: number) => `Page ${n}`,
+} as const;
+
+/** The full-window reader and its chat. */
+export const READER = {
+  open: 'Open',
+  ask: 'Ask about this',
+  hideChat: 'Hide chat',
+  close: 'Close',
+  chatPlaceholder: 'Ask about this document',
+  /** Mac: the chat beside the pages. */
+  chatColumn: 'w-96',
 } as const;

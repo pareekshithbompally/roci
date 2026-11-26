@@ -2,8 +2,8 @@
  *  in the shared players, any other document opens in its default app on the Mac); a removed file shows as removed. */
 
 import React, { useState } from 'react';
-import { FileText, FileX, ImageOff, VideoOff, VolumeX, type LucideIcon } from 'lucide-react';
-import { Button, Icon, Row, Surface, Text, Thumbnail, Viewer, showToast } from '@shared/ui';
+import { FileX, ImageOff, VideoOff, VolumeX, type LucideIcon } from 'lucide-react';
+import { Button, FileTypeIcon, Row, showToast, Surface, Text, Thumbnail, Viewer } from '@shared/ui';
 import { platform } from '@platform/index';
 import { openAttachment } from '@features/chat/utils';
 import { AudioPlayer, RemovedNotice, VideoPlayer } from '@shared/components';
@@ -47,7 +47,7 @@ function DocumentChip({ media, src, name }: { media: ChatMedia; src?: string; na
   const label = name ?? 'file';
   const body = (
     <>
-      <Icon icon={FileText} size="sm" tone="muted" className="shrink-0" />
+      <FileTypeIcon name={label} />
       <Text variant="helper" truncate className="max-w-48">{name}</Text>
     </>
   );

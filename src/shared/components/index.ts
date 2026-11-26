@@ -34,6 +34,7 @@ export { JOB_GLYPH } from './jobGlyphs';
 export { RenameModal } from './RenameModal';
 export { ServerIcon } from './ServerIcon';
 export { Markdown } from './markdown/Markdown';
+export { PdfPages } from './PdfPages';
 export { Menu, MenuArea, type ContextEntry, type MenuEntry } from './Menu';
 export { menuGlyph } from './menuGlyph';
 export { modelMenuEntries, modelRowText, modelSubtitle, openModelMenu, type ModelMenuOptions } from './modelMenu';

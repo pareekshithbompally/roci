@@ -1,10 +1,9 @@
 /** The document pages an answer drew on, as small pills under it ("Q3 pricing.pdf · p. 3"). One in the Knowledge library now
- *  (kept then or since) opens there; one that isn't (a chat's own attachment, or deleted since) is named only. */
+ *  (kept then or since) opens in the reader at that page; one that isn't (a chat's own attachment, or deleted) is named only. */
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FileText } from 'lucide-react';
-import { Button, Icon } from '@shared/ui';
+import { Button, FileTypeIcon } from '@shared/ui';
 import { libraryQuery } from '@shared/query/library';
 import { openDocument } from '@shared/stores/knowledgeStore';
 import { CITATION_COPY } from '@config/chat.config';
@@ -21,9 +20,9 @@ export const DocumentCitations: React.FC<{ citations: DocumentCitation[] }> = ({
           variant="outline"
           size="sm"
           disabled={!inLibrary(citation.path)}
-          onClick={() => openDocument(citation.path)}
+          onClick={() => openDocument(citation.path, citation.page ?? undefined)}
         >
-          <Icon icon={FileText} size="xs" />
+          <FileTypeIcon name={citation.name} />
           {CITATION_COPY.document(citation.name, citation.page)}
         </Button>
       ))}

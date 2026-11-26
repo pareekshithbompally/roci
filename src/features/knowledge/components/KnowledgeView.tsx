@@ -4,22 +4,23 @@
  *  (a PDF as WebKit draws it) or its words, then what is related to it; Delete. */
 
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { FileText, Library, Plus, Trash2 } from 'lucide-react';
-import { Icon, IconButton, ListDetail, PageScroll, PdfFrame, Row, SearchField, StateBadge, StateMark, Surface, Text, useFilePicker, useListBesideDetail, ViewHeader } from '@shared/ui';
-import { Markdown, ScreenState } from '@shared/components';
-import { useKeptFileUrl, useObjectUrl } from '@shared/hooks';
-import { useToast } from '@shared/contexts/ToastContext';
+import { Library, Maximize2, Sparkles, Trash2 } from 'lucide-react';
+import { Button, EmptyAction, FileTypeIcon, Icon, IconButton, ListDetail, PageScroll, Row, SearchField, StateBadge, StateMark, Surface, Text, useFilePicker, useListBesideDetail, ViewHeader } from '@shared/ui';
+import { ScreenState } from '@shared/components';
 import { confirmDelete } from '@shared/stores/confirmStore';
-import { queryKeys } from '@shared/query/queryKeys';
 import { formatDayLabel, formatFileSize } from '@shared/utils/formatters';
 import { fileExtension } from '@shared/utils/file.utils';
-import { assetsService, type KnowledgeDocument } from '@services/storage';
+import type { KnowledgeDocument } from '@services/storage';
 import type { SourceStatus } from '@shared/types/native';
 import { platform } from '@platform/index';
 import { LAYOUT } from '@config/layout.config';
-import { KNOWLEDGE_LIBRARY } from '@config/knowledgeLibrary.config';
+import { KNOWLEDGE_LIBRARY, READER } from '@config/knowledgeLibrary.config';
 import { useKnowledge } from '@features/knowledge/hooks/useKnowledge';
+import { DocumentBody } from '@features/knowledge/components/DocumentBody';
+import { DocumentReader } from '@features/knowledge/components/DocumentReader';
+import { useChatStore } from '@features/chat';
+import { useKnowledgeSources } from '@features/knowledge/hooks/useKnowledgeSources';
+import { ConversationSections } from '@features/knowledge/components/ConversationSections';
 import { useKnowledgeStore } from '@shared/stores/knowledgeStore';
 import { RelatedSources } from '@features/knowledge/components/RelatedSources';
 
@@ -34,9 +35,6 @@ function factsOf(document: KnowledgeDocument): string {
 
 /** How far indexing a document has got: a document still saving or not yet indexed is indexing. */
 const indexingOf = (status: SourceStatus | undefined) => KNOWLEDGE_LIBRARY.states[status?.state ?? 'pending'];
-
-const isMarkdown = (document: KnowledgeDocument) =>
-  document.mediaType === KNOWLEDGE_LIBRARY.markdown.mediaType || fileExtension(document.name) === KNOWLEDGE_LIBRARY.markdown.extension;
 
 interface DocumentListProps {
   documents: KnowledgeDocument[];
@@ -55,7 +53,7 @@ const DocumentList: React.FC<DocumentListProps> = ({ documents, statusOf, select
         key={document.id}
         selected={document.id === selectedId}
         disabled={!document.appPath}
-        leading={<Icon icon={FileText} size="xs" tone="muted" />}
+        leading={<FileTypeIcon name={document.name} />}
         onClick={() => onSelect(document.id)}
       >
         <span className="flex items-center gap-2">
@@ -70,50 +68,21 @@ const DocumentList: React.FC<DocumentListProps> = ({ documents, statusOf, select
   </section>
 );
 
-/** A PDF's pages as WebKit draws them, read into a `blob:` URL while it is open. */
-const DocumentPdf: React.FC<{ document: KnowledgeDocument }> = ({ document }) => {
-  const { showToast } = useToast();
-  const src = useKeptFileUrl(document.appPath);
-  const objectUrl = useObjectUrl(src ?? null, (error) => {
-    console.error('[Knowledge] Reading the PDF failed:', document.name, error);
-    showToast(KNOWLEDGE_LIBRARY.readFailed(document.name), 'error');
-  });
-  // Its file is gone (removed outside Roci): say so rather than show nothing.
-  if (src === null) return <Text as="p" variant="helper" tone="muted" className={`${LAYOUT.listGutter} py-4`}>{KNOWLEDGE_LIBRARY.readFailed(document.name)}</Text>;
-  if (!objectUrl) return null;
-  return (
-    <div className={`flex min-h-0 flex-1 flex-col ${LAYOUT.listGutter} py-4`}>
-      <PdfFrame src={objectUrl} title={document.name} />
-    </div>
-  );
-};
-
-/** A text file's words: Markdown as Markdown, any other as written. */
-const DocumentText: React.FC<{ document: KnowledgeDocument }> = ({ document }) => {
-  const { data: text, isError } = useQuery({
-    queryKey: queryKeys.appFileText(document.appPath),
-    queryFn: () => assetsService.text(document.appPath),
-    staleTime: Infinity,
-  });
-  const gutter = `${LAYOUT.listGutter} py-4`;
-  if (isError) return <Text as="p" variant="helper" tone="muted" className={gutter}>{KNOWLEDGE_LIBRARY.readFailed(document.name)}</Text>;
-  if (text === undefined) return null;
-  if (isMarkdown(document)) return <div className={`select-text ${gutter}`}><Markdown content={text} /></div>;
-  return <Text as="p" variant="reading" className={`select-text whitespace-pre-wrap ${gutter}`}>{text}</Text>;
-};
-
 interface DocumentDetailProps {
   document: KnowledgeDocument;
   status: SourceStatus | undefined;
   onDelete: () => void;
   onOpenDocument: (id: string) => void;
+  /** Opens it full window, its chat beside it when `asking`. */
+  onRead: (asking: boolean) => void;
 }
 
 /** The document's name as the title, kind · size · day · state under it (why, when it couldn't be read), then its pages or
  *  words, then what is related. */
-const DocumentDetail: React.FC<DocumentDetailProps> = ({ document, status, onDelete, onOpenDocument }) => (
+const DocumentDetail: React.FC<DocumentDetailProps> = ({ document, status, onDelete, onOpenDocument, onRead }) => (
   <article className="flex h-full flex-col">
     <Surface as="header" edge="bottom" className={`flex items-start gap-2 ${LAYOUT.listGutter} py-4`}>
+      <FileTypeIcon name={document.name} size="md" />
       <div className="min-w-0 flex-1">
         <Text as="h2" variant="title" truncate>{document.name}</Text>
         <span className="flex flex-wrap items-center gap-2">
@@ -123,8 +92,18 @@ const DocumentDetail: React.FC<DocumentDetailProps> = ({ document, status, onDel
         {status?.error && <Text variant="helper" tone="muted">{status.error}</Text>}
       </div>
       <IconButton icon={Trash2} label={KNOWLEDGE_LIBRARY.delete} size="sm" variant="dangerGhost" onClick={onDelete} />
+      <Button variant="secondary" size="sm" onClick={() => onRead(false)}>
+        <Icon icon={Maximize2} size="xs" />
+        {READER.open}
+      </Button>
+      <Button variant="primary" size="sm" onClick={() => onRead(true)}>
+        <Icon icon={Sparkles} size="xs" />
+        {READER.ask}
+      </Button>
     </Surface>
-    {document.format === 'pdf' ? <DocumentPdf document={document} /> : <DocumentText document={document} />}
+    <div className={`min-h-0 flex-1 overflow-y-auto ${LAYOUT.listGutter} py-4`}>
+      <DocumentBody document={document} />
+    </div>
     <RelatedSources id={document.id} ready={status?.state === 'ready'} onOpenDocument={onOpenDocument} />
   </article>
 );
@@ -134,9 +113,13 @@ const carriesFiles = (event: React.DragEvent) => event.dataTransfer.types.includ
 
 export const KnowledgeView: React.FC = () => {
   const [query, setQuery] = useState('');
-  const { documents, hasAny, isLoading, error, statusOf, addFiles, remove } = useKnowledge(query);
+  const { documents, hasAny: hasDocuments, isLoading, error, statusOf, addFiles, remove } = useKnowledge(query);
+  const conversations = useKnowledgeSources(query);
+  const hasAny = hasDocuments || conversations.hasAny;
   const beside = useListBesideDetail();
   const selectedId = useKnowledgeStore((s) => s.selected);
+  const reading = useKnowledgeStore((s) => s.reading);
+  const read = useKnowledgeStore((s) => s.read);
   const setSelectedId = useKnowledgeStore((s) => s.select);
   const picker = useFilePicker(addFiles);
 
@@ -144,6 +127,7 @@ export const KnowledgeView: React.FC = () => {
   // only the one tapped.
   const opened = documents.filter((d) => d.appPath);
   const selected = opened.find((d) => d.id === selectedId || d.appPath === selectedId) ?? (beside ? opened[0] : undefined);
+  const readingDocument = reading && opened.find((d) => d.id === reading.key || d.appPath === reading.key);
 
   const deleteDocument = async (document: KnowledgeDocument) => {
     if (!(await confirmDelete(KNOWLEDGE_LIBRARY.noun))) return;
@@ -157,37 +141,39 @@ export const KnowledgeView: React.FC = () => {
     addFiles(Array.from(event.dataTransfer.files));
   };
 
-  const addButton = (
-    <>
-      <IconButton icon={Plus} label={KNOWLEDGE_LIBRARY.add} size="toolbar" onClick={() => picker.open(KNOWLEDGE_LIBRARY.accept)} />
-      {picker.element}
-    </>
-  );
+  const addFilesAction = { label: KNOWLEDGE_LIBRARY.add, onPress: () => picker.open(KNOWLEDGE_LIBRARY.accept) };
 
   const searchAndList = (
     <>
       <SearchField value={query} onChange={setQuery} onCancel={() => setQuery('')} placeholder={KNOWLEDGE_LIBRARY.searchPlaceholder} />
       <PageScroll underTitlebar={false} className="min-h-0 flex-1 pb-2">
-        {documents.length > 0
-          ? <DocumentList documents={documents} statusOf={statusOf} selectedId={selected?.id ?? null} onSelect={setSelectedId} />
-          : <Text as="p" variant="helper" tone="muted" className="px-2.5 py-2">{KNOWLEDGE_LIBRARY.noMatch}</Text>}
+        {documents.length > 0 && <DocumentList documents={documents} statusOf={statusOf} selectedId={selected?.id ?? null} onSelect={setSelectedId} />}
+        <ConversationSections meetings={conversations.meetings} chats={conversations.chats} />
+        {documents.length + conversations.meetings.length + conversations.chats.length === 0 && (
+          <Text as="p" variant="helper" tone="muted" className="px-2.5 py-2">{KNOWLEDGE_LIBRARY.noMatch}</Text>
+        )}
       </PageScroll>
     </>
   );
 
   const screen = isLoading || error || !hasAny ? (
     <div className="flex h-full flex-col">
-      <ViewHeader title={KNOWLEDGE_LIBRARY.title} accessory={addButton} />
+      <ViewHeader title={KNOWLEDGE_LIBRARY.title} />
       <ScreenState
         loading={isLoading}
         error={error && { cause: error, title: KNOWLEDGE_LIBRARY.loadFailed }}
-        empty={{ icon: Library, message: platform.hasFileManager ? KNOWLEDGE_LIBRARY.emptyDrop : KNOWLEDGE_LIBRARY.empty }}
+        empty={{
+          icon: Library,
+          message: KNOWLEDGE_LIBRARY.emptyTitle,
+          description: platform.hasFileManager ? KNOWLEDGE_LIBRARY.emptyDrop : KNOWLEDGE_LIBRARY.empty,
+          action: <EmptyAction action={addFilesAction} />,
+        }}
       />
     </div>
   ) : (
     <ListDetail
       title={KNOWLEDGE_LIBRARY.title}
-      accessory={addButton}
+      primaryAction={addFilesAction}
       list={searchAndList}
       listClassName={KNOWLEDGE_LIBRARY.listColumn}
       detail={selected && (
@@ -196,6 +182,10 @@ export const KnowledgeView: React.FC = () => {
           status={statusOf(selected.id)}
           onDelete={() => void deleteDocument(selected)}
           onOpenDocument={setSelectedId}
+          onRead={(asking) => {
+            if (asking) useChatStore.getState().startDocumentChat({ name: selected.name, mediaType: selected.mediaType, appPath: selected.appPath });
+            read({ key: selected.id, asking });
+          }}
         />
       )}
       onCloseDetail={() => setSelectedId(null)}
@@ -205,6 +195,8 @@ export const KnowledgeView: React.FC = () => {
   return (
     <div className="h-full" onDragOver={(event) => carriesFiles(event) && event.preventDefault()} onDrop={onDrop}>
       {screen}
+      {picker.element}
+      {readingDocument && <DocumentReader document={readingDocument} status={statusOf(readingDocument.id)} facts={factsOf(readingDocument)} />}
     </div>
   );
 };
