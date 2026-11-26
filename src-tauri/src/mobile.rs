@@ -92,6 +92,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
   // Search: meetings and chats are indexed in Rust as they're saved.
   // Model downloads: ones that finished while Roci was closed or in the background are put in place.
   models::store::follow_transfers(app.handle());
+  // Memory pressure frees every idle model Roci holds.
+  models::watch_pressure(app.handle());
   search_index::start(app.handle().clone());
   // MCP: connect the remote servers the user left enabled.
   tauri::async_runtime::spawn(mcp::start_active_servers(app.handle().clone()));
@@ -102,4 +104,10 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
   Ok(())
 }
 
-pub fn on_event(_app_handle: &AppHandle, _event: RunEvent) {}
+/// Roci leaving the screen (iOS: `applicationWillResignActive`): the in-app engine's models are freed, as Apple asks of an app
+/// going to the background (iOS ends the largest ones first). Speech stays, for a recording that carries on.
+pub fn on_event(_app_handle: &AppHandle, event: RunEvent) {
+  if let RunEvent::WindowEvent { event: tauri::WindowEvent::Suspended, .. } = event {
+    std::thread::spawn(|| llama::free_all("Roci left the screen"));
+  }
+}

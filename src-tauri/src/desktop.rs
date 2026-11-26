@@ -166,6 +166,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
   models::follow_saved_directory(app.handle().clone());
   // Model downloads: ones that finished while Roci was closed are put in place.
   models::store::follow_transfers(app.handle());
+  // Memory pressure frees the idle speech-to-text model.
+  models::watch_pressure(app.handle());
   // Search: meetings and chats are indexed in Rust as they're saved.
   search_index::start(app.handle().clone());
 

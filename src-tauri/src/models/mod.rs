@@ -16,6 +16,29 @@ use serde::Serialize;
 /// Settings (`modelIdleMinutes`); this default holds until then.
 static IDLE_MINUTES: AtomicU64 = AtomicU64::new(5);
 
+/// The app, for the memory-pressure handler (set once by `watch_pressure`).
+static PRESSURE_APP: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
+
+/// Once at launch: the system's memory-pressure signal (Mac, iPhone, iPad) frees every idle model Roci holds itself: the
+/// in-app engine's (iPhone, iPad) and speech-to-text's. On the Mac, llama-server keeps its own models within its margin.
+pub fn watch_pressure(app: &tauri::AppHandle) {
+    if PRESSURE_APP.set(app.clone()).is_ok() {
+        // SAFETY: a plain `extern "C"` function that lives for the whole program.
+        unsafe { roci_llama_sys::roci_llama_watch_pressure(on_pressure) }
+    }
+}
+
+extern "C" fn on_pressure(level: std::ffi::c_int) {
+    let Some(app) = PRESSURE_APP.get().cloned() else { return };
+    std::thread::spawn(move || {
+        #[cfg(mobile)]
+        crate::llama::free_all(&format!("memory pressure (level {level})"));
+        #[cfg(desktop)]
+        log::info!("[memory] memory pressure (level {level})");
+        tauri::Manager::state::<crate::stt::SttState>(&app).engine.release_if_idle();
+    });
+}
+
 /// How long an unused model of any engine stays loaded; `None` keeps it until quit.
 pub fn idle_after() -> Option<Duration> {
     match IDLE_MINUTES.load(Ordering::Relaxed) {

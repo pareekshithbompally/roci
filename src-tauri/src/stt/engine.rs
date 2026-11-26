@@ -3,6 +3,8 @@
 use std::io::Cursor;
 use std::ops::Range;
 use std::path::Path;
+#[cfg(mobile)]
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, Once};
 
@@ -79,6 +81,10 @@ pub struct Engine {
     loaded: Mutex<Option<Loaded>>,
     /// Bumped by every call, so an idle timer only unloads if nothing ran since.
     generation: AtomicU64,
+    /// Each model's footprint as measured on its last load (transcribe.cpp has no estimate before loading): what the
+    /// iPhone's memory check asks room for next time.
+    #[cfg(mobile)]
+    costs: Mutex<HashMap<&'static str, u64>>,
 }
 
 impl Engine {
@@ -98,6 +104,15 @@ impl Engine {
         crate::engine_readings::log_memory("unloaded speech-to-text");
     }
 
+    /// Frees the model under memory pressure, unless it is transcribing right now.
+    pub fn release_if_idle(&self) {
+        if let Ok(mut loaded) = self.loaded.try_lock() {
+            if loaded.take().is_some() {
+                crate::engine_readings::log_memory("memory pressure: unloaded speech-to-text");
+            }
+        }
+    }
+
     /// Lets go of a model about to be deleted (no-op when another is warm).
     pub fn forget(&self, id: &str) {
         let mut loaded = lock(&self.loaded);
@@ -111,9 +126,27 @@ impl Engine {
         let mut guard = lock(&self.loaded);
         if guard.as_ref().map(|l| l.id) != Some(id) {
             guard.take();
-            *guard = Some(load(id, path)?);
+            *guard = Some(self.load_measured(id, path)?);
         }
         work(guard.as_mut().ok_or(LocalError::NotDownloaded)?)
+    }
+
+    /// iPhone and iPad: loads `id` after the in-app memory check (room for its last measured footprint), measuring what it
+    /// adds this time.
+    #[cfg(mobile)]
+    fn load_measured(&self, id: &'static str, path: &Path) -> Result<Loaded, LocalError> {
+        use crate::engine_readings::reading;
+        crate::llama::make_room_for_speech(id, lock(&self.costs).get(id).copied().unwrap_or(0))?;
+        let before = reading("footprint");
+        let loaded = load(id, path)?;
+        lock(&self.costs).insert(id, reading("footprint").saturating_sub(before));
+        Ok(loaded)
+    }
+
+    /// Mac: memory is the system's to manage (no per-app limit), so the model just loads.
+    #[cfg(desktop)]
+    fn load_measured(&self, id: &'static str, path: &Path) -> Result<Loaded, LocalError> {
+        load(id, path)
     }
 
     /// Transcribes 16 kHz mono samples with the model at `path`, holding the engine and the GPU one window at a time, so a

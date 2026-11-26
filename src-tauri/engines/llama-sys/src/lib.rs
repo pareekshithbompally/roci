@@ -52,6 +52,7 @@ unsafe extern "C" {
     pub fn roci_llama_watch_pressure(on_pressure: PressureFn);
     pub fn roci_llama_model_info(path: *const c_char) -> *mut c_char;
     pub fn roci_llama_project_memory(path: *const c_char, n_ctx: c_int, kv_type: *const c_char) -> *mut c_char;
+    pub fn roci_llama_measure(role: c_int, path: *const c_char, n_ctx: c_int, projector: *const c_char) -> *mut c_char;
     pub fn roci_llama_chat_reply(chat: *mut RociLlamaChat, request: *const c_char, on_event: EventFn, user: *mut c_void) -> *mut c_char;
 }
 

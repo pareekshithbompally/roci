@@ -159,6 +159,30 @@ static bool ends_with_stop(const std::string & text, const std::vector<std::stri
     });
 }
 
+// Each model's context settings, in one place: its open and its measurement (`roci_llama_measure`) use the same ones, so
+// llama.cpp's dry run measures exactly what the load will allocate.
+static llama_context_params chat_context_params(int n_ctx) {
+    llama_context_params params = llama_context_default_params();
+    params.n_ctx                = n_ctx > 0 ? (uint32_t) n_ctx : 8192;
+    return params;
+}
+
+static llama_context_params embed_context_params(int n_ctx) {
+    llama_context_params params = llama_context_default_params();
+    params.n_ctx                = n_ctx > 0 ? (uint32_t) n_ctx : 8192;
+    params.n_batch              = params.n_ctx;  // pooling reads a whole text in one pass
+    params.n_ubatch             = params.n_ctx;
+    params.embeddings           = true;
+    return params;
+}
+
+static llama_context_params voice_context_params() {
+    llama_context_params params = llama_context_default_params();
+    params.embeddings           = true;             // the audio helper reads the hidden state (llama-tts does the same)
+    params.n_batch              = params.n_ubatch;  // embeddings need the whole batch in one ubatch (common.cpp)
+    return params;
+}
+
 extern "C" {
 
 void roci_llama_set_checkpoint(roci_checkpoint_fn hook) {
@@ -173,9 +197,7 @@ roci_llama_chat * roci_llama_chat_open(const char * path, int n_ctx, char ** err
         *error = strdup("the model file could not be loaded");
         return nullptr;
     }
-    llama_context_params params = llama_context_default_params();
-    params.n_ctx                = n_ctx > 0 ? (uint32_t) n_ctx : 8192;
-    llama_context * ctx         = llama_init_from_model(model, params);
+    llama_context * ctx = llama_init_from_model(model, chat_context_params(n_ctx));
     if (ctx == nullptr) {
         llama_model_free(model);
         *error = strdup("the model's context could not be created");
@@ -323,12 +345,7 @@ roci_llama_embedder * roci_llama_embed_open(const char * path, int n_ctx, char *
         *error = strdup("the model file could not be loaded");
         return nullptr;
     }
-    llama_context_params params = llama_context_default_params();
-    params.n_ctx                = n_ctx > 0 ? (uint32_t) n_ctx : 8192;
-    params.n_batch              = params.n_ctx;  // pooling reads a whole text in one pass
-    params.n_ubatch             = params.n_ctx;
-    params.embeddings           = true;
-    llama_context * ctx         = llama_init_from_model(model, params);
+    llama_context * ctx = llama_init_from_model(model, embed_context_params(n_ctx));
     if (ctx == nullptr) {
         llama_model_free(model);
         *error = strdup("the model's context could not be created");
@@ -440,10 +457,7 @@ roci_llama_voice * roci_llama_voice_open(const char * path, const char * project
         *error = strdup("the speech model file could not be loaded");
         return nullptr;
     }
-    llama_context_params params = llama_context_default_params();
-    params.embeddings           = true;             // the audio helper reads the hidden state (llama-tts does the same)
-    params.n_batch              = params.n_ubatch;  // embeddings need the whole batch in one ubatch (common.cpp)
-    llama_context * ctx  = llama_init_from_model(model, params);
+    llama_context * ctx  = llama_init_from_model(model, voice_context_params());
     mtmd_context *  mtmd = ctx != nullptr ? mtmd_init_from_file(projector, model, mtmd_context_params_default()) : nullptr;
     if (mtmd == nullptr || mtmd_gen_audio_get_info(mtmd).type == MTMD_GEN_AUDIO_TYPE_NONE) {
         if (mtmd != nullptr) {
@@ -656,6 +670,38 @@ char * roci_llama_project_memory(const char * path, int n_ctx, const char * kv_t
         result["ok"]           = true;
         result["bytes"]        = bytes;
         result["contextTokens"] = n_ctx_used;
+        return reply_json(result);
+    } catch (const std::exception & e) {
+        return error_json(e.what());
+    }
+}
+
+
+// What opening `path` in `role`'s settings (0 chat, 1 embedding, 2 voice) at `n_ctx` tokens adds to the app's memory, from
+// llama.cpp's own dry run (`common_fit_measure`, nothing allocated): its KV cache and compute buffers. The weights are mapped
+// from the file, so they don't count; a voice's audio projector is read into memory, so its file size does.
+// {"ok", "bytes"}.
+char * roci_llama_measure(int role, const char * path, int n_ctx, const char * projector) {
+    llama_backend_init();
+    try {
+        const llama_model_params   mparams = llama_model_default_params();
+        const llama_context_params cparams = role == 1 ? embed_context_params(n_ctx) : role == 2 ? voice_context_params() : chat_context_params(n_ctx);
+        const auto rows = common_fit_measure({ path }, &mparams, &cparams, nullptr, nullptr, GGML_LOG_LEVEL_ERROR);
+        uint64_t bytes = 0;
+        for (const auto & row : rows) {
+            bytes += row.context + row.compute;
+        }
+        if (role == 2 && projector != nullptr) {
+            FILE * file = std::fopen(projector, "rb");
+            if (file != nullptr) {
+                std::fseek(file, 0, SEEK_END);
+                bytes += (uint64_t) std::ftell(file);
+                std::fclose(file);
+            }
+        }
+        common_json result = common_json::object();
+        result["ok"]       = true;
+        result["bytes"]    = bytes;
         return reply_json(result);
     } catch (const std::exception & e) {
         return error_json(e.what());

@@ -1,6 +1,9 @@
 //! On-device chat, meeting-search embeddings and read aloud on llama.cpp (engines/llama-sys, on transcribe.cpp's ggml).
-//! One registry holds what is loaded (one model per role). A model loads only after a check that its counted memory fits,
-//! evicting the least recently used other model first; it unloads when idle, on delete, on memory pressure, and on quit.
+//! One registry holds what is loaded (one model per role). A model loads only after a check that its memory fits what iOS
+//! still lets the app use (`os_proc_available_memory`): its cost is llama.cpp's own dry-run measurement with the settings the
+//! load uses, the least recently used other model is evicted first, and a chat's context is halved (down to
+//! `MIN_CHAT_CONTEXT`) before a load is refused. Speech (transcribe.cpp) asks the same registry for room. Models unload when
+//! idle, on delete, on memory pressure, when Roci leaves the screen, and on quit.
 //! Every call runs in a GPU turn, and the shim checks in after each token, batch or frame so more urgent work can step in.
 //! Locks are taken in one order: the role's job queue, then the GPU turn, then the registry only to pick or load a model;
 //! a running model is shared, so freeing it from the registry closes it when its job ends, never under it.
@@ -28,8 +31,11 @@ use crate::sync::lock;
 const MODEL_EVENT: &str = "local://model";
 /// Tokens a chat keeps in mind unless the request asks for another size.
 const CHAT_CONTEXT: c_int = 8192;
-/// Tokens an embedding reads at most per text.
-const EMBED_CONTEXT: c_int = 8192;
+/// The smallest context a chat is fitted down to before its load is refused (llama-server's `--fit-ctx` default).
+const MIN_CHAT_CONTEXT: c_int = 4096;
+/// Tokens an embedding reads at most per text: a search piece is at most `MAX_PIECE_CHARS` (2,000) characters, under
+/// ~1,000 tokens even in the densest scripts. llama.cpp measures its ceiling at 378 MB here, 1,696 MB at 8,192 tokens.
+const EMBED_CONTEXT: c_int = 2048;
 /// Memory left free beyond a model's own cost when deciding whether it fits.
 const HEADROOM: u64 = 256 << 20;
 
@@ -67,16 +73,6 @@ impl Role {
             Role::Voice => "voice",
         }
     }
-
-    /// What loading a model of this role adds to the footprint before it is measured (weights are mapped, so this is
-    /// its context and buffers): Gemma 4 E4B with 8k tokens added ~380 MB, Soprano ~150 MB, Qwen3 Embedding less.
-    fn first_guess(self) -> u64 {
-        match self {
-            Role::Chat => 512 << 20,
-            Role::Embedding => 256 << 20,
-            Role::Voice => 256 << 20,
-        }
-    }
 }
 
 /// A loaded model's handle in the shim.
@@ -87,7 +83,7 @@ enum Handle {
     Voice(*mut sys::RociLlamaVoice),
 }
 
-/// One loaded model: which file, at what context size, when it was last used.
+/// One loaded model: which file, the context size asked for (loaded at it or fitted below it), when it was last used.
 struct Slot {
     model: String,
     path: PathBuf,
@@ -118,8 +114,6 @@ impl Drop for Engine {
 
 /// What is loaded, one slot per role.
 static LOADED: LazyLock<Mutex<HashMap<Role, Slot>>> = LazyLock::new(Mutex::default);
-/// Each model's measured cost (footprint added by loading it), learned on its first load.
-static COSTS: LazyLock<Mutex<HashMap<String, u64>>> = LazyLock::new(Mutex::default);
 
 /// Bumped by every use of a role, so an idle deadline only unloads if nothing used it since.
 #[derive(Default)]
@@ -138,14 +132,11 @@ thread_local! {
     static TURN: Cell<Priority> = const { Cell::new(Priority::Interactive) };
 }
 
-/// Connects the shim's hooks once at setup: checkpoints to the GPU queue, memory pressure to unloading.
+/// Connects the shim's checkpoint to the GPU queue once at setup (memory pressure is `models::watch_pressure`'s).
 pub fn connect(app: &AppHandle) {
     if APP.set(app.clone()).is_ok() {
-        // SAFETY: plain `extern "C"` functions that live for the whole program.
-        unsafe {
-            sys::roci_llama_set_checkpoint(checkpoint);
-            sys::roci_llama_watch_pressure(on_pressure);
-        }
+        // SAFETY: a plain `extern "C"` function that lives for the whole program.
+        unsafe { sys::roci_llama_set_checkpoint(checkpoint) }
     }
 }
 
@@ -154,12 +145,17 @@ extern "C" fn checkpoint() {
     gpu::step_aside(TURN.with(Cell::get));
 }
 
-/// The system reports memory pressure: every loaded model is freed in a GPU turn of its own (so none mid-job).
-extern "C" fn on_pressure(level: c_int) {
-    std::thread::spawn(move || {
-        let freed = gpu::run(Priority::Interactive, || std::mem::take(&mut *lock(&LOADED)).len());
-        log_memory(&format!("memory pressure (level {level}): freed {freed} model(s)"));
-    });
+/// Frees every loaded model in a GPU turn of its own (none mid-job; a running one closes when its job ends): memory pressure,
+/// or Roci leaving the screen. Blocking, so never on the main thread.
+pub fn free_all(why: &str) {
+    let freed = gpu::run(Priority::Interactive, || std::mem::take(&mut *lock(&LOADED)).len());
+    log_memory(&format!("{why}: freed {freed} model(s)"));
+}
+
+/// Room for a speech model about to load (`need`: its footprint as measured on an earlier load; 0 the first time): the
+/// least recently used model here is evicted until it fits, else the load is refused.
+pub fn make_room_for_speech(model: &str, need: u64) -> Result<(), LocalError> {
+    make_room(&mut lock(&LOADED), None, model, need)
 }
 
 /// Runs `work` in a GPU turn at `priority`, the shim's checkpoints stepping aside at that priority.
@@ -263,13 +259,14 @@ pub fn touch(app: &AppHandle, kind: Kind) {
     }
 }
 
-/// The slot of `role` holding `path` at `context` tokens, loading it (after making room) when it isn't already.
+/// The slot of `role` holding `path` at `context` tokens, loading it (after making room, a chat fitted down if it must be)
+/// when it isn't already.
 fn open(loaded: &mut HashMap<Role, Slot>, role: Role, model: &str, path: &Path, context: c_int) -> Result<Arc<Engine>, LocalError> {
     let fresh = loaded.get(&role).is_some_and(|s| s.path == path && s.context == context);
     if !fresh {
         loaded.remove(&role);
-        make_room(loaded, role, model)?;
-        let handle = load(role, model, || open_handle(role, path, context))?;
+        let fitted = fit(loaded, role, model, path, context)?;
+        let handle = load(role, model, || open_handle(role, path, fitted))?;
         loaded.insert(role, Slot { model: model.to_string(), path: path.to_path_buf(), context, engine: Arc::new(Engine(handle)), used: Instant::now() });
     }
     let slot = loaded.get_mut(&role).ok_or(LocalError::NotDownloaded)?;
@@ -281,7 +278,7 @@ fn open(loaded: &mut HashMap<Role, Slot>, role: Role, model: &str, path: &Path, 
 fn open_voice(loaded: &mut HashMap<Role, Slot>, model: &str, path: &Path, projector: &Path) -> Result<Arc<Engine>, LocalError> {
     if loaded.get(&Role::Voice).is_none_or(|s| s.path != path) {
         loaded.remove(&Role::Voice);
-        make_room(loaded, Role::Voice, model)?;
+        make_room(loaded, Some(Role::Voice), model, measure(Role::Voice, path, 0, Some(projector))?)?;
         let handle = load(Role::Voice, model, || open_voice_handle(path, projector))?;
         loaded.insert(Role::Voice, Slot { model: model.to_string(), path: path.to_path_buf(), context: 0, engine: Arc::new(Engine(handle)), used: Instant::now() });
     }
@@ -290,16 +287,47 @@ fn open_voice(loaded: &mut HashMap<Role, Slot>, model: &str, path: &Path, projec
     Ok(Arc::clone(&slot.engine))
 }
 
-/// Frees the least recently used other models until `model` fits in the memory the app may still use; refuses when even
-/// then it doesn't. Unknown available memory (0) lets the load go ahead.
-fn make_room(loaded: &mut HashMap<Role, Slot>, role: Role, model: &str) -> Result<(), LocalError> {
-    let need = lock(&COSTS).get(model).copied().unwrap_or_else(|| role.first_guess()) + HEADROOM;
+/// The context `model` loads at: `context`, else halved down to `MIN_CHAT_CONTEXT` (chat only) until llama.cpp's measured
+/// cost fits after making room.
+fn fit(loaded: &mut HashMap<Role, Slot>, role: Role, model: &str, path: &Path, context: c_int) -> Result<c_int, LocalError> {
+    let mut tokens = context;
+    loop {
+        let fits = make_room(loaded, Some(role), model, measure(role, path, tokens, None)?);
+        let smaller = tokens / 2;
+        match fits {
+            Ok(()) => {
+                if tokens != context {
+                    log_memory(&format!("{model}: context fitted to {tokens} of {context} tokens"));
+                }
+                return Ok(tokens);
+            }
+            Err(error) if role != Role::Chat || smaller < MIN_CHAT_CONTEXT => return Err(error),
+            Err(_) => tokens = smaller,
+        }
+    }
+}
+
+/// What opening `path` in `role`'s settings at `context` tokens adds to the app's memory: llama.cpp's own dry run (KV cache
+/// and compute buffers; mapped weights don't count), plus a voice's projector, which is read into memory.
+fn measure(role: Role, path: &Path, context: c_int, projector: Option<&Path>) -> Result<u64, LocalError> {
+    let path = to_c_path(path)?;
+    let projector = projector.map(to_c_path).transpose()?;
+    let projector_ptr = projector.as_ref().map_or(std::ptr::null(), |p| p.as_ptr());
+    // SAFETY: valid C strings (or null) for the call; the returned string is ours to free.
+    let measured = take(unsafe { sys::roci_llama_measure(role as c_int, path.as_ptr(), context, projector_ptr) })?;
+    measured["bytes"].as_u64().ok_or_else(|| LocalError::Engine("llama.cpp measured no memory".into()))
+}
+
+/// Frees the least recently used models (other than `keep`'s) until `need` bytes and `HEADROOM` fit in the memory the app
+/// may still use; refuses when even then they don't. Unknown available memory (0) lets the load go ahead.
+fn make_room(loaded: &mut HashMap<Role, Slot>, keep: Option<Role>, model: &str, need: u64) -> Result<(), LocalError> {
+    let need = need + HEADROOM;
     loop {
         let available = reading("available");
         if available == 0 || available >= need {
             return Ok(());
         }
-        let Some(oldest) = loaded.iter().filter(|(r, _)| **r != role).min_by_key(|(_, s)| s.used).map(|(r, _)| *r) else {
+        let Some(oldest) = loaded.iter().filter(|(r, _)| Some(**r) != keep).min_by_key(|(_, s)| s.used).map(|(r, _)| *r) else {
             log_memory(&format!("refused {model}: needs {} MB", need >> 20));
             return Err(LocalError::Engine("There isn't enough free memory to load this model right now.".into()));
         };
@@ -308,16 +336,14 @@ fn make_room(loaded: &mut HashMap<Role, Slot>, role: Role, model: &str) -> Resul
     }
 }
 
-/// Loads with `open`, reporting the start and its outcome, and learns the model's cost from the footprint it added.
+/// Loads with `open`, reporting the start and its outcome, and logs the footprint it added (beside llama.cpp's measurement).
 fn load(role: Role, model: &str, open: impl FnOnce() -> Result<Handle, LocalError>) -> Result<Handle, LocalError> {
     report(role, model, "loading");
     let before = reading("footprint");
     let opened = open();
     report(role, model, if opened.is_ok() { "loaded" } else { "failed" });
     if opened.is_ok() {
-        let cost = reading("footprint").saturating_sub(before);
-        lock(&COSTS).insert(model.to_string(), cost.max(role.first_guess() / 4));
-        log_memory(&format!("loaded {model} (+{} MB)", cost >> 20));
+        log_memory(&format!("loaded {model} (+{} MB)", reading("footprint").saturating_sub(before) >> 20));
     }
     opened
 }
