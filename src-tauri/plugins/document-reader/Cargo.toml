@@ -1,0 +1,13 @@
+[package]
+name = "document-reader"
+version = "0.1.0"
+edition = "2021"
+description = "Reads the text of the documents Roci keeps: a PDF's pages through Apple's PDFKit (macOS and iOS), over a C bridge"
+links = "document-reader"
+
+[build-dependencies]
+apple-build = { path = "../apple-build" }
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

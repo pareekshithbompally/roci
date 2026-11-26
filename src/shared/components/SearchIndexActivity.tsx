@@ -7,6 +7,7 @@ import { activityStore } from '@shared/stores/activityStore';
 const ROWS = {
   meetings: { id: 'search-index-meetings', label: 'Indexing meetings' },
   chats: { id: 'search-index-chats', label: 'Indexing chats' },
+  documents: { id: 'search-index-documents', label: 'Indexing documents' },
 } as const;
 
 const clear = () => Object.values(ROWS).forEach((row) => activityStore.remove(row.id));
@@ -23,7 +24,7 @@ function show({ kind, current, total, done }: IndexProgress): void {
     activityStore.update(row.id, { step, percent });
     return;
   }
-  // Moving on to chats: the meetings row is finished.
+  // Moving on to the next kind: the one before is finished.
   clear();
   activityStore.add({ id: row.id, type: 'indexing', label: row.label, status: 'active', percent, step, detail: null, error: null, actions: [] });
 }

@@ -441,12 +441,17 @@ pub(crate) fn move_inline_attachments(db: &Connection, root: &Path) -> Result<us
 
 #[tauri::command]
 pub async fn assets_create(state: State<'_, StoreState>, asset: NewAsset) -> Result<String, StoreError> {
-    on_db(&state, move |db| {
+    let kept = asset.kept;
+    let id = on_db(&state, move |db| {
         let id = crate::commands::generate_id();
         create(db, &id, &asset, now_millis())?;
         Ok(id)
     })
-    .await
+    .await?;
+    if kept {
+        crate::changes::notify_file_kept(&id);
+    }
+    Ok(id)
 }
 
 /// The Gallery a page at a time.

@@ -13,6 +13,10 @@ export const queryKeys = {
   dictations: () => ['dictations'] as const,
   /** The Knowledge library: every file kept there, newest first */
   knowledgeLibrary: () => ['knowledge-library'] as const,
+  /** How far indexing each source of a kind has got; read again when Rust reports a change */
+  sourceStates: (kind: string) => ['knowledge-library', 'states', kind] as const,
+  /** The sources about the same thing as one; under the library, so a change there reads them again */
+  relatedSources: (kind: string, id: string) => ['knowledge-library', 'related', kind, id] as const,
   /** Settings › Personalization › Memory, and what chat reads of it. */
   memories: () => ['memories'] as const,
   /** The knowledge graph drawn around `focus` (null: the whole graph) and one entity's detail: under `memories`, so a memory

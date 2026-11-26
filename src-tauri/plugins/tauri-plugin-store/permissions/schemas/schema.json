@@ -487,6 +487,18 @@
           "markdownDescription": "Denies the get_usage_summary command without any pre-configured scope."
         },
         {
+          "description": "Enables the index_states command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-index-states",
+          "markdownDescription": "Enables the index_states command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the index_states command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-index-states",
+          "markdownDescription": "Denies the index_states command without any pre-configured scope."
+        },
+        {
           "description": "Enables the index_stats command without any pre-configured scope.",
           "type": "string",
           "const": "allow-index-stats",
@@ -835,6 +847,18 @@
           "markdownDescription": "Denies the providers_upsert command without any pre-configured scope."
         },
         {
+          "description": "Enables the related_sources command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-related-sources",
+          "markdownDescription": "Enables the related_sources command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the related_sources command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-related-sources",
+          "markdownDescription": "Denies the related_sources command without any pre-configured scope."
+        },
+        {
           "description": "Enables the reminders_due command without any pre-configured scope.",
           "type": "string",
           "const": "allow-reminders-due",
@@ -1063,10 +1087,10 @@
           "markdownDescription": "Denies the unpriced_usage command without any pre-configured scope."
         },
         {
-          "description": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-index-stats`\n- `allow-meetings-get`\n- `allow-meetings-existing`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-meetings-create`\n- `allow-meetings-begin-step`\n- `allow-meetings-end-step`\n- `allow-meetings-rename`\n- `allow-transcripts-save`\n- `allow-summaries-save`\n- `allow-assets-create`\n- `allow-assets-page`\n- `allow-assets-count`\n- `allow-assets-exists`\n- `allow-assets-library`\n- `allow-assets-delete`\n- `allow-notices-owed`\n- `allow-notices-cleared`\n- `allow-storage-purge`\n- `allow-storage-usage`\n- `allow-memory-graph`\n- `allow-memories-upsert`\n- `allow-memories-delete`\n- `allow-memories-delete-all`\n- `allow-knowledge-find`\n- `allow-knowledge-entity`\n- `allow-knowledge-graph`\n- `allow-categories-list`\n- `allow-items-page`\n- `allow-items-by-id`\n- `allow-items-count`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-dictations-list`\n- `allow-dictations-create`\n- `allow-dictations-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-get`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-delete`\n- `allow-search-sessions`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-get-session-usage`\n- `allow-unpriced-usage`\n- `allow-set-usage-costs`",
+          "description": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-index-stats`\n- `allow-meetings-get`\n- `allow-meetings-existing`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-meetings-create`\n- `allow-meetings-begin-step`\n- `allow-meetings-end-step`\n- `allow-meetings-rename`\n- `allow-transcripts-save`\n- `allow-summaries-save`\n- `allow-assets-create`\n- `allow-assets-page`\n- `allow-assets-count`\n- `allow-assets-exists`\n- `allow-assets-library`\n- `allow-assets-delete`\n- `allow-index-states`\n- `allow-related-sources`\n- `allow-notices-owed`\n- `allow-notices-cleared`\n- `allow-storage-purge`\n- `allow-storage-usage`\n- `allow-memory-graph`\n- `allow-memories-upsert`\n- `allow-memories-delete`\n- `allow-memories-delete-all`\n- `allow-knowledge-find`\n- `allow-knowledge-entity`\n- `allow-knowledge-graph`\n- `allow-categories-list`\n- `allow-items-page`\n- `allow-items-by-id`\n- `allow-items-count`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-dictations-list`\n- `allow-dictations-create`\n- `allow-dictations-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-get`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-delete`\n- `allow-search-sessions`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-get-session-usage`\n- `allow-unpriced-usage`\n- `allow-set-usage-costs`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-index-stats`\n- `allow-meetings-get`\n- `allow-meetings-existing`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-meetings-create`\n- `allow-meetings-begin-step`\n- `allow-meetings-end-step`\n- `allow-meetings-rename`\n- `allow-transcripts-save`\n- `allow-summaries-save`\n- `allow-assets-create`\n- `allow-assets-page`\n- `allow-assets-count`\n- `allow-assets-exists`\n- `allow-assets-library`\n- `allow-assets-delete`\n- `allow-notices-owed`\n- `allow-notices-cleared`\n- `allow-storage-purge`\n- `allow-storage-usage`\n- `allow-memory-graph`\n- `allow-memories-upsert`\n- `allow-memories-delete`\n- `allow-memories-delete-all`\n- `allow-knowledge-find`\n- `allow-knowledge-entity`\n- `allow-knowledge-graph`\n- `allow-categories-list`\n- `allow-items-page`\n- `allow-items-by-id`\n- `allow-items-count`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-dictations-list`\n- `allow-dictations-create`\n- `allow-dictations-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-get`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-delete`\n- `allow-search-sessions`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-get-session-usage`\n- `allow-unpriced-usage`\n- `allow-set-usage-costs`"
+          "markdownDescription": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-index-stats`\n- `allow-meetings-get`\n- `allow-meetings-existing`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-meetings-create`\n- `allow-meetings-begin-step`\n- `allow-meetings-end-step`\n- `allow-meetings-rename`\n- `allow-transcripts-save`\n- `allow-summaries-save`\n- `allow-assets-create`\n- `allow-assets-page`\n- `allow-assets-count`\n- `allow-assets-exists`\n- `allow-assets-library`\n- `allow-assets-delete`\n- `allow-index-states`\n- `allow-related-sources`\n- `allow-notices-owed`\n- `allow-notices-cleared`\n- `allow-storage-purge`\n- `allow-storage-usage`\n- `allow-memory-graph`\n- `allow-memories-upsert`\n- `allow-memories-delete`\n- `allow-memories-delete-all`\n- `allow-knowledge-find`\n- `allow-knowledge-entity`\n- `allow-knowledge-graph`\n- `allow-categories-list`\n- `allow-items-page`\n- `allow-items-by-id`\n- `allow-items-count`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-dictations-list`\n- `allow-dictations-create`\n- `allow-dictations-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-get`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-delete`\n- `allow-search-sessions`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-get-session-usage`\n- `allow-unpriced-usage`\n- `allow-set-usage-costs`"
         }
       ]
     }

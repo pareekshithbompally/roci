@@ -20,6 +20,8 @@ const COMMANDS: &[&str] = &[
     "assets_exists",
     "assets_library",
     "assets_delete",
+    "index_states",
+    "related_sources",
     "notices_owed",
     "notices_cleared",
     "storage_purge",

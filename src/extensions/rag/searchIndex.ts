@@ -71,7 +71,7 @@ export async function rebuildSearchIndex(scope: RebuildScope): Promise<void> {
 
 /** A rebuild's progress: which kind and how far, then `done`. */
 export interface IndexProgress {
-  kind: 'meetings' | 'chats' | null;
+  kind: 'meetings' | 'chats' | 'documents' | null;
   current: number;
   total: number;
   done: boolean;

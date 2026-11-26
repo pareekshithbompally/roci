@@ -351,6 +351,9 @@ pub struct ChunkData {
     pub embedding: Option<Vec<f32>>,
     pub start_pos: Option<i32>,
     pub end_pos: Option<i32>,
+    /// The page it is on (a PDF's, from 1); none for a source without pages.
+    #[serde(default)]
+    pub page: Option<i32>,
 }
 
 /// The search index as Settings shows it: meetings and chats that have pieces, and how many pieces of each kind.
@@ -1875,12 +1878,14 @@ pub struct ItemCursor {
     pub id: String,
 }
 
-/// One kind of item: a meeting (by when it was made) or a chat that has messages (by its last message).
+/// One kind of item: a meeting (by when it was made) or a chat that has messages (by its last message); and, for the search
+/// index only, a file kept in the Knowledge library (no list shows it as an item).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ItemKind {
     Meeting,
     Chat,
+    File,
 }
 
 impl ItemKind {
@@ -1889,14 +1894,16 @@ impl ItemKind {
         match self {
             ItemKind::Meeting => "meeting",
             ItemKind::Chat => "chat",
+            ItemKind::File => "file",
         }
     }
 
     /// Whether the item with this id is still there (an indexer that read it may write after it was deleted).
-    fn exists(self, db: &Connection, id: &str) -> Result<bool, StoreError> {
+    pub(crate) fn exists(self, db: &Connection, id: &str) -> Result<bool, StoreError> {
         let sql = match self {
             ItemKind::Meeting => "SELECT EXISTS (SELECT 1 FROM meetings WHERE id = ?1)",
             ItemKind::Chat => "SELECT EXISTS (SELECT 1 FROM chats WHERE id = ?1)",
+            ItemKind::File => "SELECT EXISTS (SELECT 1 FROM assets WHERE id = ?1 AND kind = 'file' AND kept = 1)",
         };
         Ok(db.query_row(sql, [id], |row| row.get(0))?)
     }
@@ -2021,6 +2028,7 @@ fn items_by_id_impl(db: &Connection, kind: ItemKind, ids: &[String]) -> Result<V
     Ok(match kind {
         ItemKind::Meeting => meeting_rows(db, "WHERE m.id IN (SELECT value FROM json_each(?1))", [ids_json])?.into_iter().map(Item::Meeting).collect(),
         ItemKind::Chat => chat_rows(db, "WHERE c.id IN (SELECT value FROM json_each(?1))", [ids_json])?.into_iter().map(Item::Chat).collect(),
+        ItemKind::File => Vec::new(),
     })
 }
 
@@ -2338,9 +2346,9 @@ fn put_vector(tx: &Connection, kind: ItemKind, chunk_id: i64, embedding: &[f32])
 fn insert_chunk(tx: &Connection, meeting_id: &str, chunk_index: i32, chunk: &ChunkData) -> Result<(), StoreError> {
     let kind = ItemKind::Meeting;
     tx.execute(
-        "INSERT INTO chunks (owner_kind, owner_id, chunk_index, chunk_text, chunk_type, start_pos, end_pos)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        rusqlite::params![kind.index_kind(), meeting_id, chunk_index, chunk.chunk_text, chunk.chunk_type, chunk.start_pos, chunk.end_pos],
+        "INSERT INTO chunks (owner_kind, owner_id, chunk_index, chunk_text, chunk_type, start_pos, end_pos, page)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        rusqlite::params![kind.index_kind(), meeting_id, chunk_index, chunk.chunk_text, chunk.chunk_type, chunk.start_pos, chunk.end_pos, chunk.page],
     )?;
     match &chunk.embedding {
         Some(embedding) => put_vector(tx, kind, tx.last_insert_rowid(), embedding),
@@ -2738,8 +2746,8 @@ pub(crate) fn save_chunks(tx: &Connection, owner: ItemKind, owner_id: &str, chun
             }
         };
         tx.execute(
-            "UPDATE chunks SET start_pos = ?2, end_pos = ?3 WHERE id = ?1 AND (start_pos IS NOT ?2 OR end_pos IS NOT ?3)",
-            rusqlite::params![chunk_id, chunk.start_pos, chunk.end_pos],
+            "UPDATE chunks SET start_pos = ?2, end_pos = ?3, page = ?4 WHERE id = ?1 AND (start_pos IS NOT ?2 OR end_pos IS NOT ?3 OR page IS NOT ?4)",
+            rusqlite::params![chunk_id, chunk.start_pos, chunk.end_pos, chunk.page],
         )?;
         if let Some(embedding) = &chunk.embedding {
             put_vector(tx, owner, chunk_id, embedding)?;
@@ -3060,7 +3068,7 @@ pub(crate) mod tests {
     }
 
     fn stretch(text: &str) -> ChunkData {
-        ChunkData { chunk_index: 99, chunk_text: text.into(), chunk_type: "transcript".into(), embedding: None, start_pos: None, end_pos: None }
+        ChunkData { chunk_index: 99, chunk_text: text.into(), chunk_type: "transcript".into(), embedding: None, start_pos: None, end_pos: None, page: None }
     }
 
     fn chunk_texts(conn: &Connection, meeting_id: &str) -> Vec<(i32, String)> {
@@ -3644,7 +3652,7 @@ pub(crate) mod tests {
     }
 
     fn turn(index: i32, text: &str, embedded: bool) -> ChunkData {
-        ChunkData { chunk_index: index, chunk_text: text.into(), chunk_type: "turn".into(), embedding: embedded.then(|| vec![0.5; crate::schema::DEFAULT_DIM as usize]), start_pos: None, end_pos: None }
+        ChunkData { chunk_index: index, chunk_text: text.into(), chunk_type: "turn".into(), embedding: embedded.then(|| vec![0.5; crate::schema::DEFAULT_DIM as usize]), start_pos: None, end_pos: None, page: None }
     }
 
     #[test]

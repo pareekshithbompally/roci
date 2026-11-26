@@ -1,7 +1,7 @@
 /** Knowledge: the documents you add, newest first, searchable by name; Dictations' shape. Mac: the list beside the open
  *  document, and files dropped anywhere on the screen are added; iPhone: the list, then one document pushed. + adds files
- *  (PDF, text, Markdown). A document opens to its name, kind · size · day, and its pages (a PDF as WebKit draws it) or its
- *  words; Delete. */
+ *  (PDF, text, Markdown). Each says how far indexing it has got. A document opens to its name, kind · size · day, its pages
+ *  (a PDF as WebKit draws it) or its words, then what is related to it; Delete. */
 
 import React, { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -15,17 +15,20 @@ import { queryKeys } from '@shared/query/queryKeys';
 import { formatDayLabel, formatFileSize } from '@shared/utils/formatters';
 import { fileExtension } from '@shared/utils/file.utils';
 import { assetsService, type KnowledgeDocument } from '@services/storage';
+import type { SourceStatus } from '@shared/types/native';
 import { platform } from '@platform/index';
 import { LAYOUT } from '@config/layout.config';
 import { KNOWLEDGE_LIBRARY } from '@config/knowledgeLibrary.config';
 import { useKnowledge } from '@features/knowledge/hooks/useKnowledge';
+import { RelatedSources } from '@features/knowledge/components/RelatedSources';
 
-/** "PDF · 1.2 MB · Today". */
-function factsOf(document: KnowledgeDocument): string {
+/** "PDF · 1.2 MB · Today · Ready": a document still saving or not yet indexed says Indexing…. */
+function factsOf(document: KnowledgeDocument, status: SourceStatus | undefined): string {
   return [
     fileExtension(document.name).toUpperCase(),
     document.bytes !== undefined && formatFileSize(document.bytes),
     formatDayLabel(document.createdAt),
+    KNOWLEDGE_LIBRARY.states[status?.state ?? 'pending'],
   ].filter(Boolean).join(' · ');
 }
 
@@ -34,12 +37,14 @@ const isMarkdown = (document: KnowledgeDocument) =>
 
 interface DocumentListProps {
   documents: KnowledgeDocument[];
+  statusOf: (id: string) => SourceStatus | undefined;
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
 
-/** The documents under one heading, each its name with kind · size · day under it; one still being saved can't be opened yet. */
-const DocumentList: React.FC<DocumentListProps> = ({ documents, selectedId, onSelect }) => (
+/** The documents under one heading, each its name with kind · size · day · state under it; one still being saved can't be
+ *  opened yet. */
+const DocumentList: React.FC<DocumentListProps> = ({ documents, statusOf, selectedId, onSelect }) => (
   <section>
     <Text as="h2" variant="label" tone="muted" className="px-2.5 pb-1">{KNOWLEDGE_LIBRARY.documents}</Text>
     {documents.map((document) => (
@@ -51,7 +56,7 @@ const DocumentList: React.FC<DocumentListProps> = ({ documents, selectedId, onSe
         onClick={() => onSelect(document.id)}
       >
         <Text as="span" truncate className="block">{document.name}</Text>
-        <Text as="span" variant="helper" tone="muted" truncate className="block">{factsOf(document)}</Text>
+        <Text as="span" variant="helper" tone="muted" truncate className="block">{factsOf(document, statusOf(document.id))}</Text>
       </Row>
     ))}
   </section>
@@ -87,17 +92,27 @@ const DocumentText: React.FC<{ document: KnowledgeDocument }> = ({ document }) =
   return <Text as="p" variant="reading" className={`select-text whitespace-pre-wrap ${gutter}`}>{text}</Text>;
 };
 
-/** The document's name as the title, kind · size · day under it, then its pages or words. */
-const DocumentDetail: React.FC<{ document: KnowledgeDocument; onDelete: () => void }> = ({ document, onDelete }) => (
+interface DocumentDetailProps {
+  document: KnowledgeDocument;
+  status: SourceStatus | undefined;
+  onDelete: () => void;
+  onOpenDocument: (id: string) => void;
+}
+
+/** The document's name as the title, kind · size · day · state under it (why, when it couldn't be read), then its pages or
+ *  words, then what is related. */
+const DocumentDetail: React.FC<DocumentDetailProps> = ({ document, status, onDelete, onOpenDocument }) => (
   <article className="flex h-full flex-col">
     <Surface as="header" edge="bottom" className={`flex items-start gap-2 ${LAYOUT.listGutter} py-4`}>
       <div className="min-w-0 flex-1">
         <Text as="h2" variant="title" truncate>{document.name}</Text>
-        <Text variant="helper" tone="muted">{factsOf(document)}</Text>
+        <Text variant="helper" tone="muted">{factsOf(document, status)}</Text>
+        {status?.error && <Text variant="helper" tone="muted">{status.error}</Text>}
       </div>
       <IconButton icon={Trash2} label={KNOWLEDGE_LIBRARY.delete} size="sm" variant="dangerGhost" onClick={onDelete} />
     </Surface>
     {document.format === 'pdf' ? <DocumentPdf document={document} /> : <DocumentText document={document} />}
+    <RelatedSources id={document.id} ready={status?.state === 'ready'} onOpenDocument={onOpenDocument} />
   </article>
 );
 
@@ -106,7 +121,7 @@ const carriesFiles = (event: React.DragEvent) => event.dataTransfer.types.includ
 
 export const KnowledgeView: React.FC = () => {
   const [query, setQuery] = useState('');
-  const { documents, hasAny, isLoading, addFiles, remove } = useKnowledge(query);
+  const { documents, hasAny, isLoading, statusOf, addFiles, remove } = useKnowledge(query);
   const beside = useListBesideDetail();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const picker = useRef<HTMLInputElement>(null);
@@ -146,7 +161,7 @@ export const KnowledgeView: React.FC = () => {
       <SearchField value={query} onChange={setQuery} onCancel={() => setQuery('')} placeholder={KNOWLEDGE_LIBRARY.searchPlaceholder} />
       <PageScroll underTitlebar={false} className="min-h-0 flex-1 pb-2">
         {documents.length > 0
-          ? <DocumentList documents={documents} selectedId={selected?.id ?? null} onSelect={setSelectedId} />
+          ? <DocumentList documents={documents} statusOf={statusOf} selectedId={selected?.id ?? null} onSelect={setSelectedId} />
           : <Text as="p" variant="helper" tone="muted" className="px-2.5 py-2">{KNOWLEDGE_LIBRARY.noMatch}</Text>}
       </PageScroll>
     </>
@@ -166,7 +181,14 @@ export const KnowledgeView: React.FC = () => {
       accessory={addButton}
       list={searchAndList}
       listClassName={KNOWLEDGE_LIBRARY.listColumn}
-      detail={selected && <DocumentDetail document={selected} onDelete={() => void deleteDocument(selected)} />}
+      detail={selected && (
+        <DocumentDetail
+          document={selected}
+          status={statusOf(selected.id)}
+          onDelete={() => void deleteDocument(selected)}
+          onOpenDocument={setSelectedId}
+        />
+      )}
       onCloseDetail={() => setSelectedId(null)}
     />
   );

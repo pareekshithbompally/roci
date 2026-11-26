@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-related-sources"
+description = "Enables the related_sources command without any pre-configured scope."
+commands.allow = ["related_sources"]
+
+[[permission]]
+identifier = "deny-related-sources"
+description = "Denies the related_sources command without any pre-configured scope."
+commands.deny = ["related_sources"]

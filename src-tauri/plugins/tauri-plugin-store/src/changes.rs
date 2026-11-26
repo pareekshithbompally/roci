@@ -1,5 +1,5 @@
-//! Announces what other Rust code follows (the Spotlight and search indexes): committed meeting writes and chat saves, and
-//! the database opening.
+//! Announces what other Rust code follows (the Spotlight and search indexes): committed meeting writes, chat saves, files
+//! kept in the library, and the database opening.
 
 use crate::commands::{meetings_get_impl, MeetingDetail, StoreState};
 use crate::error::StoreError;
@@ -36,6 +36,7 @@ impl<T: ?Sized> Handlers<T> {
 static MEETING_CHANGED: Handlers<dyn Fn(&MeetingChange) + Send + Sync> = Handlers::new();
 static CHAT_SAVED: Handlers<dyn Fn(&str) + Send + Sync> = Handlers::new();
 static DATABASE_OPEN: Handlers<dyn Fn() + Send + Sync> = Handlers::new();
+static FILE_KEPT: Handlers<dyn Fn(&str) + Send + Sync> = Handlers::new();
 
 /// Register a handler called after every committed meeting write, on the writer's thread.
 pub fn on_meeting_change(handler: impl Fn(&MeetingChange) + Send + Sync + 'static) {
@@ -55,6 +56,16 @@ pub fn on_chat_saved(handler: impl Fn(&str) + Send + Sync + 'static) {
 /// Call after commit and lock release.
 pub(crate) fn notify_chat_saved(id: &str) {
     CHAT_SAVED.all().iter().for_each(|handler| handler(id));
+}
+
+/// Register a handler called after a file is kept in the Knowledge library (its asset id), on the writer's thread.
+pub fn on_file_kept(handler: impl Fn(&str) + Send + Sync + 'static) {
+    FILE_KEPT.add(Arc::new(handler));
+}
+
+/// Call after commit and lock release.
+pub(crate) fn notify_file_kept(id: &str) {
+    FILE_KEPT.all().iter().for_each(|handler| handler(id));
 }
 
 /// Register a handler called once the database is open (at launch, when the webview first asks for it).

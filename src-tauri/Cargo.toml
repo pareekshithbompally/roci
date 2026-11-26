@@ -36,6 +36,7 @@ tauri-plugin-http = { version = "2", features = ["unsafe-headers"] }
 tauri-plugin-opener = "2"
 # Meetings, chats, settings and RAG (SQLite + sqlite-vec).
 tauri-plugin-store = { path = "plugins/tauri-plugin-store" }
+document-reader = { path = "plugins/document-reader" }
 # On-device model (Foundation Models) and speech (SpeechAnalyzer).
 tauri-plugin-apple-intelligence = { path = "plugins/tauri-plugin-apple-intelligence" }
 # Calendar + Reminders (EventKit) and local notifications (UserNotifications).

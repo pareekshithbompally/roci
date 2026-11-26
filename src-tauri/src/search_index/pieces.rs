@@ -1,5 +1,6 @@
-//! How meetings and chats are split into search pieces: sentence pieces with overlap for long text, a meeting's title and
-//! summary as one piece and its notes and to-dos as another, and a chat's turns (a long answer split like a transcript).
+//! How meetings, chats and documents are split into search pieces: sentence pieces with overlap for long text, a meeting's
+//! title and summary as one piece and its notes and to-dos as another, a chat's turns (a long answer split like a
+//! transcript), and a document page by page (each piece keeps its page).
 
 use tauri_plugin_store::index::{ChatLine, MeetingText, ChunkData};
 
@@ -126,7 +127,22 @@ fn piece(index: usize, text: String, kind: &str, span: Option<&Span>) -> ChunkDa
         embedding: None,
         start_pos: span.map(|s| s.start as i32),
         end_pos: span.map(|s| s.end as i32),
+        page: None,
     }
+}
+
+/// A document's pieces: each page split like long text, every piece with its page (from 1) and where it sits on it. A
+/// file without pages (text, Markdown) is one page; pages with no text add nothing.
+pub fn document(pages: &[String], kind: &str) -> Vec<ChunkData> {
+    let mut pieces = Vec::new();
+    for (number, text) in (1..).zip(pages) {
+        for span in split_long(text) {
+            let mut p = piece(pieces.len(), span.text.clone(), kind, Some(&span));
+            p.page = Some(number);
+            pieces.push(p);
+        }
+    }
+    pieces
 }
 
 /// A transcript stretch's pieces, numbered from 0.
@@ -226,6 +242,15 @@ mod tests {
         let words = "word ".repeat(1000);
         let spans = split_long(&words);
         assert!(spans.len() > 1 && spans.iter().all(|s| chars(&s.text) <= bound && !s.text.contains("wor d")));
+    }
+
+    #[test]
+    fn a_documents_pieces_keep_their_pages_and_a_blank_page_adds_nothing() {
+        let long = "A sentence on the second page of the proposal. ".repeat(60);
+        let pieces = document(&["Pricing for Q3.".into(), String::new(), long], "page");
+        assert_eq!(pieces[0].page, Some(1));
+        assert!(pieces.len() > 2 && pieces[1..].iter().all(|p| p.page == Some(3)), "page 2 is blank");
+        assert_eq!(pieces.iter().map(|p| p.chunk_index).collect::<Vec<_>>(), (0..pieces.len() as i32).collect::<Vec<_>>());
     }
 
     #[test]

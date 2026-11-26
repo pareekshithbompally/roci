@@ -1,12 +1,16 @@
-/** The Knowledge library: every document, newest first, narrowed to those whose name contains `query`; Add (each file shows
- *  at once and stays if it saves) and Delete, both optimistic and rolled back on failure. */
+/** The Knowledge library: every document, newest first, narrowed to those whose name contains `query`, with how far indexing
+ *  each has got (read again as Rust reports each change); Add (each file shows at once and stays if it saves) and Delete,
+ *  both optimistic and rolled back on failure. */
 
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { documentsService, documentFormat, type KnowledgeDocument } from '@services/storage';
+import { store } from '@services/db';
 import { isTauriEnvironment } from '@services/tauri';
 import { queryKeys } from '@shared/query/queryKeys';
 import { useToast } from '@shared/contexts/ToastContext';
+import { useTauriEvent } from '@shared/hooks';
+import type { SourceStatus } from '@shared/types/native';
 import { attachmentMediaType } from '@shared/utils/chatParts';
 import { KNOWLEDGE_LIBRARY } from '@config/knowledgeLibrary.config';
 
@@ -33,6 +37,14 @@ export function useKnowledge(query: string) {
     queryFn: () => documentsService.list(KNOWLEDGE_LIBRARY.listLimit),
     enabled: isTauriEnvironment(),
   });
+  const { data: statuses = [] } = useQuery({
+    queryKey: queryKeys.sourceStates('file'),
+    queryFn: () => store.sources.states('file'),
+    enabled: isTauriEnvironment(),
+  });
+  const statusById = useMemo(() => new Map(statuses.map((status) => [status.owner_id, status])), [statuses]);
+  // A document indexed, or one that couldn't be read: its state, and what is related, are read again.
+  useTauriEvent(KNOWLEDGE_LIBRARY.sourceEvent, () => void queryClient.invalidateQueries({ queryKey: key }));
   const documents = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
     return needle ? all.filter((d) => d.name.toLocaleLowerCase().includes(needle)) : all;
@@ -87,5 +99,8 @@ export function useKnowledge(query: string) {
     if (readable.length > 0) add.mutate(readable);
   };
 
-  return { documents, hasAny: all.length > 0, isLoading, addFiles, remove: remove.mutate };
+  /** How far indexing the document has got; none yet means it is still being indexed. */
+  const statusOf = (id: string): SourceStatus | undefined => statusById.get(id);
+
+  return { documents, hasAny: all.length > 0, isLoading, statusOf, addFiles, remove: remove.mutate };
 }

@@ -119,8 +119,9 @@ fn upgrade_from(conn: &Connection, version: u32) -> Result<(), String> {
 }
 
 /// v16 → v17: every kept file lives in one folder, `assets/` (its kind says what it is), a file can be kept in the Knowledge
-/// library, and each indexed source has its index state. The rows point into `assets/` here; the files themselves move at
-/// the next open (`assets::move_into_assets`), outside the transaction. Image paths saved in chats follow.
+/// library, each indexed source has its index state, and a search piece keeps its page. The rows point into `assets/` here;
+/// the files themselves move at the next open (`assets::move_into_assets`), outside the transaction. Image paths saved in
+/// chats follow.
 fn upgrade_v17(conn: &Connection) -> Result<(), String> {
     let tx = conn.unchecked_transaction().map_err(|e| format!("begin v17: {}", e))?;
     let has_kept: bool = tx
@@ -129,6 +130,13 @@ fn upgrade_v17(conn: &Connection) -> Result<(), String> {
         .map_err(|e| format!("v17 read assets: {}", e))?;
     if !has_kept {
         tx.execute_batch("ALTER TABLE assets ADD COLUMN kept INTEGER NOT NULL DEFAULT 0;").map_err(|e| format!("v17 kept: {}", e))?;
+    }
+    let has_page: bool = tx
+        .query_row("SELECT COUNT(*) FROM pragma_table_info('chunks') WHERE name = 'page'", [], |r| r.get::<_, i64>(0))
+        .map(|count| count > 0)
+        .map_err(|e| format!("v17 read chunks: {}", e))?;
+    if !has_page {
+        tx.execute_batch("ALTER TABLE chunks ADD COLUMN page INTEGER;").map_err(|e| format!("v17 page: {}", e))?;
     }
     tx.execute_batch(
         "UPDATE assets SET path = 'assets/' || substr(path, instr(path, '/') + 1)
@@ -273,6 +281,7 @@ const SEARCH_DDL: &str = "
         chunk_type  TEXT    NOT NULL,
         start_pos   INTEGER,
         end_pos     INTEGER,
+        page        INTEGER,
         UNIQUE (owner_kind, owner_id, chunk_index)
     );
     CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(chunk_text, content=chunks, content_rowid=id, prefix='2 3');

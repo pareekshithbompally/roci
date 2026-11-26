@@ -12,6 +12,7 @@ use serde_json::Value;
 use tauri::{AppHandle, Manager, Runtime};
 
 pub use crate::commands::{ChunkData, ItemKind};
+pub use crate::sources::{IndexState, SourceState};
 
 /// A meeting's searchable text.
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -122,13 +123,13 @@ pub fn append_pieces<R: Runtime>(app: &AppHandle<R>, meeting_id: &str, pieces: &
     Ok(())
 }
 
-/// Meetings and chats with a piece that has no vector yet, on an open database.
+/// Sources (meetings, chats, files) with a piece that has no vector yet, on an open database.
 fn without_vectors_impl(db: &Connection) -> Result<Vec<(ItemKind, String)>, StoreError> {
     let rows = db
         .prepare("SELECT DISTINCT c.owner_kind, c.owner_id FROM chunks c WHERE NOT EXISTS (SELECT 1 FROM vec_chunks v WHERE v.chunk_id = c.id)")?
         .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
         .collect::<Result<Vec<_>, _>>()?;
-    let owner = |kind: &str| [ItemKind::Meeting, ItemKind::Chat].into_iter().find(|k| k.index_kind() == kind);
+    let owner = |kind: &str| [ItemKind::Meeting, ItemKind::Chat, ItemKind::File].into_iter().find(|k| k.index_kind() == kind);
     Ok(rows.into_iter().filter_map(|(kind, id)| owner(&kind).map(|k| (k, id))).collect())
 }
 
@@ -137,13 +138,62 @@ pub fn without_vectors<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<(ItemKind, 
     Ok(with_db(app, without_vectors_impl)?.unwrap_or_default())
 }
 
-/// Every meeting or chat (with messages) id, newest first: what a rebuild indexes.
+/// Every meeting, chat (with messages) or library file id, newest first: what a rebuild indexes.
 pub fn all_ids<R: Runtime>(app: &AppHandle<R>, owner: ItemKind) -> Result<Vec<String>, StoreError> {
     let sql = match owner {
         ItemKind::Meeting => "SELECT id FROM meetings ORDER BY created_at DESC",
         ItemKind::Chat => "SELECT c.id FROM chats c WHERE EXISTS (SELECT 1 FROM chat_messages WHERE chat_id = c.id) ORDER BY last_message_at DESC",
+        ItemKind::File => "SELECT id FROM assets WHERE kind = 'file' AND kept = 1 ORDER BY created_at DESC",
     };
     Ok(with_db(app, |db| Ok(db.prepare(sql)?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?))?.unwrap_or_default())
+}
+
+/// A file kept in the library as indexing reads it: where it is (its app-data path) and what it is.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FileSource {
+    pub path: String,
+    pub name: String,
+    pub media_type: String,
+}
+
+/// The library file's path, name and media type; `None` when it isn't kept (gone, or a chat's attachment).
+pub fn file_source<R: Runtime>(app: &AppHandle<R>, id: &str) -> Result<Option<FileSource>, StoreError> {
+    Ok(with_db(app, |db| {
+        Ok(db
+            .query_row(
+                "SELECT path, COALESCE(json_extract(meta, '$.name'), path), COALESCE(json_extract(meta, '$.mediaType'), '')
+                 FROM assets WHERE id = ?1 AND kind = 'file' AND kept = 1",
+                [id],
+                |row| Ok(FileSource { path: row.get(0)?, name: row.get(1)?, media_type: row.get(2)? }),
+            )
+            .optional()?)
+    })?
+    .flatten())
+}
+
+/// What the source was last indexed from (its text's hash, the indexer's version, whether it went well); `None` before its first.
+pub fn state_of<R: Runtime>(app: &AppHandle<R>, owner: ItemKind, id: &str) -> Result<Option<IndexState>, StoreError> {
+    Ok(with_db(app, |db| crate::sources::state_impl(db, owner, id))?.flatten())
+}
+
+/// Records how indexing the source went (nothing for one deleted meanwhile).
+pub fn set_state<R: Runtime>(
+    app: &AppHandle<R>,
+    owner: ItemKind,
+    id: &str,
+    text_hash: &str,
+    version: i64,
+    state: SourceState,
+    error: Option<&str>,
+) -> Result<(), StoreError> {
+    let now = crate::commands::now_millis();
+    with_db(app, |db| crate::sources::set_state_impl(db, owner, id, text_hash, version, state, error, now))?;
+    Ok(())
+}
+
+/// The sources to index at launch: library files not ready at `version`, and meetings and chats that failed.
+pub fn needing_index<R: Runtime>(app: &AppHandle<R>, version: i64) -> Result<Vec<(ItemKind, String)>, StoreError> {
+    Ok(with_db(app, |db| crate::sources::needing_index_impl(db, version))?.unwrap_or_default())
 }
 
 /// Clears one owner's pieces and vectors (a rebuild then indexes everything again).
@@ -231,7 +281,7 @@ mod tests {
         seed_meeting(&conn, "m2");
         let piece = |text: &str, embedded: bool| ChunkData {
             chunk_index: 0, chunk_text: text.into(), chunk_type: "transcript".into(),
-            embedding: embedded.then(|| vec![0.5; crate::schema::DEFAULT_DIM as usize]), start_pos: None, end_pos: None,
+            embedding: embedded.then(|| vec![0.5; crate::schema::DEFAULT_DIM as usize]), start_pos: None, end_pos: None, page: None,
         };
         let tx = conn.unchecked_transaction().unwrap();
         save_chunks(&tx, ItemKind::Meeting, "m1", &[piece("has one", true)]).unwrap();
@@ -248,7 +298,7 @@ mod tests {
             seed_meeting(&conn, id);
         }
         let piece = |text: &str| ChunkData {
-            chunk_index: 0, chunk_text: text.into(), chunk_type: "transcript".into(), embedding: None, start_pos: None, end_pos: None,
+            chunk_index: 0, chunk_text: text.into(), chunk_type: "transcript".into(), embedding: None, start_pos: None, end_pos: None, page: None,
         };
         let tx = conn.unchecked_transaction().unwrap();
         save_chunks(&tx, ItemKind::Meeting, "m1", &[piece("the quarterly budget review")]).unwrap();

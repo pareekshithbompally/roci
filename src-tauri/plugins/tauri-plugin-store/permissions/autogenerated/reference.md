@@ -22,6 +22,8 @@ Allows all store plugin commands
 - `allow-assets-exists`
 - `allow-assets-library`
 - `allow-assets-delete`
+- `allow-index-states`
+- `allow-related-sources`
 - `allow-notices-owed`
 - `allow-notices-cleared`
 - `allow-storage-purge`
@@ -490,6 +492,32 @@ Enables the get_usage_summary command without any pre-configured scope.
 <td>
 
 Denies the get_usage_summary command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-index-states`
+
+</td>
+<td>
+
+Enables the index_states command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-index-states`
+
+</td>
+<td>
+
+Denies the index_states command without any pre-configured scope.
 
 </td>
 </tr>
@@ -1244,6 +1272,32 @@ Enables the providers_upsert command without any pre-configured scope.
 <td>
 
 Denies the providers_upsert command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-related-sources`
+
+</td>
+<td>
+
+Enables the related_sources command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-related-sources`
+
+</td>
+<td>
+
+Denies the related_sources command without any pre-configured scope.
 
 </td>
 </tr>

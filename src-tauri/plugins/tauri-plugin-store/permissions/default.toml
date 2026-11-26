@@ -19,6 +19,8 @@ permissions = [
   "allow-assets-exists",
   "allow-assets-library",
   "allow-assets-delete",
+  "allow-index-states",
+  "allow-related-sources",
   "allow-notices-owed",
   "allow-notices-cleared",
   "allow-storage-purge",

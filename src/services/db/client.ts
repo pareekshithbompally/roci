@@ -16,6 +16,7 @@ import { dictations } from './domains/dictations';
 import { items } from './domains/items';
 import { memories } from './domains/memories';
 import { knowledge } from './domains/knowledge';
+import { sources } from './domains/sources';
 import { usage } from './domains/usage';
 
 export const store = {
@@ -38,6 +39,7 @@ export const store = {
   items,
   memories,
   knowledge,
+  sources,
   assets,
   storage,
   notes,
