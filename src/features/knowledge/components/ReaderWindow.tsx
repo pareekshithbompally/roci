@@ -1,5 +1,6 @@
 /** A Mac reader window's whole app: the document it was opened for (by its app path), at the page asked, its chat open when
- *  asked; Knowledge's later requests for the same document (another page pill, ✦) arrive as `reader://go`. */
+ *  asked (fed Settings' models and providers, as the main window's chat is); Knowledge's later requests for the same
+ *  document (another page pill, ✦) arrive as `reader://go`. */
 
 import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -9,12 +10,14 @@ import { ScreenState } from '@shared/components';
 import { libraryQuery } from '@shared/query/library';
 import { queryKeys } from '@shared/query/queryKeys';
 import { store } from '@services/db';
+import { useChatRuntime } from '@features/chat';
 import { dismissSplash } from '@/src/app/splash';
 import { KNOWLEDGE_LIBRARY, READER } from '@config/knowledgeLibrary.config';
 import type { ReaderRequest } from '@features/knowledge/reader';
 import { DocumentReader } from './DocumentReader';
 
 export const ReaderWindow: React.FC<{ request: ReaderRequest }> = ({ request }) => {
+  useChatRuntime();
   const [shown, setShown] = useState(request);
   const { data: library, isPending } = useQuery(libraryQuery);
   const { data: statuses = [] } = useQuery({ queryKey: queryKeys.sourceStates('file'), queryFn: () => store.sources.states('file') });
