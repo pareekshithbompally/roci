@@ -11,6 +11,9 @@ fn main() {
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("ios") {
         compile_ios_webview();
     }
+    if matches!(std::env::var("CARGO_CFG_TARGET_OS").as_deref(), Ok("macos" | "ios")) {
+        compile_downloads();
+    }
     emit_identity();
     println!("cargo:rerun-if-changed=icons");
 
@@ -60,6 +63,17 @@ fn link_clang_runtime() {
     assert!(output.status.success(), "xcrun clang --print-file-name failed");
     let runtime = String::from_utf8(output.stdout).expect("clang prints a UTF-8 path");
     println!("cargo:rustc-link-arg={}", runtime.trim());
+}
+
+/// Model downloads on the system's background URLSession (native/RociDownloads.swift), Mac, iPhone and iPad alike.
+fn compile_downloads() {
+    apple_build::SwiftLibrary {
+        name: "roci_downloads",
+        module: "RociDownloads",
+        sources: &["native/RociDownloads.swift"],
+        frameworks: &["Foundation"],
+    }
+    .build();
 }
 
 /// The iOS web view's keyboard behaviour (native/RociWebView.swift): pinned page, resized above the keyboard, no form bar.

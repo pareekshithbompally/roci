@@ -90,6 +90,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
   // On-device model loads show in the activity tray.
   llama::connect(app.handle());
   // Search: meetings and chats are indexed in Rust as they're saved.
+  // Model downloads: ones that finished while Roci was closed or in the background are put in place.
+  models::store::follow_transfers(app.handle());
   search_index::start(app.handle().clone());
   // MCP: connect the remote servers the user left enabled.
   tauri::async_runtime::spawn(mcp::start_active_servers(app.handle().clone()));

@@ -1,22 +1,22 @@
-//! Model storage in the model directory (Settings; default `<app data>/models`): resumable downloads checked by size and
-//! SHA-256. Roci's own layout keeps a model's files in `<dir>/<id>/`; a Hugging Face cache directory is read and written
+//! Model storage in the model directory (Settings; default `<app data>/models`): downloads over the system's background
+//! transfers (`transfer`), checked by size and SHA-256. Roci's own layout keeps a model's files in `<dir>/<id>/`; a Hugging Face cache directory is read and written
 //! in its layout (`models--org--repo/snapshots/<revision>/<file>` linked to `blobs/<sha256>`), so other apps share them.
 //! Only the catalog's exact files count; nothing else in the directory is looked at.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::{LazyLock, Mutex};
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use objc2_foundation::{NSArray, NSNumber, NSString, NSURL, NSURLVolumeAvailableCapacityForImportantUsageKey};
 use tauri::{AppHandle, Emitter, Manager};
-use tokio::io::AsyncWriteExt;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 
 use super::catalog::{self, LocalModel, ModelFile, Source};
+use super::transfer::{self, key_of, Transfer};
 use super::LocalError;
 use crate::sync::lock;
 
@@ -43,36 +43,24 @@ pub struct DownloadProgress {
     pub error: Option<String>,
 }
 
-/// Cancel flags of the downloads running now, by model id.
+/// The models downloading now.
 #[derive(Default)]
 pub struct Downloads {
-    active: Mutex<HashMap<&'static str, Arc<AtomicBool>>>,
+    active: Mutex<HashSet<&'static str>>,
 }
 
 impl Downloads {
-    /// Registers a download; None when that model is already downloading.
-    pub fn begin(&self, id: &'static str) -> Option<Arc<AtomicBool>> {
-        let mut active = lock(&self.active);
-        if active.contains_key(id) {
-            return None;
-        }
-        let cancel = Arc::new(AtomicBool::new(false));
-        active.insert(id, Arc::clone(&cancel));
-        Some(cancel)
+    /// Registers a download; false when that model is already downloading.
+    pub fn begin(&self, id: &'static str) -> bool {
+        lock(&self.active).insert(id)
     }
 
     pub fn end(&self, id: &str) {
         lock(&self.active).remove(id);
     }
 
-    pub fn cancel(&self, id: &str) {
-        if let Some(flag) = lock(&self.active).get(id) {
-            flag.store(true, Ordering::Relaxed);
-        }
-    }
-
     pub fn is_active(&self, id: &str) -> bool {
-        lock(&self.active).contains_key(id)
+        lock(&self.active).contains(id)
     }
 }
 
@@ -155,9 +143,14 @@ pub fn is_installed(app: &AppHandle, model: &LocalModel) -> bool {
     model.files.iter().all(|f| has_file(app, model, f))
 }
 
-/// Some of the model is here: a whole file, or part of one.
+/// Where the system keeps what arrived of a stopped transfer, to resume from it.
+fn resume_path(part: &Path) -> PathBuf {
+    PathBuf::from(format!("{}.resume", part.display()))
+}
+
+/// Some of the model is here: a whole file, or part of one to resume.
 pub fn is_started(app: &AppHandle, model: &LocalModel) -> bool {
-    model.files.iter().any(|f| has_file(app, model, f) || part_path(app, model, f).is_ok_and(|p| p.exists()))
+    model.files.iter().any(|f| has_file(app, model, f) || part_path(app, model, f).is_ok_and(|p| p.exists() || resume_path(&p).exists()))
 }
 
 /// The path of `file` once every file of `model` is in place; `NotDownloaded` until then.
@@ -188,7 +181,9 @@ pub fn remove(app: &AppHandle, model: &LocalModel) -> Result<(), LocalError> {
         let path = file_path(app, model, file)?;
         let blob = fs::canonicalize(&path).ok();
         remove_if_there(&path)?;
-        remove_if_there(&part_path(app, model, file)?)?;
+        let part = part_path(app, model, file)?;
+        remove_if_there(&resume_path(&part))?;
+        remove_if_there(&part)?;
         if let Some(blob) = blob.filter(|b| *b != path) {
             remove_if_there(&blob)?;
         }
@@ -232,22 +227,11 @@ impl Reporter<'_> {
 }
 
 /// Downloads one model to completion, reporting every step as an event.
-pub async fn download(app: &AppHandle, model: &'static LocalModel, cancel: &AtomicBool) {
+pub async fn download(app: &AppHandle, model: &'static LocalModel) {
     let mut reporter = Reporter { app, model, last_percent: u64::MAX };
-    let outcome = fetch_all(app, model, cancel, &mut reporter).await;
-    match outcome {
-        Ok(state) => {
-            #[cfg(desktop)]
-            if matches!(state, DownloadState::Done) {
-                let kind = model.kind;
-                let _ = tauri::async_runtime::spawn_blocking(move || crate::llama_server::model_changed(kind)).await;
-            }
-            reporter.emit(state, model.bytes(), None);
-            // Search's model is in: the meetings and chats without vectors get them now.
-            if matches!(state, DownloadState::Done) && model.kind == catalog::Kind::Embedding {
-                crate::search_index::embedder_ready();
-            }
-        }
+    match fetch_all(app, model, &mut reporter).await {
+        Ok(DownloadState::Done) => arrived(app, model).await,
+        Ok(state) => reporter.emit(state, model.bytes(), None),
         Err(error) => {
             log::error!("[models] download of {} failed: {error}", model.id);
             reporter.emit(DownloadState::Failed, 0, Some(error.to_string()));
@@ -255,24 +239,106 @@ pub async fn download(app: &AppHandle, model: &'static LocalModel, cancel: &Atom
     }
 }
 
-/// Every file not already in place, in order; Done, or Cancelled midway.
-async fn fetch_all(app: &AppHandle, model: &'static LocalModel, cancel: &AtomicBool, reporter: &mut Reporter<'_>) -> Result<DownloadState, LocalError> {
-    let mut done = 0;
-    for file in model.files {
-        if !has_file(app, model, file) {
-            let (part, target) = (part_path(app, model, file)?, file_path(app, model, file)?);
-            for dir in [part.parent(), target.parent()].into_iter().flatten() {
-                fs::create_dir_all(dir)?;
+/// Stops a model's transfers; what arrived is kept and resumed by its next download.
+pub fn cancel(model: &LocalModel) {
+    model.files.iter().for_each(|file| transfer::cancel(&key_of(model.id, file.name)));
+}
+
+/// Once at launch: a file that finishes while no download waits for it (Roci was closed, or another file of the model
+/// failed) is checked and put in place, and a model whole by then counts as downloaded.
+pub fn follow_transfers(app: &AppHandle) {
+    let app = app.clone();
+    transfer::connect(move |key, outcome| {
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Err(error) = adopt(&app, &key, outcome).await {
+                log::error!("[models] the finished download of {key} couldn't be kept: {error}");
             }
-            if !fetch(&model.url(file), file, &part, done, cancel, reporter).await? {
+        });
+    });
+}
+
+async fn adopt(app: &AppHandle, key: &str, outcome: Transfer) -> Result<(), LocalError> {
+    let Some((model, file)) = catalog::MODELS.iter().find_map(|m| m.files.iter().find(|f| key_of(m.id, f.name) == key).map(|f| (m, f))) else {
+        return Ok(());
+    };
+    match outcome {
+        Transfer::Finished => {
+            place_download(app, model, file).await?;
+            if is_installed(app, model) {
+                arrived(app, model).await;
+            }
+        }
+        Transfer::Failed(reason) => log::warn!("[models] {key} stopped while nothing waited for it: {reason}"),
+        Transfer::Progress(_) | Transfer::Cancelled => {}
+    }
+    Ok(())
+}
+
+/// A model with every file in place: its engine learns of it, the screen hears Done, and the search model starts indexing.
+async fn arrived(app: &AppHandle, model: &'static LocalModel) {
+    #[cfg(desktop)]
+    {
+        let kind = model.kind;
+        let _ = tauri::async_runtime::spawn_blocking(move || crate::llama_server::model_changed(kind)).await;
+    }
+    Reporter { app, model, last_percent: u64::MAX }.emit(DownloadState::Done, model.bytes(), None);
+    // Search's model is in: the meetings and chats without vectors get them now.
+    if model.kind == catalog::Kind::Embedding {
+        crate::search_index::embedder_ready();
+    }
+}
+
+/// Every file not already in place, all at once (each carries on in the background); Done, or Cancelled midway.
+async fn fetch_all(app: &AppHandle, model: &'static LocalModel, reporter: &mut Reporter<'_>) -> Result<DownloadState, LocalError> {
+    let missing: Vec<&ModelFile> = model.files.iter().filter(|f| !has_file(app, model, f)).collect();
+    let mut placed = model.bytes() - missing.iter().map(|f| f.bytes).sum::<u64>();
+    let (events, mut arrivals) = unbounded_channel();
+    for file in &missing {
+        start_file(app, model, file, events.clone())?;
+    }
+    drop(events);
+    let mut received: HashMap<String, u64> = HashMap::new();
+    let mut left = missing.len();
+    while left > 0 {
+        let Some((key, outcome)) = arrivals.recv().await else {
+            return Err(LocalError::Download("the download stopped".into()));
+        };
+        let Some(file) = missing.iter().find(|f| key_of(model.id, f.name) == key) else { continue };
+        match outcome {
+            Transfer::Progress(bytes) => {
+                received.insert(key, bytes);
+                reporter.progress(placed + received.values().sum::<u64>());
+            }
+            Transfer::Finished => {
+                received.remove(&key);
+                reporter.emit(DownloadState::Verifying, placed + file.bytes, None);
+                place_download(app, model, file).await?;
+                placed += file.bytes;
+                left -= 1;
+            }
+            Transfer::Cancelled => {
+                cancel(model);
                 return Ok(DownloadState::Cancelled);
             }
-            reporter.emit(DownloadState::Verifying, done + file.bytes, None);
-            verify_and_place(file, &part, &target).await?;
+            Transfer::Failed(reason) => return Err(LocalError::Download(format!("{}: {reason}", file.name))),
         }
-        done += file.bytes;
     }
     Ok(DownloadState::Done)
+}
+
+/// Starts (or rejoins) one file's transfer into its part path.
+fn start_file(app: &AppHandle, model: &LocalModel, file: &ModelFile, events: UnboundedSender<(String, Transfer)>) -> Result<(), LocalError> {
+    let (part, target) = (part_path(app, model, file)?, file_path(app, model, file)?);
+    for dir in [part.parent(), target.parent()].into_iter().flatten() {
+        fs::create_dir_all(dir)?;
+    }
+    transfer::start(&key_of(model.id, file.name), &model.url(file), &part.to_string_lossy(), events)
+}
+
+/// A finished transfer of `file`: checked, then moved into place.
+async fn place_download(app: &AppHandle, model: &LocalModel, file: &ModelFile) -> Result<(), LocalError> {
+    verify_and_place(file, &part_path(app, model, file)?, &file_path(app, model, file)?).await
 }
 
 async fn verify_and_place(file: &ModelFile, part: &Path, target: &Path) -> Result<(), LocalError> {
@@ -306,50 +372,6 @@ fn relative_blob(target: &Path, blob: &Path) -> PathBuf {
     path.join("blobs").join(blob.file_name().unwrap_or_default())
 }
 
-/// How much of a file a `.part` already holds: all of it (the app stopped before checking it), so nothing is fetched and the
-/// checksum decides; a resumable start; or 0 when it's longer than the file can be, so it downloads again from the start.
-fn resume_from(have: u64, bytes: u64) -> Option<u64> {
-    match have {
-        _ if have == bytes => None,
-        _ if have > bytes => Some(0),
-        _ => Some(have),
-    }
-}
-
-/// Streams one file into `part`, resuming what's there. False when cancelled.
-async fn fetch(url: &str, file: &ModelFile, part: &Path, before: u64, cancel: &AtomicBool, reporter: &mut Reporter<'_>) -> Result<bool, LocalError> {
-    let Some(have) = resume_from(fs::metadata(part).map(|m| m.len()).unwrap_or(0), file.bytes) else {
-        reporter.progress(before + file.bytes);
-        return Ok(true);
-    };
-    let mut request = reqwest::Client::new().get(url);
-    if have > 0 {
-        request = request.header(reqwest::header::RANGE, format!("bytes={have}-"));
-    }
-    let mut response = request.send().await.and_then(|r| r.error_for_status()).map_err(download_error)?;
-    let resumed = response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
-    let mut out = tokio::fs::OpenOptions::new().create(true).write(true).append(resumed).truncate(!resumed).open(part).await?;
-    let mut received = if resumed { have } else { 0 };
-
-    while let Some(chunk) = response.chunk().await.map_err(download_error)? {
-        if cancel.load(Ordering::Relaxed) {
-            return Ok(false);
-        }
-        out.write_all(&chunk).await?;
-        received += chunk.len() as u64;
-        reporter.progress(before + received);
-    }
-    out.flush().await?;
-    if received != file.bytes {
-        return Err(LocalError::Download(format!("{}: received {received} of {} bytes", file.name, file.bytes)));
-    }
-    Ok(true)
-}
-
-fn download_error(error: reqwest::Error) -> LocalError {
-    LocalError::Download(error.to_string())
-}
-
 fn sha256_hex(path: &Path) -> Result<String, LocalError> {
     let mut file = File::open(path)?;
     let mut hasher = Sha256::new();
@@ -367,14 +389,6 @@ fn sha256_hex(path: &Path) -> Result<String, LocalError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn a_whole_part_is_checked_not_fetched_and_an_oversized_one_starts_over() {
-        assert_eq!(resume_from(0, 100), Some(0));
-        assert_eq!(resume_from(40, 100), Some(40));
-        assert_eq!(resume_from(100, 100), None);
-        assert_eq!(resume_from(120, 100), Some(0));
-    }
 
     #[test]
     fn sha256_of_known_bytes() {
@@ -428,9 +442,9 @@ mod tests {
     #[test]
     fn one_download_per_model() {
         let downloads = Downloads::default();
-        assert!(downloads.begin("a").is_some());
-        assert!(downloads.begin("a").is_none());
+        assert!(downloads.begin("a"));
+        assert!(!downloads.begin("a"));
         downloads.end("a");
-        assert!(downloads.begin("a").is_some());
+        assert!(downloads.begin("a"));
     }
 }

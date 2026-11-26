@@ -127,11 +127,11 @@ mod tests {
 #[tauri::command]
 pub fn local_model_download(app: AppHandle, state: State<'_, ModelsState>, id: String) -> Result<(), LocalError> {
     let model = catalog::find(&id)?;
-    let Some(cancel) = state.downloads.begin(model.id) else {
+    if !state.downloads.begin(model.id) {
         return Ok(()); // already downloading
-    };
+    }
     tauri::async_runtime::spawn(async move {
-        store::download(&app, model, &cancel).await;
+        store::download(&app, model).await;
         app.state::<ModelsState>().downloads.end(model.id);
     });
     Ok(())
@@ -143,11 +143,15 @@ pub async fn local_model_free_space(app: AppHandle) -> Result<u64, LocalError> {
     blocking(move || store::free_space(&app)).await
 }
 
-/// Stops a download; what arrived is kept and resumed next time.
+/// Stops a download; what arrived is kept and resumed next time (off the main thread: the system lists its transfers).
 #[tauri::command]
-pub fn local_model_cancel(state: State<'_, ModelsState>, id: String) -> Result<(), LocalError> {
-    state.downloads.cancel(catalog::find(&id)?.id);
-    Ok(())
+pub async fn local_model_cancel(id: String) -> Result<(), LocalError> {
+    let model = catalog::find(&id)?;
+    blocking(move || {
+        store::cancel(model);
+        Ok(())
+    })
+    .await
 }
 
 /// Deletes a model's files, after its engine lets go of it (off the main thread: a server may still be loading it). The
@@ -156,8 +160,8 @@ pub fn local_model_cancel(state: State<'_, ModelsState>, id: String) -> Result<(
 #[tauri::command]
 pub async fn local_model_remove(app: AppHandle, id: String) -> Result<(), LocalError> {
     let model = catalog::find(&id)?;
-    app.state::<ModelsState>().downloads.cancel(model.id);
     blocking(move || {
+        store::cancel(model);
         match model.kind {
             Kind::Speech => app.state::<SttState>().engine.forget(model.id),
             Kind::Voice => app.state::<TtsState>().forget(),

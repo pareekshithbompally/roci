@@ -4,6 +4,7 @@ pub mod catalog;
 pub mod commands;
 pub mod gpu;
 pub mod store;
+mod transfer;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};

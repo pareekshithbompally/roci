@@ -164,6 +164,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
   meeting_spotlight::start(app.handle().clone());
   // The saved model folder, applied as the database opens: before search's catch-up looks for its model.
   models::follow_saved_directory(app.handle().clone());
+  // Model downloads: ones that finished while Roci was closed are put in place.
+  models::store::follow_transfers(app.handle());
   // Search: meetings and chats are indexed in Rust as they're saved.
   search_index::start(app.handle().clone());
 
