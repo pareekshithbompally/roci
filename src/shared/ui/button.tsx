@@ -47,10 +47,10 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   ai: 'bg-[image:var(--ai-gradient)] text-on-accent shadow-raised hover:opacity-90',
 };
 
-/** Glyph buttons that belong together (back · forward) in one bar capsule, iOS 26's grouped bar items: one glass shape,
- *  hairlines between its buttons. */
+/** Glyph buttons that belong together (back · forward, previous · next) in one quiet capsule: the control fill, a hairline
+ *  between its buttons. */
 export function ButtonCapsule({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div role="group" aria-label={label} className="inline-flex shrink-0 items-center divide-x divide-muted rounded-full bg-bar shadow-bar backdrop-blur-xl">{children}</div>;
+  return <div role="group" aria-label={label} className="inline-flex shrink-0 items-center divide-x divide-muted rounded-full bg-control px-0.5">{children}</div>;
 }
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {

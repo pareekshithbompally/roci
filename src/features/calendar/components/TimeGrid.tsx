@@ -55,7 +55,7 @@ const AllDayPill: React.FC<{ event: CalendarEvent; onClick: OnEventClick }> = ({
     className="px-2 py-0.5"
     onClick={(e) => onClick(event, e.currentTarget.getBoundingClientRect())}
   >
-    <Text as="div" variant="headline" tone="event" truncate>{event.title}</Text>
+    <Text as="div" variant="label" tone="event" truncate>{event.title}</Text>
   </Surface>
 );
 

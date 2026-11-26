@@ -32,7 +32,8 @@ export function Card({ tone = 'default', className, ...props }: CardProps) {
 
 export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
   title: React.ReactNode;
-  /** One line about this row's own data (an account, a size, a count), cut short; explanations go in the `Section` footer. */
+  /** One line about this row's own data (an account, a size, a count), always shown in full; explanations go in the
+   *  `Section` footer or the title's ⓘ. */
   description?: React.ReactNode;
   /** Icon or avatar before the copy: centred on the row (iOS / macOS), or on the title line when the content is top-aligned or stacked. */
   leading?: React.ReactNode;
@@ -47,8 +48,6 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   valuePlaceholder?: string;
   /** Control below the copy instead of beside it (wide editors, lists). */
   stacked?: boolean;
-  /** The description wraps in full instead of truncating to one line (attributions, notices). */
-  wrap?: boolean;
   /** `start` pins status + actions to the title line when the description runs long. */
   align?: 'center' | 'start';
   /** Drill-down row (iOS): the whole row is the button and a chevron ends it. */
@@ -109,7 +108,7 @@ export function CardRow({ action, ...props }: CardRowProps) {
   );
 }
 
-function RowBody({ title, description, leading, status, actions, value, meter, valuePlaceholder, stacked, wrap, align = 'center', onOpen, onPress, tone, disabled, phone, className, children, ...props }: Omit<CardRowProps, 'action'> & { phone: boolean }) {
+function RowBody({ title, description, leading, status, actions, value, meter, valuePlaceholder, stacked, align = 'center', onOpen, onPress, tone, disabled, phone, className, children, ...props }: Omit<CardRowProps, 'action'> & { phone: boolean }) {
   const press = disabled ? undefined : onOpen ?? onPress;
   // A phone row holds one trailing thing: with controls at the side, its state reads under the title instead.
   const statusBeside = status && !(phone && actions);
@@ -148,7 +147,7 @@ function RowBody({ title, description, leading, status, actions, value, meter, v
       <div className={cn('flex min-w-0', meter || !trailing || stacked ? 'flex-1' : cn('max-w-[70%]', actions || shownValue ? 'shrink-0' : 'shrink'))}>
         <div className={cn('min-w-0', meter && 'flex-1')}>
           <Text as="p" variant="body" tone={tone} truncate>{title}</Text>
-          {description && <Text as="p" variant="helper" tone="muted" truncate={!wrap} className="mt-0.5">{description}</Text>}
+          {description && <Text as="p" variant="helper" tone="muted" className="mt-0.5 break-words">{description}</Text>}
           {status && !statusBeside && <div className="mt-1 flex items-center gap-2">{status}</div>}
           {meter && <Meter {...meter} />}
         </div>

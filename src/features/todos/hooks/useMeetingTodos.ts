@@ -1,11 +1,10 @@
-/** One meeting's to-dos, read from disk; its changes go through `useTodoActions` like every to-do's. */
+/** One meeting's to-dos, read from disk; changes go through each row (`useTodoActions`). */
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { store } from '@services/db';
 import { queryKeys } from '@shared/query/queryKeys';
 import type { TodoEntry, ActionItem } from '@shared/types';
-import { useTodoActions, type MeetingTodosData } from './useTodoActions';
+import type { MeetingTodosData } from './useTodoActions';
 
 function mapEntryToActionItem(entry: TodoEntry): ActionItem {
   return {
@@ -19,7 +18,6 @@ function mapEntryToActionItem(entry: TodoEntry): ActionItem {
 }
 
 export function useMeetingTodos(meetingId: string | null) {
-  const queryClient = useQueryClient();
 
   const {
     data,
@@ -46,22 +44,11 @@ export function useMeetingTodos(meetingId: string | null) {
   const aiTodos = data?.aiTodos ?? [];
   const queryError = error ? (error instanceof Error ? error.message : 'Failed to load todos') : null;
 
-  const actions = useTodoActions();
-  const refresh = useCallback(() => void queryClient.invalidateQueries({ queryKey: queryKeys.storeTodosAll() }), [queryClient]);
-  const toggleTodo = useCallback(async (todoId: string) => {
-    const todo = [...userTodos, ...aiTodos].find((t) => t.id === todoId);
-    if (todo) await actions.setDone(todoId, !todo.completed);
-  }, [userTodos, aiTodos, actions]);
-
   return {
     userTodos,
     aiTodos,
     isLoading,
     error: queryError,
     meetingId,
-    updateTodo: (todoId: string, updates: { text?: string; dueDate?: string }) => actions.edit(todoId, updates),
-    deleteTodo: actions.remove,
-    toggleTodo,
-    refresh,
   };
 }

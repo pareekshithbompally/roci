@@ -2,7 +2,7 @@
  *  iPhone; a memory edits in a sheet; Delete All asks first. */
 
 import React, { useMemo, useState } from 'react';
-import { Button, CardRow, ChoiceControl, Section, Switch, Text, type DataColumn } from '@shared/ui';
+import { CardRow, ChoiceControl, Section, Switch, Text, type DataColumn } from '@shared/ui';
 import { EditableList, KnowledgeGraph } from '@shared/components';
 import { UI_CONFIG } from '@config/ui.config';
 import { useOpenMeeting } from '@features/history';
@@ -89,9 +89,9 @@ export const MemoryPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         />
       )}
       {memories.length > 0 && (
-        <div className="flex justify-end">
-          <Button variant="outline" onClick={() => void deleteAll()}>{COPY.deleteAll}</Button>
-        </div>
+        <Section>
+          <CardRow title={COPY.deleteAll} tone="danger" onPress={() => void deleteAll()} />
+        </Section>
       )}
       {editing && <MemoryDialog memory={editing.memory} entities={entities} onSave={save} onClose={() => setEditing(null)} />}
     </SettingsPage>

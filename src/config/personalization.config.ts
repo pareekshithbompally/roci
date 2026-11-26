@@ -319,7 +319,6 @@ export const PERSONALIZATION_CONFIG = {
       },
     },
     /** Where an untouched setting's value comes from, said under it. */
-    sources: { maker: 'Model maker’s setting', roci: 'Roci’s default', engine: 'llama.cpp’s default' },
     copy: {
       title: 'Model Tuning',
       model: 'Model',
@@ -332,9 +331,7 @@ export const PERSONALIZATION_CONFIG = {
       writing: 'How It Writes',
       memory: 'Memory and Speed',
       memoryFooter: 'Memory figures are llama.cpp’s own estimate for this model’s conversation memory and working space (the model file itself is read from disk as needed).',
-      /** The pane's button that opens the sheet of exact values (System Settings' "Advanced…"). */
-      advanced: 'Advanced…',
-      /** The same, as an iPhone drill-down row. */
+      /** The row that opens the exact values on their own screen. */
       advancedRow: 'Advanced',
       advancedTitle: (model: string) => `Advanced — ${model}`,
       sampling: 'Sampling',
@@ -384,4 +381,3 @@ export const TUNING_KEYS = [
 
 export type TuningOption = (typeof PERSONALIZATION_CONFIG.modelTuning.options)[number]['key'];
 export type TuningPreset = keyof typeof PERSONALIZATION_CONFIG.modelTuning.presets;
-export type TuningSource = keyof typeof PERSONALIZATION_CONFIG.modelTuning.sources;

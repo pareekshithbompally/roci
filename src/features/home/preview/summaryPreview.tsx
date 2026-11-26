@@ -41,7 +41,6 @@ type Theme = keyof typeof THEMES;
 
 const READY: MeetingPhase = { kind: 'ready' };
 const SUMMARIZING: MeetingPhase = { kind: 'summarizing' };
-const CREDITS = { transcribedBy: { provider: 'hex', model: 'parakeet-unified-en' }, summarizedBy: { provider: 'google', model: 'gemini-3.5-flash-lite' } };
 
 const options = <T extends string>(labels: Record<T, string>) => (Object.keys(labels) as T[]).map((value) => ({ value, label: labels[value] }));
 
@@ -63,7 +62,7 @@ const Preview: React.FC = () => {
           <Tabs items={options(THEMES)} value={theme} onValueChange={pickTheme} />
         </div>
       </div>
-      <SummaryPane result={result} phase={state === 'writing' ? SUMMARIZING : READY} {...CREDITS} />
+      <SummaryPane result={result} phase={state === 'writing' ? SUMMARIZING : READY} />
     </div>
   );
 };

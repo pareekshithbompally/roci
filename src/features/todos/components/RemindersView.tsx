@@ -1,137 +1,48 @@
-/** To-dos: every meeting's action items, grouped by meeting, filterable; the + at the corner adds one. Opened from the sidebar row. */
+/** To-dos, in the spirit of Dictations: one search, then one rolling list of every to-do in its sections (Overdue, Today,
+ *  Upcoming, No date, Completed), each a rich row (TodoRow). The ⋯ at the top chooses what shows; the + at the corner adds. */
 
-import React, { useCallback, useState } from 'react';
-import { Inbox, Search, X } from 'lucide-react';
-import { useGlobalTodos } from '@features/todos/hooks/useGlobalTodos';
-import type { TodoFilter } from '@features/todos/hooks/useGlobalTodos';
-import type { GlobalTodoEntry } from '@services/db';
-import { FabButton, IconButton, SearchField, Surface, Tabs, Text, ViewHeader, ViewScroll, cn } from '@shared/ui';
-import { ScreenState } from '@shared/components';
-import { formatMeetingDate } from '@shared/utils/todo.utils';
+import React from 'react';
+import { Ellipsis, Inbox } from 'lucide-react';
+import { FabButton, IconButton, SearchField, Text, ViewHeader, ViewScroll } from '@shared/ui';
+import { Menu, ScreenState, type MenuEntry } from '@shared/components';
 import { startCreate } from '@shared/stores/createStore';
-import TodoItem from './TodoItem';
+import { useGlobalTodos } from '@features/todos/hooks/useGlobalTodos';
+import type { TodoFilter } from '@features/todos/utils/todoSections';
+import { TodoRow } from './TodoRow';
 import { LAYOUT } from '@config/layout.config';
 import { TODOS_CONFIG } from '@config/todos.config';
 
-// ── Filter chip config ──────────────────────────────────────────
-
 const PAGE = TODOS_CONFIG.page;
-
-const FILTERS: { key: TodoFilter; label: string; countKey: 'total' | 'pending' | 'completed' }[] = [
-  { key: 'all', label: PAGE.filters.all, countKey: 'total' },
-  { key: 'pending', label: PAGE.filters.pending, countKey: 'pending' },
-  { key: 'completed', label: PAGE.filters.completed, countKey: 'completed' },
-];
-
-// ── Todo row ────────────────────────────────────────────────────
-
-interface TodoRowProps {
-  todo: GlobalTodoEntry;
-  onToggle: (todoId: string) => void;
-  onReminderChanged: () => void;
-}
-
-const TodoRow: React.FC<TodoRowProps> = ({ todo, onToggle, onReminderChanged }) => (
-  <TodoItem
-    todo={todo}
-    meetingId={todo.meetingId}
-    meetingTitle={todo.meetingTitle}
-    onToggle={() => onToggle(todo.id)}
-    onReminderChange={onReminderChanged}
-    className={LAYOUT.listGutter}
-  />
-);
-
-// ── Main component ──────────────────────────────────────────────
+const FILTERS = Object.keys(PAGE.filters) as TodoFilter[];
 
 export const RemindersView: React.FC = () => {
-  const { groups, filter, setFilter, searchQuery, setSearchQuery, toggleTodo, refresh, counts, isLoading } = useGlobalTodos();
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-
-  const handleSearchToggle = useCallback(() => {
-    if (isSearchOpen) {
-      setSearchQuery('');
-      setIsSearchOpen(false);
-    } else {
-      setIsSearchOpen(true);
-    }
-  }, [isSearchOpen, setSearchQuery]);
-
-  const hasContent = groups.length > 0;
-
-  const filterTabs = FILTERS.map(({ key, label, countKey }) => {
-    const count = counts[countKey];
-    return {
-      value: key,
-      label: (
-        <>
-          {label}
-          {count > 0 && <span className={cn('ml-1.5', filter !== key && 'opacity-60')}>{count}</span>}
-        </>
-      ),
-    };
-  });
+  const { sections, hasAny, counts, filter, setFilter, searchQuery, setSearchQuery, isLoading } = useGlobalTodos();
+  const show: MenuEntry[] = [
+    { type: 'label', label: PAGE.show },
+    ...FILTERS.map((key) => ({ type: 'check' as const, label: PAGE.filters[key], checked: filter === key, onSelect: () => setFilter(key) })),
+  ];
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden animate-fade-in">
-      {/* Title and counts (or the search field) and Search; the filters under it */}
+    <div className="flex h-full flex-1 flex-col overflow-hidden animate-fade-in">
       <ViewHeader
         title={TODOS_CONFIG.title}
-        detail={counts.total > 0 && PAGE.counts(counts.pending, counts.completed)}
-        replaceTitle={isSearchOpen && (
-          <>
-            <SearchField value={searchQuery} onChange={setSearchQuery} onCancel={handleSearchToggle} autoFocus className="flex-1" />
-            <IconButton icon={X} label={PAGE.closeSearch} size="sm" onClick={handleSearchToggle} />
-          </>
-        )}
-        accessory={!isSearchOpen && <IconButton icon={Search} label={PAGE.search} size="sm" onClick={handleSearchToggle} />}
-      >
-        <Tabs items={filterTabs} value={filter} onValueChange={setFilter} />
-      </ViewHeader>
-
-      {/* The list in the page column; no fade, as each meeting's heading pins to the top. */}
-      <ViewScroll fade={false} className={LAYOUT.fabClearance}>
-        <ScreenState
-          loading={isLoading}
-          empty={!hasContent && {
-            icon: searchQuery ? Search : Inbox,
-            ...(searchQuery ? PAGE.empty.search : filter === 'all' ? PAGE.empty.none : PAGE.empty.filtered(filter)),
-          }}
-          className="py-2"
-        >
-          {groups.map((group) => (
-            <div key={group.meetingId ?? TODOS_CONFIG.general} className="mb-1">
-              {/* Meeting header */}
-              <Surface variant="page" edge="bottom" className={`sticky top-0 z-10 ${LAYOUT.listGutter} py-1.5 flex items-center gap-2`}>
-                <Text as="h2" variant="label" tone="muted" truncate>
-                  {group.meetingTitle ?? TODOS_CONFIG.general}
-                </Text>
-                {group.meetingId && (
-                  <Text variant="caption" tone="faint" className="shrink-0">
-                    {formatMeetingDate(group.timestamp)}
-                  </Text>
-                )}
-                <Text variant="caption" tone="faint" className="shrink-0 ml-auto">
-                  {group.todos.filter(t => !t.completed).length}/{group.todos.length}
-                </Text>
-              </Surface>
-
-              {/* Todo items */}
-              <div>
-                {group.todos.map((todo) => (
-                  <TodoRow
-                    key={`${todo.meetingId}-${todo.id}`}
-                    todo={todo}
-                    onToggle={(id) => void toggleTodo(id).catch((error: unknown) => console.error('[RemindersView] Toggle failed:', error))}
-                    onReminderChanged={refresh}
-                  />
-                ))}
-              </div>
-            </div>
+        detail={hasAny && PAGE.counts(counts.open, counts.done)}
+        accessory={hasAny && <Menu label={PAGE.show} trigger={<IconButton icon={Ellipsis} label={PAGE.show} size="sm" />} items={show} />}
+      />
+      <ViewScroll className={LAYOUT.fabClearance}>
+        <ScreenState loading={isLoading} empty={!hasAny && { icon: Inbox, ...PAGE.empty }} className="space-y-3">
+          <SearchField value={searchQuery} onChange={setSearchQuery} onCancel={() => setSearchQuery('')} placeholder={PAGE.search} />
+          {sections.length === 0 && <Text as="p" variant="helper" tone="muted" className="px-2.5 py-2">{PAGE.noMatch}</Text>}
+          {sections.map((section) => (
+            <section key={section.key}>
+              <Text as="h2" variant="label" tone={section.key === 'overdue' ? 'danger' : 'muted'} className="px-2.5 pb-1">{section.label}</Text>
+              {section.todos.map((todo) => (
+                <TodoRow key={todo.id} todo={todo} meetingId={todo.meetingId} meetingTitle={todo.meetingTitle} />
+              ))}
+            </section>
           ))}
         </ScreenState>
       </ViewScroll>
-
       <FabButton label={TODOS_CONFIG.add} onClick={() => startCreate('todo')} />
     </div>
   );

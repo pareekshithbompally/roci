@@ -6,7 +6,7 @@ import React from 'react';
 import { ArrowRight, CircleCheck, ListTodo, MessagesSquare, Sparkles, type LucideIcon } from 'lucide-react';
 import type { ActionItem, StructuredSummary } from '@shared/types';
 import { EmptyState, Markdown } from '@shared/components';
-import { Chip, Surface, Text, TopicLine, TopicSection, cn } from '@shared/ui';
+import { Chip, Text, TopicLead, TopicLine, TopicSection, cn } from '@shared/ui';
 import { TODOS_CONFIG } from '@config/todos.config';
 import { SUMMARY_CONFIG as SUMMARY } from '@config/summary.config';
 import { formatShortDate } from '@shared/utils/formatters';
@@ -32,14 +32,7 @@ const SECTIONS: Record<SectionKey, SectionMeta> = {
 
 const sectionId = (key: SectionKey) => `summary-${key}`;
 
-const OverviewHeading: React.FC = () => <Text as="h3" variant="title">{SUMMARY.copy.overview}</Text>;
-
-const OverviewCard: React.FC<{ overview: string }> = ({ overview }) => (
-  <Surface as="section" variant="ai" radius="lg" className="px-4 py-3.5 space-y-2.5">
-    <OverviewHeading />
-    <Text as="p" variant="lead">{overview}</Text>
-  </Surface>
-);
+const OverviewCard: React.FC<{ overview: string }> = ({ overview }) => <TopicLead title={SUMMARY.copy.overview}>{overview}</TopicLead>;
 
 /** One section: its heading and count, then its lines. */
 const Topic: React.FC<{ section: SectionKey; count: number; children: React.ReactNode }> = ({ section, count, children }) => (
@@ -101,11 +94,10 @@ export const SummaryView: React.FC<SummaryViewProps> = ({ summary, structuredSum
   );
 };
 
-/** In place of the summary while it is being written: the hero card it will fill, its text shimmering. */
+/** In place of the summary while it is being written: the overview it will fill, its text shimmering, and what runs now. */
 export const SummaryWriting: React.FC<{ label: string }> = ({ label }) => (
-  <Surface role="status" variant="ai" radius="lg" className="px-4 py-3.5 space-y-2.5">
-    <OverviewHeading />
-    <Text as="p" variant="lead" shimmer>{SUMMARY.copy.writingPlaceholder}</Text>
+  <div role="status" className="space-y-2">
+    <TopicLead title={SUMMARY.copy.overview} shimmer>{SUMMARY.copy.writingPlaceholder}</TopicLead>
     <Text as="p" variant="helper" tone="muted">{label}</Text>
-  </Surface>
+  </div>
 );

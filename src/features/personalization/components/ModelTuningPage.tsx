@@ -5,17 +5,16 @@
 
 import React, { useMemo, useState } from 'react';
 import { AlignLeft, Brain, Cpu, Gauge, Palette, Repeat, Shrink, Zap } from 'lucide-react';
-import { Button, CardRow, Chip, ChoiceControl, IconTile, Picker, Section, Slider, Switch, Text, type TileGlyph } from '@shared/ui';
+import { CardRow, Chip, ChoiceControl, IconTile, Picker, Section, Slider, Switch, Text, type TileGlyph } from '@shared/ui';
 import { FormDialog, HelpLabel, ModelIcon, ModelLabel, ScreenState } from '@shared/components';
 import { EngineRestartRow, ModelSelect, NumberPicker, SettingsPage } from '@features/settings/components/shared';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
-import { useFormFactor } from '@platform/formFactor';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import { LAYOUT } from '@config/layout.config';
 import { modelSources, onDeviceChatModel, type ModelChoice } from '@shared/utils/modelResolver';
 import { jobChoices, profileOf, shownProfile } from '@services/ai/models';
-import { PERSONALIZATION_CONFIG, type KvType, type ModelTuning, type TuningPreset, type TuningSource } from '@config/personalization.config';
+import { PERSONALIZATION_CONFIG, type KvType, type ModelTuning, type TuningPreset } from '@config/personalization.config';
 import { UI_CONFIG } from '@config/ui.config';
 import { useLocalModels } from '@shared/hooks/useLocalModels';
 import { formatFileSize } from '@shared/utils/formatters';
@@ -24,9 +23,7 @@ import {
   optionValue,
   ownTuning,
   presetChoice,
-  presetKeys,
   resolveTuning,
-  sourceOf,
   withKvType,
   withoutKeys,
   withPreset,
@@ -56,33 +53,20 @@ const decimalsOf = (step: number) => (String(step).split('.')[1] ?? '').length;
 /** An option's value as the model runs it, as its slider shows it. */
 const shown = (option: Option, tuning: ModelTuning) => optionValue(tuning, option.key).toFixed(decimalsOf(option.step));
 
-/** A row's line: where an untouched value comes from, then what it is set to. */
-function rowLine(source: TuningSource | undefined, detail?: string): string | undefined {
-  return [source && TUNING.sources[source], detail].filter(Boolean).join(' · ') || undefined;
-}
-
-/** The exact values behind a preset, by their names: "Temperature 1.00 · Top P 0.95". */
-function presetValues(preset: TuningPreset, tuning: ModelTuning): string {
-  const keys: readonly string[] = presetKeys(preset);
-  return TUNING.options.filter((o) => keys.includes(o.key)).map((o) => `${o.label} ${shown(o, tuning)}`).join(' · ');
-}
-
-/** A setting row: its icon, its name with its ⓘ, its line, and its control. */
-const SettingRow: React.FC<{ icon: TileGlyph; label: string; help: string; line?: string; status?: React.ReactNode; children: React.ReactNode }> = ({
+/** A setting row: its icon, its name with its ⓘ (which says what it does), and its control; one line, nothing under it. */
+const SettingRow: React.FC<{ icon: TileGlyph; label: string; help: string; status?: React.ReactNode; children: React.ReactNode }> = ({
   icon,
   label,
   help,
-  line,
   status,
   children,
-}) => <CardRow leading={<IconTile icon={icon} />} title={<HelpLabel label={label} help={help} />} description={line} status={status} actions={children} />;
+}) => <CardRow leading={<IconTile icon={icon} />} title={<HelpLabel label={label} help={help} />} status={status} actions={children} />;
 
 const PresetRow: React.FC<TuningProps & { preset: TuningPreset; icon: TileGlyph }> = ({ preset, icon, model, saved, resolved, onChange }) => {
   const { label, help, options } = TUNING.presets[preset];
   const choice = presetChoice(preset, saved, resolved);
-  const line = rowLine(sourceOf(model.id, presetKeys(preset), saved), presetValues(preset, resolved));
   return (
-    <SettingRow icon={icon} label={label} help={help} line={line} status={choice ? undefined : <Text tone="muted">{COPY.custom}</Text>}>
+    <SettingRow icon={icon} label={label} help={help} status={choice ? undefined : <Text tone="muted">{COPY.custom}</Text>}>
       <ChoiceControl<string> items={options} value={choice ?? ''} onValueChange={(next) => onChange(withPreset(preset, next, saved))} label={label} />
     </SettingRow>
   );
@@ -92,7 +76,7 @@ const PresetRow: React.FC<TuningProps & { preset: TuningPreset; icon: TileGlyph 
 const LimitRow: React.FC<TuningProps & { limit: 'n-predict' | 'reasoning-budget'; icon: TileGlyph }> = ({ limit, icon, model, saved, resolved, onChange }) => {
   const { label, help, options } = limit === 'n-predict' ? TUNING.replyLength : TUNING.thinking;
   return (
-    <SettingRow icon={icon} label={label} help={help} line={rowLine(sourceOf(model.id, [limit], saved))}>
+    <SettingRow icon={icon} label={label} help={help}>
       <NumberPicker label={label} value={resolved[limit]} options={options.map((o) => ({ value: o.tokens, label: o.label }))}
         placeholder={COPY.custom} onChange={(tokens) => onChange({ ...saved, [limit]: tokens })} />
     </SettingRow>
@@ -108,7 +92,7 @@ const ContextRow: React.FC<TuningProps> = ({ model, saved, resolved, onChange })
   const memory = useModelMemory(model.id, sizes.map((tokens) => ({ tokens, kvType })));
   const options = sizes.map((tokens, i) => ({ value: tokens, label: choice(tokens / tokensPerK, memory[i] && formatFileSize(memory[i])) }));
   return (
-    <SettingRow icon={Gauge} label={label} help={help} line={rowLine(sourceOf(model.id, ['ctx-size'], saved))}>
+    <SettingRow icon={Gauge} label={label} help={help}>
       <NumberPicker label={label} value={resolved['ctx-size']} options={options} placeholder={COPY.custom}
         onChange={(tokens) => onChange({ ...saved, 'ctx-size': tokens })} />
     </SettingRow>
@@ -125,7 +109,7 @@ const MemorySaverRow: React.FC<TuningProps> = ({ model, saved, resolved, onChang
     return { value: o.value, label: saving > 0 ? saves(o.label, formatFileSize(saving)) : o.label };
   });
   return (
-    <SettingRow icon={Shrink} label={label} help={help} line={rowLine(sourceOf(model.id, ['cache-type-k'], saved))}>
+    <SettingRow icon={Shrink} label={label} help={help}>
       <div className={LAYOUT.capabilityPicker}>
         <Picker label={label} value={resolved['cache-type-k'] ?? 'f16'} onChange={(next) => onChange(withKvType(saved, next as KvType))} placeholder="" groups={[{ options: items }]} />
       </div>
@@ -138,7 +122,7 @@ const SpeedUpRow: React.FC<TuningProps> = ({ saved, resolved, onChange }) => {
   const { label, help } = TUNING.speedUp;
   const set = (on: boolean) => onChange(on ? withoutKeys(saved, ['spec-type']) : { ...saved, 'spec-type': 'none' });
   return (
-    <SettingRow icon={Zap} label={label} help={help} line={rowLine(saved['spec-type'] === undefined ? 'roci' : undefined)}>
+    <SettingRow icon={Zap} label={label} help={help}>
       <Switch checked={resolved['spec-type'] !== 'none'} onCheckedChange={set} aria-label={label} />
     </SettingRow>
   );
@@ -184,19 +168,13 @@ const AdvancedSheet: React.FC<TuningProps & { open: boolean; onClose: () => void
   );
 };
 
-/** Restore Defaults and Advanced: push buttons at the pane's end on a Mac or iPad (System Settings), rows on an iPhone. */
-const PaneActions: React.FC<{ untouched: boolean; onRestore: () => void; onAdvanced: () => void }> = ({ untouched, onRestore, onAdvanced }) =>
-  useFormFactor() === 'phone' ? (
-    <Section>
-      <CardRow title={COPY.advancedRow} onOpen={onAdvanced} />
-      <CardRow title={COPY.restore} tone="accent" onPress={onRestore} disabled={untouched} />
-    </Section>
-  ) : (
-    <div className="flex justify-end gap-2">
-      <Button variant="outline" onClick={onRestore} disabled={untouched}>{COPY.restore}</Button>
-      <Button variant="outline" onClick={onAdvanced}>{COPY.advanced}</Button>
-    </div>
-  );
+/** Advanced (its own screen) and Restore Defaults: full rows at the pane's end, on both platforms. */
+const PaneActions: React.FC<{ untouched: boolean; onRestore: () => void; onAdvanced: () => void }> = ({ untouched, onRestore, onAdvanced }) => (
+  <Section>
+    <CardRow title={COPY.advancedRow} onOpen={onAdvanced} />
+    <CardRow title={COPY.restore} tone="accent" onPress={onRestore} disabled={untouched} />
+  </Section>
+);
 
 /** The chosen model's card: its maker's icon, its name and what it takes, its facts (size, quantization, context,
  *  speed-up), and the picker of the downloaded chat models. */

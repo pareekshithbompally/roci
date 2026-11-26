@@ -109,17 +109,20 @@ export function AddForm({ open, title, onClose, onSave, saveLabel, canSave, busy
   if (!open) return null;
   return (
     <CornerPanel label={title} header={<PanelBar title={title} close={<IconButton icon={X} label={KIT_COPY.close} size="sm" onClick={onClose} />} />}>
-      <form
-        className="flex min-h-0 flex-col gap-section overflow-y-auto p-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSave();
-        }}
-        onKeyDown={(e) => e.key === 'Escape' && onClose()}
-      >
-        {children}
-        <FormActions onCancel={onClose} submit={{ label: saveLabel, disabled: !canSave, busy, submits: true }} />
-      </form>
+      {/* Its cards on the grouped background, as a form is everywhere. */}
+      <Surface variant="grouped" className="flex min-h-0 flex-col">
+        <form
+          className="flex min-h-0 flex-col gap-section overflow-y-auto p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSave();
+          }}
+          onKeyDown={(e) => e.key === 'Escape' && onClose()}
+        >
+          {children}
+          <FormActions onCancel={onClose} submit={{ label: saveLabel, disabled: !canSave, busy, submits: true }} />
+        </form>
+      </Surface>
     </CornerPanel>
   );
 }

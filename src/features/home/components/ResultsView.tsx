@@ -2,10 +2,11 @@
  *  status at a time: a badge while it works, a notice when it needs you. */
 
 import React, { useEffect, useState } from 'react';
-import { endCreate, useCreateFlow } from '@shared/stores/createStore';
+import { endCreate, startCreate, useCreateFlow } from '@shared/stores/createStore';
+import { useMeetingNotes } from '@features/notes';
 import { motion } from 'framer-motion';
 import { ANIMATION_CONFIG } from '@config/animations.config';
-import { Clock, Users, ExternalLink, VolumeX } from 'lucide-react';
+import { Clock, Users, ExternalLink, NotebookPen, VolumeX } from 'lucide-react';
 import { useActiveResultTab, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
 import { useMeetingResult } from '@shared/hooks/useMeetingResult';
 import type { ResultTab } from '@shared/stores/appStore';
@@ -46,10 +47,15 @@ import {
   TitleBlock,
   Text,
   Tooltip,
+  TopicLine,
+  TopicSection,
   motionFor,
 } from '@shared/ui';
 import type { TabItem } from '@shared/ui';
 import { TODOS_CONFIG } from '@config/todos.config';
+import { SUMMARY_CONFIG } from '@config/summary.config';
+
+const SUMMARY_COPY = SUMMARY_CONFIG.copy;
 
 const VIEW = ANIMATION_CONFIG.view;
 
@@ -135,6 +141,24 @@ const MeetingTitle: React.FC<{ title: string }> = ({ title }) => (
   </div>
 );
 
+/** iPhone: your notes at the end of the Summary, in the summary's own pattern; Edit opens them as their screen. A Mac shows
+ *  them beside the transcript instead. */
+const YourNotesSection: React.FC<{ meetingId: string }> = ({ meetingId }) => {
+  const { notes } = useMeetingNotes(meetingId);
+  if (notes.length === 0) return null;
+  const lines = [...notes].sort((a, b) => a.timestamp - b.timestamp);
+  return (
+    <TopicSection
+      title={MEETING_ADD_COPY.yourNotes}
+      icon={NotebookPen}
+      count={lines.length}
+      action={<Button variant="link" size="inline" onClick={() => startCreate('note', meetingId)}>{MEETING_ADD_COPY.editNotes}</Button>}
+    >
+      {lines.map((note) => <TopicLine key={note.id}>{note.text}</TopicLine>)}
+    </TopicSection>
+  );
+};
+
 /** The Transcript tab: the saved transcript (or the in-call one until it is saved) beside the meeting's notes, whose AI lines
  *  are the summary's filled-in notes and key points. Keyed by meeting, so each meeting's notes load fresh. */
 const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phase: MeetingPhase; only: 'transcript' | 'notes'; focusNotes?: boolean }> = ({ meetingId, result, phase, only, focusNotes }) => {
@@ -212,6 +236,10 @@ export const ResultsView: React.FC = () => {
       onRetranscribe={recordingFileName && phase.kind === 'ready' ? handleTranscribe : undefined}
       onRename={() => setSheet('rename')}
       onDetails={() => setSheet('details')}
+      credits={[
+        { label: SUMMARY_COPY.transcribedBy, credit: stats?.transcribedBy ?? null },
+        { label: SUMMARY_COPY.summarizedBy, credit: stats?.summarizedBy ?? null },
+      ]}
     />
   );
 
@@ -265,7 +293,7 @@ export const ResultsView: React.FC = () => {
       </div>
     </div>
   ) : activeResultTab === 'summary' ? (
-    <SummaryTab result={result} phase={phase} meetingId={currentHistoryItem?.id} />
+    <SummaryTab result={result} phase={phase} after={!notesBeside && currentHistoryItem && <YourNotesSection meetingId={currentHistoryItem.id} />} />
   ) : activeResultTab === 'related' && currentHistoryItem ? (
     // Keyed by meeting: opening a related meeting starts its tab fresh, at the top.
     <TabPage key={currentHistoryItem.id}>

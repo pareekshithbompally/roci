@@ -15,11 +15,13 @@ export interface TopicSectionProps {
   title: string;
   icon: LucideIcon;
   count: number;
+  /** A control at the heading's end (Edit). */
+  action?: React.ReactNode;
   /** Its `TopicLine`s. */
   children: React.ReactNode;
 }
 
-export function TopicSection({ id, title, icon, count, children }: TopicSectionProps) {
+export function TopicSection({ id, title, icon, count, action, children }: TopicSectionProps) {
   const phone = useFormFactor() === 'phone';
   const body = (
     <>
@@ -27,6 +29,7 @@ export function TopicSection({ id, title, icon, count, children }: TopicSectionP
         <Icon icon={icon} size="sm" tone="muted" />
         <Text as="h3" variant="headline">{title}</Text>
         <Text variant="figureSmall" tone="muted">{count}</Text>
+        {action && <div className="ml-auto flex items-center">{action}</div>}
       </div>
       <ul className="space-y-1.5">{children}</ul>
     </>
@@ -35,9 +38,25 @@ export function TopicSection({ id, title, icon, count, children }: TopicSectionP
   return <Surface as="section" id={id} variant="subtle" radius="lg" className="space-y-2 px-4 py-3">{body}</Surface>;
 }
 
+/** A topic's own text size: the reading size on a Mac, the callout size on iPhone, so every part of a summary reads at one
+ *  size. */
+function useTopicText(): 'reading' | 'helper' {
+  return useFormFactor() === 'phone' ? 'helper' : 'reading';
+}
+
+/** The lead of a group of topics (a summary's Overview): the same heading and text as its topics, on the AI's card. */
+export function TopicLead({ title, shimmer, children }: { title: string; shimmer?: boolean; children: React.ReactNode }) {
+  return (
+    <Surface as="section" variant="ai" radius="lg" className="space-y-2 px-4 py-3">
+      <Text as="h3" variant="headline">{title}</Text>
+      <Text as="p" variant={useTopicText()} shimmer={shimmer}>{children}</Text>
+    </Surface>
+  );
+}
+
 /** One line of a topic: the AI's mark, the text, and anything about it at the end (who, when). */
 export function TopicLine({ trailing, children }: { trailing?: React.ReactNode; children: React.ReactNode }) {
-  const variant = useFormFactor() === 'phone' ? 'helper' : 'reading';
+  const variant = useTopicText();
   return (
     <li className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
       <Text variant={variant} tone="ai" className="shrink-0">•</Text>

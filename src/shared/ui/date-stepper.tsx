@@ -28,8 +28,8 @@ export function DateStepper({ date, unit, onStep, onPick }: DateStepperProps) {
         </Text>
       </DatePicker>
       <ButtonCapsule label={KIT_COPY.stepDate(unit)}>
-        <IconButton icon={ChevronLeft} label={KIT_COPY.previous(unit)} size="sm" variant="glyph" onClick={() => onStep(-1)} />
-        <IconButton icon={ChevronRight} label={KIT_COPY.next(unit)} size="sm" variant="glyph" onClick={() => onStep(1)} />
+        <IconButton icon={ChevronLeft} label={KIT_COPY.previous(unit)} size="sm" onClick={() => onStep(-1)} />
+        <IconButton icon={ChevronRight} label={KIT_COPY.next(unit)} size="sm" onClick={() => onStep(1)} />
       </ButtonCapsule>
     </div>
   );

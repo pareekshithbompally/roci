@@ -2,7 +2,7 @@
 
 import type { TodoReminder } from '@shared/types';
 import { addDays } from '@shared/utils/localDate';
-import { formatDate, formatShortDateTime } from '@shared/utils/formatters';
+import { calendarDayOffset, formatClockTime, formatDate, formatDayLabel, formatShortDateTime } from '@shared/utils/formatters';
 
 // ── Date parsing (single entry point) ───────────────────────────
 
@@ -74,6 +74,23 @@ export function isReminderOverdue(reminder?: TodoReminder): boolean {
   if (!reminder?.dateTime) return false;
   const d = parseDateLoose(reminder.dateTime);
   return d !== null && d.getTime() < Date.now();
+}
+
+/** Where a to-do stands by its due date: past it, due today, later, or with no date. */
+export type DueState = 'overdue' | 'today' | 'upcoming' | 'none';
+
+export function dueState(dueDate?: string): DueState {
+  const d = dueDate ? parseDateLoose(dueDate) : null;
+  if (!dueDate || !d) return 'none';
+  if (isOverdue(dueDate)) return 'overdue';
+  return calendarDayOffset(d) === 0 ? 'today' : 'upcoming';
+}
+
+/** A due date as a list names it: "Today", "Tomorrow, 9:00 AM", "Mon, Nov 17". */
+export function dueLabel(dueDate: string): string {
+  const d = parseDateLoose(dueDate);
+  if (!d) return dueDate;
+  return DATE_ONLY_RE.test(dueDate) ? formatDayLabel(d) : `${formatDayLabel(d)}, ${formatClockTime(d)}`;
 }
 
 // ── Formatting ──────────────────────────────────────────────────

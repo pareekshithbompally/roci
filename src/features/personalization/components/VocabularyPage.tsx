@@ -47,7 +47,6 @@ const SpokenLanguageRow: React.FC<{ spoken: SpokenLanguages }> = ({ spoken }) =>
   return (
     <CardRow
       title={copy.recognition.language}
-      description={languageNote(spoken, spokenLanguage)}
       actions={
         <div className={LAYOUT.capabilityPicker}>
           <Picker
@@ -64,13 +63,14 @@ const SpokenLanguageRow: React.FC<{ spoken: SpokenLanguages }> = ({ spoken }) =>
 };
 
 export const VocabularyPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
-  const { vocabulary, setVocabulary, recognitionBoost, setRecognitionBoost } = usePersonalization();
+  const { vocabulary, setVocabulary, recognitionBoost, setRecognitionBoost, spokenLanguage } = usePersonalization();
   const spoken = useSpokenLanguages();
   const [editing, setEditing] = useState<Editing>(null);
 
   return (
     <SettingsPage title={COPY.title} onBack={onBack}>
-      <Section title={copy.recognition.section} footer={copy.recognition.footer}>
+      {/* What the speech model writes in, then what recognition is: in the footer, read in full. */}
+      <Section title={copy.recognition.section} footer={spoken ? `${languageNote(spoken, spokenLanguage)} ${copy.recognition.footer}` : copy.recognition.footer}>
         {spoken && <SpokenLanguageRow spoken={spoken} />}
         <CardRow
           title={copy.recognition.boost}

@@ -9,7 +9,6 @@ import {
   type ModelTuning,
   type TuningOption,
   type TuningPreset,
-  type TuningSource,
 } from '@config/personalization.config';
 import { savedPersonalization } from '@shared/utils/personalization';
 
@@ -47,14 +46,6 @@ export function serverPresets(modelIds: readonly string[], all: Record<string, M
 /** A sampling option's value as the model runs it: resolved, else llama.cpp's. */
 export function optionValue(tuning: ModelTuning, key: TuningOption): number {
   return tuning[key] ?? engine[key];
-}
-
-/** Where the value of `keys` comes from while the user hasn't set them; undefined once they have. */
-export function sourceOf(modelId: string, keys: readonly TuningKey[], saved: ModelTuning): TuningSource | undefined {
-  if (keys.some((key) => ownTuning(saved)[key] !== undefined)) return undefined;
-  const maker = makerTuning(modelId);
-  if (keys.some((key) => maker[key] !== undefined)) return 'maker';
-  return keys.some((key) => key in rociDefaults) ? 'roci' : 'engine';
 }
 
 /** The keys a preset's choices set: choosing one clears them all first. */

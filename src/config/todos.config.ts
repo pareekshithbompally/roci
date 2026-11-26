@@ -7,18 +7,18 @@ export const TODOS_CONFIG = {
   title: 'To-dos',
   /** The action that creates one (the + on To-dos and a meeting). */
   add: 'Add to-do',
-  /** The To-dos screen: its search, filters, counts and empty states. */
+  /** The To-dos screen: its search, what it shows (the ⋯ menu), its sections, counts and empty states. */
   page: {
     search: 'Search to-dos',
-    closeSearch: 'Close search',
-    filters: { all: 'All', pending: 'Pending', completed: 'Completed' },
-    counts: (pending: number, done: number) => `${pending} pending · ${done} done`,
-    empty: {
-      none: { message: 'No to-dos yet', description: 'To-dos from your meetings will appear here' },
-      filtered: (filter: string) => ({ message: `No ${filter} to-dos`, description: 'Try a different filter to see more items' }),
-      search: { message: 'No matching to-dos', description: 'Try different keywords or clear your search' },
-    },
+    show: 'Show',
+    filters: { all: 'All', open: 'Open', today: 'Today', overdue: 'Overdue', completed: 'Completed' },
+    sections: { overdue: 'Overdue', today: 'Today', upcoming: 'Upcoming', someday: 'No date', done: 'Completed' },
+    counts: (open: number, done: number) => `${open} open · ${done} done`,
+    noMatch: 'No to-dos match',
+    empty: { message: 'No to-dos yet', description: 'To-dos from your meetings, and the ones you add, appear here' },
   },
+  /** A to-do row's line under its title, and its ⋯ menu. */
+  row: { overdue: 'Overdue', more: 'To-do actions', edit: 'Edit', delete: 'Delete' },
   /** The new to-do form. */
   form: {
     title: 'New To-do',

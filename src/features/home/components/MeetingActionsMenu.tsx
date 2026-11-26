@@ -1,9 +1,12 @@
-/** The meeting's one actions menu (⋯): re-transcribe, copy, download, and show the recording in Finder. */
+/** The meeting's one actions menu (⋯): which models wrote it (quiet lines at the top), rename, details, re-transcribe,
+ *  copy, download, and show the recording in Finder. */
 
 import React from 'react';
 import { Ellipsis } from 'lucide-react';
 import { IconButton, showToast } from '@shared/ui';
-import { Menu, type MenuEntry } from '@shared/components';
+import { Menu, type MenuEntry, type ModelCreditItem } from '@shared/components';
+import { useSettings } from '@shared/contexts/SettingsContext';
+import { modelNameOf } from '@shared/hooks/useModelLabel';
 import { saveTextFile } from '@services/tauri';
 import { platform } from '@platform/index';
 import { MEETING_PHASE_ACTION_SYMBOL } from '@config/meetingPhase.config';
@@ -22,6 +25,8 @@ interface MeetingActionsMenuProps {
   onRetranscribe?: () => void;
   onRename: () => void;
   onDetails: () => void;
+  /** Who wrote it ("Transcribed by …"), as lines heading the menu; a role with no model is left out. */
+  credits: readonly ModelCreditItem[];
 }
 
 const COPY = MEETING_HEADER_COPY;
@@ -56,8 +61,10 @@ async function download(result: ProcessedResult, format: ExportFormat, scope: Ex
 }
 
 /** Re-transcribe (when it can), Copy, Download, and Show in Finder (when there is a recording and a file manager). */
-function menuItems({ result, part, recordingPath, onRetranscribe, onRename, onDetails }: MeetingActionsMenuProps): MenuEntry[] {
+function menuItems({ result, part, recordingPath, onRetranscribe, onRename, onDetails }: MeetingActionsMenuProps, credits: string[]): MenuEntry[] {
   return [
+    ...credits.map((label) => ({ type: 'label' as const, label })),
+    ...(credits.length > 0 ? [{ type: 'separator' as const }] : []),
     { type: 'item', label: MEETING_HEADER_COPY.rename, onSelect: onRename },
     { type: 'item', label: MEETING_HEADER_COPY.details, onSelect: onDetails },
     { type: 'separator' },
@@ -74,10 +81,16 @@ function menuItems({ result, part, recordingPath, onRetranscribe, onRename, onDe
   ];
 }
 
+/** "Transcribed by Parakeet": each role's model by its name. */
+function useCreditLines(credits: readonly ModelCreditItem[]): string[] {
+  const { providers, settings } = useSettings();
+  return credits.flatMap(({ label, credit }) => (credit ? [`${label} ${modelNameOf(providers, settings, credit.provider, credit.model)}`] : []));
+}
+
 export const MeetingActionsMenu: React.FC<MeetingActionsMenuProps> = (props) => (
   <Menu
     label={MEETING_HEADER_COPY.actions}
     trigger={<IconButton icon={Ellipsis} variant="secondary" size="sm" label={MEETING_HEADER_COPY.actions} />}
-    items={menuItems(props)}
+    items={menuItems(props, useCreditLines(props.credits))}
   />
 );

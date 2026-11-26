@@ -43,7 +43,6 @@ export const PermissionChecklist: React.FC = () => {
             key={row.kind}
             title={COPY.kinds[row.kind].title}
             description={COPY.kinds[row.kind].detail}
-            wrap
             actions={<RowAction row={row} request={request} />}
           />
         ))}

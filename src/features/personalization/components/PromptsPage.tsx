@@ -2,7 +2,7 @@
  *  in a sheet), and the effective chat prompt. */
 
 import React, { useState } from 'react';
-import { Badge, Button, CardRow, ChoiceControl, Section } from '@shared/ui';
+import { Badge, CardRow, ChoiceControl, Section } from '@shared/ui';
 import { SettingsPage } from '@features/settings/components/shared';
 import { FieldRow } from '@shared/components';
 import { PERSONALIZATION_CONFIG, type PromptTemplateId } from '@config/personalization.config';
@@ -64,9 +64,9 @@ export const PromptsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       <Responses />
       <CustomInstructions />
       <Templates onEdit={(id, label) => setEditing({ id, label })} />
-      <div className="flex justify-end">
-        <Button variant="outline" onClick={() => setPreviewing(true)}>{copy.preview.open}</Button>
-      </div>
+      <Section>
+        <CardRow title={copy.preview.open} onOpen={() => setPreviewing(true)} />
+      </Section>
       {editing && <TemplateDialog id={editing.id} label={editing.label} onClose={() => setEditing(null)} />}
       {previewing && <PromptPreviewDialog onClose={() => setPreviewing(false)} />}
     </SettingsPage>

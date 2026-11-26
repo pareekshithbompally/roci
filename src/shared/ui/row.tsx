@@ -117,3 +117,33 @@ export function RowAction({ className, type = 'button', ref, ...props }: RowActi
     />
   );
 }
+
+export interface ItemRowProps {
+  /** A control before it (a checkbox). */
+  leading?: React.ReactNode;
+  /** Its title (text, or a field while it is edited). */
+  title: React.ReactNode;
+  /** One quiet line under the title (when, where from). */
+  detail?: React.ReactNode;
+  /** Done or set aside: the title fades and is struck through. */
+  done?: boolean;
+  /** Its controls at the end (shown on hover on a Mac, always on touch). */
+  trailing?: React.ReactNode;
+}
+
+/** A list item with a control in front (Reminders, Mail): its title over one detail line, its controls at the end. Not a
+ *  button itself, so the controls in it are real buttons. */
+export function ItemRow({ leading, title, detail, done, trailing }: ItemRowProps) {
+  return (
+    <div className={cn('group/row flex min-w-0 items-start gap-3 rounded-md px-2.5 py-2 transition-colors hover:bg-hover', platform.hasTouchScreen && 'active:bg-pressed')}>
+      {leading && <span className="flex h-[1lh] shrink-0 items-center">{leading}</span>}
+      <div className="min-w-0 flex-1">
+        {typeof title === 'string'
+          ? <Text as="p" tone={done ? 'faint' : 'primary'} className={cn('break-words', done && 'line-through')}>{title}</Text>
+          : title}
+        {detail && <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5">{detail}</div>}
+      </div>
+      {trailing && <HoverReveal className="flex items-center gap-1">{trailing}</HoverReveal>}
+    </div>
+  );
+}

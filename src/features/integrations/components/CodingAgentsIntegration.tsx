@@ -70,7 +70,6 @@ const AgentsRow: React.FC<AgentsRowProps> = ({ agents, pending, setAll }) => {
     <CardRow
       title={ALL.title}
       description={description}
-      wrap
       status={outdated && <Button variant="outline" size="sm" loading={pending} onClick={() => setAll(true)}>{COPY.outdated.action}</Button>}
       actions={<Switch checked={on} disabled={agents.length === 0 || pending} onCheckedChange={setAll} aria-label={ALL.label} />}
     />

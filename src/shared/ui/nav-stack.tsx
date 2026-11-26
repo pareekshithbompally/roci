@@ -239,12 +239,14 @@ export interface PushedPageProps {
   fill?: boolean;
   /** Asked before ‹ or a swipe leaves (unsaved edits): resolves whether to leave. */
   confirmBack?: () => Promise<boolean>;
+  /** `grouped`: cards on the grouped background, as Settings is (a form); else the page's own fill. */
+  grouped?: boolean;
   children: React.ReactNode;
 }
 
 /** One page pushed over something that is not a stack (iPhone): the stack's own bar with ‹, push and pop, and a swipe from
  *  the left edge to go back. It leaves showing what it last showed. */
-export function PushedPage({ open, title, onBack, action, over = 'view', fill, confirmBack, children }: PushedPageProps) {
+export function PushedPage({ open, title, onBack, action, over = 'view', fill, confirmBack, grouped, children }: PushedPageProps) {
   const [node, setNode] = useState<HTMLDivElement | null>(null);
   const { shown, hide, onAnimationEnd } = usePresence(open);
   const last = useRef({ title, children });
@@ -276,7 +278,7 @@ export function PushedPage({ open, title, onBack, action, over = 'view', fill, c
     >
       {/* It clears the status bar itself; over a place the shell already clears the home indicator. Its own fill hides what
           it covers. */}
-      <Surface variant="page" className={cn('absolute inset-0 flex flex-col pt-safe-top', over === 'app' && 'pb-safe-bottom')}>
+      <Surface variant={grouped ? 'grouped' : 'page'} className={cn('absolute inset-0 flex flex-col pt-safe-top', over === 'app' && 'pb-safe-bottom')}>
         <TitlebarSpacer />
         <BackBar title={last.current.title} onBack={() => ask(onBack)} action={action} />
         {fill
@@ -314,6 +316,7 @@ export function FormPage({ open, title, onClose, canSave, onSave, saveLabel = KI
       title={title}
       onBack={onClose}
       over="app"
+      grouped
       confirmBack={busy ? () => Promise.resolve(false) : confirmBack}
       action={busy ? <Spinner /> : <IconButton icon={Check} label={saveLabel} size="fab" variant="bar" disabled={!canSave} onClick={onSave} />}
     >

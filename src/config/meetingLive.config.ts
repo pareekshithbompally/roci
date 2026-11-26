@@ -80,6 +80,9 @@ export const MEETING_ADD_COPY = {
   todo: 'To-do',
   note: 'Note',
   notesTitle: 'Notes',
+  /** iPhone: your notes at the end of the Summary, and the way back into them. */
+  yourNotes: 'Your notes',
+  editNotes: 'Edit',
   newChat: 'New chat',
   openFullChat: 'Open full chat',
   chatAbout: (title: string) => `Chat about ${title}`,

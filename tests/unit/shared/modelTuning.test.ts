@@ -6,7 +6,6 @@ import {
   presetChoice,
   resolveTuning,
   serverPresets,
-  sourceOf,
   withKvType,
   withPreset,
   withoutKeys,
@@ -35,13 +34,6 @@ describe('model tuning', () => {
   it('reads an unset sampling option as llama.cpp’s own', () => {
     expect(optionValue({}, 'temp')).toBe(0.8);
     expect(optionValue({ temp: 0.1 }, 'temp')).toBe(0.1);
-  });
-
-  it('names where an untouched value comes from', () => {
-    expect(sourceOf('gemma-4-e2b', ['temp', 'top-p'], {})).toBe('maker');
-    expect(sourceOf('gemma-4-e2b', ['ctx-size'], {})).toBe('roci');
-    expect(sourceOf('gemma-4-e2b', ['cache-type-k'], {})).toBe('engine');
-    expect(sourceOf('gemma-4-e2b', ['temp'], { temp: 0.3 })).toBeUndefined();
   });
 
   it('matches presets by what the model runs, the empty choice while the user set none of its keys', () => {
