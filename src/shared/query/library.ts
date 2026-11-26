@@ -1,4 +1,4 @@
-/** The Knowledge library's documents as one query, so the screen and Keep in Knowledge read and change the same cache. */
+/** The Knowledge library's documents as one query, so Knowledge, Keep in Knowledge and citations read and change one cache. */
 
 import { documentsService } from '@services/storage';
 import { isTauriEnvironment } from '@services/tauri';

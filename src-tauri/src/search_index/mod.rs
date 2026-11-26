@@ -1,8 +1,8 @@
-//! The search index, owned here end to end: every knowledge source (a meeting, a chat, a file kept in the library) is split
-//! into pieces from the store and embedded on device (the GPU's background queue) when it's saved, and only pieces without a
-//! vector are embedded. Each source's index state records how that went (the webview hears of each change); at launch only
-//! library files not yet ready and sources that failed are indexed again. The webview only asks: search, a recording's new
-//! stretch, a rebuild. No piece or vector crosses to it.
+//! The search index, owned here end to end: every knowledge source (a meeting, a chat, a document you gave Roci) is split
+//! into pieces from the store when it's saved, searchable by words at once, then embedded on device (the GPU's background
+//! queue), only pieces without a vector. Each source's index state says how far it got (pending, ready, failed and why; the
+//! webview hears of each change), so launch reads only what's left, never the whole index. The webview only asks: search,
+//! a document's pages, a recording's new stretch, a rebuild. No piece or vector crosses to it.
 
 mod pieces;
 
@@ -13,7 +13,6 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_store::index::{self, ChatLine, ChunkData, FileHit, FileSource, ItemKind, MeetingText, SourceState};
 use tauri_plugin_store::{ChatSearchHit, MeetingChange, SearchHit};
@@ -79,9 +78,9 @@ struct Progress {
 
 // ── Lifecycle ──
 
-/// Follows meeting and chat saves and files you gave Roci (attached, or kept in the library); called once from setup. Once the database opens, the library
-/// files not yet ready and the sources that failed are indexed again, and (with search's model downloaded) the pieces still
-/// without a vector (after an upgrade, or a save while the model was busy) get one.
+/// Follows meeting and chat saves and documents you gave Roci (attached, or kept in the library); called once from setup.
+/// Once the database opens, the documents this indexer hasn't read are read, and (with search's model downloaded) the
+/// pending sources get their missing vectors.
 pub fn start(app: AppHandle) {
     let (sender, receiver) = mpsc::channel();
     let opened = sender.clone();
@@ -165,30 +164,37 @@ fn report(result: Result<(), String>, owner: ItemKind, id: &str) {
     }
 }
 
-/// One source, from the store: its pieces saved, the ones without a vector embedded, and how that went kept as its index
-/// state. Left as it is when unchanged since it was last indexed (same text, same indexer) with every piece embedded, when
-/// it's gone, or when it's a meeting still waiting for its transcript.
+/// One source, from the store, in two steps: its pieces saved at once (searchable by words; pending while some lack a
+/// vector), then the missing vectors embedded (ready). A document this indexer read whole is never read again (files don't
+/// change); an unchanged meeting or chat with every piece embedded is left as it is, as are one that's gone and a meeting
+/// still waiting for its transcript. A source that can't be read is failed, with why.
 fn index_one(app: &AppHandle, owner: ItemKind, id: &str) -> Result<(), String> {
+    let state = index::state_of(app, owner, id).map_err(|e| e.to_string())?;
+    if owner == ItemKind::File && state.is_some_and(|s| s.done(INDEXER_VERSION)) {
+        return Ok(());
+    }
     let pieces = match read(app, owner, id) {
         Ok(Some(pieces)) => pieces,
         Ok(None) => return Ok(()),
-        Err(error) => return failed(app, owner, id, "", error),
+        Err(error) => return failed(app, owner, id, error),
     };
-    let hash = text_hash(&pieces);
     let have: BTreeSet<String> = index::embedded_texts(app, owner, id).map_err(|e| e.to_string())?.into_iter().collect();
-    let state = index::state_of(app, owner, id).map_err(|e| e.to_string())?;
-    let current = state.is_some_and(|s| s.ready && s.text_hash == hash && s.version == INDEXER_VERSION);
-    if current && pieces.iter().all(|p| have.contains(&p.chunk_text)) {
+    let missing = pieces.iter().filter(|p| !have.contains(&p.chunk_text)).count();
+    if missing == 0 && state.is_some_and(|s| s.done(INDEXER_VERSION)) {
         return Ok(());
     }
-    let saved = with_new_vectors(app, &have, pieces).and_then(|pieces| index::save_pieces(app, owner, id, &pieces).map_err(|e| e.to_string()));
-    match saved {
-        Ok(()) => {
-            record(app, owner, id, &hash, SourceState::Ready, None);
-            Ok(())
-        }
-        Err(error) => failed(app, owner, id, &hash, error),
+    index::save_pieces(app, owner, id, &pieces).map_err(|e| e.to_string())?;
+    if missing == 0 {
+        record(app, owner, id, SourceState::Ready, None);
+        return Ok(());
     }
+    record(app, owner, id, SourceState::Pending, None);
+    // No model yet: searchable by words, pending until it is downloaded. An embedding error leaves it pending too.
+    if let Some(embedded) = with_new_vectors(app, &have, pieces)? {
+        index::save_pieces(app, owner, id, &embedded).map_err(|e| e.to_string())?;
+        record(app, owner, id, SourceState::Ready, None);
+    }
+    Ok(())
 }
 
 /// The source's pieces as the store has it now; `None` leaves its index as it is.
@@ -245,20 +251,9 @@ fn pieces_of(source: Source) -> Result<Option<Vec<ChunkData>>, String> {
     })
 }
 
-/// What a source's pieces say, as one hash (their pages included): unchanged text is not indexed again.
-fn text_hash(pieces: &[ChunkData]) -> String {
-    let mut hasher = Sha256::new();
-    for piece in pieces {
-        hasher.update(piece.page.unwrap_or(0).to_le_bytes());
-        hasher.update(piece.chunk_text.as_bytes());
-        hasher.update([0]);
-    }
-    format!("{:x}", hasher.finalize())
-}
-
 /// Keeps how indexing the source went and tells the webview.
-fn record(app: &AppHandle, owner: ItemKind, id: &str, hash: &str, state: SourceState, error: Option<&str>) {
-    if let Err(e) = index::set_state(app, owner, id, hash, INDEXER_VERSION, state, error) {
+fn record(app: &AppHandle, owner: ItemKind, id: &str, state: SourceState, error: Option<&str>) {
+    if let Err(e) = index::set_state(app, owner, id, INDEXER_VERSION, state, error) {
         log::error!("[search-index] {owner:?} {id} state not kept: {e}");
         return;
     }
@@ -267,23 +262,23 @@ fn record(app: &AppHandle, owner: ItemKind, id: &str, hash: &str, state: SourceS
     }
 }
 
-/// Keeps the failure as the source's state (the next save or launch tries again) and returns it.
-fn failed(app: &AppHandle, owner: ItemKind, id: &str, hash: &str, error: String) -> Result<(), String> {
-    record(app, owner, id, hash, SourceState::Failed, Some(&error));
+/// Keeps the failure as the source's state, with why (a meeting or chat tries again on its next save; a file only when the
+/// indexer changes, since the file won't) and returns it.
+fn failed(app: &AppHandle, owner: ItemKind, id: &str, error: String) -> Result<(), String> {
+    record(app, owner, id, SourceState::Failed, Some(&error));
     Err(error)
 }
 
-/// Vectors for the pieces whose text has none yet (`have`: the texts that do; an unchanged piece keeps its own); none
-/// while the model isn't downloaded.
-fn with_new_vectors(app: &AppHandle, have: &BTreeSet<String>, mut pieces: Vec<ChunkData>) -> Result<Vec<ChunkData>, String> {
+/// The pieces with vectors for those whose text has none yet (`have`: the texts that do; an unchanged piece keeps its own);
+/// `None` while the model isn't downloaded.
+fn with_new_vectors(app: &AppHandle, have: &BTreeSet<String>, mut pieces: Vec<ChunkData>) -> Result<Option<Vec<ChunkData>>, String> {
     let missing: Vec<usize> = (0..pieces.len()).filter(|&i| !have.contains(&pieces[i].chunk_text)).collect();
     let texts: Vec<String> = missing.iter().map(|&i| pieces[i].chunk_text.clone()).collect();
-    if let Some(vectors) = embed(app, &texts, Priority::Background)? {
-        for (i, vector) in missing.into_iter().zip(vectors) {
-            pieces[i].embedding = Some(vector);
-        }
+    let Some(vectors) = embed(app, &texts, Priority::Background)? else { return Ok(None) };
+    for (i, vector) in missing.into_iter().zip(vectors) {
+        pieces[i].embedding = Some(vector);
     }
-    Ok(pieces)
+    Ok(Some(pieces))
 }
 
 /// Vectors for `texts` in batches, each a GPU turn at `priority`; `None` while search's model isn't downloaded (search then
@@ -304,19 +299,19 @@ fn embed(app: &AppHandle, texts: &[String], priority: Priority) -> Result<Option
     Ok(Some(vectors))
 }
 
-/// The library files not ready at this indexer's version and the sources that failed, indexed again (at launch).
+/// At launch: documents this indexer hasn't read (new, or read by an older one) and sources indexed before states were kept.
 fn retry(app: &AppHandle) {
-    match index::needing_index(app, INDEXER_VERSION) {
+    match index::unindexed(app, INDEXER_VERSION) {
         Ok(sources) => sources.into_iter().for_each(|(owner, id)| report(index_one(app, owner, &id), owner, &id)),
         Err(error) => log::error!("[search-index] finding sources to index failed: {error}"),
     }
 }
 
-/// The sources with pieces still without a vector.
+/// The sources still pending (pieces without a vector: the model was missing, busy or failed), read from their states.
 fn catch_up(app: &AppHandle) {
-    match index::without_vectors(app) {
+    match index::pending(app) {
         Ok(items) => items.into_iter().for_each(|(owner, id)| report(index_one(app, owner, &id), owner, &id)),
-        Err(error) => log::error!("[search-index] finding pieces without vectors failed: {error}"),
+        Err(error) => log::error!("[search-index] finding pending sources failed: {error}"),
     }
 }
 
@@ -399,8 +394,6 @@ pub async fn search_documents(app: AppHandle, query: String, limit: usize, paths
 pub struct DocumentPages {
     name: String,
     pages: Vec<String>,
-    /// In the Knowledge library, rather than a chat's attachment.
-    kept: bool,
 }
 
 /// A document's text, page by page, read from its file: what `read` and Send whole's token count take.
@@ -409,7 +402,7 @@ pub async fn document_pages(app: AppHandle, path: String) -> Result<DocumentPage
     off_main(move || {
         let id = index::file_id_of(&app, &path).map_err(|e| e.to_string())?.ok_or_else(|| format!("No document at {path}"))?;
         let file = index::file_source(&app, &id).map_err(|e| e.to_string())?.ok_or_else(|| format!("No document at {path}"))?;
-        Ok(DocumentPages { pages: document_text(&app, &file)?.pages, name: file.name, kept: file.kept })
+        Ok(DocumentPages { pages: document_text(&app, &file)?.pages, name: file.name })
     })
     .await
 }
@@ -468,17 +461,6 @@ mod tests {
     fn a_file_with_no_text_is_not_ready_and_says_why() {
         let scan = DocumentText { pages: vec![String::new(), "  ".into()], kind: "page" };
         assert_eq!(pieces_of(Source::File(Some(scan))).unwrap_err(), NO_TEXT);
-    }
-
-    #[test]
-    fn the_same_text_hashes_the_same_and_a_page_moved_does_not() {
-        let on = |page: i32| {
-            let mut pieces = pieces::document(&vec![String::new(); page as usize - 1].into_iter().chain(["Q3 pricing.".to_string()]).collect::<Vec<_>>(), "page");
-            pieces.iter_mut().for_each(|p| p.embedding = None);
-            pieces
-        };
-        assert_eq!(text_hash(&on(1)), text_hash(&on(1)));
-        assert_ne!(text_hash(&on(1)), text_hash(&on(2)));
     }
 
     #[test]

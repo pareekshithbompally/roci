@@ -11,7 +11,7 @@ import { StorageConfig } from '@config/storage.config';
 import { ATTACHMENT_COPY } from '@config/chat.config';
 import { attachmentInput, isSearchableDocument, mediaKind, type MediaKind } from '@shared/utils/chatParts';
 import type { FileUIPart } from '@shared/types';
-import { useKeepInKnowledge } from '@features/knowledge/hooks/useKeepInKnowledge';
+import { useKeepInKnowledge } from '@shared/hooks/useKeepInKnowledge';
 import { useObjectUrl } from '@shared/hooks';
 import { keptPathOf, useMediaSrc, type ChatMedia } from '@features/chat/hooks/useMediaSrc';
 

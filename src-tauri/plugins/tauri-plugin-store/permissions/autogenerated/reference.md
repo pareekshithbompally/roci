@@ -20,7 +20,6 @@ Allows all store plugin commands
 - `allow-assets-page`
 - `allow-assets-count`
 - `allow-assets-exists`
-- `allow-assets-library`
 - `allow-assets-delete`
 - `allow-assets-keep`
 - `allow-index-states`
@@ -207,32 +206,6 @@ Enables the assets_keep command without any pre-configured scope.
 <td>
 
 Denies the assets_keep command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-assets-library`
-
-</td>
-<td>
-
-Enables the assets_library command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-assets-library`
-
-</td>
-<td>
-
-Denies the assets_library command without any pre-configured scope.
 
 </td>
 </tr>

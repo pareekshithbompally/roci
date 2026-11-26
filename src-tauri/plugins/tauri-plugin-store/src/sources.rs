@@ -1,7 +1,9 @@
-//! Knowledge sources (meetings, chats, files kept in the library): each one's index state, so a source is indexed again
-//! only when its text or the indexer changes and a failed one is retried; and the sources about the same thing as one, by
-//! meaning (the mean of its pieces' vectors against everyone else's pieces), worked out when asked, never stored.
+//! Knowledge sources (meetings, chats, files you gave Roci): each one's index state (pending until every piece has a
+//! vector, ready, or failed and why), so the indexer knows what is left to do without scanning the index; and the sources
+//! about the same thing as one, by meaning (the mean of its pieces' vectors against everyone else's), worked out when
+//! asked, never stored.
 
+use crate::assets::{DOCUMENT, FILE_NAME};
 use crate::commands::{on_db, ItemKind, StoreState};
 use crate::error::StoreError;
 use rusqlite::{Connection, OptionalExtension};
@@ -27,14 +29,28 @@ impl SourceState {
             SourceState::Failed => "failed",
         }
     }
+
+    fn of(stored: &str) -> Self {
+        match stored {
+            "ready" => SourceState::Ready,
+            "failed" => SourceState::Failed,
+            _ => SourceState::Pending,
+        }
+    }
 }
 
-/// What a source was last indexed from: its text's hash, by which indexer version, and whether it went well.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// How far a source got, and by which indexer version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IndexState {
-    pub text_hash: String,
     pub version: i64,
-    pub ready: bool,
+    pub state: SourceState,
+}
+
+impl IndexState {
+    /// Read whole by this indexer: nothing is left to do.
+    pub fn done(self, version: i64) -> bool {
+        self.version == version && self.state == SourceState::Ready
+    }
 }
 
 /// One source's state as the webview shows it (Indexing… / Ready / Couldn't read).
@@ -61,16 +77,16 @@ pub struct RelatedSource {
 }
 
 /// The kinds a related source can be, searched one partition at a time.
-const KINDS: [ItemKind; 3] = [ItemKind::Meeting, ItemKind::Chat, ItemKind::File];
+const KINDS: [ItemKind; 3] = ItemKind::ALL;
 /// Pieces each kind's nearest-vector search returns before they're grouped by owner.
 const NEIGHBOURS: i64 = 64;
 
 pub(crate) fn state_impl(db: &Connection, owner: ItemKind, id: &str) -> Result<Option<IndexState>, StoreError> {
     Ok(db
         .query_row(
-            "SELECT text_hash, version, state FROM index_state WHERE owner_kind = ?1 AND owner_id = ?2",
+            "SELECT version, state FROM index_state WHERE owner_kind = ?1 AND owner_id = ?2",
             [owner.index_kind(), id],
-            |row| Ok(IndexState { text_hash: row.get(0)?, version: row.get(1)?, ready: row.get::<_, String>(2)? == "ready" }),
+            |row| Ok(IndexState { version: row.get(0)?, state: SourceState::of(&row.get::<_, String>(1)?) }),
         )
         .optional()?)
 }
@@ -80,7 +96,6 @@ pub(crate) fn set_state_impl(
     db: &Connection,
     owner: ItemKind,
     id: &str,
-    text_hash: &str,
     version: i64,
     state: SourceState,
     error: Option<&str>,
@@ -90,50 +105,49 @@ pub(crate) fn set_state_impl(
         return Ok(());
     }
     db.execute(
-        "INSERT INTO index_state (owner_kind, owner_id, text_hash, version, state, error, attempted_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+        "INSERT INTO index_state (owner_kind, owner_id, version, state, error, attempted_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
          ON CONFLICT (owner_kind, owner_id) DO UPDATE SET
-             text_hash = excluded.text_hash, version = excluded.version, state = excluded.state,
-             error = excluded.error, attempted_at = excluded.attempted_at",
-        rusqlite::params![owner.index_kind(), id, text_hash, version, state.as_str(), error, now_ms],
+             version = excluded.version, state = excluded.state, error = excluded.error, attempted_at = excluded.attempted_at",
+        rusqlite::params![owner.index_kind(), id, version, state.as_str(), error, now_ms],
     )?;
     Ok(())
 }
 
-/// Sources to index at launch: files (in the library or attached) not ready at `version` (new, failed, or read by an older
-/// indexer), and meetings and chats whose last indexing failed (the rest are indexed as they're saved).
-pub(crate) fn needing_index_impl(db: &Connection, version: i64) -> Result<Vec<(ItemKind, String)>, StoreError> {
-    let files = db
-        .prepare(
-            "SELECT a.id FROM assets a
+/// Sources to read at launch: documents never read by this indexer version (new, or read by an older one; one that failed
+/// at this version is settled: a file never changes), and any source with pieces but no state (indexed before states).
+pub(crate) fn unindexed_impl(db: &Connection, version: i64) -> Result<Vec<(ItemKind, String)>, StoreError> {
+    let sql = format!(
+        "SELECT 'file', a.id FROM assets a
              LEFT JOIN index_state s ON s.owner_kind = 'file' AND s.owner_id = a.id
-             WHERE a.kind = 'file' AND (s.state IS NULL OR s.state != 'ready' OR s.version != ?1)
-             ORDER BY a.created_at DESC",
-        )?
-        .query_map([version], |row| row.get::<_, String>(0))?
+             WHERE a.kind = 'file' AND {DOCUMENT} AND (s.owner_id IS NULL OR s.version != ?1)
+         UNION
+         SELECT DISTINCT c.owner_kind, c.owner_id FROM chunks c
+             WHERE NOT EXISTS (SELECT 1 FROM index_state s WHERE s.owner_kind = c.owner_kind AND s.owner_id = c.owner_id)"
+    );
+    sources_of(db, &sql, [version])
+}
+
+/// Sources whose pieces are searchable by words but some still lack a vector (the model was missing or busy).
+pub(crate) fn pending_impl(db: &Connection) -> Result<Vec<(ItemKind, String)>, StoreError> {
+    sources_of(db, "SELECT owner_kind, owner_id FROM index_state WHERE state = 'pending'", [])
+}
+
+/// `(owner_kind, owner_id)` rows as sources, a kind no source has left out.
+fn sources_of(db: &Connection, sql: &str, params: impl rusqlite::Params) -> Result<Vec<(ItemKind, String)>, StoreError> {
+    let rows = db
+        .prepare(sql)?
+        .query_map(params, |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
         .collect::<Result<Vec<_>, _>>()?;
-    let failed = db
-        .prepare("SELECT owner_kind, owner_id FROM index_state WHERE state = 'failed' AND owner_kind IN ('meeting', 'chat')")?
-        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
-        .collect::<Result<Vec<_>, _>>()?;
-    let owner = |kind: &str| KINDS.into_iter().find(|k| k.index_kind() == kind);
-    Ok(files
-        .into_iter()
-        .map(|id| (ItemKind::File, id))
-        .chain(failed.into_iter().filter_map(|(kind, id)| owner(&kind).map(|k| (k, id))))
-        .collect())
+    Ok(rows.into_iter().filter_map(|(kind, id)| ItemKind::from_index_kind(&kind).map(|k| (k, id))).collect())
 }
 
 /// Every source of `kind` with a state, for the webview's list.
 fn statuses_impl(db: &Connection, kind: ItemKind) -> Result<Vec<SourceStatus>, StoreError> {
-    let state = |s: String| match s.as_str() {
-        "ready" => SourceState::Ready,
-        "failed" => SourceState::Failed,
-        _ => SourceState::Pending,
-    };
     Ok(db
         .prepare("SELECT owner_id, state, error FROM index_state WHERE owner_kind = ?1")?
-        .query_map([kind.index_kind()], |row| Ok(SourceStatus { owner_id: row.get(0)?, state: state(row.get(1)?), error: row.get(2)? }))?
+        .query_map([kind.index_kind()], |row| {
+            Ok(SourceStatus { owner_id: row.get(0)?, state: SourceState::of(&row.get::<_, String>(1)?), error: row.get(2)? })
+        })?
         .collect::<Result<_, _>>()?)
 }
 
@@ -156,14 +170,17 @@ fn source_vector(db: &Connection, owner: ItemKind, id: &str) -> Result<Option<Ve
     Ok((norm > 0.0).then(|| mean.into_iter().map(|m| m / norm).collect()))
 }
 
-/// Each owner of `kind` nearest to `vector` with its best cosine similarity (vectors are unit length, so cos = 1 − d²/2).
-fn nearest_owners(db: &Connection, kind: ItemKind, vector: &[f32]) -> Result<HashMap<String, f64>, StoreError> {
+/// Each owner of `kind` nearest to `vector` with its best cosine similarity (vectors are unit length, so cos = 1 − d²/2):
+/// `source` itself left out, and only library documents among files, both inside the nearest-neighbour search.
+fn nearest_owners(db: &Connection, kind: ItemKind, vector: &[f32], source: &str) -> Result<HashMap<String, f64>, StoreError> {
+    let library = if kind == ItemKind::File { "AND kept = 1" } else { "" };
+    let sql = format!(
+        "SELECT owner_id, distance FROM vec_chunks
+         WHERE embedding MATCH ?1 AND k = ?2 AND owner_kind = ?3 AND owner_id != ?4 {library}"
+    );
     let rows: Vec<(String, f64)> = db
-        .prepare(
-            "SELECT c.owner_id, v.distance FROM vec_chunks v JOIN chunks c ON c.id = v.chunk_id
-             WHERE v.embedding MATCH ?1 AND v.k = ?2 AND v.owner_kind = ?3",
-        )?
-        .query_map(rusqlite::params![crate::search::vector_bytes(vector), NEIGHBOURS, kind.index_kind()], |row| {
+        .prepare(&sql)?
+        .query_map(rusqlite::params![crate::search::vector_bytes(vector), NEIGHBOURS, kind.index_kind(), source], |row| {
             Ok((row.get(0)?, row.get(1)?))
         })?
         .collect::<Result<_, _>>()?;
@@ -181,7 +198,7 @@ fn titled(db: &Connection, kind: ItemKind, id: &str) -> Result<Option<(String, i
     let sql = match kind {
         ItemKind::Meeting => "SELECT title, created_at FROM meetings WHERE id = ?1",
         ItemKind::Chat => "SELECT title, last_message_at FROM chats WHERE id = ?1",
-        ItemKind::File => "SELECT COALESCE(json_extract(meta, '$.name'), path), created_at FROM assets WHERE id = ?1 AND kept = 1",
+        ItemKind::File => &format!("SELECT {FILE_NAME}, created_at FROM assets WHERE id = ?1 AND kept = 1"),
     };
     Ok(db.query_row(sql, [id], |row| Ok((row.get(0)?, row.get(1)?))).optional()?)
 }
@@ -191,8 +208,8 @@ pub(crate) fn related_impl(db: &Connection, owner: ItemKind, id: &str, min_score
     let Some(vector) = source_vector(db, owner, id)? else { return Ok(Vec::new()) };
     let mut found = Vec::new();
     for kind in KINDS {
-        for (other, score) in nearest_owners(db, kind, &vector)? {
-            if (kind == owner && other == id) || score < min_score {
+        for (other, score) in nearest_owners(db, kind, &vector, id)? {
+            if score < min_score {
                 continue;
             }
             if let Some((title, at)) = titled(db, kind, &other)? {
@@ -247,7 +264,7 @@ mod tests {
             "INSERT INTO meetings (id, title, created_at, updated_at) VALUES ('m1', 'Acme renewal prep', 5, 5);
              INSERT INTO chats (id, title, created_at, last_message_at) VALUES ('c1', 'Lunch plans', 6, 6);
              INSERT INTO assets (id, kind, path, meta, created_at, kept)
-                 VALUES ('f1', 'file', 'assets/f1.pdf', '{\"name\":\"Q3 pricing.pdf\"}', 7, 1);",
+                 VALUES ('f1', 'file', 'assets/f1.pdf', '{\"name\":\"Q3 pricing.pdf\",\"mediaType\":\"application/pdf\"}', 7, 1);",
         )
         .unwrap();
         let tx = conn.unchecked_transaction().unwrap();
@@ -267,16 +284,41 @@ mod tests {
     }
 
     #[test]
-    fn a_source_is_indexed_again_only_when_new_failed_or_read_by_an_older_indexer() {
+    fn launch_reads_documents_new_to_this_indexer_and_sources_indexed_before_states() {
         let conn = db();
         seed(&conn);
-        assert_eq!(needing_index_impl(&conn, 1).unwrap(), vec![(ItemKind::File, "f1".to_string())], "no state yet");
-        set_state_impl(&conn, ItemKind::File, "f1", "h", 1, SourceState::Ready, None, 0).unwrap();
-        assert!(needing_index_impl(&conn, 1).unwrap().is_empty(), "ready at this version");
-        assert_eq!(needing_index_impl(&conn, 2).unwrap().len(), 1, "a newer indexer reads it again");
-        set_state_impl(&conn, ItemKind::Chat, "c1", "h", 1, SourceState::Failed, Some("busy"), 0).unwrap();
-        assert!(needing_index_impl(&conn, 1).unwrap().contains(&(ItemKind::Chat, "c1".to_string())), "a failed chat is retried");
-        set_state_impl(&conn, ItemKind::Chat, "gone", "h", 1, SourceState::Ready, None, 0).unwrap();
+        let mut first = unindexed_impl(&conn, 1).unwrap();
+        first.sort();
+        assert_eq!(first, vec![(ItemKind::Meeting, "m1".to_string()), (ItemKind::Chat, "c1".to_string()), (ItemKind::File, "f1".to_string())]);
+        for (kind, id) in [(ItemKind::Meeting, "m1"), (ItemKind::Chat, "c1")] {
+            set_state_impl(&conn, kind, id, 1, SourceState::Ready, None, 0).unwrap();
+        }
+        set_state_impl(&conn, ItemKind::File, "f1", 1, SourceState::Failed, Some("No text in it"), 0).unwrap();
+        assert!(unindexed_impl(&conn, 1).unwrap().is_empty(), "a failed file is settled at its version");
+        assert_eq!(unindexed_impl(&conn, 2).unwrap(), vec![(ItemKind::File, "f1".to_string())], "a newer indexer reads it again");
+        conn.execute("INSERT INTO assets (id, kind, path, meta, created_at) VALUES ('img', 'file', 'assets/a.png', '{\"mediaType\":\"image/png\"}', 0)", []).unwrap();
+        assert!(unindexed_impl(&conn, 2).unwrap().iter().all(|(_, id)| id != "img"), "an image is no document");
+    }
+
+    #[test]
+    fn pending_sources_are_found_without_reading_the_index() {
+        let conn = db();
+        seed(&conn);
+        set_state_impl(&conn, ItemKind::Chat, "c1", 1, SourceState::Pending, None, 0).unwrap();
+        assert_eq!(pending_impl(&conn).unwrap(), vec![(ItemKind::Chat, "c1".to_string())]);
+        set_state_impl(&conn, ItemKind::Chat, "gone", 1, SourceState::Ready, None, 0).unwrap();
         assert!(state_impl(&conn, ItemKind::Chat, "gone").unwrap().is_none(), "a source deleted meanwhile gets no state");
+    }
+
+    #[test]
+    fn a_long_document_still_finds_others_and_never_itself() {
+        let conn = db();
+        seed(&conn);
+        let own: Vec<ChunkData> = (0..80).map(|i| ChunkData { chunk_index: i, ..piece(&format!("Pricing page {i}"), vector(0, 1, 0.1)) }).collect();
+        let tx = conn.unchecked_transaction().unwrap();
+        save_chunks(&tx, ItemKind::File, "f1", &own).unwrap();
+        tx.commit().unwrap();
+        let related = related_impl(&conn, ItemKind::File, "f1", 0.5, 5).unwrap();
+        assert_eq!(related.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(), vec!["m1"]);
     }
 }

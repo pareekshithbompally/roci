@@ -17,7 +17,6 @@ permissions = [
   "allow-assets-page",
   "allow-assets-count",
   "allow-assets-exists",
-  "allow-assets-library",
   "allow-assets-delete",
   "allow-assets-keep",
   "allow-index-states",

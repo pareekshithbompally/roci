@@ -12,6 +12,7 @@ export const GALLERY_CONFIG = {
   foldersLabel: 'Folder',
   deleteNoun: { speech: 'recording', video: 'video' },
   deleteFailed: 'Couldn’t delete it',
+  loadFailed: 'Couldn’t load this folder',
   openChat: 'Open chat',
   /** Thumbnails written beside each image: longest side in px, JPEG quality. */
   thumbnail: { maxPx: 512, quality: 0.82 },

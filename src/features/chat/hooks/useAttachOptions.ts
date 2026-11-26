@@ -1,10 +1,13 @@
-/** What the chat's model can be sent: the + menu's attach options its inputs allow, the file picker's filter, and screenshots. */
+/** What the chat's model can be sent: the + menu's attach options its inputs allow, the file picker's filter, screenshots,
+ *  and whether a document can be looked up in (Search) rather than sent whole. */
 
 import { FileText, Image as ImageIcon, Music, NotebookText } from 'lucide-react';
 import type { Modality } from '@config/modelSpine.config';
 import { ATTACHMENT_TYPES } from '@config/chat.config';
 import { profileOf } from '@services/ai/models';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
+import { useSettings } from '@shared/contexts/SettingsContext';
+import { selectedToolset } from '@extensions/tool-orchestrator';
 import { useChatModel } from './useChatModel';
 
 const { pdf, text } = ATTACHMENT_TYPES;
@@ -26,13 +29,18 @@ export interface AttachOptions {
   accept: string;
   /** Takes images, so screenshots can be attached. */
   images: boolean;
+  /** Takes tools and the meeting tools are on, so an attached document can be searched (find and read) instead of sent whole. */
+  lookUp: boolean;
 }
 
 export function useAttachOptions(): AttachOptions {
   useModelCatalog();
+  const { settings } = useSettings();
   const resolved = useChatModel();
-  const input = resolved ? profileOf(resolved.provider, resolved.model).input : [];
+  const profile = resolved ? profileOf(resolved.provider, resolved.model) : null;
+  const input = profile?.input ?? [];
   const options = ATTACH_OPTIONS.filter((o) => input.includes(o.takes));
   const accept = [...options.map((o) => o.accept), ...(input.includes('video') ? ['video/*'] : [])].join(',');
-  return { options, accept, images: input.includes('image') };
+  const lookUp = !!profile?.tools && selectedToolset(settings).meetings;
+  return { options, accept, images: input.includes('image'), lookUp };
 }

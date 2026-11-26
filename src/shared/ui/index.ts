@@ -104,6 +104,8 @@ export type { FormActionsProps, FormCommand } from './form-actions';
 export { AddForm, CornerPanel, FabButton, PanelScreen } from './action-fab';
 export type { AddFormProps, CornerPanelProps, FabButtonProps, PanelScreenProps } from './action-fab';
 export { PdfFrame, Viewer } from './viewer';
+export { useFilePicker } from './file-picker';
+export type { FilePicker } from './file-picker';
 export type { ViewerMedia, ViewerProps } from './viewer';
 export { Picker } from './picker';
 export type { PickerGroup, PickerOption, PickerProps } from './picker';

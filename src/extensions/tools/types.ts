@@ -92,8 +92,6 @@ export interface DocumentCitation {
   page: number | null;
   excerpt: string;
   score: number;
-  /** In the Knowledge library (opens there), rather than a chat's attachment. */
-  kept: boolean;
 }
 
 export interface ToolResultMeta {

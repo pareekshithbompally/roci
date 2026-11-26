@@ -7,11 +7,9 @@ export const queryKeys = {
   notes: (meetingId: string) => ['notes', meetingId] as const,
   /** Generated images (Gallery): its pages and its count. */
   gallery: () => ['gallery'] as const,
-  galleryPages: () => ['gallery', 'pages'] as const,
-  galleryCount: () => ['gallery', 'count'] as const,
-  /** A Gallery folder of sound or video (Audio, Video), page by page, and its count */
-  galleryMedia: (kind: string) => ['gallery', 'media', kind] as const,
-  galleryMediaCount: (kind: string) => ['gallery', 'media', kind, 'count'] as const,
+  /** A Gallery folder (Images, Audio, Video), page by page, and its count */
+  galleryFolder: (kind: string) => ['gallery', kind] as const,
+  galleryCount: (kind: string) => ['gallery', kind, 'count'] as const,
   /** Dictations made in the app (Dictations). */
   dictations: () => ['dictations'] as const,
   /** The Knowledge library: every file kept there, newest first */
@@ -20,6 +18,8 @@ export const queryKeys = {
   sourceStates: (kind: string) => ['knowledge-library', 'states', kind] as const,
   /** The sources about the same thing as one; under the library, so a change there reads them again */
   relatedSources: (kind: string, id: string) => ['knowledge-library', 'related', kind, id] as const,
+  /** Every source's related list, read again when indexing changes what is close to what */
+  relatedSourcesAll: () => ['knowledge-library', 'related'] as const,
   /** Settings › Personalization › Memory, and what chat reads of it. */
   memories: () => ['memories'] as const,
   /** The knowledge graph drawn around `focus` (null: the whole graph) and one entity's detail: under `memories`, so a memory

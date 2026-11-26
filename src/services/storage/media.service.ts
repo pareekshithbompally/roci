@@ -1,5 +1,5 @@
-/** Sound and video Roci made and you kept (Gallery's Audio and Video folders): each an asset row of its kind, kept so it
- *  outlives the chat it came from. Saved speech is a reply read aloud and kept as WAV. */
+/** Sound and video Roci made and you kept (Gallery's Audio and Video folders): each a kept asset row of its kind, so it
+ *  outlives the chat it came from and the folder lists only what you kept. Saved speech is a reply read aloud, as WAV. */
 
 import { store, type ItemCursor } from '@services/db';
 import { queryClient } from '@shared/query/queryClient';
@@ -52,7 +52,7 @@ export const mediaService = {
 
   /** One page of a folder's media, newest first, after `before`. */
   async page(kind: MediaKind, before: ItemCursor | null, limit: number): Promise<GalleryMedia[]> {
-    return Promise.all((await store.assets.page(kind, before, limit)).map(toMedia));
+    return Promise.all((await store.assets.page(kind, true, before, limit)).map(toMedia));
   },
 
   /** Deletes one kept sound or video with its file. */

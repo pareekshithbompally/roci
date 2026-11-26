@@ -7,8 +7,8 @@
 import { z } from 'zod';
 import type { DocumentCitation, MeetingCitation, MeetingRow, ToolResult } from '@extensions/tools/types';
 import { day, defineTool, idFrom, ok, text, toolDate } from '@extensions/tools/contract';
-import { findMeeting, meetingNotFound, todoLine } from '@extensions/tools/data';
-import { MAX_CITATION_EXCERPT_CHARS, MAX_SNIPPET_CHARS, MAX_TODOS_FOR_LLM } from '@extensions/tools/constants';
+import { findMeeting, meetingNotFound, moreOf, readDocument, todoLine } from '@extensions/tools/data';
+import { MAX_CITATION_EXCERPT_CHARS, MAX_DOCUMENT_CITATIONS, MAX_SNIPPET_CHARS, MAX_TODOS_FOR_LLM } from '@extensions/tools/constants';
 import { searchChats, searchDocuments, searchMeetings, type DocumentSearchResult } from '@extensions/rag/searchIndex';
 import { SCORE_HIGH, SCORE_MEDIUM } from '@extensions/rag/constants';
 import { store, type GlobalTodoEntry } from '@services/db';
@@ -140,22 +140,32 @@ async function listChats(count: number): Promise<ToolResult> {
 /** "page 3" where the passage has one. */
 const onPage = (page: number | null) => (page ? `, page ${page}` : '');
 
-/** The passages worth citing, each document page once: a match by meaning alone ranks lower than one by words too, so the
- *  bar is a fair match. */
+/** The passages an answer cites: every one search returned is a real match (meaning above a floor, or the words), so the
+ *  best few, each document page once. */
 function documentCitationsOf(results: DocumentSearchResult[]): DocumentCitation[] {
   const seen = new Set<string>();
   return results
-    .filter((r) => r.score >= SCORE_MEDIUM && !seen.has(`${r.path}#${r.page}`) && seen.add(`${r.path}#${r.page}`))
-    .map((r) => ({ path: r.path, name: r.name, page: r.page, excerpt: r.chunkText.slice(0, MAX_CITATION_EXCERPT_CHARS), score: r.score, kept: r.kept }));
+    .filter((r) => !seen.has(`${r.path}#${r.page}`) && seen.add(`${r.path}#${r.page}`))
+    .slice(0, MAX_DOCUMENT_CITATIONS)
+    .map((r) => ({ path: r.path, name: r.name, page: r.page, excerpt: r.chunkText.slice(0, MAX_CITATION_EXCERPT_CHARS), score: r.score }));
+}
+
+/** One document with nothing in its index to match (yet: it may still be indexing): its first pages, read. */
+async function firstPagesOf(path: string): Promise<ToolResult> {
+  const document = await readDocument(path);
+  if (!document?.text) return ok('Nothing in that document can be searched: it has no text Roci can read (a scan?), or it is gone.', { resultCount: 0 });
+  const citation: DocumentCitation = { path, name: document.name, page: null, excerpt: document.text.slice(0, MAX_CITATION_EXCERPT_CHARS), score: 1 };
+  const more = document.cut ? `\n\n${moreOf(path)}` : '';
+  return ok(`Nothing in "${document.name}" matched those words (it may still be indexing). Its first pages:\n\n${document.text}${more}`, { resultCount: 1, documentCitations: [citation] });
 }
 
 async function searchDocumentsFor(query: string, count: number, document: string | undefined): Promise<ToolResult> {
   const results = await searchDocuments(query, count, document ? [document] : undefined);
   if (results.length === 0) {
-    return ok(document ? 'Nothing in that document matches. Try other words, or read it.' : 'No documents match that search. Try other words, or find documents without a query to list them.', { resultCount: 0 });
+    return document ? firstPagesOf(document) : ok('No documents match that search. Try other words, or find documents without a query to list them.', { resultCount: 0 });
   }
   const lines = results.flatMap((r, i) => [
-    `${i + 1}. "${r.name}"${onPage(r.page)} — Relevance: ${confidenceOf(r.score)}`,
+    `${i + 1}. "${r.name}"${onPage(r.page)}`,
     `   "${r.chunkText.replace(/\n/g, ' ')}"`,
     `   Document ID: ${r.path}`,
     '',

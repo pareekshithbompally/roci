@@ -9,7 +9,9 @@ import { chatService } from '@services/chat.service';
 import type { StreamProgress } from '@services/ai/types';
 import { assetsService } from '@services/storage';
 import { itemEdits, refreshItems } from '@shared/query/items';
-import { CHAT_MAX_ATTACHMENTS } from '@config/chat.config';
+import { ATTACHMENT_COPY, CHAT_MAX_ATTACHMENTS } from '@config/chat.config';
+import { showToast } from '@shared/ui';
+import { errorMessage } from '@shared/utils/errors';
 import { UI_CONFIG } from '@config/ui.config';
 import { chatModelOf } from '@features/chat/utils';
 import type { ModelRef } from '@services/ai/models';
@@ -196,6 +198,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
       set((state) => ({ pendingAttachments: [...state.pendingAttachments, part] }));
     } catch (error: unknown) {
       console.error('[ChatStore] Failed to add attachment:', error);
+      showToast(ATTACHMENT_COPY.attachFailed(file.name, errorMessage(error)), 'error');
     }
   },
 

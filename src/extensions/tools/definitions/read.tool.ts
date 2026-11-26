@@ -5,9 +5,8 @@
 import { z } from 'zod';
 import type { DocumentCitation, MeetingCitation, ToolResult } from '@extensions/tools/types';
 import { defineTool, fail, idFrom, ok, toolDate } from '@extensions/tools/contract';
-import { meetingNotFound, todoLine } from '@extensions/tools/data';
-import { MAX_CHAT_MESSAGES_FOR_LLM, MAX_CITATION_EXCERPT_CHARS, MAX_DOCUMENT_FOR_LLM, MAX_TRANSCRIPT_FOR_LLM } from '@extensions/tools/constants';
-import { documentPages } from '@extensions/rag/searchIndex';
+import { meetingNotFound, moreOf, readDocument, todoLine } from '@extensions/tools/data';
+import { MAX_CHAT_MESSAGES_FOR_LLM, MAX_CITATION_EXCERPT_CHARS, MAX_TRANSCRIPT_FOR_LLM } from '@extensions/tools/constants';
 import { store } from '@services/db';
 import { chatService } from '@services/chat.service';
 import { summaryText } from '@services/meetingReferenceService';
@@ -85,31 +84,15 @@ async function readChat(id: string): Promise<ToolResult> {
 
 // ── Document ──
 
-/** The pages that fit in `budget` characters, each under its number (a text file is one page), and how many were left out. */
-function pagesWithin(pages: string[], budget: number): { text: string; left: number } {
-  const sections: string[] = [];
-  let used = 0;
-  for (const [i, page] of pages.entries()) {
-    const section = pages.length > 1 ? `### Page ${i + 1}\n${page.trim()}` : page.trim();
-    if (sections.length > 0 && used + section.length > budget) return { text: sections.join('\n\n'), left: pages.length - i };
-    sections.push(section.slice(0, budget));
-    used += section.length;
-  }
-  return { text: sections.join('\n\n'), left: 0 };
-}
-
-async function readDocument(path: string): Promise<ToolResult> {
-  const document = await documentPages(path).catch((error: unknown) => {
-    console.warn('[read] Document not read:', path, error);
-    return null;
-  });
+async function readDocumentFor(path: string): Promise<ToolResult> {
+  const document = await readDocument(path);
   if (!document) return fail(`No document can be read at "${path}". Get document IDs from find in documents.`);
-  const { text, left } = pagesWithin(document.pages, MAX_DOCUMENT_FOR_LLM);
-  const more = left > 0 ? `\n\n(${left} more page(s) not shown: look things up in them with find in documents, document "${path}".)` : '';
-  const header = `## Document: ${document.name}${document.pages.length > 1 ? ` — ${document.pages.length} pages` : ''} — ID: ${path}`;
+  const pages = document.pageCount > 1 ? ` — ${document.pageCount} pages` : '';
+  const header = `## Document: ${document.name}${pages} — ID: ${path}`;
+  const body = document.text || 'It has no text Roci can read (a scan?): ask the user to send it whole.';
   // An explicit read: the document is a source of the answer.
-  const citation: DocumentCitation = { path, name: document.name, page: null, excerpt: text.slice(0, MAX_CITATION_EXCERPT_CHARS), score: 1, kept: document.kept };
-  return ok(`${header}\n\n${text || 'It has no text (a scan?).'}${more}`, { resultCount: 1, documentCitations: [citation] });
+  const citation: DocumentCitation = { path, name: document.name, page: null, excerpt: document.text.slice(0, MAX_CITATION_EXCERPT_CHARS), score: 1 };
+  return ok(`${header}\n\n${body}${document.cut ? `\n\n${moreOf(path)}` : ''}`, { resultCount: 1, documentCitations: [citation] });
 }
 
 // ── Entity ──
@@ -142,7 +125,7 @@ export const readTool = defineTool({
     if ([meeting_id, chat_id, entity_id, document_id].filter(Boolean).length !== 1) return fail('Give one of meeting_id, chat_id, document_id or entity_id: the id find returned.');
     if (meeting_id) return readMeeting(meeting_id, parts);
     if (chat_id) return readChat(chat_id);
-    if (document_id) return readDocument(document_id);
+    if (document_id) return readDocumentFor(document_id);
     return readEntity(entity_id ?? '');
   },
 });

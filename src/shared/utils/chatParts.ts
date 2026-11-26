@@ -22,10 +22,13 @@ export function mediaKind(mediaType: string): MediaKind {
 const hasExtension = (filename: string, extensions: readonly string[]) =>
   extensions.some((extension) => filename.toLowerCase().endsWith(extension));
 
-/** The media type an attachment is kept with: a PDF as a PDF even when the system named no type, so the viewer and the
- *  model read it as one; any other as given (an unknown type as raw bytes). */
+/** The media type an attachment is kept with, so the viewer, the model and the search index read it as what it is: a PDF as
+ *  a PDF and a text file (Markdown, CSV) as text even when the system named no type; any other as given (unknown: raw bytes). */
 export function attachmentMediaType(mediaType: string, filename: string): string {
-  if (attachmentInput(mediaType, filename) === 'pdf') return ATTACHMENT_TYPES.pdf.mediaType;
+  const input = attachmentInput(mediaType, filename);
+  if (input === 'pdf') return ATTACHMENT_TYPES.pdf.mediaType;
+  const isText = mediaType.startsWith(ATTACHMENT_TYPES.text.mediaTypePrefix) || (ATTACHMENT_TYPES.text.mediaTypes as readonly string[]).includes(mediaType);
+  if (input === 'text' && !isText) return ATTACHMENT_TYPES.text.fallbackMediaType;
   return mediaType || 'application/octet-stream';
 }
 

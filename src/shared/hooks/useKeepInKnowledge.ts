@@ -7,7 +7,7 @@ import { documentFormat, type KnowledgeDocument } from '@services/storage';
 import { useToast } from '@shared/contexts/ToastContext';
 import type { FileUIPart } from '@shared/types';
 import { ATTACHMENT_COPY } from '@config/chat.config';
-import { libraryQuery } from './libraryQuery';
+import { libraryQuery } from '@shared/query/library';
 
 /** The attachment as a library row until the library is read again. */
 function keeping(part: FileUIPart): KnowledgeDocument {

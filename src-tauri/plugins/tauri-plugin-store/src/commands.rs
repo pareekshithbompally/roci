@@ -1889,6 +1889,14 @@ pub enum ItemKind {
 }
 
 impl ItemKind {
+    /// Every kind the search index holds.
+    pub const ALL: [ItemKind; 3] = [ItemKind::Meeting, ItemKind::Chat, ItemKind::File];
+
+    /// The kind an `owner_kind` names; none for anything else.
+    pub fn from_index_kind(kind: &str) -> Option<ItemKind> {
+        Self::ALL.into_iter().find(|k| k.index_kind() == kind)
+    }
+
     /// Its `owner_kind` in the search index.
     pub const fn index_kind(self) -> &'static str {
         match self {
@@ -2333,10 +2341,13 @@ fn dictations_delete_impl(db: &Connection, id: &str) -> Result<(), StoreError> {
 // ── RAG Indexing Commands ──
 
 /// A piece's vector, replacing any it had.
+/// A piece's vector, with its owner and (a file's) whether it is kept in the library, for filtered nearest-neighbour search.
 fn put_vector(tx: &Connection, kind: ItemKind, chunk_id: i64, embedding: &[f32]) -> Result<(), StoreError> {
     tx.execute("DELETE FROM vec_chunks WHERE chunk_id = ?1", [chunk_id])?;
     tx.execute(
-        "INSERT INTO vec_chunks (chunk_id, owner_kind, embedding) VALUES (?1, ?2, ?3)",
+        "INSERT INTO vec_chunks (chunk_id, owner_kind, owner_id, kept, embedding)
+         SELECT c.id, ?2, c.owner_id, COALESCE((SELECT a.kept FROM assets a WHERE ?2 = 'file' AND a.id = c.owner_id), 0), ?3
+         FROM chunks c WHERE c.id = ?1",
         rusqlite::params![chunk_id, kind.index_kind(), crate::search::vector_bytes(embedding)],
     )?;
     Ok(())
@@ -3104,7 +3115,7 @@ pub(crate) mod tests {
         append_chunks_impl(&conn, "this", &[mine]).unwrap();
         append_chunks_impl(&conn, "other", &(0..40).map(|_| near("other meeting")).collect::<Vec<_>>()).unwrap();
         let within = vec!["this".to_string()];
-        let q = crate::search::SearchQuery { kind: "meeting", text: "", embedding: Some(&query), limit: 3, within: Some(&within) };
+        let q = crate::search::SearchQuery { within: Some(&within), ..crate::search::SearchQuery::owners("meeting", "", Some(&query), 3) };
         let hits = crate::search::hybrid_search(&conn, &q).unwrap();
         assert_eq!(hits.first().map(|h| h.chunk_text.as_str()), Some("budget talk"));
         assert!(hits.iter().all(|h| h.owner_id == "this"));

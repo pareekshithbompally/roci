@@ -32,19 +32,15 @@ export interface DocumentSearchResult {
   /** From 1; none for a text file. */
   page: number | null;
   score: number;
-  /** In the Knowledge library (opens there), rather than a chat's attachment. */
-  kept: boolean;
 }
 
 /** A document's text, page by page (a text file is one page). */
 export interface DocumentPages {
   name: string;
   pages: string[];
-  /** In the Knowledge library, rather than a chat's attachment. */
-  kept: boolean;
 }
 
-interface DocumentHit { path: string; name: string; chunk_text: string; page: number | null; score: number; kept: boolean }
+interface DocumentHit { path: string; name: string; chunk_text: string; page: number | null; score: number }
 interface MeetingHit { meeting_id: string; meeting_title: string; chunk_text: string; chunk_type: string; score: number; created_at: number }
 interface ChatHit { chat_id: string; chat_title: string; chunk_text: string; chunk_type: string; score: number; last_message_at: number }
 
@@ -82,7 +78,7 @@ export async function searchChats(query: string, limit: number): Promise<ChatSea
 export async function searchDocuments(query: string, limit: number, paths?: string[]): Promise<DocumentSearchResult[]> {
   if (!isTauriEnvironment()) return [];
   const hits = await invoke<DocumentHit[]>('search_documents', { query, limit, paths: paths ?? null });
-  return hits.map((hit) => ({ path: hit.path, name: hit.name, chunkText: hit.chunk_text, page: hit.page, score: hit.score, kept: hit.kept }));
+  return hits.map((hit) => ({ path: hit.path, name: hit.name, chunkText: hit.chunk_text, page: hit.page, score: hit.score }));
 }
 
 /** A document's name and text page by page, read from its file (PDFKit for a PDF); throws when it is gone or unreadable. */

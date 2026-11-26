@@ -3,10 +3,10 @@
  *  (PDF, text, Markdown). Each says how far indexing it has got. A document opens to its name, kind · size · day, its pages
  *  (a PDF as WebKit draws it) or its words, then what is related to it; Delete. */
 
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, Library, Plus, Trash2 } from 'lucide-react';
-import { Icon, IconButton, Input, ListDetail, PageScroll, PdfFrame, Row, SearchField, Surface, Text, useListBesideDetail, ViewHeader } from '@shared/ui';
+import { Icon, IconButton, ListDetail, PageScroll, PdfFrame, Row, SearchField, Surface, Text, useFilePicker, useListBesideDetail, ViewHeader } from '@shared/ui';
 import { Markdown, ScreenState } from '@shared/components';
 import { useKeptFileUrl, useObjectUrl } from '@shared/hooks';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -20,7 +20,7 @@ import { platform } from '@platform/index';
 import { LAYOUT } from '@config/layout.config';
 import { KNOWLEDGE_LIBRARY } from '@config/knowledgeLibrary.config';
 import { useKnowledge } from '@features/knowledge/hooks/useKnowledge';
-import { useKnowledgeStore } from '@features/knowledge/stores/knowledgeStore';
+import { useKnowledgeStore } from '@shared/stores/knowledgeStore';
 import { RelatedSources } from '@features/knowledge/components/RelatedSources';
 
 /** "PDF · 1.2 MB · Today · Ready": a document still saving or not yet indexed says Indexing…. */
@@ -71,6 +71,8 @@ const DocumentPdf: React.FC<{ document: KnowledgeDocument }> = ({ document }) =>
     console.error('[Knowledge] Reading the PDF failed:', document.name, error);
     showToast(KNOWLEDGE_LIBRARY.readFailed(document.name), 'error');
   });
+  // Its file is gone (removed outside Roci): say so rather than show nothing.
+  if (src === null) return <Text as="p" variant="helper" tone="muted" className={`${LAYOUT.listGutter} py-4`}>{KNOWLEDGE_LIBRARY.readFailed(document.name)}</Text>;
   if (!objectUrl) return null;
   return (
     <div className={`flex min-h-0 flex-1 flex-col ${LAYOUT.listGutter} py-4`}>
@@ -122,11 +124,11 @@ const carriesFiles = (event: React.DragEvent) => event.dataTransfer.types.includ
 
 export const KnowledgeView: React.FC = () => {
   const [query, setQuery] = useState('');
-  const { documents, hasAny, isLoading, statusOf, addFiles, remove } = useKnowledge(query);
+  const { documents, hasAny, isLoading, error, statusOf, addFiles, remove } = useKnowledge(query);
   const beside = useListBesideDetail();
   const selectedId = useKnowledgeStore((s) => s.selected);
   const setSelectedId = useKnowledgeStore((s) => s.select);
-  const picker = useRef<HTMLInputElement>(null);
+  const picker = useFilePicker(addFiles);
 
   // Beside the list (a Mac) one document is always open (the newest saved match until another is picked); pushed (iPhone),
   // only the one tapped.
@@ -139,12 +141,6 @@ export const KnowledgeView: React.FC = () => {
     remove(document.id);
   };
 
-  const onPick = (event: React.ChangeEvent<HTMLInputElement>) => {
-    addFiles(Array.from(event.target.files ?? []));
-    // Reset so the same file can be picked again.
-    event.target.value = '';
-  };
-
   const onDrop = (event: React.DragEvent) => {
     if (!carriesFiles(event)) return;
     event.preventDefault();
@@ -153,8 +149,8 @@ export const KnowledgeView: React.FC = () => {
 
   const addButton = (
     <>
-      <IconButton icon={Plus} label={KNOWLEDGE_LIBRARY.add} size="toolbar" onClick={() => picker.current?.click()} />
-      <Input ref={picker} type="file" multiple accept={KNOWLEDGE_LIBRARY.accept} onChange={onPick} className="hidden" />
+      <IconButton icon={Plus} label={KNOWLEDGE_LIBRARY.add} size="toolbar" onClick={() => picker.open(KNOWLEDGE_LIBRARY.accept)} />
+      {picker.element}
     </>
   );
 
@@ -169,11 +165,12 @@ export const KnowledgeView: React.FC = () => {
     </>
   );
 
-  const screen = isLoading || !hasAny ? (
+  const screen = isLoading || error || !hasAny ? (
     <div className="flex h-full flex-col">
       <ViewHeader title={KNOWLEDGE_LIBRARY.title} accessory={addButton} />
       <ScreenState
         loading={isLoading}
+        error={error && { cause: error, title: KNOWLEDGE_LIBRARY.loadFailed }}
         empty={{ icon: Library, message: platform.hasFileManager ? KNOWLEDGE_LIBRARY.emptyDrop : KNOWLEDGE_LIBRARY.empty }}
       />
     </div>

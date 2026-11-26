@@ -17,14 +17,29 @@ pub struct SearchHit {
     pub created_at: i64,
 }
 
-/// What to search: one kind of owner, the words, the query's vector (none: keywords only), how many owners to return, and
-/// optionally only these owners (then every matching piece of theirs, not just the best).
+/// What to search: one kind of owner, the words, the query's vector (none: keywords only), how many to return; optionally
+/// only these owners, or only files kept in the library (then every matching piece, not just each owner's best), and the
+/// farthest a piece may be from the query and still match by meaning.
 pub struct SearchQuery<'a> {
     pub kind: &'a str,
     pub text: &'a str,
     pub embedding: Option<&'a [f32]>,
     pub limit: usize,
     pub within: Option<&'a [String]>,
+    pub library: bool,
+    pub max_distance: Option<f64>,
+}
+
+impl<'a> SearchQuery<'a> {
+    /// The best piece of each owner of `kind`, at any distance.
+    pub fn owners(kind: &'a str, text: &'a str, embedding: Option<&'a [f32]>, limit: usize) -> Self {
+        Self { kind, text, embedding, limit, within: None, library: false, max_distance: None }
+    }
+
+    /// Every matching piece, not just each owner's best.
+    fn passages(&self) -> bool {
+        self.within.is_some() || self.library
+    }
 }
 
 /// One matching piece, best first.
@@ -48,29 +63,41 @@ const MAX_LIMIT: usize = 1000;
 /// Each leg fetches this many times the owners asked for, so fusion has room to agree.
 const OVERFETCH: usize = 3;
 
-/// Keyword leg: BM25 order within the owner kind (and owners), weak matches dropped.
-const KEYWORD_LEG: &str = "
-    SELECT f.rowid AS chunk_id, row_number() OVER (ORDER BY f.rank) AS rank
-    FROM chunks_fts f JOIN chunks c ON c.id = f.rowid
-    WHERE chunks_fts MATCH :words AND c.owner_kind = :kind AND f.rank <= :bm25_max
-      AND (:within IS NULL OR c.owner_id IN (SELECT value FROM json_each(:within)))
-    ORDER BY f.rank LIMIT :fetch";
+/// Keyword leg: BM25 order within the owner kind (and owners, or the library), weak matches dropped.
+fn keyword_leg(q: &SearchQuery) -> String {
+    let library = if q.library { "AND EXISTS (SELECT 1 FROM assets a WHERE a.id = c.owner_id AND a.kept = 1)" } else { "" };
+    format!(
+        "SELECT f.rowid AS chunk_id, row_number() OVER (ORDER BY f.rank) AS rank
+         FROM chunks_fts f JOIN chunks c ON c.id = f.rowid
+         WHERE chunks_fts MATCH :words AND c.owner_kind = :kind AND f.rank <= :bm25_max
+           AND (:within IS NULL OR c.owner_id IN (SELECT value FROM json_each(:within))) {library}
+         ORDER BY f.rank LIMIT :fetch"
+    )
+}
 
-/// Vector leg over every owner of the kind: sqlite-vec's KNN, within the kind's partition.
-const VECTOR_LEG: &str = "
-    SELECT chunk_id, row_number() OVER (ORDER BY distance) AS rank
-    FROM vec_chunks
-    WHERE embedding MATCH :vector AND k = :fetch AND owner_kind = :kind";
-
-/// Vector leg within some owners: exact distance over just their pieces (few, so cheap; KNN can't filter by owner).
-const VECTOR_LEG_WITHIN: &str = "
-    SELECT v.chunk_id, row_number() OVER (ORDER BY vec_distance_l2(v.embedding, :vector)) AS rank
-    FROM chunks c JOIN vec_chunks v ON v.chunk_id = c.id
-    WHERE c.owner_kind = :kind AND c.owner_id IN (SELECT value FROM json_each(:within))
-    ORDER BY vec_distance_l2(v.embedding, :vector) LIMIT :fetch";
+/// Vector leg: sqlite-vec's KNN within the kind's partition (the library's files only, when asked, inside the KNN); or,
+/// within some owners, exact distance over just their pieces (few, so cheap). A floor drops what isn't close enough.
+fn vector_leg(q: &SearchQuery) -> String {
+    let near = if q.max_distance.is_some() { "AND distance <= :max_distance" } else { "" };
+    if q.within.is_some() {
+        let near = if q.max_distance.is_some() { "AND vec_distance_l2(v.embedding, :vector) <= :max_distance" } else { "" };
+        return format!(
+            "SELECT v.chunk_id, row_number() OVER (ORDER BY vec_distance_l2(v.embedding, :vector)) AS rank
+             FROM chunks c JOIN vec_chunks v ON v.chunk_id = c.id
+             WHERE c.owner_kind = :kind AND c.owner_id IN (SELECT value FROM json_each(:within)) {near}
+             ORDER BY vec_distance_l2(v.embedding, :vector) LIMIT :fetch"
+        );
+    }
+    let library = if q.library { "AND kept = 1" } else { "" };
+    format!(
+        "SELECT chunk_id, row_number() OVER (ORDER BY distance) AS rank
+         FROM vec_chunks
+         WHERE embedding MATCH :vector AND k = :fetch AND owner_kind = :kind {library} {near}"
+    )
+}
 
 /// The fused query: the legs given, each piece scored Σ 1 / (RRF_K + rank), best first.
-fn fused(legs: &[&str]) -> String {
+fn fused(legs: &[String]) -> String {
     let ctes: Vec<String> = legs.iter().enumerate().map(|(i, leg)| format!("leg{i} AS ({leg})")).collect();
     let union: Vec<String> = (0..legs.len()).map(|i| format!("SELECT chunk_id, rank FROM leg{i}")).collect();
     format!(
@@ -105,10 +132,10 @@ pub fn hybrid_search(conn: &Connection, q: &SearchQuery) -> Result<Vec<ChunkHit>
     let words = fts_words(q.text);
     let mut legs = Vec::new();
     if !words.is_empty() {
-        legs.push(KEYWORD_LEG);
+        legs.push(keyword_leg(q));
     }
     if q.embedding.is_some() {
-        legs.push(if q.within.is_some() { VECTOR_LEG_WITHIN } else { VECTOR_LEG });
+        legs.push(vector_leg(q));
     }
     if legs.is_empty() {
         return Ok(vec![]);
@@ -126,6 +153,7 @@ pub fn hybrid_search(conn: &Connection, q: &SearchQuery) -> Result<Vec<ChunkHit>
         (":fetch", &fetch),
         (":vector", &vector),
         (":rrf_k", &RRF_K),
+        (":max_distance", &q.max_distance),
     ];
     let mut stmt = conn.prepare(&sql).map_err(|e| format!("search prepare: {e}"))?;
     // Only the parameters this query's legs use.
@@ -136,7 +164,7 @@ pub fn hybrid_search(conn: &Connection, q: &SearchQuery) -> Result<Vec<ChunkHit>
         })
         .map_err(|e| format!("search: {e}"))?;
     let ranked = rows.collect::<Result<Vec<_>, _>>().map_err(|e| format!("search row: {e}"))?;
-    Ok(if q.within.is_some() { ranked.into_iter().take(q.limit).collect() } else { best_per_owner(ranked, q.limit) })
+    Ok(if q.passages() { ranked.into_iter().take(q.limit).collect() } else { best_per_owner(ranked, q.limit) })
 }
 
 /// The first (best) piece of each owner, up to `limit` owners.

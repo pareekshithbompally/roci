@@ -7,11 +7,14 @@ import PDFKit
 /// be opened. A scanned page has no text (an empty string); reading it needs Vision, a later entry here.
 @_cdecl("document_reader_pdf_pages")
 public func documentReaderPdfPages(_ path: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
-    let url = URL(fileURLWithPath: String(cString: path))
-    guard let document = PDFDocument(url: url) else { return reply(["ok": false, "error": "PDFKit can't open it"]) }
-    guard !document.isLocked else { return reply(["ok": false, "error": "It's locked with a password"]) }
-    let pages = (0..<document.pageCount).map { document.page(at: $0)?.string ?? "" }
-    return reply(["ok": true, "pages": pages])
+    // Called from a long-lived Rust thread with no pool of its own: PDFKit's objects are freed here, per document and per page.
+    autoreleasepool {
+        let url = URL(fileURLWithPath: String(cString: path))
+        guard let document = PDFDocument(url: url) else { return reply(["ok": false, "error": "PDFKit can't open it"]) }
+        guard !document.isLocked else { return reply(["ok": false, "error": "It's locked with a password"]) }
+        let pages = (0..<document.pageCount).map { index in autoreleasepool { document.page(at: index)?.string ?? "" } }
+        return reply(["ok": true, "pages": pages])
+    }
 }
 
 @_cdecl("document_reader_free_string")

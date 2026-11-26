@@ -3,36 +3,18 @@
  *  with its words and a player. Video: what a video model makes (none yet). Documents live in Knowledge, never here. */
 
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { formatClockTime, formatCount, formatDateTime, formatDuration } from '@shared/utils/formatters';
 import { Images, MessageSquare, Trash2 } from 'lucide-react';
 import { Button, ChoiceControl, Icon, IconButton, Surface, Text, Thumbnail, ViewHeader, ViewScroll, Viewer } from '@shared/ui';
 import { AudioPlayer, ModelBadge, ScreenState, VideoPlayer } from '@shared/components';
 import { openChat } from '@features/chat';
-import { store } from '@services/db';
-import { isTauriEnvironment } from '@services/tauri';
-import type { GalleryMedia, GalleryMediaKind } from '@services/storage';
+import { imagesService, mediaService, type GalleryMedia, type GalleryMediaKind } from '@services/storage';
 import type { GalleryImage } from '@services/storage/images.service';
-import { queryKeys } from '@shared/query/queryKeys';
 import { confirmDelete } from '@shared/stores/confirmStore';
 import { LAYOUT } from '@config/layout.config';
 import { GALLERY_CONFIG } from '@config/gallery.config';
-import { useGallery } from '@features/gallery/hooks/useGallery';
-import { useGalleryMedia } from '@features/gallery/hooks/useGalleryMedia';
+import { useGalleryCount, useGalleryFolder, useRemoveGalleryItem, type FolderKind } from '@features/gallery/hooks/useGalleryFolder';
 import { useSentinel } from '@shared/hooks/useSentinel';
-
-type Folder = (typeof GALLERY_CONFIG.folders)[number];
-type FolderKind = Folder['kind'];
-
-/** How many a folder holds, for the header ("12 images"). */
-function useFolderCount(kind: FolderKind): number {
-  const { data = 0 } = useQuery({
-    queryKey: kind === 'image' ? queryKeys.galleryCount() : queryKeys.galleryMediaCount(kind),
-    queryFn: () => store.assets.count(kind),
-    enabled: isTauriEnvironment(),
-  });
-  return data;
-}
 
 /** Under the full-size image: what was asked for, how it was made, and the way back to its chat. */
 const ImageCaption: React.FC<{ image: GalleryImage; onOpenChat: (chatId: string) => void }> = ({ image, onOpenChat }) => {
@@ -55,11 +37,39 @@ const ImageCaption: React.FC<{ image: GalleryImage; onOpenChat: (chatId: string)
   );
 };
 
-/** Images: the day-by-day grid; a tile opens the image full size. */
-const ImagesFolder: React.FC<{ empty: string }> = ({ empty }) => {
-  const { days, isLoading, hasMore, loadingMore, loadMore } = useGallery();
+/** A folder's days under their labels, newest first, loading older ones as the list nears its end; loading, failed and empty
+ *  fill the view (centred there), not the scroll area. */
+function FolderDays<T extends { id: string; createdAt: number }>({ folder, empty, children }: {
+  folder: ReturnType<typeof useGalleryFolder<T>>;
+  empty: string;
+  children: (items: T[]) => React.ReactNode;
+}) {
+  const { days, isLoading, error, hasMore, loadingMore, loadMore } = folder;
   const canLoadMore = hasMore && !loadingMore;
   const sentinelRef = useSentinel({ onIntersect: loadMore, enabled: canLoadMore });
+  return (
+    <ScreenState
+      loading={isLoading}
+      error={error && { cause: error, title: GALLERY_CONFIG.loadFailed }}
+      empty={days.length === 0 && { icon: Images, message: empty }}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      <ViewScroll className={`space-y-6 pb-4 ${LAYOUT.listGutter}`}>
+        {days.map((day) => (
+          <section key={day.label} className="space-y-2">
+            <Text as="h2" variant="label" tone="muted">{day.label}</Text>
+            {children(day.items)}
+          </section>
+        ))}
+        {canLoadMore && <div ref={sentinelRef} className="h-1" aria-hidden="true" />}
+      </ViewScroll>
+    </ScreenState>
+  );
+}
+
+/** Images: the day-by-day grid; a tile opens the image full size. */
+const ImagesFolder: React.FC<{ empty: string }> = ({ empty }) => {
+  const folder = useGalleryFolder('image', imagesService.imagesPage);
   const [open, setOpen] = useState<GalleryImage | null>(null);
 
   const goToChat = (sessionId: string) => {
@@ -69,22 +79,15 @@ const ImagesFolder: React.FC<{ empty: string }> = ({ empty }) => {
 
   return (
     <>
-      {/* Loading and empty fill the view (centred there), not the scroll area. */}
-      <ScreenState loading={isLoading} empty={days.length === 0 && { icon: Images, message: empty }} className="flex min-h-0 flex-1 flex-col">
-        <ViewScroll className={`space-y-6 pb-4 ${LAYOUT.listGutter}`}>
-          {days.map((day) => (
-            <section key={day.label} className="space-y-2">
-              <Text as="h2" variant="label" tone="muted">{day.label}</Text>
-              <div className={GALLERY_CONFIG.grid}>
-                {day.images.map((image) => (
-                  <Thumbnail key={image.appPath} src={image.thumbUrl} alt={image.meta?.prompt ?? GALLERY_CONFIG.title} onOpen={() => setOpen(image)} />
-                ))}
-              </div>
-            </section>
-          ))}
-          {canLoadMore && <div ref={sentinelRef} className="h-1" aria-hidden="true" />}
-        </ViewScroll>
-      </ScreenState>
+      <FolderDays folder={folder} empty={empty}>
+        {(images) => (
+          <div className={GALLERY_CONFIG.grid}>
+            {images.map((image) => (
+              <Thumbnail key={image.appPath} src={image.thumbUrl} alt={image.meta?.prompt ?? GALLERY_CONFIG.title} onOpen={() => setOpen(image)} />
+            ))}
+          </div>
+        )}
+      </FolderDays>
       {open && (
         <Viewer
           media={{ kind: 'image', src: open.url, alt: open.meta?.prompt ?? GALLERY_CONFIG.title }}
@@ -117,31 +120,22 @@ const MediaCard: React.FC<{ item: GalleryMedia; kind: GalleryMediaKind; label: s
 
 /** Audio or Video: what was kept, under its day, newest first. */
 const MediaFolder: React.FC<{ kind: GalleryMediaKind; label: string; empty: string }> = ({ kind, label, empty }) => {
-  const { days, isLoading, hasMore, loadingMore, loadMore, remove } = useGalleryMedia(kind);
-  const canLoadMore = hasMore && !loadingMore;
-  const sentinelRef = useSentinel({ onIntersect: loadMore, enabled: canLoadMore });
+  const folder = useGalleryFolder(kind, (before, limit) => mediaService.page(kind, before, limit));
+  const remove = useRemoveGalleryItem(kind);
   const deleteItem = async (id: string) => {
     if (await confirmDelete(GALLERY_CONFIG.deleteNoun[kind])) remove(id);
   };
   return (
-    <ScreenState loading={isLoading} empty={days.length === 0 && { icon: Images, message: empty }} className="flex min-h-0 flex-1 flex-col">
-      <ViewScroll className={`space-y-6 pb-4 ${LAYOUT.listGutter}`}>
-        {days.map((day) => (
-          <section key={day.label} className="space-y-2">
-            <Text as="h2" variant="label" tone="muted">{day.label}</Text>
-            {day.items.map((item) => <MediaCard key={item.id} item={item} kind={kind} label={label} onDelete={() => void deleteItem(item.id)} />)}
-          </section>
-        ))}
-        {canLoadMore && <div ref={sentinelRef} className="h-1" aria-hidden="true" />}
-      </ViewScroll>
-    </ScreenState>
+    <FolderDays folder={folder} empty={empty}>
+      {(items) => items.map((item) => <MediaCard key={item.id} item={item} kind={kind} label={label} onDelete={() => void deleteItem(item.id)} />)}
+    </FolderDays>
   );
 };
 
 export const GalleryView: React.FC = () => {
   const [kind, setKind] = useState<FolderKind>(GALLERY_CONFIG.folders[0].kind);
   const folder = GALLERY_CONFIG.folders.find((f) => f.kind === kind) ?? GALLERY_CONFIG.folders[0];
-  const count = useFolderCount(kind);
+  const count = useGalleryCount(kind);
   const items = GALLERY_CONFIG.folders.map((f) => ({ value: f.kind, label: f.label }));
 
   return (

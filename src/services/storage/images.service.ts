@@ -79,6 +79,6 @@ export const imagesService = {
 
   /** One page of generated images, newest first, after `before`. */
   async imagesPage(before: ItemCursor | null, limit: number): Promise<GalleryImage[]> {
-    return Promise.all((await store.assets.page('image', before, limit)).map(toGalleryImage));
+    return Promise.all((await store.assets.page('image', false, before, limit)).map(toGalleryImage));
   },
 };

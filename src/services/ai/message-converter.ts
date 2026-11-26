@@ -6,6 +6,7 @@ import type { DataUIPart, FileUIPart, ModelMessage, TextPart, TextUIPart, ToolSe
 import { attachedFileText, attachedMeetingsText, formatSentAt, searchableFileText, unreadableFileText } from '@core/ai';
 import { attachmentInput, isAssetPath, isSearchableDocument, sendsWhole, withSendWhole } from '@shared/utils/chatParts';
 import { assetsService } from '@services/storage';
+import { documentPages } from '@extensions/rag/searchIndex';
 import { dataUrlText } from '@shared/utils/file.utils';
 import { ATTACHMENT_TYPES, CHAT_DRAFT_COPY } from '@config/chat.config';
 import type { Modality } from '@config/modelSpine.config';
@@ -41,14 +42,25 @@ const readableParts = (message: ChatMessage, input: readonly Modality[]): ChatMe
   parts: message.parts.map((part): ChatPart => (part.type === 'file' ? readableFile(part, input) : part)),
 });
 
+/** A PDF sent whole as the text PDFKit read from it (any model reads it; what it costs is what the chip showed); null for
+ *  one with no text (a scan), which goes as the file for a model that reads PDFs itself. */
+async function pdfText(part: FileUIPart, name: string): Promise<TextUIPart | null> {
+  const { pages } = await documentPages(part.url);
+  const contents = pages.join('\n\n').trim();
+  if (!contents) return null;
+  return { type: 'text', text: attachedFileText(name, contents.slice(0, ATTACHMENT_TYPES.text.maxChars), contents.length) };
+}
+
 /** An attached file kept in `assets/` as the model takes it: a document set to Search (the default, when the model can look
- *  things up) as a line naming it and its document id; any other with its bytes read in as the `data:` URL the SDK sends.
- *  One whose file is gone is a line saying so. */
+ *  things up) as a line naming it and its document id; a PDF sent whole as its text; any other with its bytes read in as
+ *  the `data:` URL the SDK sends. One whose file is gone is a line saying so. */
 async function withFileData(part: FileUIPart, canLookUp: boolean): Promise<FileUIPart | TextUIPart> {
   if (!isAssetPath(part.url)) return part;
   const name = part.filename || CHAT_DRAFT_COPY.untitledAttachment;
   if (canLookUp && isSearchableDocument(part) && !sendsWhole(part)) return { type: 'text', text: searchableFileText(name, part.url) };
   try {
+    const text = attachmentInput(part.mediaType, part.filename) === 'pdf' ? await pdfText(part, name) : null;
+    if (text) return text;
     return { ...withSendWhole(part, false), url: await assetsService.dataUrl(part.url, part.mediaType) };
   } catch (error: unknown) {
     console.warn('[toModelMessages] Attachment not read:', part.url, error);

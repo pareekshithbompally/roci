@@ -22,6 +22,9 @@ export const MAX_TRANSCRIPT_FOR_LLM = 4_000;
 /** Most of one document `read` returns (its first pages); find in documents looks up the rest. */
 export const MAX_DOCUMENT_FOR_LLM = 12_000;
 
+/** Most document pages one answer cites: the best few, each page once. */
+export const MAX_DOCUMENT_CITATIONS = 3;
+
 // ── Tool-specific limits ──
 
 /** Most messages read reads back from a chat */

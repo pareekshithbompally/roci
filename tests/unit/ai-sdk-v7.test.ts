@@ -6,6 +6,12 @@ const dataUrl = vi.hoisted(() => vi.fn(async (path: string, mediaType: string) =
   return `data:${mediaType};base64,${btoa('%PDF')}`;
 }));
 vi.mock('@services/storage', () => ({ assetsService: { dataUrl } }));
+/** A kept PDF's text as PDFKit reads it: `assets/scan.pdf` has none, `assets/gone.pdf` is gone. */
+const documentPages = vi.hoisted(() => vi.fn(async (path: string) => {
+  if (path === 'assets/gone.pdf') throw new Error('not found');
+  return { name: 'q3.pdf', pages: path === 'assets/scan.pdf' ? [''] : ['Pricing tiers.'] };
+}));
+vi.mock('@extensions/rag/searchIndex', () => ({ documentPages }));
 import { jsonSchema, tool } from 'ai';
 import type { ToolSet } from 'ai';
 import { toModelMessages } from '@services/ai/message-converter';
@@ -103,14 +109,15 @@ describe('conversation history (convertToModelMessages)', () => {
       expect(await sentWith(file('application/pdf', 'q3.pdf', '%PDF'), ['text', 'pdf'])).toMatchObject({ type: 'file' });
     });
 
-    it('reads a kept attachment in from its file when it is sent, and names one whose file is gone', async () => {
+    it('sends a kept PDF whole as its text, a scan as the file, and names one whose file is gone', async () => {
       const kept = (url: string) => ({ type: 'file' as const, mediaType: 'application/pdf', url, filename: 'q3.pdf' });
-      expect(await sentWith(kept('assets/q3.pdf'), ['text', 'pdf'])).toMatchObject({ type: 'file', mediaType: 'application/pdf' });
-      expect(dataUrl).toHaveBeenCalledWith('assets/q3.pdf', 'application/pdf');
+      expect(await sentWith(kept('assets/q3.pdf'), TEXT_ONLY)).toEqual({ type: 'text', text: attachedFileText('q3.pdf', 'Pricing tiers.') });
+      expect(await sentWith(kept('assets/scan.pdf'), ['text', 'pdf'])).toMatchObject({ type: 'file', mediaType: 'application/pdf' });
+      expect(dataUrl).toHaveBeenCalledWith('assets/scan.pdf', 'application/pdf');
       expect(await sentWith(kept('assets/gone.pdf'), ['text', 'pdf'])).toEqual({ type: 'text', text: unreadableFileText('q3.pdf') });
     });
 
-    it('sends a document set to Search as a note naming it, and one set to Send whole as itself', async () => {
+    it('sends a document set to Search as a note naming it, and one set to Send whole as its text', async () => {
       const doc: FileUIPart = { type: 'file', mediaType: 'application/pdf', url: 'assets/q3.pdf', filename: 'q3.pdf' };
       const lookUp: ToolSet = { ...TOOLS, find: rociTool, read: rociTool };
       const last = async (part: FileUIPart, tools: ToolSet) => {
@@ -118,10 +125,9 @@ describe('conversation history (convertToModelMessages)', () => {
         return (sent.content as Array<{ type: string; text?: string; providerOptions?: unknown }>).at(-1);
       };
       expect(await last(doc, lookUp)).toEqual({ type: 'text', text: searchableFileText('q3.pdf', 'assets/q3.pdf') });
-      const whole = await last(withSendWhole(doc, true), lookUp);
-      expect(whole).toMatchObject({ type: 'file', mediaType: 'application/pdf' });
-      expect(whole?.providerOptions).toBeUndefined();
-      expect(await last(doc, TOOLS), 'a model that can\'t look things up gets it whole').toMatchObject({ type: 'file' });
+      const whole = { type: 'text', text: attachedFileText('q3.pdf', 'Pricing tiers.') };
+      expect(await last(withSendWhole(doc, true), lookUp)).toEqual(whole);
+      expect(await last(doc, TOOLS), 'a model that can\'t look things up gets it whole').toEqual(whole);
     });
 
     it('sends a text file as its contents, to any model, even when the system gave it no type', async () => {

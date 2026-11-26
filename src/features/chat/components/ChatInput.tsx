@@ -15,7 +15,7 @@ import { useAttachOptions } from '@features/chat/hooks/useAttachOptions';
 import { useToolCatalog } from '@features/chat/hooks';
 import { toolsShare } from './tools/toolsShare';
 import { ComposerAddMenu } from './ComposerAddMenu';
-import { ContextRing, IconButton, Input, Popover, PopoverAnchor, Surface, Text, Textarea, cn } from '@shared/ui';
+import { ContextRing, IconButton, Popover, PopoverAnchor, Surface, Text, Textarea, cn, useFilePicker } from '@shared/ui';
 import type { ContextRingCost } from '@shared/ui';
 import type { ContextUsage } from '@shared/hooks/useContextUsage';
 import { LAYOUT } from '@config/layout.config';
@@ -135,7 +135,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const frameRef = useRef<HTMLDivElement>(null);
   const width = useElementWidth(frameRef);
   const iconOnly = width !== null && width < COMPOSER_ICON_ONLY_BELOW_PX;
-  const fileInputRef = useRef<HTMLInputElement>(null);
   /** Where the "@" or "/" that opened the popup sits in the draft. */
   const triggerAt = useRef(-1);
   // Only what the chat's model takes is offered.
@@ -230,23 +229,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
-  // Handle file selection
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || !onAttach) return;
-    for (const file of Array.from(e.target.files)) {
-      onAttach(file);
-    }
-    // Reset so the same file can be re-selected
-    e.target.value = '';
-  };
-
-  // Open file picker with a specific accept filter
-  const openFilePicker = (accept: string) => {
-    if (fileInputRef.current) {
-      fileInputRef.current.accept = accept;
-      fileInputRef.current.click();
-    }
-  };
+  // The files chosen are attached one by one; the + menu opens the picker for one kind at a time.
+  const picker = useFilePicker((files) => files.forEach((file) => onAttach?.(file)));
+  const openFilePicker = picker.open;
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // While mention popup is open, don't process sends from the textarea
@@ -396,8 +381,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               style={voiceActive ? { pointerEvents: 'none' } : undefined}
             >
               <ContextChips meetings={scopeMeetingId ? selectedMeetings.filter((m) => m.id !== scopeMeetingId) : selectedMeetings} onRemove={handleRemoveMeeting} />
-              <AttachmentStrip attachments={attachments} onRemove={onRemoveAttachment} />
-              <Input ref={fileInputRef} type="file" multiple accept={attach.accept} onChange={handleFileChange} className="hidden" />
+              <AttachmentStrip attachments={attachments} lookUp={attach.lookUp} onRemove={onRemoveAttachment} />
+              {picker.element}
               {phone ? (
                 // Phone: one bar — + at its start (the Add sheet), the field, the mic and the round end button.
                 <div className="flex items-end gap-1 p-1">

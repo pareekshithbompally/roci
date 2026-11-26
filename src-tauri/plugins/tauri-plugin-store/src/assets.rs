@@ -16,8 +16,32 @@ use tauri::State;
 pub const ASSETS_DIR: &str = "assets";
 /// The folders files lived in by kind before v17, moved into `ASSETS_DIR` at the first open after the upgrade.
 const OLD_DIRS: &[&str] = &["recordings", "images", "speech"];
+/// Rules the asset rows keep, after the search index exists: a kept file has no parent (the library owns it), and keeping
+/// a file marks its vectors kept, so a library search finds them. Part of the baseline and of v18.
+pub(crate) const RULES_DDL: &str = "
+    CREATE INDEX IF NOT EXISTS idx_assets_listing ON assets(kind, kept, created_at DESC, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_assets_preview ON assets(preview_path);
+    CREATE TRIGGER IF NOT EXISTS assets_kept_bi BEFORE INSERT ON assets
+        WHEN new.kept = 1 AND (new.meeting_id IS NOT NULL OR new.chat_id IS NOT NULL) BEGIN
+        SELECT RAISE(ABORT, 'a kept file has no parent');
+    END;
+    CREATE TRIGGER IF NOT EXISTS assets_kept_bu BEFORE UPDATE ON assets
+        WHEN new.kept = 1 AND (new.meeting_id IS NOT NULL OR new.chat_id IS NOT NULL) BEGIN
+        SELECT RAISE(ABORT, 'a kept file has no parent');
+    END;
+    CREATE TRIGGER IF NOT EXISTS assets_kept_au AFTER UPDATE OF kept ON assets WHEN new.kind = 'file' BEGIN
+        UPDATE vec_chunks SET kept = new.kept
+            WHERE chunk_id IN (SELECT id FROM chunks WHERE owner_kind = 'file' AND owner_id = new.id);
+    END;";
+
 /// The kind of a file you gave Roci (an attachment, or a document in the library).
 pub(crate) const FILE_KIND: &str = "file";
+/// A `file` row Roci reads as a document (a PDF, or text: the webview saves every text file with a `text/` type or JSON's);
+/// any other file (an image, a sound) is never indexed.
+pub(crate) const DOCUMENT: &str = "(json_extract(meta, '$.mediaType') = 'application/pdf'
+    OR json_extract(meta, '$.mediaType') LIKE 'text/%' OR json_extract(meta, '$.mediaType') = 'application/json')";
+/// A file's own name (its path when it records none).
+pub(crate) const FILE_NAME: &str = "COALESCE(json_extract(meta, '$.name'), path)";
 /// How long an unclaimed asset or an untracked file waits for its owner (a save in flight, an import half done).
 const UNCLAIMED_GRACE_MS: i64 = 24 * 60 * 60 * 1000;
 
@@ -163,28 +187,19 @@ pub(crate) fn sync_chat_assets(tx: &Connection, chat_id: &str, paths: &[String])
     Ok(())
 }
 
-/// Which files a page lists: one kind's (a Gallery folder), or the documents kept in the library (Knowledge).
-#[derive(Clone, Copy)]
-pub(crate) enum Listing<'a> {
-    Kind(&'a str),
-    Library,
-}
+/// One kind's files, newest first, after the cursor (each an index read on `idx_assets_listing`).
+const PAGE: &str = "SELECT id, kind, path, preview_path, meeting_id, chat_id, duration_seconds, meta, created_at FROM assets
+     WHERE kind = ?1 AND (created_at < ?2 OR (created_at = ?2 AND id < ?3)) ORDER BY created_at DESC, id DESC LIMIT ?4";
+/// One kind's kept files (library documents, saved speech), newest first, after the cursor.
+const KEPT_PAGE: &str = "SELECT id, kind, path, preview_path, meeting_id, chat_id, duration_seconds, meta, created_at FROM assets
+     WHERE kind = ?1 AND kept = 1 AND (created_at < ?2 OR (created_at = ?2 AND id < ?3)) ORDER BY created_at DESC, id DESC LIMIT ?4";
 
-/// One page of the listing's files, newest first, after `before` (the last row of the page before it).
-pub(crate) fn page(db: &Connection, listing: Listing, before: Option<&ItemCursor>, limit: u32) -> Result<Vec<AssetRow>, StoreError> {
+/// One page of `kind`'s files (only the kept ones when `kept`), newest first, after `before` (the last row of the page before).
+pub(crate) fn page(db: &Connection, kind: &str, kept: bool, before: Option<&ItemCursor>, limit: u32) -> Result<Vec<AssetRow>, StoreError> {
     let (at, id) = before.map_or((i64::MAX, String::new()), |c| (c.at, c.id.clone()));
-    let (kind, library) = match listing {
-        Listing::Kind(kind) => (Some(kind), false),
-        Listing::Library => (Some(FILE_KIND), true),
-    };
     let rows = db
-        .prepare(
-            "SELECT id, kind, path, preview_path, meeting_id, chat_id, duration_seconds, meta, created_at
-             FROM assets WHERE (?1 IS NULL OR kind = ?1) AND (?2 = 0 OR kept = 1)
-               AND (created_at < ?3 OR (created_at = ?3 AND id < ?4))
-             ORDER BY created_at DESC, id DESC LIMIT ?5",
-        )?
-        .query_map(rusqlite::params![kind, library, at, id, limit], |row| {
+        .prepare(if kept { KEPT_PAGE } else { PAGE })?
+        .query_map(rusqlite::params![kind, at, id, limit], |row| {
             Ok(AssetRow {
                 id: row.get(0)?,
                 kind: row.get(1)?,
@@ -411,10 +426,23 @@ fn write_out_inline(root: &Path, message: &mut serde_json::Value) -> Vec<(String
     written
 }
 
-/// At open: files attached before v17 sat inside their messages as `data:` URLs. Each is written out to `assets/` as a `file`
-/// asset owned by its chat, and its message keeps the path, one message per transaction (a file written for a message that
-/// then fails to update is a stray the sweep takes). Returns how many files were moved.
+/// Marks that the attachments older builds kept inside their messages were written out, so the scan runs once.
+const INLINE_MOVED: &str = "inline_attachments_moved";
+
+/// At the first open after v17: files attached before it sat inside their messages as `data:` URLs. Each is written out to
+/// `assets/` as a `file` asset owned by its chat, and its message keeps the path, one message per transaction (a file written
+/// for a message that then fails to update is a stray the sweep takes). Once every message is done, it never scans again.
+/// Returns how many files were moved.
 pub(crate) fn move_inline_attachments(db: &Connection, root: &Path) -> Result<usize, StoreError> {
+    if db.query_row("SELECT 1 FROM meta WHERE key = ?1", [INLINE_MOVED], |_| Ok(())).optional()?.is_some() {
+        return Ok(0);
+    }
+    let moved = write_out_all(db, root)?;
+    db.execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?1, '1')", [INLINE_MOVED])?;
+    Ok(moved)
+}
+
+fn write_out_all(db: &Connection, root: &Path) -> Result<usize, StoreError> {
     let messages: Vec<(String, String, String)> = db
         .prepare("SELECT id, chat_id, data FROM chat_messages WHERE data LIKE '%\"url\":\"data:%'")?
         .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
@@ -457,34 +485,25 @@ pub async fn assets_create(state: State<'_, StoreState>, asset: NewAsset) -> Res
 }
 
 /// Keeps a chat's attached file in the Knowledge library: no chat owns it any more, so it outlives the chat; the chats that
-/// show it still do. Returns its id, or none when the path is no file.
-pub(crate) fn keep(db: &Connection, path: &str) -> Result<Option<String>, StoreError> {
-    let id: Option<String> = db.query_row("SELECT id FROM assets WHERE path = ?1 AND kind = ?2", [path, FILE_KIND], |row| row.get(0)).optional()?;
-    if let Some(id) = &id {
-        db.execute("UPDATE assets SET chat_id = NULL, kept = 1 WHERE id = ?1", [id])?;
-    }
+/// show it still do (its vectors are marked kept by trigger). Returns its id; not found when the path is no file (deleted).
+pub(crate) fn keep(db: &Connection, path: &str) -> Result<String, StoreError> {
+    let id: String = db.query_row("SELECT id FROM assets WHERE path = ?1 AND kind = ?2", [path, FILE_KIND], |row| row.get(0))?;
+    db.execute("UPDATE assets SET chat_id = NULL, kept = 1 WHERE id = ?1", [&id])?;
     Ok(id)
 }
 
 /// Keep in Knowledge: the attached file at `path` joins the library (and its index, if it isn't there yet).
 #[tauri::command]
 pub async fn assets_keep(state: State<'_, StoreState>, path: String) -> Result<(), StoreError> {
-    if let Some(id) = on_db(&state, move |db| keep(db, &path)).await? {
-        crate::changes::notify_file_added(&id);
-    }
+    let id = on_db(&state, move |db| keep(db, &path)).await?;
+    crate::changes::notify_file_added(&id);
     Ok(())
 }
 
-/// The Gallery a page at a time.
+/// A Gallery folder or the Knowledge library a page at a time: `kind`'s files, or only its kept ones.
 #[tauri::command]
-pub async fn assets_page(state: State<'_, StoreState>, kind: String, before: Option<ItemCursor>, limit: u32) -> Result<Vec<AssetRow>, StoreError> {
-    on_db(&state, move |db| page(db, Listing::Kind(&kind), before.as_ref(), limit)).await
-}
-
-/// The Knowledge library a page at a time: every document kept there, newest first.
-#[tauri::command]
-pub async fn assets_library(state: State<'_, StoreState>, before: Option<ItemCursor>, limit: u32) -> Result<Vec<AssetRow>, StoreError> {
-    on_db(&state, move |db| page(db, Listing::Library, before.as_ref(), limit)).await
+pub async fn assets_page(state: State<'_, StoreState>, kind: String, kept: bool, before: Option<ItemCursor>, limit: u32) -> Result<Vec<AssetRow>, StoreError> {
+    on_db(&state, move |db| page(db, &kind, kept, before.as_ref(), limit)).await
 }
 
 /// Deletes a kept file (a library document, saved speech; its file after commit); files a meeting or chat owns go with
@@ -500,10 +519,13 @@ pub async fn assets_delete(state: State<'_, StoreState>, id: String) -> Result<(
     .await
 }
 
-/// How many files of `kind` are kept (the Gallery's "N images").
+/// How many files of `kind` there are, or only its kept ones (the Gallery's "N images").
 #[tauri::command]
-pub async fn assets_count(state: State<'_, StoreState>, kind: String) -> Result<i64, StoreError> {
-    on_db(&state, move |db| Ok(db.query_row("SELECT COUNT(*) FROM assets WHERE kind = ?1", [kind], |row| row.get(0))?)).await
+pub async fn assets_count(state: State<'_, StoreState>, kind: String, kept: bool) -> Result<i64, StoreError> {
+    on_db(&state, move |db| {
+        Ok(db.query_row("SELECT COUNT(*) FROM assets WHERE kind = ?1 AND (kept = 1 OR ?2 = 0)", rusqlite::params![kind, kept], |row| row.get(0))?)
+    })
+    .await
 }
 
 /// Whether a file is still kept (its row exists); a chat shows "removed" where it isn't.
@@ -645,10 +667,16 @@ mod tests {
              INSERT INTO assets (id, kind, path, chat_id, created_at) VALUES ('a', 'file', 'assets/a.pdf', 'c1', 0);
              INSERT INTO assets (id, kind, path, created_at, kept) VALUES ('s', 'speech', 'assets/s.wav', 0, 1);
              INSERT INTO chunks (owner_kind, owner_id, chunk_index, chunk_text, chunk_type) VALUES ('file', 'k', 0, 'Q3 pricing', 'text');
-             INSERT INTO index_state (owner_kind, owner_id, text_hash, version, state, attempted_at) VALUES ('file', 'k', 'h', 1, 'ready', 0);",
+             INSERT INTO index_state (owner_kind, owner_id, version, state, attempted_at) VALUES ('file', 'k', 1, 'ready', 0);",
         )
         .unwrap();
-        let listed: Vec<String> = page(&db, Listing::Library, None, 10).unwrap().into_iter().map(|row| row.id).collect();
+        let vector = format!("[{}]", vec!["0.1"; crate::schema::DEFAULT_DIM as usize].join(","));
+        db.execute(
+            "INSERT INTO vec_chunks (chunk_id, owner_kind, owner_id, kept, embedding) SELECT id, 'file', 'k', 1, ?1 FROM chunks",
+            [&vector],
+        )
+        .unwrap();
+        let listed: Vec<String> = page(&db, FILE_KIND, true, None, 10).unwrap().into_iter().map(|row| row.id).collect();
         assert_eq!(listed, vec!["k".to_string()]);
 
         assert!(!delete_kept(&db, "a").unwrap(), "a chat's file goes only with its chat");
@@ -657,6 +685,7 @@ mod tests {
 
         let left = |sql: &str| db.query_row(sql, [], |r| r.get::<_, i64>(0)).unwrap();
         assert_eq!(left("SELECT COUNT(*) FROM chunks"), 0);
+        assert_eq!(left("SELECT COUNT(*) FROM vec_chunks"), 0, "its vectors go with its passages");
         assert_eq!(left("SELECT COUNT(*) FROM index_state"), 0);
         assert_eq!(left("SELECT COUNT(*) FROM assets"), 2, "the chat's file and the kept speech stay");
         assert!(!root.join("assets/k.pdf").exists());
@@ -673,8 +702,8 @@ mod tests {
              INSERT INTO assets (id, kind, path, chat_id, created_at) VALUES ('b', 'file', 'assets/b.pdf', 'c1', 0);",
         )
         .unwrap();
-        assert_eq!(keep(&db, "assets/a.pdf").unwrap().as_deref(), Some("a"));
-        assert_eq!(keep(&db, "assets/none.pdf").unwrap(), None);
+        assert_eq!(keep(&db, "assets/a.pdf").unwrap(), "a");
+        assert!(keep(&db, "assets/none.pdf").is_err(), "keeping a file that is gone says so");
         crate::commands::chats_delete_impl(&db, "c1").unwrap();
         let left: Vec<(String, i64)> = db.prepare("SELECT id, kept FROM assets").unwrap()
             .query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().collect::<Result<_, _>>().unwrap();
@@ -712,7 +741,9 @@ mod tests {
         db.execute("INSERT INTO chat_messages (id, chat_id, seq, role, data, created_at) VALUES ('q', 'c1', 0, 'user', ?1, 0)", [&data]).unwrap();
 
         assert_eq!(move_inline_attachments(&db, &root).unwrap(), 1);
-        assert_eq!(move_inline_attachments(&db, &root).unwrap(), 0, "a second open has nothing left to move");
+        assert_eq!(move_inline_attachments(&db, &root).unwrap(), 0, "it ran once: a later open never scans the messages again");
+        let done: String = db.query_row("SELECT value FROM meta WHERE key = ?1", [INLINE_MOVED], |r| r.get(0)).unwrap();
+        assert_eq!(done, "1");
 
         let (path, chat): (String, String) = db.query_row("SELECT path, chat_id FROM assets WHERE kind = 'file'", [], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
         assert!(path.starts_with("assets/") && path.ends_with(".pdf") && chat == "c1", "{path} {chat}");

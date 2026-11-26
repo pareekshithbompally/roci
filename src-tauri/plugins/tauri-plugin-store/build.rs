@@ -18,7 +18,6 @@ const COMMANDS: &[&str] = &[
     "assets_page",
     "assets_count",
     "assets_exists",
-    "assets_library",
     "assets_delete",
     "assets_keep",
     "index_states",

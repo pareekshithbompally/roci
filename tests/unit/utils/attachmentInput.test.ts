@@ -34,10 +34,12 @@ describe('dataUrlText', () => {
 });
 
 describe('attachmentMediaType', () => {
-  it('keeps a PDF as a PDF even when the system named no type, and any other file as given', () => {
+  it('keeps a PDF as a PDF and a text file as text even when the system named no type, and any other file as given', () => {
     expect(attachmentMediaType('', 'q3.pdf')).toBe('application/pdf');
     expect(attachmentMediaType('application/octet-stream', 'Q3.PDF')).toBe('application/pdf');
     expect(attachmentMediaType('text/csv', 'a.csv')).toBe('text/csv');
+    expect(attachmentMediaType('', 'notes.md')).toBe('text/plain');
+    expect(attachmentMediaType('application/octet-stream', 'notes.md')).toBe('text/plain');
     expect(attachmentMediaType('', 'a.bin')).toBe('application/octet-stream');
   });
 });

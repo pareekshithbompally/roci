@@ -64,14 +64,14 @@ function SendChoice({ part, index }: { part: FileUIPart; index: number }) {
   );
 }
 
-function AttachmentChip({ part, index, onRemove }: { part: FileUIPart; index: number; onRemove?: () => void }) {
+function AttachmentChip({ part, index, lookUp, onRemove }: { part: FileUIPart; index: number; lookUp: boolean; onRemove?: () => void }) {
   const kind = mediaKind(part.mediaType);
   const name = part.filename || UNNAMED[kind];
   return (
     <Surface variant="inset" radius="md" className="flex items-center gap-1.5 px-2 py-1">
       {kind === 'image' ? <ImageTile part={part} name={name} /> : <Icon icon={KIND_ICON[kind]} size="xs" />}
       <Text variant="helper" tone="muted" truncate className="max-w-32">{name}</Text>
-      {isSearchableDocument(part) && <SendChoice part={part} index={index} />}
+      {lookUp && isSearchableDocument(part) && <SendChoice part={part} index={index} />}
       {onRemove && <IconButton icon={X} label="Remove attachment" size="sm" onClick={onRemove} />}
     </Surface>
   );
@@ -79,16 +79,18 @@ function AttachmentChip({ part, index, onRemove }: { part: FileUIPart; index: nu
 
 interface AttachmentStripProps {
   attachments: FileUIPart[];
+  /** The model can look things up, so a document offers Search; without it every document goes whole and says nothing. */
+  lookUp: boolean;
   /** Removes the attachment at `index`; without it the chips can't be removed. */
   onRemove?: (index: number) => void;
 }
 
-export const AttachmentStrip: React.FC<AttachmentStripProps> = ({ attachments, onRemove }) => {
+export const AttachmentStrip: React.FC<AttachmentStripProps> = ({ attachments, lookUp, onRemove }) => {
   if (attachments.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-2 px-3 pt-2">
       {attachments.map((part, index) => (
-        <AttachmentChip key={index} part={part} index={index} onRemove={onRemove && (() => onRemove(index))} />
+        <AttachmentChip key={index} part={part} index={index} lookUp={lookUp} onRemove={onRemove && (() => onRemove(index))} />
       ))}
     </div>
   );

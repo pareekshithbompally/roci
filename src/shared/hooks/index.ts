@@ -22,4 +22,5 @@ export { useLogoTint } from './useLogoTint';
 export { useElementWidth } from './useElementWidth';
 export { useObjectUrl } from './useObjectUrl';
 export { useKeptFileUrl } from './useKeptFileUrl';
+export { useKeepInKnowledge } from './useKeepInKnowledge';
 export { useIconArt } from './useIconArt';

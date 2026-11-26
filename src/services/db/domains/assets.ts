@@ -10,14 +10,9 @@ export const assets = {
     return call<string>('assets_create', { asset });
   },
 
-  /** One page of `kind`'s files, newest first, after `before` (the last row of the page before it). */
-  async page(kind: string, before: ItemCursor | null, limit: number): Promise<AssetRow[]> {
-    return call<AssetRow[]>('assets_page', { kind, before, limit });
-  },
-
-  /** One page of the Knowledge library (every file kept there), newest first, after `before`. */
-  async library(before: ItemCursor | null, limit: number): Promise<AssetRow[]> {
-    return call<AssetRow[]>('assets_library', { before, limit });
+  /** One page of `kind`'s files (only the kept ones: library documents, saved speech), newest first, after `before`. */
+  async page(kind: string, kept: boolean, before: ItemCursor | null, limit: number): Promise<AssetRow[]> {
+    return call<AssetRow[]>('assets_page', { kind, kept, before, limit });
   },
 
   /** Deletes a file kept in the library, with its passages and index state; files a meeting or chat owns go with it. */
@@ -25,14 +20,14 @@ export const assets = {
     await call<void>('assets_delete', { id });
   },
 
-  /** Keep in Knowledge: the attached file at `path` joins the library and outlives its chat. */
+  /** Keep in Knowledge: the attached file at `path` joins the library and outlives its chat; throws when it is gone. */
   async keep(path: string): Promise<void> {
     await call<void>('assets_keep', { path });
   },
 
-  /** How many files of `kind` are kept. */
-  async count(kind: string): Promise<number> {
-    return call<number>('assets_count', { kind });
+  /** How many files of `kind` there are (only the kept ones when `kept`). */
+  async count(kind: string, kept: boolean): Promise<number> {
+    return call<number>('assets_count', { kind, kept });
   },
 
   /** Whether the file at this app-data path is still kept. */

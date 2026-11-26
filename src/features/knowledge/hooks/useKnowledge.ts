@@ -13,7 +13,7 @@ import { useTauriEvent } from '@shared/hooks';
 import type { SourceStatus } from '@shared/types/native';
 import { attachmentMediaType } from '@shared/utils/chatParts';
 import { KNOWLEDGE_LIBRARY } from '@config/knowledgeLibrary.config';
-import { libraryQuery } from './libraryQuery';
+import { libraryQuery } from '@shared/query/library';
 
 /** A document still being saved: shown in the list, opened once it is in. */
 function adding(file: File): KnowledgeDocument {
@@ -33,15 +33,19 @@ export function useKnowledge(query: string) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const key = queryKeys.knowledgeLibrary();
-  const { data: all = [], isLoading } = useQuery(libraryQuery);
+  const { data: all = [], isLoading, error } = useQuery(libraryQuery);
   const { data: statuses = [] } = useQuery({
     queryKey: queryKeys.sourceStates('file'),
     queryFn: () => store.sources.states('file'),
     enabled: isTauriEnvironment(),
   });
   const statusById = useMemo(() => new Map(statuses.map((status) => [status.owner_id, status])), [statuses]);
-  // A document indexed, or one that couldn't be read: its state, and what is related, are read again.
-  useTauriEvent(KNOWLEDGE_LIBRARY.sourceEvent, () => void queryClient.invalidateQueries({ queryKey: key }));
+  // A document indexed, or one that couldn't be read: the states and what is related are read again (not the list).
+  useTauriEvent<{ kind: string }>(KNOWLEDGE_LIBRARY.sourceEvent, ({ kind }) => {
+    if (kind !== 'file') return;
+    void queryClient.invalidateQueries({ queryKey: queryKeys.sourceStates('file') });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.relatedSourcesAll() });
+  });
   const documents = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
     return needle ? all.filter((d) => d.name.toLocaleLowerCase().includes(needle)) : all;
@@ -83,7 +87,11 @@ export function useKnowledge(query: string) {
       console.error('[Knowledge] Delete failed:', error);
       showToast(KNOWLEDGE_LIBRARY.deleteFailed, 'error');
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+    // Chats showing the document read its file's URL again, so they show it removed.
+    onSettled: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: key }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.appFileUrls() }),
+    ]),
   });
 
   /** Adds the files Knowledge reads; any other is named and left out. */
@@ -99,5 +107,5 @@ export function useKnowledge(query: string) {
   /** How far indexing the document has got; none yet means it is still being indexed. */
   const statusOf = (id: string): SourceStatus | undefined => statusById.get(id);
 
-  return { documents, hasAny: all.length > 0, isLoading, statusOf, addFiles, remove: remove.mutate };
+  return { documents, hasAny: all.length > 0, isLoading, error, statusOf, addFiles, remove: remove.mutate };
 }

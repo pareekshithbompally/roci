@@ -55,7 +55,7 @@ function toDocument(row: AssetRow): KnowledgeDocument {
 export const documentsService = {
   /** The library's documents, newest first (the first `limit`). */
   async list(limit: number): Promise<KnowledgeDocument[]> {
-    return (await store.assets.library(null, limit)).map(toDocument);
+    return (await store.assets.page('file', true, null, limit)).map(toDocument);
   },
 
   /** Keeps `file` in the library; throws when Knowledge can't read its kind, it is past the size limit, or it can't be

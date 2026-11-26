@@ -2,6 +2,7 @@
 //! and which have vectors, the items still without vectors, clearing everything for a rebuild, and search itself.
 //! The webview never handles pieces or vectors.
 
+use crate::assets::{DOCUMENT, FILE_NAME};
 use crate::commands::{
     append_chunks_impl, chats_get_impl, embedded_chunk_texts_impl, meetings_get_impl, save_chunks, ChatSearchHit, StoreState,
 };
@@ -124,51 +125,34 @@ pub fn append_pieces<R: Runtime>(app: &AppHandle<R>, meeting_id: &str, pieces: &
     Ok(())
 }
 
-/// Sources (meetings, chats, files) with a piece that has no vector yet, on an open database.
-fn without_vectors_impl(db: &Connection) -> Result<Vec<(ItemKind, String)>, StoreError> {
-    let rows = db
-        .prepare("SELECT DISTINCT c.owner_kind, c.owner_id FROM chunks c WHERE NOT EXISTS (SELECT 1 FROM vec_chunks v WHERE v.chunk_id = c.id)")?
-        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
-        .collect::<Result<Vec<_>, _>>()?;
-    let owner = |kind: &str| [ItemKind::Meeting, ItemKind::Chat, ItemKind::File].into_iter().find(|k| k.index_kind() == kind);
-    Ok(rows.into_iter().filter_map(|(kind, id)| owner(&kind).map(|k| (k, id))).collect())
-}
-
-/// Meetings and chats with a piece that has no vector yet.
-pub fn without_vectors<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<(ItemKind, String)>, StoreError> {
-    Ok(with_db(app, without_vectors_impl)?.unwrap_or_default())
-}
-
-/// Every meeting, chat (with messages) or library file id, newest first: what a rebuild indexes.
+/// Every meeting, chat (with messages) or document id, newest first: what a rebuild indexes.
 pub fn all_ids<R: Runtime>(app: &AppHandle<R>, owner: ItemKind) -> Result<Vec<String>, StoreError> {
     let sql = match owner {
-        ItemKind::Meeting => "SELECT id FROM meetings ORDER BY created_at DESC",
-        ItemKind::Chat => "SELECT c.id FROM chats c WHERE EXISTS (SELECT 1 FROM chat_messages WHERE chat_id = c.id) ORDER BY last_message_at DESC",
-        ItemKind::File => "SELECT id FROM assets WHERE kind = 'file' ORDER BY created_at DESC",
+        ItemKind::Meeting => "SELECT id FROM meetings ORDER BY created_at DESC".to_string(),
+        ItemKind::Chat => "SELECT c.id FROM chats c WHERE EXISTS (SELECT 1 FROM chat_messages WHERE chat_id = c.id) ORDER BY last_message_at DESC".to_string(),
+        ItemKind::File => format!("SELECT id FROM assets WHERE kind = 'file' AND {DOCUMENT} ORDER BY created_at DESC"),
     };
-    Ok(with_db(app, |db| Ok(db.prepare(sql)?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?))?.unwrap_or_default())
+    Ok(with_db(app, |db| Ok(db.prepare(&sql)?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?))?.unwrap_or_default())
 }
 
-/// A file you gave Roci as indexing reads it: where it is (its app-data path), what it is, and whether it is in the library.
+/// A document you gave Roci as indexing reads it: where it is (its app-data path) and what it is.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FileSource {
     pub path: String,
     pub name: String,
     pub media_type: String,
-    /// In the Knowledge library, rather than a chat's attachment.
-    pub kept: bool,
 }
 
-/// The file's path, name and media type (in the library or a chat's attachment); `None` when it is gone.
+/// The document's path, name and media type (in the library or a chat's attachment); `None` when it is gone or is no
+/// document (an image, a sound: never indexed).
 pub fn file_source<R: Runtime>(app: &AppHandle<R>, id: &str) -> Result<Option<FileSource>, StoreError> {
+    let sql = format!(
+        "SELECT path, {FILE_NAME}, COALESCE(json_extract(meta, '$.mediaType'), '') FROM assets
+         WHERE id = ?1 AND kind = 'file' AND {DOCUMENT}"
+    );
     Ok(with_db(app, |db| {
         Ok(db
-            .query_row(
-                "SELECT path, COALESCE(json_extract(meta, '$.name'), path), COALESCE(json_extract(meta, '$.mediaType'), ''), kept
-                 FROM assets WHERE id = ?1 AND kind = 'file'",
-                [id],
-                |row| Ok(FileSource { path: row.get(0)?, name: row.get(1)?, media_type: row.get(2)?, kept: row.get(3)? }),
-            )
+            .query_row(&sql, [id], |row| Ok(FileSource { path: row.get(0)?, name: row.get(1)?, media_type: row.get(2)? }))
             .optional()?)
     })?
     .flatten())
@@ -188,26 +172,43 @@ pub struct FileHit {
     pub chunk_text: String,
     pub page: Option<i32>,
     pub score: f64,
-    /// In the Knowledge library (opens there), rather than a chat's attachment.
-    pub kept: bool,
 }
 
-/// The ids of the files searched: those at `paths` (a chat's attachments), or every file in the library.
-fn searched_files(db: &Connection, paths: Option<&[String]>) -> Result<Vec<String>, StoreError> {
-    let rows = match paths {
-        Some(paths) => {
-            let json = serde_json::to_string(paths).map_err(|e| StoreError::from(e.to_string()))?;
-            db.prepare("SELECT id FROM assets WHERE kind = 'file' AND path IN (SELECT value FROM json_each(?1))")?
-                .query_map([json], |row| row.get(0))?
-                .collect::<Result<_, _>>()?
+/// How alike a passage must be to the question to match it by meaning (cosine, 0–1); a weaker one is no match, so an
+/// answer never cites a page that isn't about the question. Tuned on real documents.
+const DOCUMENT_MIN_SIMILARITY: f64 = 0.5;
+
+/// The ids of the files at `paths` (a chat's attachments).
+fn files_at(db: &Connection, paths: &[String]) -> Result<Vec<String>, StoreError> {
+    let json = serde_json::to_string(paths).map_err(|e| StoreError::from(e.to_string()))?;
+    Ok(db
+        .prepare("SELECT id FROM assets WHERE kind = 'file' AND path IN (SELECT value FROM json_each(?1))")?
+        .query_map([json], |row| row.get(0))?
+        .collect::<Result<_, _>>()?)
+}
+
+/// Documents' passages matching `query` on an open database: within the files at `paths`, or the whole library.
+fn search_files_impl(db: &Connection, query: &str, embedding: Option<&[f32]>, limit: usize, paths: Option<&[String]>) -> Result<Vec<FileHit>, StoreError> {
+    let ids = paths.map(|paths| files_at(db, paths)).transpose()?;
+    if ids.as_ref().is_some_and(Vec::is_empty) {
+        return Ok(Vec::new());
+    }
+    let max_distance = Some((2.0 * (1.0 - DOCUMENT_MIN_SIMILARITY)).sqrt());
+    let q = SearchQuery { within: ids.as_deref(), library: ids.is_none(), max_distance, ..SearchQuery::owners(ItemKind::File.index_kind(), query, embedding, limit) };
+    let hits = hybrid_search(db, &q).map_err(StoreError::from)?;
+    let mut file = db.prepare(&format!("SELECT path, {FILE_NAME} FROM assets WHERE id = ?1"))?;
+    let mut out = Vec::with_capacity(hits.len());
+    for hit in hits {
+        let found: Option<(String, String)> = file.query_row([&hit.owner_id], |row| Ok((row.get(0)?, row.get(1)?))).optional()?;
+        if let Some((path, name)) = found {
+            out.push(FileHit { path, name, chunk_text: hit.chunk_text, page: hit.page, score: hit.score });
         }
-        None => db.prepare("SELECT id FROM assets WHERE kind = 'file' AND kept = 1")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?,
-    };
-    Ok(rows)
+    }
+    Ok(out)
 }
 
-/// Documents' passages matching `query` (by meaning when `embedding` is given, by words always), best first, each with its
-/// page: within the files at `paths`, or the whole library.
+/// Documents' passages matching `query` (by meaning, above a floor, when `embedding` is given; by words always), best
+/// first, each with its page: within the files at `paths`, or the whole library.
 pub fn search_files<R: Runtime>(
     app: &AppHandle<R>,
     query: &str,
@@ -215,55 +216,39 @@ pub fn search_files<R: Runtime>(
     limit: usize,
     paths: Option<Vec<String>>,
 ) -> Result<Vec<FileHit>, StoreError> {
-    Ok(with_db(app, |db| {
-        let ids = searched_files(db, paths.as_deref())?;
-        if ids.is_empty() {
-            return Ok(Vec::new());
-        }
-        let q = SearchQuery { kind: ItemKind::File.index_kind(), text: query, embedding: embedding.as_deref(), limit, within: Some(&ids) };
-        let hits = hybrid_search(db, &q).map_err(StoreError::from)?;
-        let mut file = db.prepare("SELECT path, COALESCE(json_extract(meta, '$.name'), path), kept FROM assets WHERE id = ?1")?;
-        let mut out = Vec::with_capacity(hits.len());
-        for hit in hits {
-            let found: Option<(String, String, bool)> = file.query_row([&hit.owner_id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).optional()?;
-            if let Some((path, name, kept)) = found {
-                out.push(FileHit { path, name, chunk_text: hit.chunk_text, page: hit.page, score: hit.score, kept });
-            }
-        }
-        Ok(out)
-    })?
-    .unwrap_or_default())
+    Ok(with_db(app, |db| search_files_impl(db, query, embedding.as_deref(), limit, paths.as_deref()))?.unwrap_or_default())
 }
 
-/// What the source was last indexed from (its text's hash, the indexer's version, whether it went well); `None` before its first.
+/// How far indexing the source got, by which indexer version; `None` before its first.
 pub fn state_of<R: Runtime>(app: &AppHandle<R>, owner: ItemKind, id: &str) -> Result<Option<IndexState>, StoreError> {
     Ok(with_db(app, |db| crate::sources::state_impl(db, owner, id))?.flatten())
 }
 
-/// Records how indexing the source went (nothing for one deleted meanwhile).
-pub fn set_state<R: Runtime>(
-    app: &AppHandle<R>,
-    owner: ItemKind,
-    id: &str,
-    text_hash: &str,
-    version: i64,
-    state: SourceState,
-    error: Option<&str>,
-) -> Result<(), StoreError> {
+/// Records how far indexing the source got (nothing for one deleted meanwhile).
+pub fn set_state<R: Runtime>(app: &AppHandle<R>, owner: ItemKind, id: &str, version: i64, state: SourceState, error: Option<&str>) -> Result<(), StoreError> {
     let now = crate::commands::now_millis();
-    with_db(app, |db| crate::sources::set_state_impl(db, owner, id, text_hash, version, state, error, now))?;
+    with_db(app, |db| crate::sources::set_state_impl(db, owner, id, version, state, error, now))?;
     Ok(())
 }
 
-/// The sources to index at launch: library files not ready at `version`, and meetings and chats that failed.
-pub fn needing_index<R: Runtime>(app: &AppHandle<R>, version: i64) -> Result<Vec<(ItemKind, String)>, StoreError> {
-    Ok(with_db(app, |db| crate::sources::needing_index_impl(db, version))?.unwrap_or_default())
+/// The sources to read at launch: documents new to `version`, and sources indexed before states were kept.
+pub fn unindexed<R: Runtime>(app: &AppHandle<R>, version: i64) -> Result<Vec<(ItemKind, String)>, StoreError> {
+    Ok(with_db(app, |db| crate::sources::unindexed_impl(db, version))?.unwrap_or_default())
 }
 
-/// Clears one owner's pieces and vectors (a rebuild then indexes everything again).
+/// The sources with pieces still waiting for a vector.
+pub fn pending<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<(ItemKind, String)>, StoreError> {
+    Ok(with_db(app, crate::sources::pending_impl)?.unwrap_or_default())
+}
+
+/// Clears one owner kind's pieces, vectors and index states (a rebuild then indexes everything again).
 pub fn clear<R: Runtime>(app: &AppHandle<R>, owner: ItemKind) -> Result<(), StoreError> {
     // Their keyword entries and vectors follow by trigger.
-    with_db(app, |db| Ok(db.execute("DELETE FROM chunks WHERE owner_kind = ?1", [owner.index_kind()]).map(|_| ())?))?;
+    with_db(app, |db| {
+        db.execute("DELETE FROM chunks WHERE owner_kind = ?1", [owner.index_kind()])?;
+        db.execute("DELETE FROM index_state WHERE owner_kind = ?1", [owner.index_kind()])?;
+        Ok(())
+    })?;
     Ok(())
 }
 
@@ -276,7 +261,7 @@ pub fn search_meetings<R: Runtime>(
     limit: usize,
     meeting_ids: Option<Vec<String>>,
 ) -> Result<Vec<SearchHit>, StoreError> {
-    let q = SearchQuery { kind: ItemKind::Meeting.index_kind(), text: query, embedding: embedding.as_deref(), limit, within: meeting_ids.as_deref() };
+    let q = SearchQuery { within: meeting_ids.as_deref(), ..SearchQuery::owners(ItemKind::Meeting.index_kind(), query, embedding.as_deref(), limit) };
     Ok(with_db(app, |db| {
         let hits = hybrid_search(db, &q).map_err(StoreError::from)?;
         titled(db, hits, "SELECT title, created_at FROM meetings WHERE id = ?1", |hit, (title, at)| SearchHit {
@@ -293,7 +278,7 @@ pub fn search_meetings<R: Runtime>(
 
 /// Chat pieces matching `query`, the best piece of each chat, best first.
 pub fn search_chats<R: Runtime>(app: &AppHandle<R>, query: &str, embedding: Option<Vec<f32>>, limit: usize) -> Result<Vec<ChatSearchHit>, StoreError> {
-    let q = SearchQuery { kind: ItemKind::Chat.index_kind(), text: query, embedding: embedding.as_deref(), limit, within: None };
+    let q = SearchQuery::owners(ItemKind::Chat.index_kind(), query, embedding.as_deref(), limit);
     Ok(with_db(app, |db| {
         let hits = hybrid_search(db, &q).map_err(StoreError::from)?;
         titled(db, hits, "SELECT title, last_message_at FROM chats WHERE id = ?1", |hit, (title, at)| ChatSearchHit {
@@ -338,32 +323,38 @@ mod tests {
         assert_eq!(summary_text("Only this.", "not json"), "Only this.");
     }
 
-    #[test]
-    fn documents_are_searched_in_the_library_or_in_the_attachments_asked_for() {
-        let conn = db();
-        conn.execute_batch(
-            "INSERT INTO assets (id, kind, path, created_at, kept) VALUES ('lib', 'file', 'assets/lib.pdf', 0, 1);
-             INSERT INTO assets (id, kind, path, created_at) VALUES ('att', 'file', 'assets/att.pdf', 0);",
-        )
-        .unwrap();
-        assert_eq!(searched_files(&conn, None).unwrap(), vec!["lib".to_string()], "the library only");
-        assert_eq!(searched_files(&conn, Some(&["assets/att.pdf".into()])).unwrap(), vec!["att".to_string()]);
+    /// A unit vector along `axis` (with a little of the next), so similarity is easy to reason about.
+    fn along(axis: usize, lean: f32) -> Vec<f32> {
+        let mut v = vec![0.0; crate::schema::DEFAULT_DIM as usize];
+        v[axis] = 1.0;
+        v[axis + 1] = lean;
+        let norm = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+        v.into_iter().map(|x| x / norm).collect()
     }
 
     #[test]
-    fn items_with_pieces_still_without_vectors_are_found() {
+    fn a_document_search_finds_passages_by_meaning_with_their_pages_in_the_library_or_one_attachment() {
         let conn = db();
-        seed_meeting(&conn, "m1");
-        seed_meeting(&conn, "m2");
-        let piece = |text: &str, embedded: bool| ChunkData {
-            chunk_index: 0, chunk_text: text.into(), chunk_type: "transcript".into(),
-            embedding: embedded.then(|| vec![0.5; crate::schema::DEFAULT_DIM as usize]), start_pos: None, end_pos: None, page: None,
+        conn.execute_batch(
+            "INSERT INTO assets (id, kind, path, meta, created_at, kept) VALUES
+                 ('lib', 'file', 'assets/lib.pdf', '{\"name\":\"Q3 pricing.pdf\",\"mediaType\":\"application/pdf\"}', 0, 1),
+                 ('att', 'file', 'assets/att.pdf', '{\"name\":\"Draft.pdf\",\"mediaType\":\"application/pdf\"}', 0, 0);",
+        )
+        .unwrap();
+        let page = |index: i32, page: i32, text: &str, axis: usize| ChunkData {
+            chunk_index: index, chunk_text: text.into(), chunk_type: "page".into(), embedding: Some(along(axis, 0.1)),
+            start_pos: None, end_pos: None, page: Some(page),
         };
         let tx = conn.unchecked_transaction().unwrap();
-        save_chunks(&tx, ItemKind::Meeting, "m1", &[piece("has one", true)]).unwrap();
-        save_chunks(&tx, ItemKind::Meeting, "m2", &[piece("has none", false)]).unwrap();
+        save_chunks(&tx, ItemKind::File, "lib", &[page(0, 1, "Contents", 9), page(1, 3, "Priya leads the rollout", 0)]).unwrap();
+        save_chunks(&tx, ItemKind::File, "att", &[page(0, 1, "Who runs the launch in the draft", 0)]).unwrap();
         tx.commit().unwrap();
-        assert_eq!(without_vectors_impl(&conn).unwrap(), vec![(ItemKind::Meeting, "m2".to_string())]);
+        let question = along(0, 0.2);
+
+        let library = search_files_impl(&conn, "who runs it", Some(&question), 5, None).unwrap();
+        assert_eq!(library.iter().map(|h| (h.name.as_str(), h.page)).collect::<Vec<_>>(), vec![("Q3 pricing.pdf", Some(3))], "the far page and the attachment are no match");
+        let attached = search_files_impl(&conn, "who runs it", Some(&question), 5, Some(&["assets/att.pdf".into()])).unwrap();
+        assert_eq!(attached.iter().map(|h| h.name.as_str()).collect::<Vec<_>>(), vec!["Draft.pdf"]);
     }
 
     #[test]
@@ -387,7 +378,7 @@ mod tests {
         tx.commit().unwrap();
         let within = |ids: &[&str]| {
             let ids: Vec<String> = ids.iter().map(|id| id.to_string()).collect();
-            let q = SearchQuery { kind: "meeting", text: "budget", embedding: None, limit: 5, within: Some(&ids) };
+            let q = SearchQuery { within: Some(&ids), ..SearchQuery::owners("meeting", "budget", None, 5) };
             let mut found: Vec<String> = hybrid_search(&conn, &q).unwrap().into_iter().map(|hit| hit.owner_id).collect();
             found.sort();
             found

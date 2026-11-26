@@ -28,6 +28,8 @@ export const ATTACHMENT_TYPES = {
   pdf: { mediaType: 'application/pdf', extension: '.pdf' },
   text: {
     mediaTypePrefix: 'text/',
+    /** The type a text file the system named none for (a `.md`) is kept with. */
+    fallbackMediaType: 'text/plain',
     mediaTypes: ['application/json'],
     extensions: ['.txt', '.md', '.csv', '.json'],
     /** The most of one text file a model is sent (about 25k tokens); the rest is said to be cut. */
@@ -42,6 +44,7 @@ export const ATTACHMENT_COPY = {
   keep: 'Keep in Knowledge',
   kept: 'Kept in Knowledge',
   keepFailed: (name: string) => `Couldn't keep ${name}`,
+  attachFailed: (name: string, reason: string) => `Couldn't attach ${name}: ${reason}`,
 } as const;
 
 /** How an answer names a document page it drew on. */

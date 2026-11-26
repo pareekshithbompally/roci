@@ -2,7 +2,7 @@ use crate::assets;
 use rusqlite::Connection;
 
 /// Current schema version for the new roci.db.
-pub const SCHEMA_VERSION: u32 = 17;
+pub const SCHEMA_VERSION: u32 = 18;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "qwen3-embedding-0.6b";
@@ -38,12 +38,12 @@ pub(crate) fn open_migrated_test_db() -> Connection {
     conn
 }
 
-/// Creates the schema in a new database, or brings a v10–v16 database to the current version with its data. Any other
+/// Creates the schema in a new database, or brings a v10–v17 database to the current version with its data. Any other
 /// version is refused, not upgraded: pre-release, there is nothing else to carry forward.
 pub fn migrate(conn: &Connection) -> Result<(), String> {
     match get_schema_version(conn) {
         0 => create_new(conn)?,
-        version @ 10..=16 => upgrade_from(conn, version)?,
+        version @ 10..=17 => upgrade_from(conn, version)?,
         SCHEMA_VERSION => {}
         other => {
             let e = format!("roci.db is schema v{other}, this build is v{SCHEMA_VERSION}: remove it to start fresh");
@@ -115,7 +115,40 @@ fn upgrade_from(conn: &Connection, version: u32) -> Result<(), String> {
     if version <= 15 {
         upgrade_v16(conn)?;
     }
-    upgrade_v17(conn)
+    if version <= 16 {
+        upgrade_v17(conn)?;
+    }
+    upgrade_v18(conn)
+}
+
+/// v17 → v18: the search index knows each vector's owner and whether it is kept in the library (sqlite-vec filter columns),
+/// so a source's related search leaves its own pieces out and a library search reads only kept documents, both inside the
+/// nearest-neighbour search. Index state keeps no text hash and names only real owners; it is remade empty (the indexer
+/// fills it again at the next open: it is bookkeeping, not data). A kept file can't have a parent; listings are indexed.
+fn upgrade_v18(conn: &Connection) -> Result<(), String> {
+    let tx = conn.unchecked_transaction().map_err(|e| format!("begin v18: {}", e))?;
+    tx.execute_batch(&format!(
+        "CREATE TABLE vec_chunks_v17 AS SELECT chunk_id, owner_kind, embedding FROM vec_chunks;
+         DROP TABLE vec_chunks;"
+    ))
+    .map_err(|e| format!("v18 set vectors aside: {}", e))?;
+    create_vectors(&tx)?;
+    tx.execute_batch(
+        "INSERT INTO vec_chunks (chunk_id, owner_kind, owner_id, kept, embedding)
+             SELECT v.chunk_id, v.owner_kind, c.owner_id,
+                    COALESCE((SELECT a.kept FROM assets a WHERE v.owner_kind = 'file' AND a.id = c.owner_id), 0), v.embedding
+             FROM vec_chunks_v17 v JOIN chunks c ON c.id = v.chunk_id;
+         DROP TABLE vec_chunks_v17;
+         DROP TRIGGER IF EXISTS meetings_index_state_ad; DROP TRIGGER IF EXISTS chats_index_state_ad; DROP TRIGGER IF EXISTS files_source_ad;
+         DROP TABLE IF EXISTS index_state;",
+    )
+    .map_err(|e| format!("v18 vectors and index state: {}", e))?;
+    tx.execute_batch(SOURCES_DDL).map_err(|e| format!("v18 index state: {}", e))?;
+    tx.execute_batch(crate::assets::RULES_DDL).map_err(|e| format!("v18 asset rules: {}", e))?;
+    set_schema_version(&tx, 18)?;
+    tx.commit().map_err(|e| format!("commit v18: {}", e))?;
+    log::info!("[store] Schema v17→v18 (vector owners and library flag, index state without hash, asset rules)");
+    Ok(())
 }
 
 /// v16 → v17: every kept file lives in one folder, `assets/` (its kind says what it is), a file can be kept in the Knowledge
@@ -302,15 +335,14 @@ const SEARCH_DDL: &str = "
         DELETE FROM chunks WHERE owner_kind = 'chat' AND owner_id = old.id;
     END;";
 
-/// Knowledge sources: each indexed source's state, keyed like its pieces (`owner_kind`, `owner_id`): the text it was indexed
-/// from (its hash), by which indexer version, and how that went, so a source is indexed again only when its text or the
-/// indexer changes, and a failed one is retried. A file kept in the library is a source too (`owner_kind` 'file', its asset
-/// id); every owner's delete takes its state, and a file's its pieces, with it.
+/// Knowledge sources: each indexed source's state, keyed like its pieces (`owner_kind`, `owner_id`): by which indexer version
+/// it was read and how far it got (pending: its pieces are searchable by words, some still without a vector; ready: every
+/// piece has one; failed: it couldn't be read, and why). A file you gave Roci is a source too (`owner_kind` 'file', its
+/// asset id); every owner's delete takes its state, and a file's its pieces, with it.
 const SOURCES_DDL: &str = "
     CREATE TABLE IF NOT EXISTS index_state (
-        owner_kind   TEXT    NOT NULL,
+        owner_kind   TEXT    NOT NULL CHECK(owner_kind IN ('meeting','chat','file')),
         owner_id     TEXT    NOT NULL,
-        text_hash    TEXT    NOT NULL,
         version      INTEGER NOT NULL,
         state        TEXT    NOT NULL CHECK(state IN ('pending','ready','failed')),
         error        TEXT,
@@ -328,13 +360,17 @@ const SOURCES_DDL: &str = "
         DELETE FROM index_state WHERE owner_kind = 'file' AND owner_id = old.id;
     END;";
 
-/// The pieces' vectors (sqlite-vec, partitioned by owner kind so a search reads one kind's), and the trigger that drops a
-/// piece's vector with it. Separate from `SEARCH_DDL`: vec0 is the extension's, and an embedding model change remakes it.
+/// The pieces' vectors (sqlite-vec, partitioned by owner kind so a search reads one kind's; each with its owner and whether
+/// it is kept in the library, so a nearest-neighbour search can leave one owner out or read only the library), and the
+/// trigger that drops a piece's vector with it. Separate from `SEARCH_DDL`: vec0 is the extension's, and an embedding model
+/// change remakes it.
 fn create_vectors(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(&format!(
         "CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
              chunk_id INTEGER PRIMARY KEY,
              owner_kind TEXT PARTITION KEY,
+             owner_id TEXT,
+             kept INTEGER,
              embedding float[{DEFAULT_DIM}]
          );
          CREATE TRIGGER IF NOT EXISTS chunks_vec_ad AFTER DELETE ON chunks BEGIN
@@ -574,6 +610,7 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
     .map_err(|e| format!("create usage_log: {}", e))?;
 
     create_vectors(conn)?;
+    conn.execute_batch(crate::assets::RULES_DDL).map_err(|e| format!("create asset rules: {}", e))?;
 
     // Insert metadata
     conn.execute_batch(&format!(
@@ -668,13 +705,45 @@ mod tests {
         assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
     }
 
+    /// v17 → v18: vectors carry over knowing their owner and whether it is kept; index state is remade without its hash;
+    /// a kept file can no longer have a parent.
+    #[test]
+    fn v17_vectors_learn_their_owner_and_the_library() {
+        let conn = open_test_db();
+        init_db(&conn);
+        let vector = format!("[{}]", vec!["0.1"; DEFAULT_DIM as usize].join(","));
+        conn.execute_batch(&format!(
+            "DROP TRIGGER assets_kept_bi; DROP TRIGGER assets_kept_bu; DROP TRIGGER assets_kept_au;
+             DROP TABLE vec_chunks; DROP TABLE index_state;
+             CREATE VIRTUAL TABLE vec_chunks USING vec0(chunk_id INTEGER PRIMARY KEY, owner_kind TEXT PARTITION KEY, embedding float[{DEFAULT_DIM}]);
+             CREATE TABLE index_state (owner_kind TEXT NOT NULL, owner_id TEXT NOT NULL, text_hash TEXT NOT NULL, version INTEGER NOT NULL,
+                 state TEXT NOT NULL, error TEXT, attempted_at INTEGER NOT NULL, PRIMARY KEY (owner_kind, owner_id));
+             INSERT INTO assets (id, kind, path, created_at, kept) VALUES ('f', 'file', 'assets/f.pdf', 1, 1);
+             INSERT INTO chunks (owner_kind, owner_id, chunk_index, chunk_text, chunk_type) VALUES ('file', 'f', 0, 'Q3 pricing', 'page');
+             INSERT INTO vec_chunks (chunk_id, owner_kind, embedding) VALUES (last_insert_rowid(), 'file', '{vector}');
+             INSERT INTO index_state VALUES ('file', 'f', 'h', 1, 'ready', NULL, 0);
+             UPDATE meta SET value = '17' WHERE key = 'schema_version';"
+        ))
+        .expect("v17 tables");
+
+        migrate(&conn).expect("upgrade");
+
+        let (owner, kept): (String, i64) = conn.query_row("SELECT owner_id, kept FROM vec_chunks", [], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
+        assert_eq!((owner.as_str(), kept), ("f", 1));
+        let hash: i64 = conn.query_row("SELECT COUNT(*) FROM pragma_table_info('index_state') WHERE name = 'text_hash'", [], |r| r.get(0)).unwrap();
+        assert_eq!(hash, 0);
+        conn.execute_batch("INSERT INTO chats (id, title, created_at, last_message_at) VALUES ('c', 'Chat', 1, 1);").unwrap();
+        assert!(conn.execute("UPDATE assets SET chat_id = 'c' WHERE id = 'f'", []).is_err(), "a kept file can't have a parent");
+        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
+    }
+
     #[test]
     fn v15_search_pieces_move_into_the_one_index() {
         let conn = open_test_db();
         init_db(&conn);
         // The v15 search tables, as they were (each owner's pieces, keyword index and vectors apart).
         conn.execute_batch(&format!(
-            "DROP TRIGGER meetings_chunks_ad; DROP TRIGGER chats_chunks_ad; DROP TRIGGER files_source_ad; DROP TABLE vec_chunks; DROP TABLE chunks_fts; DROP TABLE chunks;
+            "DROP TRIGGER meetings_chunks_ad; DROP TRIGGER chats_chunks_ad; DROP TRIGGER files_source_ad; DROP TRIGGER assets_kept_au; DROP TABLE vec_chunks; DROP TABLE chunks_fts; DROP TABLE chunks;
              CREATE TABLE chunks (id INTEGER PRIMARY KEY AUTOINCREMENT, meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
                  chunk_index INTEGER NOT NULL, chunk_text TEXT NOT NULL, chunk_type TEXT NOT NULL DEFAULT 'transcript',
                  start_pos INTEGER, end_pos INTEGER, UNIQUE(meeting_id, chunk_index));
@@ -1058,7 +1127,7 @@ mod tests {
         conn.execute("INSERT INTO meetings (id, title, created_at, updated_at) VALUES ('m1', 'M', ?1, ?1)", params![now])
             .expect("insert meeting");
         let vector = format!("[{}]", vec!["0.1"; DEFAULT_DIM as usize].join(","));
-        conn.execute("INSERT INTO vec_chunks (chunk_id, owner_kind, embedding) VALUES (1, 'meeting', ?1)", params![vector]).expect("insert vector");
+        conn.execute("INSERT INTO vec_chunks (chunk_id, owner_kind, owner_id, kept, embedding) VALUES (1, 'meeting', 'm1', 0, ?1)", params![vector]).expect("insert vector");
         conn.execute("UPDATE meta SET value = 'old-model' WHERE key = 'embedding_model'", []).expect("set old model");
 
         migrate(&conn).expect("migrate");
@@ -1067,7 +1136,7 @@ mod tests {
         let model: String = conn.query_row("SELECT value FROM meta WHERE key = 'embedding_model'", [], |r| r.get(0)).unwrap();
         assert_eq!((vectors, model.as_str()), (0, DEFAULT_MODEL));
 
-        conn.execute("INSERT INTO vec_chunks (chunk_id, owner_kind, embedding) VALUES (2, 'meeting', ?1)", params![vector]).expect("insert vector");
+        conn.execute("INSERT INTO vec_chunks (chunk_id, owner_kind, owner_id, kept, embedding) VALUES (2, 'meeting', 'm1', 0, ?1)", params![vector]).expect("insert vector");
         migrate(&conn).expect("migrate again");
         let kept: i64 = conn.query_row("SELECT COUNT(*) FROM vec_chunks", [], |r| r.get(0)).unwrap();
         assert_eq!(kept, 1, "the same model keeps its vectors");
