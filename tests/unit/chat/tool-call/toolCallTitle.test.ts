@@ -46,6 +46,16 @@ describe('toolCallTitle — built-in tools', () => {
     expect(toolCallTitle(p)).toBe('Retrieved meeting “Weekly sync”');
   });
 
+  it('names a document read and a document search as documents, never a meeting', () => {
+    const read = part({
+      toolName: 'read',
+      arguments: { document_id: 'assets/q3.pdf' },
+      result: { content: '## Document: keps102.pdf — 14 pages — ID: assets/q3.pdf\n\n### Page 1', isError: false },
+    });
+    expect(toolCallTitle(read)).toBe('Read document “keps102.pdf”');
+    expect(toolCallTitle(part({ toolName: 'find', arguments: { in: 'documents', query: 'freedom' }, status: 'complete' }))).toBe('Searched documents for “freedom”');
+  });
+
   it('truncates long query snippets', () => {
     const title = toolCallTitle(part({ arguments: { in: 'meetings', query: 'x'.repeat(200) } }));
     expect(title.length).toBeLessThan(120);

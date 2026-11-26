@@ -91,7 +91,7 @@ const MODE_ARGUMENT: Record<string, string> = { find: 'in', suggest_todo: 'actio
  *  `read.meeting`, `suggest_todo.add`; any other tool is its name. */
 export function toolKey({ toolName, arguments: args, source }: ToolCallView): string {
   if (source) return toolName;
-  if (toolName === 'read') return args.chat_id ? 'read.chat' : args.entity_id ? 'read.entity' : 'read.meeting';
+  if (toolName === 'read') return args.chat_id ? 'read.chat' : args.entity_id ? 'read.entity' : args.document_id ? 'read.document' : 'read.meeting';
   const mode = MODE_ARGUMENT[toolName];
   // While its input streams in, a call has no mode yet: its bare name until it does.
   if (!mode || args[mode] === undefined) return toolName;

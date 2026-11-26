@@ -16,8 +16,11 @@ const LABELS: Record<string, [string, string]> = {
   'find.memories.list': ['Reading memories', 'Read memories'],
   'find.knowledge': ['Searching knowledge', 'Searched knowledge'],
   'find.knowledge.list': ['Reading knowledge', 'Read knowledge'],
+  'find.documents': ['Searching documents', 'Searched documents'],
+  'find.documents.list': ['Listing documents', 'Listed documents'],
   'read.meeting': ['Retrieving meeting', 'Retrieved meeting'],
   'read.chat': ['Retrieving chat', 'Retrieved chat'],
+  'read.document': ['Reading document', 'Read document'],
   'read.entity': ['Looking up', 'Looked up'],
   'suggest_todo.add': ['Drafting to-do', 'Drafted to-do'],
   'suggest_todo.update': ['Drafting to-do change', 'Drafted to-do change'],
@@ -38,6 +41,8 @@ const LABELS: Record<string, [string, string]> = {
 
 /** "## Meeting: <title>" — the header a meeting's read starts with. */
 const MEETING_HEADER = /^## Meeting: (.+)$/m;
+/** "## Document: <name> — …" — the header a document's read starts with. */
+const DOCUMENT_HEADER = /^## Document: (.+?)(?: — |$)/m;
 
 const MS_PER_SECOND = 1000;
 
@@ -66,6 +71,10 @@ function meetingDetail(part: ToolCallView): string | undefined {
   return quoted(title ?? part.arguments.meeting_id);
 }
 
+function documentDetail(part: ToolCallView): string | undefined {
+  return quoted(part.result?.content.match(DOCUMENT_HEADER)?.[1]);
+}
+
 /** Argument-derived snippet appended to the verb, by `toolKey`. */
 const DETAILS: Record<string, (part: ToolCallView) => string | undefined> = {
   'find.meetings': queryDetail,
@@ -79,6 +88,8 @@ const DETAILS: Record<string, (part: ToolCallView) => string | undefined> = {
   webSearchPreview: webDetail,
   browserSearch: webDetail,
   'read.meeting': meetingDetail,
+  'read.document': documentDetail,
+  'find.documents': queryDetail,
   'find.meetings.list': (part) => upTo(part.arguments.limit, 'meetings'),
   'find.chats.list': (part) => upTo(part.arguments.limit, 'chats'),
   'suggest_todo.add': (part) => quoted(part.arguments.text),
