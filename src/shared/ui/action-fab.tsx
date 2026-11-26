@@ -4,7 +4,8 @@
 import React from 'react';
 import { ChevronDown, Plus, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Button, IconButton } from './button';
+import { IconButton } from './button';
+import { FormActions } from './form-actions';
 import { Surface } from './surface';
 import { Text } from './text';
 import { EditPage } from './cover-page';
@@ -124,10 +125,7 @@ export function AddForm({ title, onClose, onSave, saveLabel, canSave, busy, chil
         onKeyDown={(e) => e.key === 'Escape' && onClose()}
       >
         {children}
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose} disabled={busy}>{KIT_COPY.cancel}</Button>
-          <Button type="submit" disabled={!canSave} loading={busy}>{saveLabel}</Button>
-        </div>
+        <FormActions onCancel={onClose} submit={{ label: saveLabel, disabled: !canSave, busy, submits: true }} />
       </form>
     </CornerPanel>
   );

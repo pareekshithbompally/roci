@@ -95,6 +95,8 @@ export type { ChoiceControlProps } from './choice-control';
 export { BottomSheet, InfoSheet, SheetBody } from './bottom-sheet';
 export type { BottomSheetProps, InfoSheetProps } from './bottom-sheet';
 export { CoverPage, EditPage } from './cover-page';
+export { FormActions } from './form-actions';
+export type { FormActionsProps, FormCommand } from './form-actions';
 export { ActionFab, AddForm, CornerPanel, PanelScreen } from './action-fab';
 export type { ActionFabProps, AddFormProps, CornerPanelProps, FabAction, PanelScreenProps } from './action-fab';
 export type { CoverPageProps, EditPageProps } from './cover-page';

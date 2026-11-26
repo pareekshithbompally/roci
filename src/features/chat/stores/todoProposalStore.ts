@@ -5,8 +5,7 @@ import { store } from '@services/db';
 import { reminderService } from '@services/reminder.service';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
-import { normalizeDueDate } from '@shared/utils/todo.utils';
-import { remindersSync } from '@services/reminders';
+import { todosService } from '@services/todos.service';
 import { showToast } from '@shared/ui';
 import { TODOS_CONFIG } from '@config/todos.config';
 import { createProposalQueue, type Proposal } from '@features/chat/stores/proposalQueue';
@@ -46,45 +45,20 @@ function invalidateTodos(): void {
 }
 
 async function createTodo(p: TodoChange): Promise<void> {
-  const todoId = crypto.randomUUID();
-  await store.todos.upsert({
-    id: todoId,
-    meetingId: p.meetingId,
-    text: p.text,
-    owner: p.owner || undefined,
-    dueDate: p.dueDate ? normalizeDueDate(p.dueDate) : undefined,
-    completed: false,
-    source: 'user',
-    createdAt: new Date().toISOString(),
-  });
-  if (p.reminderDateTime) await remind(todoId, p, p.reminderDateTime);
-  void remindersSync.added([todoId]);
+  const id = crypto.randomUUID();
+  await todosService.create({ id, meetingId: p.meetingId, text: p.text, dueDate: p.dueDate ?? undefined, owner: p.owner ?? undefined });
+  if (p.reminderDateTime) await remind(id, p, p.reminderDateTime);
 }
 
-/** Applies the proposal's fields over the stored to-do; what it doesn't name stays as it is. */
+/** Applies the proposal's fields over the stored to-do; marking it done or open again goes the same way as a tap. */
 async function update(p: TodoChange, todoId: string): Promise<void> {
   const [current] = await store.todos.get([todoId]);
   if (!current) throw new Error('This to-do no longer exists');
-  const completed = p.done ?? current.completed;
-  await store.todos.upsert({
-    id: todoId,
-    meetingId: current.meetingId,
-    text: p.text,
-    owner: p.owner || undefined,
-    dueDate: p.dueDate ? normalizeDueDate(p.dueDate) : undefined,
-    completed,
-    source: current.source,
-  });
-  if (completed) await reminderService.cancel(todoId);
+  await todosService.edit(todoId, { text: p.text, dueDate: p.dueDate, owner: p.owner });
+  const done = p.done ?? current.completed;
+  if (done !== current.completed) await todosService.setDone(todoId, done);
   // Compared as instants: the proposal's time is local, the stored one UTC.
-  else if (p.reminderDateTime && Date.parse(p.reminderDateTime) !== Date.parse(current.reminder?.dateTime ?? '')) await remind(todoId, p, p.reminderDateTime);
-  void remindersSync.changed(todoId);
-}
-
-async function remove(todoId: string): Promise<void> {
-  await reminderService.cancel(todoId);
-  await store.todos.delete(todoId);
-  void remindersSync.removed([todoId]);
+  if (!done && p.reminderDateTime && Date.parse(p.reminderDateTime) !== Date.parse(current.reminder?.dateTime ?? '')) await remind(todoId, p, p.reminderDateTime);
 }
 
 async function remind(todoId: string, p: TodoChange, at: string): Promise<void> {
@@ -102,7 +76,7 @@ async function remind(todoId: string, p: TodoChange, at: string): Promise<void> 
 async function commitSingle(p: TodoChange): Promise<void> {
   if (p.action === 'create') return createTodo(p);
   if (!p.todoId) throw new Error('No to-do to change');
-  return p.action === 'delete' ? remove(p.todoId) : update(p, p.todoId);
+  return p.action === 'delete' ? todosService.remove(p.todoId) : update(p, p.todoId);
 }
 
 export const todoProposalStore = createProposalQueue<TodoProposal>('TodoProposalStore', commitSingle, invalidateTodos);

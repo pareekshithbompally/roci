@@ -4,10 +4,11 @@ import { useFormFactor } from '@platform/formFactor';
 import { KIT_COPY } from '@config/kitCopy.config';
 import { confirm } from '@shared/stores/confirmStore';
 import {
-  Button,
   CardRow,
   Dialog,
   EditPage,
+  FormActions,
+  type FormCommand,
   type DialogContentProps,
   DialogBody,
   DialogClose,
@@ -25,12 +26,6 @@ import {
   useOptionalNavStack,
   Text,
 } from '@shared/ui';
-
-interface FormCommand {
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-}
 
 interface FormDialogProps {
   open: boolean;
@@ -58,15 +53,6 @@ const ErrorLine: React.FC<{ error?: string | null }> = ({ error }) =>
       {error}
     </Text>
   ) : null;
-
-/** The Mac footer: the side command at the leading end, then Cancel and the save action (or Done alone). */
-const MacFooter: React.FC<Pick<FormDialogProps, 'submit' | 'aside' | 'viewOnly' | 'onOpenChange'>> = ({ submit, aside, viewOnly, onOpenChange }) => (
-  <>
-    {aside && <Button variant={aside.tone === 'danger' ? 'dangerGhost' : 'ghost'} onClick={aside.onPress} disabled={aside.disabled} className="mr-auto">{aside.label}</Button>}
-    {!viewOnly && <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submit.busy}>{KIT_COPY.cancel}</Button>}
-    <Button onClick={submit.onPress} disabled={submit.disabled} loading={submit.busy}>{submit.label}</Button>
-  </>
-);
 
 /** Settings form dialog: a sheet on a Mac with its footer; on a phone the iOS edit page (✕ / title / ✓), the side
  *  command as an action row at its end. Outside clicks are ignored so a half-filled form is never lost. */
@@ -140,7 +126,7 @@ const DesktopForm: React.FC<FormDialogProps> = ({ open, onOpenChange, title, hea
         </DialogHeader>
         <DialogBody>{children}</DialogBody>
         <ErrorLine error={error} />
-        <DialogFooter className="shrink-0"><MacFooter onOpenChange={onOpenChange} {...commands} /></DialogFooter>
+        <DialogFooter className="shrink-0"><FormActions onCancel={() => onOpenChange(false)} {...commands} /></DialogFooter>
       </DialogContent>
     </DialogPortal>
   </Dialog>

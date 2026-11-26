@@ -27,7 +27,7 @@ const FILTERS: { key: TodoFilter; label: string; countKey: 'total' | 'pending' |
 
 interface TodoRowProps {
   todo: GlobalTodoEntry;
-  onToggle: (meetingId: string | null, todoId: string) => void;
+  onToggle: (todoId: string) => void;
   onReminderChanged: () => void;
 }
 
@@ -36,7 +36,7 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, onToggle, onReminderChanged }) 
     todo={todo}
     meetingId={todo.meetingId}
     meetingTitle={todo.meetingTitle}
-    onToggle={() => onToggle(todo.meetingId, todo.id)}
+    onToggle={() => onToggle(todo.id)}
     onReminderChange={onReminderChanged}
     className={LAYOUT.listGutter}
   />
@@ -47,10 +47,6 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, onToggle, onReminderChanged }) 
 export const RemindersView: React.FC = () => {
   const { groups, filter, setFilter, searchQuery, setSearchQuery, toggleTodo, refresh, counts, isLoading } = useGlobalTodos();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-
-  const handleToggle = useCallback(async (meetingId: string | null, todoId: string) => {
-    await toggleTodo(meetingId, todoId);
-  }, [toggleTodo]);
 
   const handleSearchToggle = useCallback(() => {
     if (isSearchOpen) {
@@ -126,7 +122,7 @@ export const RemindersView: React.FC = () => {
                   <TodoRow
                     key={`${todo.meetingId}-${todo.id}`}
                     todo={todo}
-                    onToggle={handleToggle}
+                    onToggle={(id) => void toggleTodo(id).catch((error: unknown) => console.error('[RemindersView] Toggle failed:', error))}
                     onReminderChanged={refresh}
                   />
                 ))}

@@ -1,11 +1,10 @@
-/** All meetings' todos in one query; mutations invalidate both global and per-meeting todo keys. */
+/** All meetings' to-dos in one query, grouped and filtered; changes go through `useTodoActions` like every to-do's. */
 
 import { useState, useMemo, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { store, type GlobalTodoEntry } from '@services/db';
-import { reminderService } from '@services/reminder.service';
 import { queryKeys } from '@shared/query/queryKeys';
-import { remindersSync } from '@services/reminders';
+import { useTodoActions } from './useTodoActions';
 
 export type TodoFilter = 'all' | 'pending' | 'completed';
 
@@ -29,7 +28,7 @@ export interface UseGlobalTodosReturn {
   /** Set the search query */
   setSearchQuery: (q: string) => void;
   /** Toggle a todo's completion and persist */
-  toggleTodo: (meetingId: string | null, todoId: string) => Promise<void>;
+  toggleTodo: (todoId: string) => Promise<void>;
   /** Counts (based on search-filtered set, before filter tabs) */
   counts: { total: number; pending: number; completed: number };
   /** Loading state */
@@ -61,50 +60,14 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
     },
   });
 
-  const toggleTodoMutate = useMutation({
-    mutationFn: async ({ meetingId, todoId }: { meetingId: string | null; todoId: string }) => {
-      const todo = allTodos.find((t) => t.id === todoId);
-      if (!todo) throw new Error('Todo not found');
-      const newCompleted = !todo.completed;
-      await store.todos.setCompleted(todoId, newCompleted);
-      if (newCompleted) {
-        await reminderService.cancel(todoId);
-      }
-    },
-    onMutate: async ({ meetingId, todoId }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.storeGlobalTodos() });
-      const previous = queryClient.getQueryData<GlobalTodoEntry[]>(queryKeys.storeGlobalTodos());
-      queryClient.setQueryData<GlobalTodoEntry[]>(queryKeys.storeGlobalTodos(), (old) =>
-        (old || []).map((t) =>
-          t.id === todoId && t.meetingId === meetingId
-            ? { ...t, completed: !t.completed, reminder: !t.completed ? t.reminder : undefined }
-            : t
-        )
-      );
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous !== undefined) {
-        queryClient.setQueryData(queryKeys.storeGlobalTodos(), context.previous);
-      }
-    },
-    onSuccess: (_data, { todoId }) => { void remindersSync.changed(todoId); },
-    onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.storeGlobalTodos() });
-      if (variables?.meetingId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.storeTodos(variables.meetingId) });
-      }
-    },
-  });
+  const actions = useTodoActions();
 
   const refresh = useCallback(() => void queryClient.invalidateQueries({ queryKey: queryKeys.storeTodosAll() }), [queryClient]);
 
-  const toggleTodo = useCallback(
-    async (meetingId: string | null, todoId: string) => {
-      await toggleTodoMutate.mutateAsync({ meetingId, todoId });
-    },
-    [toggleTodoMutate]
-  );
+  const toggleTodo = useCallback(async (todoId: string) => {
+    const todo = allTodos.find((t) => t.id === todoId);
+    if (todo) await actions.setDone(todoId, !todo.completed);
+  }, [allTodos, actions]);
 
   // Search-filtered set (before tab filters)
   const searchTokens = useMemo(

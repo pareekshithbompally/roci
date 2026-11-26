@@ -11,7 +11,7 @@ import {
 } from '@shared/ui';
 import { buildISOFromDateInput, formatMeetingDate } from '@shared/utils/todo.utils';
 import { localDayKey } from '@shared/utils/localDate';
-import { useAddTodo } from '@features/todos/hooks/useAddTodo';
+import { useTodoActions } from '@features/todos/hooks/useTodoActions';
 import { TODOS_CONFIG } from '@config/todos.config';
 import { UNTITLED_MEETING } from '@config/meetingLive.config';
 
@@ -112,7 +112,7 @@ interface NewTodoFormProps {
 }
 
 export const NewTodoForm: React.FC<NewTodoFormProps> = ({ meetingId, onClose }) => {
-  const addTodo = useAddTodo();
+  const { add } = useTodoActions();
   const [draft, setDraft] = useState<Draft>({ text: '', date: '', time: '', meetingId });
   const [saving, setSaving] = useState(false);
   const set = (next: Partial<Draft>) => setDraft((d) => ({ ...d, ...next }));
@@ -122,7 +122,7 @@ export const NewTodoForm: React.FC<NewTodoFormProps> = ({ meetingId, onClose }) 
     if (!canSave) return;
     setSaving(true);
     try {
-      await addTodo(draft.meetingId, draft.text.trim(), draft.date ? buildISOFromDateInput(draft.date, draft.time || undefined) : undefined);
+      await add(draft.meetingId, draft.text.trim(), draft.date ? buildISOFromDateInput(draft.date, draft.time || undefined) : undefined);
       onClose();
     } catch (error: unknown) {
       console.error('[NewTodoForm] Create failed:', error);

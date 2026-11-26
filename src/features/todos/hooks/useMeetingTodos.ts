@@ -1,12 +1,11 @@
-/** One meeting's todos with optimistic mutations; deleting or completing a todo cancels its reminder. */
+/** One meeting's to-dos, read from disk; its changes go through `useTodoActions` like every to-do's. */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { store } from '@services/db';
 import { queryKeys } from '@shared/query/queryKeys';
-import { reminderService } from '@services/reminder.service';
-import { remindersSync } from '@services/reminders';
 import type { TodoEntry, ActionItem } from '@shared/types';
+import { useTodoActions, type MeetingTodosData } from './useTodoActions';
 
 function mapEntryToActionItem(entry: TodoEntry): ActionItem {
   return {
@@ -17,11 +16,6 @@ function mapEntryToActionItem(entry: TodoEntry): ActionItem {
     completed: entry.completed,
     reminder: entry.reminder,
   };
-}
-
-interface MeetingTodosData {
-  userTodos: ActionItem[];
-  aiTodos: ActionItem[];
 }
 
 export function useMeetingTodos(meetingId: string | null) {
@@ -52,131 +46,12 @@ export function useMeetingTodos(meetingId: string | null) {
   const aiTodos = data?.aiTodos ?? [];
   const queryError = error ? (error instanceof Error ? error.message : 'Failed to load todos') : null;
 
-  const updateTodoMutate = useMutation({
-    mutationFn: async ({
-      todoId,
-      updates,
-    }: {
-      todoId: string;
-      updates: { text?: string; dueDate?: string };
-    }) => {
-      const [current] = await store.todos.get([todoId]);
-      if (!current) throw new Error('This to-do no longer exists');
-      // The whole row is written: what isn't changed is written back as it is.
-      await store.todos.upsert({ ...current, ...updates });
-    },
-    onMutate: async ({ todoId, updates }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.storeTodos(meetingId!) });
-      const previous = queryClient.getQueryData<MeetingTodosData>(queryKeys.storeTodos(meetingId!));
-      queryClient.setQueryData<MeetingTodosData>(queryKeys.storeTodos(meetingId!), (old) => ({
-        userTodos: (old?.userTodos ?? []).map((t) =>
-          t.id === todoId ? { ...t, ...updates } : t
-        ),
-        aiTodos: (old?.aiTodos ?? []).map((t) =>
-          t.id === todoId ? { ...t, ...updates } : t
-        ),
-      }));
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous !== undefined) {
-        queryClient.setQueryData(queryKeys.storeTodos(meetingId!), context.previous);
-      }
-    },
-    onSuccess: (_data, { todoId }) => { void remindersSync.changed(todoId); },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.storeTodos(meetingId!) });
-    },
-  });
-
-  const deleteTodoMutate = useMutation({
-    mutationFn: async (todoId: string) => {
-      await reminderService.cancel(todoId);
-      await store.todos.delete(todoId);
-    },
-    onSuccess: (_data, todoId) => { void remindersSync.removed([todoId]); },
-    onMutate: async (todoId) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.storeTodos(meetingId!) });
-      const previous = queryClient.getQueryData<MeetingTodosData>(queryKeys.storeTodos(meetingId!));
-      queryClient.setQueryData<MeetingTodosData>(queryKeys.storeTodos(meetingId!), (old) => ({
-        userTodos: (old?.userTodos ?? []).filter((t) => t.id !== todoId),
-        aiTodos: (old?.aiTodos ?? []).filter((t) => t.id !== todoId),
-      }));
-      return { previous };
-    },
-    onError: (_err, _todoId, context) => {
-      if (context?.previous !== undefined) {
-        queryClient.setQueryData(queryKeys.storeTodos(meetingId!), context.previous);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.storeTodos(meetingId!) });
-    },
-  });
-
-  const toggleTodoMutate = useMutation({
-    mutationFn: async (todoId: string) => {
-      const entries = await store.todos.listForMeeting(meetingId!);
-      const todo = entries.find((t) => t.id === todoId);
-      if (!todo) throw new Error('Todo not found');
-      const newCompleted = !todo.completed;
-      await store.todos.setCompleted(todoId, newCompleted);
-      if (newCompleted) await reminderService.cancel(todoId);
-      return { completed: newCompleted };
-    },
-    onMutate: async (todoId) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.storeTodos(meetingId!) });
-      const previous = queryClient.getQueryData<MeetingTodosData>(queryKeys.storeTodos(meetingId!));
-      queryClient.setQueryData<MeetingTodosData>(queryKeys.storeTodos(meetingId!), (old) => {
-        const updateArr = (arr: ActionItem[]) =>
-          arr.map((t) =>
-            t.id === todoId
-              ? { ...t, completed: !t.completed, reminder: !t.completed ? t.reminder : undefined }
-              : t
-          );
-        return {
-          userTodos: updateArr(old?.userTodos ?? []),
-          aiTodos: updateArr(old?.aiTodos ?? []),
-        };
-      });
-      return { previous };
-    },
-    onError: (_err, _todoId, context) => {
-      if (context?.previous !== undefined) {
-        queryClient.setQueryData(queryKeys.storeTodos(meetingId!), context.previous);
-      }
-    },
-    onSuccess: (_data, todoId) => { void remindersSync.changed(todoId); },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.storeTodos(meetingId!) });
-    },
-  });
-
+  const actions = useTodoActions();
   const refresh = useCallback(() => void queryClient.invalidateQueries({ queryKey: queryKeys.storeTodosAll() }), [queryClient]);
-
-  const updateTodo = useCallback(
-    async (todoId: string, updates: { text?: string; dueDate?: string }) => {
-      if (!meetingId) return;
-      await updateTodoMutate.mutateAsync({ todoId, updates });
-    },
-    [meetingId, updateTodoMutate]
-  );
-
-  const deleteTodo = useCallback(
-    async (todoId: string) => {
-      if (!meetingId) return;
-      await deleteTodoMutate.mutateAsync(todoId);
-    },
-    [meetingId, deleteTodoMutate]
-  );
-
-  const toggleTodo = useCallback(
-    async (todoId: string) => {
-      if (!meetingId) return;
-      await toggleTodoMutate.mutateAsync(todoId);
-    },
-    [meetingId, toggleTodoMutate]
-  );
+  const toggleTodo = useCallback(async (todoId: string) => {
+    const todo = [...userTodos, ...aiTodos].find((t) => t.id === todoId);
+    if (todo) await actions.setDone(todoId, !todo.completed);
+  }, [userTodos, aiTodos, actions]);
 
   return {
     userTodos,
@@ -184,8 +59,8 @@ export function useMeetingTodos(meetingId: string | null) {
     isLoading,
     error: queryError,
     meetingId,
-    updateTodo,
-    deleteTodo,
+    updateTodo: (todoId: string, updates: { text?: string; dueDate?: string }) => actions.edit(todoId, updates),
+    deleteTodo: actions.remove,
     toggleTodo,
     refresh,
   };

@@ -1,3 +1,4 @@
 export { useGlobalTodos } from './useGlobalTodos';
 export type { TodoFilter, UseGlobalTodosReturn } from './useGlobalTodos';
-export { useAddTodo } from './useAddTodo';
+export { useTodoActions } from './useTodoActions';
+export type { TodoActions } from './useTodoActions';
