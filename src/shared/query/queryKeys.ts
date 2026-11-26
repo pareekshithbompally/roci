@@ -18,10 +18,6 @@ export const queryKeys = {
   knowledgeSources: (kind: string) => ['knowledge-library', 'sources', kind] as const,
   /** How far indexing each source of a kind has got; read again when Rust reports a change */
   sourceStates: (kind: string) => ['knowledge-library', 'states', kind] as const,
-  /** The sources about the same thing as one; under the library, so a change there reads them again */
-  relatedSources: (kind: string, id: string) => ['knowledge-library', 'related', kind, id] as const,
-  /** Every source's related list, read again when indexing changes what is close to what */
-  relatedSourcesAll: () => ['knowledge-library', 'related'] as const,
   /** Settings › Personalization › Memory, and what chat reads of it. */
   memories: () => ['memories'] as const,
   /** The knowledge graph drawn around `focus` (null: the whole graph) and one entity's detail: under `memories`, so a memory
@@ -54,6 +50,8 @@ export const queryKeys = {
   meetingStats: (meetingId: string) => ['meetings', 'stats', meetingId] as const,
   /** One meeting as the meeting view shows it; under `meetings` so every meeting write refreshes it */
   meetingDetail: (meetingId: string) => ['meetings', 'detail', meetingId] as const,
+  /** One saved chat's conversation (Knowledge's preview); under `meetings` so chat writes refresh it */
+  chatConversation: (chatId: string) => ['meetings', 'chat', chatId] as const,
   /** Which of these meetings still exist (a chat's meeting chips); under `meetings` so every meeting write refreshes it */
   meetingsExisting: (ids: string[]) => ['meetings', 'existing', ...ids] as const,
   recordingAudio: (fileName: string) => ['recording-audio', fileName] as const,

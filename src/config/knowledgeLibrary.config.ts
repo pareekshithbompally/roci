@@ -38,18 +38,27 @@ export const KNOWLEDGE_LIBRARY = {
   } satisfies Record<SourceState, { label: string; state: StateKind }>,
   /** Rust → webview: a source's index state changed. */
   sourceEvent: 'knowledge://source',
-  /** The sources about the same thing as a document, under its pages. */
-  related: {
-    title: 'Related',
-    footer: 'Found by meaning on this device.',
-    /** Cosine similarity a source must reach to show (0–1); tuned on real documents. */
-    minScore: 0.55,
-    limit: 5,
-    kinds: { meeting: 'Meeting', chat: 'Chat', file: 'Document' },
-  },
+
   /** Meetings and chats listed under the documents (each, newest first). */
   conversationLimit: 50,
   sections: { meetings: 'Meetings', chats: 'Chats' },
+  /** The scope bar over the list: which kinds show. */
+  scopes: [
+    { value: 'all', label: 'All' },
+    { value: 'file', label: 'Documents' },
+    { value: 'meeting', label: 'Meetings' },
+    { value: 'chat', label: 'Chats' },
+  ],
+  scopeLabel: 'Show',
+  /** ⋯ Show: file type, indexing state and order. */
+  show: {
+    label: 'More',
+    fileType: { title: 'File type', options: { all: 'All files', pdf: 'PDF', markdown: 'Markdown', text: 'Text and CSV' } },
+    state: { title: 'State', options: { any: 'Any', pending: 'Indexing', failed: 'Couldn’t read' } },
+    sort: { title: 'Sort', options: { newest: 'Newest', name: 'Name' } },
+  },
+  /** A meeting's or chat's preview in the pane. */
+  preview: { openMeeting: 'Open in Meetings', openChat: 'Open in Chats', noSummary: 'No summary yet.', you: 'You', roci: 'Roci' },
   /** How many the page loads (newest first). */
   listLimit: 500,
   /** Mac: the list column beside the open document. */
@@ -67,13 +76,18 @@ export const PDF_PAGES = {
   pageLabel: (n: number) => `Page ${n}`,
 } as const;
 
-/** The full-window reader and its chat. */
+/** The reader: a document's own window on a Mac (like Preview), a full-screen page on iPhone; its chat beside the pages. */
 export const READER = {
-  open: 'Open',
-  ask: 'Ask about this',
-  hideChat: 'Hide chat',
-  close: 'Close',
+  open: 'Open in its own window',
+  openPhone: 'Open',
   chatPlaceholder: 'Ask about this document',
-  /** Mac: the chat beside the pages. */
-  chatColumn: 'w-96',
+  chatAbout: (name: string) => `Asking about ${name}`,
+  /** The address part a reader window is opened with (`?reader=<app path>&page=3&ask=1`). */
+  param: { path: 'reader', page: 'page', ask: 'ask' },
+  /** Main window → a reader window: show this page, open or close the chat. */
+  event: 'reader://go',
+  /** A reader window's size and its least (points), and where its traffic lights sit (the main window's). */
+  window: { width: 1180, height: 820, minWidth: 720, minHeight: 520, trafficLights: { x: 20, y: 32 } },
+  /** The chat beside the pages: its width, and the reveal of the column it sits in. */
+  chatColumn: 'w-80',
 } as const;

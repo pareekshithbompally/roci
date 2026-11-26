@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { Ellipsis, Inbox } from 'lucide-react';
-import { IconButton, SearchField, Text, ViewHeader, ViewScroll } from '@shared/ui';
+import { IconButton, PrimaryAction, SearchField, Text, ViewHeader, ViewScroll } from '@shared/ui';
 import { Menu, ScreenState, type MenuEntry } from '@shared/components';
 import { startCreate } from '@shared/stores/createStore';
 import { useGlobalTodos } from '@features/todos/hooks/useGlobalTodos';
@@ -28,7 +28,7 @@ export const RemindersView: React.FC = () => {
         title={TODOS_CONFIG.title}
         detail={hasAny && PAGE.counts(counts.open, counts.done)}
         accessory={hasAny && <Menu label={PAGE.show} trigger={<IconButton icon={Ellipsis} label={PAGE.show} size="sm" />} items={show} />}
-        primaryAction={{ label: TODOS_CONFIG.add, onPress: () => startCreate('todo') }}
+        primaryAction={<PrimaryAction action={{ label: TODOS_CONFIG.add, onPress: () => startCreate('todo') }} />}
       />
       <ViewScroll className={LAYOUT.fabClearance}>
         <ScreenState loading={isLoading} empty={!hasAny && { icon: Inbox, ...PAGE.empty }} className="space-y-3">

@@ -16,8 +16,8 @@ export const UI_CONFIG = {
       dragHeight: 36,
     },
     /** Onboarding panel's top edge: pinned, so a taller or shorter next step grows downward instead of re-centring. */
-    /** The bottom-right corner (Mac): the floating + button (kit `FabButton`) and the panel it opens (kit `CornerPanel`: a
-     *  new to-do, the meeting chat), `inset` from the window edges, never taller than the space below the titlebar. */
+    /** The bottom-right corner: iPhone's floating button (kit `FabButton`) and, on a Mac, the panel a new to-do or a meeting's
+     *  chat opens in (kit `CornerPanel`), `inset` from the window edges, never taller than the space below the titlebar. */
     cornerPanel: {
       inset: 16,
       width: 400,
@@ -229,6 +229,9 @@ export const MENU_ICON_PT = 16;
 /** Space between a button and the menu it opens below, in points. */
 export const MENU_GAP_PT = 4;
 /** SF Symbols for the actions menus share, drawn beside the label on a Mac. */
+/** An item's actions (shared ItemActions): Ask's word and the ⋯ menu's name. */
+export const ITEM_ACTIONS_COPY = { ask: 'Ask', more: 'More' } as const;
+
 export const MENU_SYMBOLS = {
   rename: 'pencil',
   edit: 'pencil',

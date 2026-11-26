@@ -72,11 +72,8 @@ export const MEETING_TABS = { summary: 'Summary', transcript: 'Transcript' } as 
 /** A meeting with no title yet, wherever its name shows (pickers, the to-dos list, its chat). */
 export const UNTITLED_MEETING = 'Untitled Meeting';
 
-/** A meeting's one + (kit `FabButton`): what it adds. */
+/** What a meeting's item actions add (shared ItemActions: ✦ Ask, To-do, Note) and its chat window's words. */
 export const MEETING_ADD_COPY = {
-  add: 'Add to this meeting',
-  chat: 'Chat',
-  chatLabel: 'Chat about this meeting',
   todo: 'To-do',
   note: 'Note',
   notesTitle: 'Notes',

@@ -7,7 +7,6 @@ import { PushedPage } from './nav-stack';
 import { ViewBody } from './page-scroll';
 import { Surface } from './surface';
 import { ViewHeader } from './view-header';
-import type { PrimaryActionSpec } from './primary-action';
 import { cn } from './utils';
 
 /** Whether the list and its open item show together (a Mac), so one is always open; iPhone opens one only when tapped. */
@@ -19,8 +18,8 @@ export interface ListDetailProps {
   title: string;
   /** Controls at the end of the title row. */
   accessory?: React.ReactNode;
-  /** The place's one primary action (kit `PrimaryAction`). */
-  primaryAction?: PrimaryActionSpec;
+  /** The place's one primary action (see `ViewHeader`). */
+  primaryAction?: React.ReactNode;
   /** The list (and its search). */
   list: React.ReactNode;
   /** The list column's width beside the open item (a Mac). */

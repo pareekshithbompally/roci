@@ -11,9 +11,9 @@ import { startNewChat } from '@features/chat';
 import { PanelLeft, SquarePen } from 'lucide-react';
 import { useFormFactor } from '@platform/formFactor';
 import { PhoneShell } from './PhoneShell';
-import { MeetingFab } from './MeetingFab';
 import { LAYOUT } from '@config/layout.config';
-import { Badge, Button, Drawer, Icon, Separator, Surface, TitlebarDragRegion } from '@shared/ui';
+import { BackForward, Badge, Button, Drawer, Icon, Separator, Surface, TitlebarDragRegion } from '@shared/ui';
+import { goBack, useReturnPoint } from '@shared/stores/returnStore';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -55,6 +55,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   }, [sidebarWidth, setLeftPanelWidth]);
 
   const shouldOffsetMacControls = useFloatingSidebarControls();
+  const returnPoint = useReturnPoint();
 
   if (formFactor === 'phone') return <PhoneShell>{children}</PhoneShell>;
 
@@ -93,11 +94,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         {/* Main content panel */}
         <div className="h-full flex flex-1 min-w-0">
           <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
-            {/* Sidebar actions when collapsed — traffic lights center at ~y:20px, button is 32px tall */}
-            {!isLeftPanelOpen && !isSmallScreen && (
+            {/* Sidebar actions when collapsed — traffic lights center at ~y:20px, button is 32px tall — then the way back (the
+                ‹ › capsule) when a place left one; with the sidebar open, the capsule alone at the content's leading edge. */}
+            {(returnPoint || (!isLeftPanelOpen && !isSmallScreen)) && (
               <div className={`absolute top-3.5 z-50 flex items-center gap-1 ${
                 shouldOffsetMacControls ? LAYOUT.collapsedControls : LAYOUT.collapsedControlsFlush
               }`}>
+                {!isLeftPanelOpen && !isSmallScreen && (<>
                 <Button variant="ghost" size="icon" onClick={startNewChat} aria-label="New chat">
                   <Icon icon={SquarePen} size="sm" />
                 </Button>
@@ -121,12 +124,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                     </Badge>
                   )}
                 </div>
+                </>)}
+                {returnPoint && <BackForward onBack={goBack} />}
               </div>
             )}
             {children}
           </div>
-
-          <MeetingFab />
         </div>
       </div>
     </Surface>

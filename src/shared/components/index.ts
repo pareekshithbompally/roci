@@ -36,6 +36,8 @@ export { ServerIcon } from './ServerIcon';
 export { Markdown } from './markdown/Markdown';
 export { PdfPages } from './PdfPages';
 export { Menu, MenuArea, type ContextEntry, type MenuEntry } from './Menu';
+export { ItemActionRow, ItemActions } from './ItemActions';
+export type { ItemAction, ItemActionsProps } from './ItemActions';
 export { menuGlyph } from './menuGlyph';
 export { modelMenuEntries, modelRowText, modelSubtitle, openModelMenu, type ModelMenuOptions } from './modelMenu';
 export { ModelChips, ModelLabel } from './ModelChips';

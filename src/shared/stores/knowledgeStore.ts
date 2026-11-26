@@ -1,8 +1,25 @@
-/** Which document Knowledge has open, and whether it is open full window in the reader (at which page, with its chat or
- *  not), so other places can open one there (an answer's page pill, a related source): by its id or its app path. */
+/** Knowledge as you left it: what is open (a document, a meeting or a chat), how the list is narrowed, and the document open
+ *  in the reader on iPhone (at which page, with its chat or not). Kept here so the reader can be opened from anywhere (an
+ *  answer's page pill) and so coming back to Knowledge finds it unchanged. */
 
 import { create } from 'zustand';
-import { useAppStore } from '@shared/stores/appStore';
+
+/** What a Knowledge item is. */
+export type KnowledgeKind = 'file' | 'meeting' | 'chat';
+
+/** An item by its kind and key (a document by its id or app path, a meeting or chat by its id). */
+export interface KnowledgeSelection {
+  kind: KnowledgeKind;
+  key: string;
+}
+
+/** How the list is narrowed: which kinds, which file types, which indexing state, in what order. */
+export interface KnowledgeFilter {
+  scope: 'all' | KnowledgeKind;
+  fileType: 'all' | 'pdf' | 'markdown' | 'text';
+  state: 'any' | 'pending' | 'failed';
+  sort: 'newest' | 'name';
+}
 
 /** The reader's document, the page to show (from an answer's pill), and whether its chat is beside it. */
 export interface Reading {
@@ -12,22 +29,21 @@ export interface Reading {
 }
 
 interface KnowledgeState {
-  /** The open document's id or app path; none: the newest (Mac) or the list (iPhone). */
-  selected: string | null;
+  selected: KnowledgeSelection | null;
+  filter: KnowledgeFilter;
   reading: Reading | null;
-  select: (key: string | null) => void;
+  select: (selection: KnowledgeSelection | null) => void;
+  setFilter: (change: Partial<KnowledgeFilter>) => void;
   read: (reading: Reading | null) => void;
 }
 
+const ALL: KnowledgeFilter = { scope: 'all', fileType: 'all', state: 'any', sort: 'newest' };
+
 export const useKnowledgeStore = create<KnowledgeState>((set) => ({
   selected: null,
+  filter: ALL,
   reading: null,
-  select: (key) => set({ selected: key }),
+  select: (selected) => set({ selected }),
+  setFilter: (change) => set((state) => ({ filter: { ...state.filter, ...change } })),
   read: (reading) => set({ reading }),
 }));
-
-/** Shows the document in the reader, at `page` when an answer cited one. */
-export function openDocument(key: string, page?: number): void {
-  useKnowledgeStore.setState({ selected: key, reading: { key, page, asking: false } });
-  useAppStore.getState().setCurrentView('knowledge');
-}

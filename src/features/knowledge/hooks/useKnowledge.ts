@@ -43,7 +43,6 @@ export function useKnowledge(query: string) {
   // A document indexed, or one that couldn't be read: the states and what is related are read again (not the list).
   useTauriEvent<{ kind: string }>(KNOWLEDGE_LIBRARY.sourceEvent, ({ kind }) => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.sourceStates(kind) });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.relatedSourcesAll() });
   });
   const documents = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();

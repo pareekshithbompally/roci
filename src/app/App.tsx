@@ -1,13 +1,16 @@
 import React from 'react';
 import { AppProviders } from './AppProviders';
-// Import the new refactored App component
 import AppContent from '@/src/App';
+import { ReaderWindow, readerRequestFromAddress } from '@features/knowledge';
 
-/** Root component: the app wrapped in every provider. */
+/** A reader window's request, read once from its address (none in the main window). */
+const readerRequest = readerRequestFromAddress();
+
+/** Root component: the app wrapped in every provider; a Mac reader window is the reader alone. */
 const App: React.FC = () => {
   return (
     <AppProviders>
-      <AppContent />
+      {readerRequest ? <ReaderWindow request={readerRequest} /> : <AppContent />}
     </AppProviders>
   );
 };

@@ -4,7 +4,7 @@
  *  was opened from and its pages drilling in. The model picker is a chat's, so only the chat screens show it. */
 
 import React, { useState } from 'react';
-import { PanelLeft, SquarePen } from 'lucide-react';
+import { ChevronLeft, PanelLeft, SquarePen } from 'lucide-react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useAppActions, useAppStatus, useAppStore, useCurrentView, useSelectedHistoryId } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
@@ -13,8 +13,8 @@ import { SettingsHome, settingsScreen } from '@features/settings';
 import { IconButton, PresentedStack, RevealLayout, ShellBarContext, Surface, TopBar, ViewLeadingContext } from '@shared/ui';
 import { SearchScreen } from '@features/palette';
 import { Sidebar } from './Sidebar';
-import { MeetingFab } from './MeetingFab';
 import { SHELL_COPY } from '@config/shell.config';
+import { goBack, useReturnPoint } from '@shared/stores/returnStore';
 
 interface PhoneShellProps {
   children: React.ReactNode;
@@ -38,7 +38,11 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children }) => {
   const { leaveSettings } = useAppActions();
   const settingsRequest = useAppStore((s) => s.settingsRequest);
   const settingsVisit = useAppStore((s) => s.settingsVisit);
-  const sidebarButton = <IconButton icon={PanelLeft} size="fab" variant="bar" label={SHELL_COPY.openSidebar} onClick={() => setLeftPanel(true)} />;
+  const returnPoint = useReturnPoint();
+  // ‹ back to where a place sent you from (Knowledge), else the sidebar.
+  const sidebarButton = returnPoint
+    ? <IconButton icon={ChevronLeft} size="fab" variant="bar" label={SHELL_COPY.backTo(returnPoint.label)} onClick={goBack} />
+    : <IconButton icon={PanelLeft} size="fab" variant="bar" label={SHELL_COPY.openSidebar} onClick={() => setLeftPanel(true)} />;
 
   return (
     <>
@@ -60,7 +64,6 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children }) => {
               {children}
             </div>
           </ShellBarContext.Provider>
-          <MeetingFab />
         </ViewLeadingContext.Provider>
       </Surface>
     </RevealLayout>

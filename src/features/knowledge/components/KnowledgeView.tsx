@@ -1,137 +1,72 @@
-/** Knowledge: the documents you add, newest first, searchable by name; Dictations' shape. Mac: the list beside the open
- *  document, and files dropped anywhere on the screen are added; iPhone: the list, then one document pushed. + adds files
- *  (PDF, text, Markdown). Each says how far indexing it has got. A document opens to its name, kind · size · day, its pages
- *  (a PDF as WebKit draws it) or its words, then what is related to it; Delete. */
+/** Knowledge: everything Roci reads — the documents you add, then your meetings and chats — in one list, narrowed by the
+ *  scope bar (All · Documents · Meetings · Chats) and ⋯ Show (file type, indexing state, order), searched by name. Selecting
+ *  anything previews it in the pane (a Mac: beside the list; iPhone: pushed), each with the same item actions; leaving for a
+ *  meeting or chat leaves the way back. Add Files is the place's one primary action (and a Mac takes files dropped anywhere
+ *  on the screen). On iPhone a document opens to read over Knowledge; on a Mac in its own window. */
 
-import React, { useState } from 'react';
-import { Library, Maximize2, Sparkles, Trash2 } from 'lucide-react';
-import { Button, EmptyAction, FileTypeIcon, Icon, IconButton, ListDetail, PageScroll, Row, SearchField, StateBadge, StateMark, Surface, Text, useFilePicker, useListBesideDetail, ViewHeader } from '@shared/ui';
-import { ScreenState } from '@shared/components';
+import React, { useMemo, useState } from 'react';
+import { Ellipsis, Library } from 'lucide-react';
+import { ChoiceControl, EmptyAction, IconButton, ListDetail, PageScroll, PrimaryAction, PushedPage, SearchField, Text, useFilePicker, useListBesideDetail, ViewHeader } from '@shared/ui';
+import { Menu, ScreenState, type MenuEntry } from '@shared/components';
 import { confirmDelete } from '@shared/stores/confirmStore';
-import { formatDayLabel, formatFileSize } from '@shared/utils/formatters';
-import { fileExtension } from '@shared/utils/file.utils';
+import { useKnowledgeStore, type KnowledgeFilter, type KnowledgeKind } from '@shared/stores/knowledgeStore';
 import type { KnowledgeDocument } from '@services/storage';
-import type { SourceStatus } from '@shared/types/native';
 import { platform } from '@platform/index';
-import { LAYOUT } from '@config/layout.config';
-import { KNOWLEDGE_LIBRARY, READER } from '@config/knowledgeLibrary.config';
+import { KNOWLEDGE_LIBRARY } from '@config/knowledgeLibrary.config';
 import { useKnowledge } from '@features/knowledge/hooks/useKnowledge';
-import { DocumentBody } from '@features/knowledge/components/DocumentBody';
-import { DocumentReader } from '@features/knowledge/components/DocumentReader';
-import { useChatStore } from '@features/chat';
 import { useKnowledgeSources } from '@features/knowledge/hooks/useKnowledgeSources';
-import { ConversationSections } from '@features/knowledge/components/ConversationSections';
-import { useKnowledgeStore } from '@shared/stores/knowledgeStore';
-import { RelatedSources } from '@features/knowledge/components/RelatedSources';
+import { conversationsShown, documentsShown } from '@features/knowledge/hooks/knowledgeFilter';
+import { KnowledgeList } from './KnowledgeList';
+import { DocumentDetail } from './DocumentDetail';
+import { ConversationPreview } from './ConversationPreview';
+import { DocumentReader } from './DocumentReader';
 
-/** "PDF · 1.2 MB · Today". */
-function factsOf(document: KnowledgeDocument): string {
-  return [
-    fileExtension(document.name).toUpperCase(),
-    document.bytes !== undefined && formatFileSize(document.bytes),
-    formatDayLabel(document.createdAt),
-  ].filter(Boolean).join(' · ');
+const { show: SHOW } = KNOWLEDGE_LIBRARY;
+
+/** ⋯ Show: one checked group each for file type, state and order. */
+function showEntries(filter: KnowledgeFilter, setFilter: (change: Partial<KnowledgeFilter>) => void): MenuEntry[] {
+  const group = <K extends 'fileType' | 'state' | 'sort'>(key: K, spec: { title: string; options: Record<KnowledgeFilter[K], string> }): MenuEntry[] => [
+    { type: 'label', label: spec.title },
+    ...(Object.entries(spec.options) as [KnowledgeFilter[K], string][]).map(([value, label]): MenuEntry => (
+      { type: 'check', label, checked: filter[key] === value, onSelect: () => setFilter({ [key]: value } as Partial<KnowledgeFilter>) }
+    )),
+  ];
+  return [...group('fileType', SHOW.fileType), { type: 'separator' }, ...group('state', SHOW.state), { type: 'separator' }, ...group('sort', SHOW.sort)];
 }
-
-/** How far indexing a document has got: a document still saving or not yet indexed is indexing. */
-const indexingOf = (status: SourceStatus | undefined) => KNOWLEDGE_LIBRARY.states[status?.state ?? 'pending'];
-
-interface DocumentListProps {
-  documents: KnowledgeDocument[];
-  statusOf: (id: string) => SourceStatus | undefined;
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-}
-
-/** The documents under one heading, each its name with kind · size · day under it and its indexing state's mark beside it;
- *  one still being saved can't be opened yet. */
-const DocumentList: React.FC<DocumentListProps> = ({ documents, statusOf, selectedId, onSelect }) => (
-  <section>
-    <Text as="h2" variant="label" tone="muted" className="px-2.5 pb-1">{KNOWLEDGE_LIBRARY.documents}</Text>
-    {documents.map((document) => (
-      <Row
-        key={document.id}
-        selected={document.id === selectedId}
-        disabled={!document.appPath}
-        leading={<FileTypeIcon name={document.name} />}
-        onClick={() => onSelect(document.id)}
-      >
-        <span className="flex items-center gap-2">
-          <span className="min-w-0 flex-1">
-            <Text as="span" truncate className="block">{document.name}</Text>
-            <Text as="span" variant="helper" tone="muted" truncate className="block">{factsOf(document)}</Text>
-          </span>
-          <StateMark state={indexingOf(statusOf(document.id)).state} label={indexingOf(statusOf(document.id)).label} />
-        </span>
-      </Row>
-    ))}
-  </section>
-);
-
-interface DocumentDetailProps {
-  document: KnowledgeDocument;
-  status: SourceStatus | undefined;
-  onDelete: () => void;
-  onOpenDocument: (id: string) => void;
-  /** Opens it full window, its chat beside it when `asking`. */
-  onRead: (asking: boolean) => void;
-}
-
-/** The document's name as the title, kind · size · day · state under it (why, when it couldn't be read), then its pages or
- *  words, then what is related. */
-const DocumentDetail: React.FC<DocumentDetailProps> = ({ document, status, onDelete, onOpenDocument, onRead }) => (
-  <article className="flex h-full flex-col">
-    <Surface as="header" edge="bottom" className={`flex items-start gap-2 ${LAYOUT.listGutter} py-4`}>
-      <FileTypeIcon name={document.name} size="md" />
-      <div className="min-w-0 flex-1">
-        <Text as="h2" variant="title" truncate>{document.name}</Text>
-        <span className="flex flex-wrap items-center gap-2">
-          <Text variant="helper" tone="muted">{factsOf(document)}</Text>
-          <StateBadge state={indexingOf(status).state}>{indexingOf(status).label}</StateBadge>
-        </span>
-        {status?.error && <Text variant="helper" tone="muted">{status.error}</Text>}
-      </div>
-      <IconButton icon={Trash2} label={KNOWLEDGE_LIBRARY.delete} size="sm" variant="dangerGhost" onClick={onDelete} />
-      <Button variant="secondary" size="sm" onClick={() => onRead(false)}>
-        <Icon icon={Maximize2} size="xs" />
-        {READER.open}
-      </Button>
-      <Button variant="primary" size="sm" onClick={() => onRead(true)}>
-        <Icon icon={Sparkles} size="xs" />
-        {READER.ask}
-      </Button>
-    </Surface>
-    <div className={`min-h-0 flex-1 overflow-y-auto ${LAYOUT.listGutter} py-4`}>
-      <DocumentBody document={document} />
-    </div>
-    <RelatedSources id={document.id} ready={status?.state === 'ready'} onOpenDocument={onOpenDocument} />
-  </article>
-);
 
 /** Files dragged in from Finder; anything else dragged over the screen is left to the page. */
 const carriesFiles = (event: React.DragEvent) => event.dataTransfer.types.includes('Files');
 
 export const KnowledgeView: React.FC = () => {
   const [query, setQuery] = useState('');
-  const { documents, hasAny: hasDocuments, isLoading, error, statusOf, addFiles, remove } = useKnowledge(query);
+  const { documents: all, hasAny: hasDocuments, isLoading, error, statusOf, addFiles, remove } = useKnowledge(query);
   const conversations = useKnowledgeSources(query);
-  const hasAny = hasDocuments || conversations.hasAny;
   const beside = useListBesideDetail();
-  const selectedId = useKnowledgeStore((s) => s.selected);
+  const filter = useKnowledgeStore((s) => s.filter);
+  const setFilter = useKnowledgeStore((s) => s.setFilter);
+  const selection = useKnowledgeStore((s) => s.selected);
+  const select = useKnowledgeStore((s) => s.select);
   const reading = useKnowledgeStore((s) => s.reading);
   const read = useKnowledgeStore((s) => s.read);
-  const setSelectedId = useKnowledgeStore((s) => s.select);
   const picker = useFilePicker(addFiles);
 
-  // Beside the list (a Mac) one document is always open (the newest saved match until another is picked); pushed (iPhone),
-  // only the one tapped.
-  const opened = documents.filter((d) => d.appPath);
-  const selected = opened.find((d) => d.id === selectedId || d.appPath === selectedId) ?? (beside ? opened[0] : undefined);
-  const readingDocument = reading && opened.find((d) => d.id === reading.key || d.appPath === reading.key);
+  const documents = useMemo(() => documentsShown(all, filter, statusOf), [all, filter, statusOf]);
+  const meetings = useMemo(() => conversationsShown(conversations.meetings, 'meeting', filter), [conversations.meetings, filter]);
+  const chats = useMemo(() => conversationsShown(conversations.chats, 'chat', filter), [conversations.chats, filter]);
+  const hasAny = hasDocuments || conversations.hasAny;
+  const shownCount = documents.length + meetings.length + chats.length;
+
+  // What the pane shows: the selection if it is still listed; beside the list (a Mac) else the first item listed.
+  const documentOf = (key: string) => documents.find((d) => d.appPath && (d.id === key || d.appPath === key));
+  const conversationOf = (kind: KnowledgeKind, key: string) => (kind === 'meeting' ? meetings : chats).find((c) => c.id === key);
+  const first = documents.find((d) => d.appPath) ?? meetings[0] ?? chats[0];
+  const fallback = beside && first ? ('name' in first ? { kind: 'file' as const, key: first.id } : { kind: first.kind, key: first.id }) : null;
+  const shown = selection && (selection.kind === 'file' ? documentOf(selection.key) : conversationOf(selection.kind, selection.key)) ? selection : fallback;
+  const readingDocument = !platform.hasWindowChrome && reading ? all.find((d) => d.appPath === reading.key || d.id === reading.key) : undefined;
 
   const deleteDocument = async (document: KnowledgeDocument) => {
     if (!(await confirmDelete(KNOWLEDGE_LIBRARY.noun))) return;
-    if (document.id === selected?.id) setSelectedId(null);
+    if (shown?.key === document.id) select(null);
     remove(document.id);
   };
 
@@ -143,15 +78,24 @@ export const KnowledgeView: React.FC = () => {
 
   const addFilesAction = { label: KNOWLEDGE_LIBRARY.add, onPress: () => picker.open(KNOWLEDGE_LIBRARY.accept) };
 
-  const searchAndList = (
+  const detail = (() => {
+    if (!shown) return null;
+    if (shown.kind === 'file') {
+      const document = documentOf(shown.key);
+      return document && <DocumentDetail document={document} status={statusOf(document.id)} onDelete={() => void deleteDocument(document)} />;
+    }
+    const source = conversationOf(shown.kind, shown.key);
+    return source && <ConversationPreview source={source} />;
+  })();
+
+  const list = (
     <>
       <SearchField value={query} onChange={setQuery} onCancel={() => setQuery('')} placeholder={KNOWLEDGE_LIBRARY.searchPlaceholder} />
+      <ChoiceControl items={KNOWLEDGE_LIBRARY.scopes} value={filter.scope} onValueChange={(scope) => setFilter({ scope })} label={KNOWLEDGE_LIBRARY.scopeLabel} />
       <PageScroll underTitlebar={false} className="min-h-0 flex-1 pb-2">
-        {documents.length > 0 && <DocumentList documents={documents} statusOf={statusOf} selectedId={selected?.id ?? null} onSelect={setSelectedId} />}
-        <ConversationSections meetings={conversations.meetings} chats={conversations.chats} />
-        {documents.length + conversations.meetings.length + conversations.chats.length === 0 && (
-          <Text as="p" variant="helper" tone="muted" className="px-2.5 py-2">{KNOWLEDGE_LIBRARY.noMatch}</Text>
-        )}
+        {shownCount > 0
+          ? <KnowledgeList documents={documents} meetings={meetings} chats={chats} statusOf={statusOf} selected={shown} onSelect={select} />
+          : <Text as="p" variant="helper" tone="muted" className="px-2.5 py-2">{KNOWLEDGE_LIBRARY.noMatch}</Text>}
       </PageScroll>
     </>
   );
@@ -173,22 +117,12 @@ export const KnowledgeView: React.FC = () => {
   ) : (
     <ListDetail
       title={KNOWLEDGE_LIBRARY.title}
-      primaryAction={addFilesAction}
-      list={searchAndList}
+      accessory={<Menu label={SHOW.label} trigger={<IconButton icon={Ellipsis} label={SHOW.label} size="sm" />} items={showEntries(filter, setFilter)} />}
+      primaryAction={<PrimaryAction action={addFilesAction} />}
+      list={list}
       listClassName={KNOWLEDGE_LIBRARY.listColumn}
-      detail={selected && (
-        <DocumentDetail
-          document={selected}
-          status={statusOf(selected.id)}
-          onDelete={() => void deleteDocument(selected)}
-          onOpenDocument={setSelectedId}
-          onRead={(asking) => {
-            if (asking) useChatStore.getState().startDocumentChat({ name: selected.name, mediaType: selected.mediaType, appPath: selected.appPath });
-            read({ key: selected.id, asking });
-          }}
-        />
-      )}
-      onCloseDetail={() => setSelectedId(null)}
+      detail={detail}
+      onCloseDetail={() => select(null)}
     />
   );
 
@@ -196,7 +130,17 @@ export const KnowledgeView: React.FC = () => {
     <div className="h-full" onDragOver={(event) => carriesFiles(event) && event.preventDefault()} onDrop={onDrop}>
       {screen}
       {picker.element}
-      {readingDocument && <DocumentReader document={readingDocument} status={statusOf(readingDocument.id)} facts={factsOf(readingDocument)} />}
+      {readingDocument && (
+        <PushedPage open title={readingDocument.name} onBack={() => read(null)} over="app" fill>
+          <DocumentReader
+            document={readingDocument}
+            status={statusOf(readingDocument.id)}
+            page={reading?.page}
+            asking={reading?.asking ?? false}
+            onAsking={(asking) => read({ key: readingDocument.appPath, page: reading?.page, asking })}
+          />
+        </PushedPage>
+      )}
     </div>
   );
 };

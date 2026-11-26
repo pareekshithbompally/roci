@@ -5,7 +5,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, FileTypeIcon } from '@shared/ui';
 import { libraryQuery } from '@shared/query/library';
-import { openDocument } from '@shared/stores/knowledgeStore';
+import { openReader } from '@features/knowledge/reader';
 import { CITATION_COPY } from '@config/chat.config';
 import type { DocumentCitation } from '@extensions/tools/types';
 
@@ -20,7 +20,7 @@ export const DocumentCitations: React.FC<{ citations: DocumentCitation[] }> = ({
           variant="outline"
           size="sm"
           disabled={!inLibrary(citation.path)}
-          onClick={() => openDocument(citation.path, citation.page ?? undefined)}
+          onClick={() => openReader({ path: citation.path, page: citation.page ?? undefined, asking: false }, citation.name)}
         >
           <FileTypeIcon name={citation.name} />
           {CITATION_COPY.document(citation.name, citation.page)}

@@ -2,6 +2,8 @@
 
 export const SHELL_COPY = {
   openSidebar: 'Open sidebar',
+  /** ‹ in the iPhone bar back to where a place sent you from. */
+  backTo: (place: string) => `Back to ${place}`,
   collapseSidebar: 'Collapse sidebar',
   expandSidebar: 'Expand sidebar',
   newChat: 'New chat',

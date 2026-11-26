@@ -1,10 +1,8 @@
-/** The meeting's one actions menu (⋯), short: Rename, Details (which models wrote it live there), Re-transcribe, then Copy ▸
- *  and Download ▸ as submenus, and Show in Finder. */
+/** A meeting's rare actions, behind ⋯ in its item actions: Rename, Details (which models wrote it live there), Re-transcribe,
+ *  then Copy ▸ and Download ▸ as submenus, and Show in Finder. */
 
-import React from 'react';
-import { Ellipsis } from 'lucide-react';
-import { IconButton, showToast } from '@shared/ui';
-import { Menu, type MenuEntry } from '@shared/components';
+import { showToast } from '@shared/ui';
+import type { MenuEntry } from '@shared/components';
 import { MENU_SYMBOLS } from '@config/ui.config';
 import { saveTextFile } from '@services/tauri';
 import { platform } from '@platform/index';
@@ -14,7 +12,7 @@ import type { ProcessedResult } from '@shared/types';
 import { buildExport, EXPORT_KIND, type ExportFormat, type ExportPart, type ExportScope } from '@features/home/utils/meetingExport';
 import { MEETING_HEADER_COPY } from '@config/meetingLive.config';
 
-interface MeetingActionsMenuProps {
+export interface MeetingMenuProps {
   result: ProcessedResult;
   /** The tab on screen: "current view" downloads export it. */
   part: ExportPart;
@@ -41,7 +39,7 @@ async function copy(text: string, what: string): Promise<void> {
     await navigator.clipboard.writeText(text);
     showToast(COPY.copied(what), 'success');
   } catch (error: unknown) {
-    console.error('[MeetingActionsMenu] Copy failed:', error);
+    console.error('[meetingMenu] Copy failed:', error);
     showToast(COPY.copyFailed(what), 'error');
   }
 }
@@ -52,13 +50,13 @@ async function download(result: ProcessedResult, format: ExportFormat, scope: Ex
     const path = await saveTextFile({ filename, content, kind: EXPORT_KIND[format], extension: format });
     if (path) toastSavedFile(path);
   } catch (error: unknown) {
-    console.error('[MeetingActionsMenu] Save failed:', error);
+    console.error('[meetingMenu] Save failed:', error);
     showToast(COPY.saveFailed, 'error');
   }
 }
 
-/** Re-transcribe (when it can), Copy, Download, and Show in Finder (when there is a recording and a file manager). */
-function menuItems({ result, part, recordingPath, onRetranscribe, onRename, onDetails }: MeetingActionsMenuProps): MenuEntry[] {
+/** Rename, Details, Re-transcribe (when it can), Copy, Download, and Show in Finder (when there is a recording and a file manager). */
+export function meetingMenuEntries({ result, part, recordingPath, onRetranscribe, onRename, onDetails }: MeetingMenuProps): MenuEntry[] {
   return [
     { type: 'item', label: MEETING_HEADER_COPY.rename, onSelect: onRename },
     { type: 'item', label: MEETING_HEADER_COPY.details, onSelect: onDetails },
@@ -83,11 +81,3 @@ function menuItems({ result, part, recordingPath, onRetranscribe, onRename, onDe
       : []),
   ];
 }
-
-export const MeetingActionsMenu: React.FC<MeetingActionsMenuProps> = (props) => (
-  <Menu
-    label={MEETING_HEADER_COPY.actions}
-    trigger={<IconButton icon={Ellipsis} variant="secondary" size="sm" label={MEETING_HEADER_COPY.actions} />}
-    items={menuItems(props)}
-  />
-);

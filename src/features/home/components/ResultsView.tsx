@@ -6,7 +6,7 @@ import { endCreate, startCreate, useCreateFlow } from '@shared/stores/createStor
 import { useMeetingNotes } from '@features/notes';
 import { motion } from 'framer-motion';
 import { ANIMATION_CONFIG } from '@config/animations.config';
-import { Clock, Users, ExternalLink, NotebookPen, VolumeX } from 'lucide-react';
+import { Clock, Users, ExternalLink, ListChecks, NotebookPen, VolumeX } from 'lucide-react';
 import { useActiveResultTab, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
 import { useMeetingResult } from '@shared/hooks/useMeetingResult';
 import type { ResultTab } from '@shared/stores/appStore';
@@ -18,10 +18,10 @@ import { openUrl } from '@services/tauri';
 import { formatDuration, calendarDayOffset, formatDayLabel, formatClockTime, formatShortDate, formatDateTime } from '@shared/utils/formatters';
 import { MeetingWorkspace, meetingPipeline, useAiBullets, useDraftSegments, useLiveNotes, type WorkspaceTranscript } from '@features/recording';
 import { useMeetingPhase } from '@shared/stores/meetingProgressStore';
-import { LoadingPane, MeetingStatus, RemovedNotice, RenameModal } from '@shared/components';
+import { ItemActions, LoadingPane, MeetingStatus, RemovedNotice, RenameModal } from '@shared/components';
 import { StorageConfig } from '@config/storage.config';
 import { MeetingPhaseNotice } from './MeetingPhaseNotice';
-import { MeetingActionsMenu } from './MeetingActionsMenu';
+import { meetingMenuEntries } from './meetingMenu';
 import { MeetingDetailsDialog } from './MeetingDetailsDialog';
 import { MeetingSourceIcon } from './MeetingSourceIcon';
 import { SummaryTab } from './SummaryTab';
@@ -226,14 +226,24 @@ export const ResultsView: React.FC = () => {
   };
 
   const exportPart = activeResultTab === 'transcript' ? 'transcript' : 'summary';
-  const menu = (
-    <MeetingActionsMenu
-      result={result}
-      part={exportPart}
-      recordingPath={stats?.recording?.path ?? null}
-      onRetranscribe={recordingFileName && phase.kind === 'ready' ? handleTranscribe : undefined}
-      onRename={() => setSheet('rename')}
-      onDetails={() => setSheet('details')}
+  // ✦ Ask, To-do and Note in plain sight (as a document's); the rare ones behind ⋯. In the header on a Mac, the toolbar on iPhone.
+  const meetingId = currentHistoryItem?.id;
+  const itemActions = (placement: 'header' | 'bottom') => meetingId && (
+    <ItemActions
+      placement={placement}
+      onAsk={() => startCreate('chat', meetingId)}
+      actions={[
+        { icon: ListChecks, label: MEETING_ADD_COPY.todo, onPress: () => startCreate('todo', meetingId) },
+        { icon: NotebookPen, label: MEETING_ADD_COPY.note, onPress: () => startCreate('note', meetingId) },
+      ]}
+      more={meetingMenuEntries({
+        result,
+        part: exportPart,
+        recordingPath: stats?.recording?.path ?? null,
+        onRetranscribe: recordingFileName && phase.kind === 'ready' ? handleTranscribe : undefined,
+        onRename: () => setSheet('rename'),
+        onDetails: () => setSheet('details'),
+      })}
     />
   );
 
@@ -247,7 +257,7 @@ export const ResultsView: React.FC = () => {
         }
         meta={currentHistoryItem && <MeetingMetaLine categories={result.categories ?? []} meetingId={currentHistoryItem.id} />}
         status={isMeetingBusy(phase) && <MeetingStatus phase={phase} display="badge" />}
-        accessory={menu}
+        accessory={itemActions('header')}
       >
         {currentHistoryItem?.scheduledStart && <CalendarMetaRow item={currentHistoryItem} />}
         <div className="empty:hidden">
@@ -338,6 +348,7 @@ export const ResultsView: React.FC = () => {
           <TabFlowContext.Provider value>{body}</TabFlowContext.Provider>
         </PageScroll>
       )}
+      {itemActions('bottom')}
     </motion.div>
   );
 };

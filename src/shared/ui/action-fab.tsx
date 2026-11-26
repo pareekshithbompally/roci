@@ -23,17 +23,17 @@ const CORNER: React.CSSProperties = { right: inset, bottom: `calc(var(--safe-bot
 export type FabButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children'> & {
   /** Its name (VoiceOver, tooltip). */
   label: string;
-  /** Not adding (a meeting's chat while it records): its own glyph, on the AI fill. Else the +. */
-  glyph?: LucideIcon;
+  /** Its glyph; the + when none. */
+  icon?: LucideIcon;
   ref?: React.Ref<HTMLButtonElement>;
 };
 
-/** The floating button. A tap does its one action, or it is the trigger of the screen's add menu (`Menu`, native on a Mac). */
-export function FabButton({ label, glyph, className, style, ...props }: FabButtonProps) {
+/** The floating button: a place's primary action on iPhone (drawn through kit `PrimaryActionControl`). */
+export function FabButton({ label, icon, className, style, ...props }: FabButtonProps) {
   return (
     <IconButton
-      icon={glyph ?? Plus}
-      variant={glyph ? 'ai' : 'primary'}
+      icon={icon ?? Plus}
+      variant="primary"
       size="float"
       label={label}
       className={cn('fixed z-floating animate-content-show', className)}
