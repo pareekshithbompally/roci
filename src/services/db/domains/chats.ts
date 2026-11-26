@@ -3,11 +3,14 @@
 import { call, rowToMessage, toRowRole } from '@services/db/internal';
 import type { ChatMessageRow } from '@services/db/internal';
 import type { ChatMessage, ChatSession } from '@shared/types';
-import { generatedImageOf, messageText } from '@shared/utils/chatParts';
+import { generatedImageOf, isAssetPath, messageText } from '@shared/utils/chatParts';
 
-/** Every app-data file the messages show (images tools made): the chat owns exactly these. */
+/** Every kept file the messages show (images tools made, files attached): the chat owns exactly these. */
 function assetPathsOf(messages: ChatMessage[]): string[] {
-  return messages.flatMap((msg) => msg.parts.flatMap((part) => generatedImageOf(part)?.path ?? []));
+  return messages.flatMap((msg) => msg.parts.flatMap((part) => {
+    if (part.type === 'file') return isAssetPath(part.url) ? [part.url] : [];
+    return generatedImageOf(part)?.path ?? [];
+  }));
 }
 
 /** A message as its row: the plain text (search reads it), provider and model as columns, parts and metadata whole in `data`. */

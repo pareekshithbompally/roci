@@ -1,4 +1,4 @@
-use crate::{asset_adoption, assets};
+use crate::assets;
 use crate::changes::{notify, MeetingChange};
 use crate::error::StoreError;
 use crate::schema;
@@ -724,14 +724,15 @@ pub async fn initialize<R: Runtime>(
             .map_err(|e| StoreError::from(format!("Failed to set pragmas: {}", e)))?;
 
         schema::migrate(&db)?;
-        // An image adoption that failed leaves real images without rows: no sweep this launch, or it would take them.
-        match asset_adoption::adopt_images(&db, &app_data) {
-            Ok(()) => {
-                if let Err(error) = assets::sweep(&db, &app_data, now_millis()) {
-                    log::error!("[store] Sweep at open failed: {}", error.message);
-                }
-            }
-            Err(error) => log::error!("[store] Image adoption failed, sweep skipped: {}", error.message),
+        // Files from the by-kind folders join `assets/` (their rows already point there) before the sweep looks for strays.
+        assets::move_into_assets(&app_data);
+        match assets::move_inline_attachments(&db, &app_data) {
+            Ok(0) => {}
+            Ok(moved) => log::info!("[store] {} attachments moved out of their messages into {}", moved, assets::ASSETS_DIR),
+            Err(error) => log::error!("[store] Attachments not moved out of their messages: {}", error.message),
+        }
+        if let Err(error) = assets::sweep(&db, &app_data, now_millis()) {
+            log::error!("[store] Sweep at open failed: {}", error.message);
         }
         assets::set_app_data(app_data);
 
@@ -3408,7 +3409,7 @@ pub(crate) mod tests {
         .unwrap();
 
         meetings_delete_impl(&conn, "m1").expect("delete ok");
-        assert_eq!(count(&conn, "SELECT COUNT(*) FROM purge_queue WHERE ref = ?1", "recordings/m1.wav"), 1);
+        assert_eq!(count(&conn, "SELECT COUNT(*) FROM purge_queue WHERE ref = ?1", "assets/m1.wav"), 1);
 
         for (table, col) in [
             ("transcripts", "meeting_id"),

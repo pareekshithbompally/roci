@@ -4,7 +4,8 @@
 import { convertToModelMessages, pruneMessages } from 'ai';
 import type { DataUIPart, FileUIPart, ModelMessage, TextPart, TextUIPart, ToolSet } from 'ai';
 import { attachedFileText, attachedMeetingsText, formatSentAt, unreadableFileText } from '@core/ai';
-import { attachmentInput } from '@shared/utils/chatParts';
+import { attachmentInput, isAssetPath } from '@shared/utils/chatParts';
+import { assetsService } from '@services/storage';
 import { dataUrlText } from '@shared/utils/file.utils';
 import { ATTACHMENT_TYPES, CHAT_DRAFT_COPY } from '@config/chat.config';
 import type { Modality } from '@config/modelSpine.config';
@@ -40,6 +41,23 @@ const readableParts = (message: ChatMessage, input: readonly Modality[]): ChatMe
   parts: message.parts.map((part): ChatPart => (part.type === 'file' ? readableFile(part, input) : part)),
 });
 
+/** An attached file kept in `assets/` with its bytes read in as the `data:` URL the SDK sends; one whose file is gone is a
+ *  line saying so. */
+async function withFileData(part: FileUIPart): Promise<FileUIPart | TextUIPart> {
+  if (!isAssetPath(part.url)) return part;
+  try {
+    return { ...part, url: await assetsService.dataUrl(part.url, part.mediaType) };
+  } catch (error: unknown) {
+    console.warn('[toModelMessages] Attachment not read:', part.url, error);
+    return { type: 'text', text: unreadableFileText(part.filename || CHAT_DRAFT_COPY.untitledAttachment) };
+  }
+}
+
+const withFilesRead = async (message: ChatMessage): Promise<ChatMessage> => ({
+  ...message,
+  parts: await Promise.all(message.parts.map((part): Promise<ChatPart> | ChatPart => (part.type === 'file' ? withFileData(part) : part))),
+});
+
 /** Every tool the conversation called. */
 function toolNamesIn(messages: ModelMessage[]): string[] {
   const names = messages.flatMap((m) =>
@@ -52,7 +70,8 @@ function toolNamesIn(messages: ModelMessage[]): string[] {
  *  pruned, as providers refuse a history naming tools they weren't given; a stopped reply's unfinished tool calls are left
  *  out. */
 export async function toModelMessages(messages: ChatMessage[], tools: ToolSet, input: readonly Modality[]): Promise<ModelMessage[]> {
-  const sent = messages.filter(isConversation).map((message) => readableParts(message, input));
+  const read = await Promise.all(messages.filter(isConversation).map(withFilesRead));
+  const sent = read.map((message) => readableParts(message, input));
   const conversation = await convertToModelMessages(sent, {
     tools,
     ignoreIncompleteToolCalls: true,

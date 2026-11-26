@@ -1,4 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+/** A kept attachment's file, read from `assets/` only when it is sent; `assets/gone.pdf` has been removed. */
+const dataUrl = vi.hoisted(() => vi.fn(async (path: string, mediaType: string) => {
+  if (path === 'assets/gone.pdf') throw new Error('not found');
+  return `data:${mediaType};base64,${btoa('%PDF')}`;
+}));
+vi.mock('@services/storage', () => ({ assetsService: { dataUrl } }));
 import { jsonSchema, tool } from 'ai';
 import type { ToolSet } from 'ai';
 import { toModelMessages } from '@services/ai/message-converter';
@@ -93,6 +100,13 @@ describe('conversation history (convertToModelMessages)', () => {
     it('sends a file the model reads as itself', async () => {
       expect(await sentWith(file('image/png', 'a.png', 'png'), ['text', 'image'])).toMatchObject({ type: 'file' });
       expect(await sentWith(file('application/pdf', 'q3.pdf', '%PDF'), ['text', 'pdf'])).toMatchObject({ type: 'file' });
+    });
+
+    it('reads a kept attachment in from its file when it is sent, and names one whose file is gone', async () => {
+      const kept = (url: string) => ({ type: 'file' as const, mediaType: 'application/pdf', url, filename: 'q3.pdf' });
+      expect(await sentWith(kept('assets/q3.pdf'), ['text', 'pdf'])).toMatchObject({ type: 'file', mediaType: 'application/pdf' });
+      expect(dataUrl).toHaveBeenCalledWith('assets/q3.pdf', 'application/pdf');
+      expect(await sentWith(kept('assets/gone.pdf'), ['text', 'pdf'])).toEqual({ type: 'text', text: unreadableFileText('q3.pdf') });
     });
 
     it('sends a text file as its contents, to any model, even when the system gave it no type', async () => {

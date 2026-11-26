@@ -1,4 +1,3 @@
-mod asset_adoption;
 mod assets;
 mod changes;
 mod commands;
@@ -25,6 +24,8 @@ pub use commands::{MeetingCreateInput, MeetingDetail, MeetingStatus, NoteRow, Su
 pub use meeting_steps::interrupted_meetings;
 pub use pipeline::{create_meeting, delete_meeting, meetings_with_status, set_meeting_status};
 pub use error::StoreError;
+/// The one folder of kept files (recordings included), relative to app data.
+pub use assets::ASSETS_DIR;
 
 use commands::StoreState;
 use tauri::{

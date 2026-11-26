@@ -1,19 +1,16 @@
-/** Recording audio files on disk (`recordings/{meeting id}.{ext}`); their rows live in roci.db with the meeting. */
+/** Recording audio files on disk (`assets/{meeting id}.{ext}`, the one folder of kept files); their rows live in roci.db
+ *  with the meeting. */
 
-import { writeFile, readFile, exists, mkdir, stat } from '@tauri-apps/plugin-fs';
-import { appDataDir, join, sep } from '@tauri-apps/api/path';
+import { writeFile, readFile, exists, stat } from '@tauri-apps/plugin-fs';
+import { sep } from '@tauri-apps/api/path';
+import { assetsService } from './assets.service';
 import type { StorageResult } from './types';
 
-let recordingsDirPromise: Promise<string> | null = null;
-
+/** The assets folder with its trailing separator, for joining a recording's file name. */
 async function getRecordingsPath(): Promise<string> {
-  recordingsDirPromise ??= (async () => {
-    const dir = await join(await appDataDir(), 'recordings');
-    if (!(await exists(dir))) await mkdir(dir, { recursive: true });
-    const separator = sep();
-    return dir.endsWith(separator) ? dir : `${dir}${separator}`;
-  })();
-  return recordingsDirPromise;
+  const dir = await assetsService.folder();
+  const separator = sep();
+  return dir.endsWith(separator) ? dir : `${dir}${separator}`;
 }
 
 export const recordingsService = {
@@ -35,7 +32,7 @@ export const recordingsService = {
     return { path, sizeBytes: (await stat(path)).size };
   },
 
-  /** Writes an imported recording into the recordings folder; throws when it can't. */
+  /** Writes an imported recording into the assets folder; throws when it can't. */
   async writeRecording(filename: string, data: Uint8Array): Promise<void> {
     await writeFile(`${await getRecordingsPath()}${filename}`, data);
   },

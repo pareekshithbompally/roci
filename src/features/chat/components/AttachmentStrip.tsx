@@ -6,15 +6,18 @@ import { FileText, Film, Image as ImageIcon, Music, X, type LucideIcon } from 'l
 import { Icon, IconButton, Surface, Text, Thumbnail, Viewer } from '@shared/ui';
 import type { FileUIPart } from '@shared/types';
 import { mediaKind, type MediaKind } from '@shared/utils/chatParts';
+import { useMediaSrc } from '@features/chat/hooks/useMediaSrc';
 
 /** What an attachment without a name is called, by its kind. */
 const UNNAMED: Record<MediaKind, string> = { image: 'Image', audio: 'Audio', video: 'Video', document: 'File' };
 
 const KIND_ICON: Record<MediaKind, LucideIcon> = { image: ImageIcon, audio: Music, video: Film, document: FileText };
 
-/** An image attachment's tile; it opens the image full size. */
-function ImageTile({ src, name }: { src: string; name: string }) {
+/** An image attachment's tile (its kept file, once its URL is in); it opens the image full size. */
+function ImageTile({ part, name }: { part: FileUIPart; name: string }) {
   const [open, setOpen] = useState(false);
+  const src = useMediaSrc(part);
+  if (!src) return null;
   return (
     <>
       <div className="w-8 shrink-0">
@@ -30,7 +33,7 @@ function AttachmentChip({ part, onRemove }: { part: FileUIPart; onRemove?: () =>
   const name = part.filename || UNNAMED[kind];
   return (
     <Surface variant="inset" radius="md" className="flex items-center gap-1.5 px-2 py-1">
-      {kind === 'image' ? <ImageTile src={part.url} name={name} /> : <Icon icon={KIND_ICON[kind]} size="xs" />}
+      {kind === 'image' ? <ImageTile part={part} name={name} /> : <Icon icon={KIND_ICON[kind]} size="xs" />}
       <Text variant="helper" tone="muted" truncate className="max-w-32">{name}</Text>
       {onRemove && <IconButton icon={X} label="Remove attachment" size="sm" onClick={onRemove} />}
     </Surface>

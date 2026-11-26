@@ -2,10 +2,6 @@
  *  in the shared players, any other document opens in its default app on the Mac); a removed file shows as removed. */
 
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { assetsService } from '@services/storage';
-import { store } from '@services/db';
-import { queryKeys } from '@shared/query/queryKeys';
 import { FileText, FileX, ImageOff, VideoOff, VolumeX, type LucideIcon } from 'lucide-react';
 import { Icon, Row, Surface, Text, Thumbnail, Viewer, showToast } from '@shared/ui';
 import { platform } from '@platform/index';
@@ -13,34 +9,16 @@ import { openAttachment } from '@features/chat/utils';
 import { AudioPlayer, RemovedNotice, VideoPlayer } from '@shared/components';
 import { StorageConfig } from '@config/storage.config';
 import { ATTACHMENT_COPY } from '@config/chat.config';
-import type { FileUIPart, GeneratedImage } from '@shared/types';
 import { attachmentInput, mediaKind, type MediaKind } from '@shared/utils/chatParts';
 import { useObjectUrl } from '@shared/hooks';
+import { keptPathOf, useMediaSrc, type ChatMedia } from '@features/chat/hooks/useMediaSrc';
 
-/** What a message shows as media: an attached file (the SDK's file part), or an image a tool made. */
-export type ChatMedia = FileUIPart | GeneratedImage;
+export type { ChatMedia };
 
 const REMOVED_ICON: Record<MediaKind, LucideIcon> = { image: ImageOff, audio: VolumeX, video: VideoOff, document: FileX };
 
-/** A kept file's URL through Tauri's asset protocol, or null once its asset row is gone. */
-async function keptFileUrl(appPath: string): Promise<string | null> {
-  return (await store.assets.exists(appPath)) ? assetsService.fileUrl(appPath) : null;
-}
-
-/** The media's `src`: an attachment's own URL, a kept file's cached asset URL, or null once the file was removed. */
-function useMediaSrc(media: ChatMedia): string | null | undefined {
-  const appPath = 'path' in media ? media.path : null;
-  const { data: fileUrl } = useQuery({
-    queryKey: queryKeys.appFileUrl(appPath ?? ''),
-    queryFn: () => keptFileUrl(appPath ?? ''),
-    enabled: appPath !== null,
-    staleTime: Infinity,
-  });
-  return 'url' in media ? media.url : fileUrl;
-}
-
 /** Which media this is, for the playback session: a kept file by its path, an attachment by its URL. */
-const mediaId = (media: ChatMedia): string => ('path' in media ? media.path : media.url);
+const mediaId = (media: ChatMedia): string => keptPathOf(media) ?? ('url' in media ? media.url : '');
 
 /** A PDF in the kit viewer, read into a `blob:` URL while it is open; one that can't be read closes and says so. */
 function PdfViewer({ src, title, open, onOpenChange }: { src: string; title: string; open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -54,7 +32,7 @@ function PdfViewer({ src, title, open, onOpenChange }: { src: string; title: str
 }
 
 /** A document by its name: a PDF opens in the viewer (every platform); any other, on the Mac, in its default app. */
-function DocumentChip({ media, name }: { media: ChatMedia; name?: string }) {
+function DocumentChip({ media, src, name }: { media: ChatMedia; src?: string; name?: string }) {
   const [open, setOpen] = useState(false);
   const label = name ?? 'file';
   const body = (
@@ -64,10 +42,10 @@ function DocumentChip({ media, name }: { media: ChatMedia; name?: string }) {
     </>
   );
   const pdf = 'url' in media && attachmentInput(media.mediaType, media.filename) === 'pdf';
-  const opens = pdf || (platform.hasFileManager && 'url' in media);
+  const opens = !!src && (pdf || (platform.hasFileManager && 'url' in media));
   const onOpen = () => {
     if (pdf) setOpen(true);
-    else if ('url' in media) void openAttachment(media);
+    else if (src) void openAttachment(label, src);
   };
   return (
     <Surface variant="subtle" radius="lg" className="my-1 inline-flex">
@@ -76,7 +54,7 @@ function DocumentChip({ media, name }: { media: ChatMedia; name?: string }) {
       ) : (
         <div className="flex items-center gap-2 px-3 py-2">{body}</div>
       )}
-      {pdf && <PdfViewer src={media.url} title={label} open={open} onOpenChange={setOpen} />}
+      {pdf && src && <PdfViewer src={src} title={label} open={open} onOpenChange={setOpen} />}
     </Surface>
   );
 }
@@ -120,7 +98,7 @@ export const MediaPartRenderer: React.FC<MediaPartRendererProps> = ({ media }) =
         </div>
       );
     case 'document':
-      return <DocumentChip media={media} name={name} />;
+      return <DocumentChip media={media} src={src} name={name} />;
   }
 };
 

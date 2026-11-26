@@ -7,7 +7,8 @@ import type { ChatSession, FileUIPart, ReasoningEffort } from '@shared/types';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import { chatService } from '@services/chat.service';
 import type { StreamProgress } from '@services/ai/types';
-import { fileToDataUrl } from '@shared/utils/file.utils';
+import { attachmentBytes, fileExtension } from '@shared/utils/file.utils';
+import { assetsService } from '@services/storage';
 import { itemEdits, refreshItems } from '@shared/query/items';
 import { CHAT_MAX_ATTACHMENTS } from '@config/chat.config';
 import { UI_CONFIG } from '@config/ui.config';
@@ -78,7 +79,7 @@ export interface ChatStoreState {
   setReasoningEffort: (effort: ReasoningEffort) => void;
   addAttachment: (file: File) => Promise<void>;
   removeAttachment: (index: number) => void;
-  addScreenshotAttachment: (base64: string, name: string) => void;
+  addScreenshotAttachment: (base64: string, name: string) => Promise<void>;
   /** A fresh, unsaved chat about `meeting`, with the meeting attached as context; thinking Off while the meeting records, so
    *  answers come quickly (the picker still raises it). */
   startMeetingChat: (meeting: MeetingListItem) => void;
@@ -183,10 +184,14 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
 
   // ── Attachments ──
 
+  // Saved as a kept file at once (its chat claims it when the message is saved; one never sent is swept after a day); the
+  // message carries its app path.
   addAttachment: async (file) => {
     if (get().pendingAttachments.length >= CHAT_MAX_ATTACHMENTS) return;
     try {
-      const part = attachmentPart(attachmentMediaType(file.type, file.name), await fileToDataUrl(file), file.name);
+      const mediaType = attachmentMediaType(file.type, file.name);
+      const saved = await assetsService.save('file', { data: await attachmentBytes(file), extension: fileExtension(file.name) }, { meta: { name: file.name, mediaType } });
+      const part = attachmentPart(mediaType, saved.appPath, file.name);
       set((state) => ({ pendingAttachments: [...state.pendingAttachments, part] }));
     } catch (error: unknown) {
       console.error('[ChatStore] Failed to add attachment:', error);
@@ -197,11 +202,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
     set((state) => ({ pendingAttachments: state.pendingAttachments.filter((_, i) => i !== index) })),
 
   addScreenshotAttachment: (base64, name) =>
-    set((state) => {
-      if (state.pendingAttachments.length >= CHAT_MAX_ATTACHMENTS) return state;
-      const part = attachmentPart('image/png', `data:image/png;base64,${base64}`, name);
-      return { pendingAttachments: [...state.pendingAttachments, part] };
-    }),
+    get().addAttachment(new File([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))], name, { type: 'image/png' })),
 
   startMeetingChat: (meeting) =>
     set({

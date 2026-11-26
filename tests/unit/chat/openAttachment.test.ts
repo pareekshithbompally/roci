@@ -16,7 +16,7 @@ describe('openAttachment', () => {
 
   it('hands a copy of the file, by its own name, to its default app', async () => {
     openCopy.mockResolvedValue('/cache/open/1-plan.pdf');
-    await openAttachment(pdf);
+    await openAttachment(pdf.filename, pdf.url);
     const [name, bytes] = openCopy.mock.calls[0] as [string, Uint8Array];
     expect([name, new TextDecoder().decode(bytes)]).toEqual(['plan.pdf', '%PDF']);
     expect(openFile).toHaveBeenCalledWith('/cache/open/1-plan.pdf');
@@ -26,7 +26,7 @@ describe('openAttachment', () => {
   it('says so when it can not open it', async () => {
     openCopy.mockResolvedValue('/cache/open/1-plan.pdf');
     openFile.mockRejectedValue(new Error('not allowed'));
-    await openAttachment(pdf);
+    await openAttachment(pdf.filename, pdf.url);
     expect(showToast).toHaveBeenCalledWith("Couldn't open plan.pdf", 'error');
   });
 });

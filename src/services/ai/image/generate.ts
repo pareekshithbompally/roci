@@ -24,7 +24,7 @@ export interface ImageRequest {
 }
 
 export interface GeneratedImageFile {
-  /** Inside app data (`images/….png`): what a chat keeps. */
+  /** Inside app data (`assets/….png`): what a chat keeps. */
   appPath: string;
   /** On this device now. */
   path: string;

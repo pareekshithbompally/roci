@@ -2,7 +2,7 @@ use crate::assets;
 use rusqlite::Connection;
 
 /// Current schema version for the new roci.db.
-pub const SCHEMA_VERSION: u32 = 16;
+pub const SCHEMA_VERSION: u32 = 17;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "qwen3-embedding-0.6b";
@@ -38,12 +38,12 @@ pub(crate) fn open_migrated_test_db() -> Connection {
     conn
 }
 
-/// Creates the schema in a new database, or brings a v10–v15 database to the current version with its data. Any other
+/// Creates the schema in a new database, or brings a v10–v16 database to the current version with its data. Any other
 /// version is refused, not upgraded: pre-release, there is nothing else to carry forward.
 pub fn migrate(conn: &Connection) -> Result<(), String> {
     match get_schema_version(conn) {
         0 => create_new(conn)?,
-        version @ 10..=15 => upgrade_from(conn, version)?,
+        version @ 10..=16 => upgrade_from(conn, version)?,
         SCHEMA_VERSION => {}
         other => {
             let e = format!("roci.db is schema v{other}, this build is v{SCHEMA_VERSION}: remove it to start fresh");
@@ -112,7 +112,39 @@ fn upgrade_from(conn: &Connection, version: u32) -> Result<(), String> {
     if version <= 14 {
         upgrade_v15(conn)?;
     }
-    upgrade_v16(conn)
+    if version <= 15 {
+        upgrade_v16(conn)?;
+    }
+    upgrade_v17(conn)
+}
+
+/// v16 → v17: every kept file lives in one folder, `assets/` (its kind says what it is), a file can be kept in the Knowledge
+/// library, and each indexed source has its index state. The rows point into `assets/` here; the files themselves move at
+/// the next open (`assets::move_into_assets`), outside the transaction. Image paths saved in chats follow.
+fn upgrade_v17(conn: &Connection) -> Result<(), String> {
+    let tx = conn.unchecked_transaction().map_err(|e| format!("begin v17: {}", e))?;
+    let has_kept: bool = tx
+        .query_row("SELECT COUNT(*) FROM pragma_table_info('assets') WHERE name = 'kept'", [], |r| r.get::<_, i64>(0))
+        .map(|count| count > 0)
+        .map_err(|e| format!("v17 read assets: {}", e))?;
+    if !has_kept {
+        tx.execute_batch("ALTER TABLE assets ADD COLUMN kept INTEGER NOT NULL DEFAULT 0;").map_err(|e| format!("v17 kept: {}", e))?;
+    }
+    tx.execute_batch(
+        "UPDATE assets SET path = 'assets/' || substr(path, instr(path, '/') + 1)
+             WHERE path LIKE 'recordings/%' OR path LIKE 'images/%' OR path LIKE 'speech/%';
+         UPDATE assets SET preview_path = 'assets/' || substr(preview_path, instr(preview_path, '/') + 1)
+             WHERE preview_path LIKE 'images/%';
+         UPDATE chat_messages SET data = replace(data, '\"path\":\"images/', '\"path\":\"assets/')
+             WHERE data LIKE '%\"path\":\"images/%';
+         DELETE FROM meta WHERE key = 'images_adopted';",
+    )
+    .map_err(|e| format!("v17 one assets folder: {}", e))?;
+    tx.execute_batch(SOURCES_DDL).map_err(|e| format!("v17 index state: {}", e))?;
+    set_schema_version(&tx, 17)?;
+    tx.commit().map_err(|e| format!("commit v17: {}", e))?;
+    log::info!("[store] Schema v16→v17 (one assets folder, kept files, index state)");
+    Ok(())
 }
 
 /// v15 → v16: meetings' and chats' search tables become the one search index (memories live in the graph).
@@ -259,6 +291,32 @@ const SEARCH_DDL: &str = "
     END;
     CREATE TRIGGER IF NOT EXISTS chats_chunks_ad AFTER DELETE ON chats BEGIN
         DELETE FROM chunks WHERE owner_kind = 'chat' AND owner_id = old.id;
+    END;";
+
+/// Knowledge sources: each indexed source's state, keyed like its pieces (`owner_kind`, `owner_id`): the text it was indexed
+/// from (its hash), by which indexer version, and how that went, so a source is indexed again only when its text or the
+/// indexer changes, and a failed one is retried. A file kept in the library is a source too (`owner_kind` 'file', its asset
+/// id); every owner's delete takes its state, and a file's its pieces, with it.
+const SOURCES_DDL: &str = "
+    CREATE TABLE IF NOT EXISTS index_state (
+        owner_kind   TEXT    NOT NULL,
+        owner_id     TEXT    NOT NULL,
+        text_hash    TEXT    NOT NULL,
+        version      INTEGER NOT NULL,
+        state        TEXT    NOT NULL CHECK(state IN ('pending','ready','failed')),
+        error        TEXT,
+        attempted_at INTEGER NOT NULL,
+        PRIMARY KEY (owner_kind, owner_id)
+    );
+    CREATE TRIGGER IF NOT EXISTS meetings_index_state_ad AFTER DELETE ON meetings BEGIN
+        DELETE FROM index_state WHERE owner_kind = 'meeting' AND owner_id = old.id;
+    END;
+    CREATE TRIGGER IF NOT EXISTS chats_index_state_ad AFTER DELETE ON chats BEGIN
+        DELETE FROM index_state WHERE owner_kind = 'chat' AND owner_id = old.id;
+    END;
+    CREATE TRIGGER IF NOT EXISTS files_source_ad AFTER DELETE ON assets WHEN old.kind = 'file' BEGIN
+        DELETE FROM chunks WHERE owner_kind = 'file' AND owner_id = old.id;
+        DELETE FROM index_state WHERE owner_kind = 'file' AND owner_id = old.id;
     END;";
 
 /// The pieces' vectors (sqlite-vec, partitioned by owner kind so a search reads one kind's), and the trigger that drops a
@@ -479,6 +537,7 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(TOOL_CALLS_DDL).map_err(|e| format!("create tool calls table: {}", e))?;
 
     conn.execute_batch(SEARCH_DDL).map_err(|e| format!("create search index: {}", e))?;
+    conn.execute_batch(SOURCES_DDL).map_err(|e| format!("create index state: {}", e))?;
 
     // Usage log
     conn.execute_batch(
@@ -574,13 +633,39 @@ mod tests {
         assert_eq!(cypher("MATCH (p:Person) RETURN count(p) AS n"), r#"[{"n":1}]"#);
     }
 
+    /// v16 → v17: every asset row and every image a chat saved point into `assets/`; nothing else in a message changes.
+    #[test]
+    fn v16_paths_move_into_the_one_assets_folder() {
+        let conn = open_test_db();
+        init_db(&conn);
+        conn.execute_batch(
+            r#"INSERT INTO meetings (id, title, created_at, updated_at) VALUES ('m', 'Standup', 1, 1);
+               INSERT INTO chats (id, title, created_at, last_message_at) VALUES ('c', 'Chat', 1, 1);
+               INSERT INTO assets (id, kind, path, meeting_id, created_at) VALUES ('r', 'recording', 'recordings/m.wav', 'm', 1);
+               INSERT INTO assets (id, kind, path, preview_path, chat_id, created_at) VALUES ('i', 'image', 'images/x.png', 'images/x.thumb.jpg', 'c', 1);
+               INSERT INTO chat_messages (id, chat_id, seq, role, data, created_at)
+                   VALUES ('q', 'c', 0, 'model', '{"parts":[{"text":"see images/ folder"},{"output":{"meta":{"image":{"path":"images/x.png"}}}}]}', 1);
+               UPDATE meta SET value = '16' WHERE key = 'schema_version';"#,
+        )
+        .expect("v16 rows");
+
+        migrate(&conn).expect("upgrade");
+
+        let paths: Vec<(String, Option<String>)> = conn.prepare("SELECT path, preview_path FROM assets ORDER BY id").unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().collect::<Result<_, _>>().unwrap();
+        assert_eq!(paths, vec![("assets/x.png".into(), Some("assets/x.thumb.jpg".into())), ("assets/m.wav".into(), None)]);
+        let data: String = conn.query_row("SELECT data FROM chat_messages", [], |r| r.get(0)).unwrap();
+        assert!(data.contains(r#""path":"assets/x.png""#) && data.contains("see images/ folder"), "{data}");
+        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
+    }
+
     #[test]
     fn v15_search_pieces_move_into_the_one_index() {
         let conn = open_test_db();
         init_db(&conn);
         // The v15 search tables, as they were (each owner's pieces, keyword index and vectors apart).
         conn.execute_batch(&format!(
-            "DROP TRIGGER meetings_chunks_ad; DROP TRIGGER chats_chunks_ad; DROP TABLE vec_chunks; DROP TABLE chunks_fts; DROP TABLE chunks;
+            "DROP TRIGGER meetings_chunks_ad; DROP TRIGGER chats_chunks_ad; DROP TRIGGER files_source_ad; DROP TABLE vec_chunks; DROP TABLE chunks_fts; DROP TABLE chunks;
              CREATE TABLE chunks (id INTEGER PRIMARY KEY AUTOINCREMENT, meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
                  chunk_index INTEGER NOT NULL, chunk_text TEXT NOT NULL, chunk_type TEXT NOT NULL DEFAULT 'transcript',
                  start_pos INTEGER, end_pos INTEGER, UNIQUE(meeting_id, chunk_index));

@@ -1,4 +1,5 @@
-/** Storage layout: the asset kinds (each file one row in roci.db), Keep policies, removed copy, and the cache. */
+/** Storage layout: the one folder of kept files and their kinds (each file one row in roci.db), Keep policies, removed copy,
+ *  and the cache. */
 
 export const StorageConfig = {
   /** Directory structure within Application Support. */
@@ -10,12 +11,12 @@ export const StorageConfig = {
     cacheOpen: 'cache/open',
   },
 
-  /** Every kept file kind by its folder; `assets.rs` MANAGED_DIRS and the tauri.conf.json asset scope list the same. */
-  assetKinds: {
-    recording: { dir: 'recordings' },
-    image: { dir: 'images' },
-    speech: { dir: 'speech' },
-  },
+  /** The one folder every kept file lives in, named by its row (`assets.rs` ASSETS_DIR and the tauri.conf.json asset scope
+   *  say the same). */
+  assetsDir: 'assets',
+  /** What a kept file can be: made by Roci (image, speech, video), a meeting's recording, or a file you gave Roci. Its kind
+   *  decides where it shows (Gallery: image, speech, video; Knowledge: file), never its folder. */
+  assetKinds: ['recording', 'image', 'speech', 'video', 'file'] as const,
 
   /** Settings › Storage › Keep: how long each class of data stays. A class absent from the setting is kept forever. */
   retention: {
@@ -27,7 +28,7 @@ export const StorageConfig = {
     classes: [
       { id: 'meetings', label: 'Meetings', noun: 'meeting', deletes: 'every meeting with its transcript, summary, notes, to-dos and audio' },
       { id: 'recording', label: 'Recordings', noun: 'recording', deletes: 'the audio of every meeting; the meetings and their transcripts stay' },
-      { id: 'chats', label: 'Chats', noun: 'chat', deletes: 'every chat with its images and speech' },
+      { id: 'chats', label: 'Chats', noun: 'chat', deletes: 'every chat with its images, speech and attachments' },
       { id: 'image', label: 'Images', noun: 'image', deletes: 'every image made in chat; the chats stay' },
       { id: 'dictations', label: 'Dictations', noun: 'dictation', deletes: 'every dictation' },
     ],

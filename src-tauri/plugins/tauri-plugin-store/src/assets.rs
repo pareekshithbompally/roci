@@ -1,4 +1,6 @@
-//! Every kept file is one `assets` row with at most one parent; deleting the row queues the file, `drain_files` removes it.
+//! Every kept file is one `assets` row in one folder, `assets/`, named by its row: its `kind` (recording, image, speech,
+//! video, file) says what it is, never its folder. A row has at most one parent (a meeting or a chat), or is `kept` in the
+//! Knowledge library; deleting the row queues the file, `drain_files` removes it.
 
 use crate::commands::{now_millis, on_db, ItemCursor, StoreState};
 use crate::error::StoreError;
@@ -9,14 +11,11 @@ use std::sync::OnceLock;
 use std::time::{Duration, SystemTime};
 use tauri::State;
 
-/// Meeting recordings, relative to app data.
-pub(crate) const RECORDINGS_DIR: &str = "recordings";
-/// Images a chat made.
-pub(crate) const IMAGES_DIR: &str = "images";
-/// Speech a chat read aloud.
-const SPEECH_DIR: &str = "speech";
-/// Folders where every file must be an asset row (the same as `assetKinds` and the asset scope); strays are swept.
-const MANAGED_DIRS: &[&str] = &[RECORDINGS_DIR, IMAGES_DIR, SPEECH_DIR];
+/// The one folder every kept file lives in, relative to app data (the same as `StorageConfig.assetsDir` and the asset scope);
+/// a file there without a row is a stray and is swept. A folder inside it is a recording's tracks (the frozen audio core's).
+pub const ASSETS_DIR: &str = "assets";
+/// The folders files lived in by kind before v17, moved into `ASSETS_DIR` at the first open after the upgrade.
+const OLD_DIRS: &[&str] = &["recordings", "images", "speech"];
 /// How long an unclaimed asset or an untracked file waits for its owner (a save in flight, an import half done).
 const UNCLAIMED_GRACE_MS: i64 = 24 * 60 * 60 * 1000;
 
@@ -32,6 +31,7 @@ pub(crate) const DDL: &str = "
         duration_seconds REAL,
         meta             TEXT,
         created_at       INTEGER NOT NULL,
+        kept             INTEGER NOT NULL DEFAULT 0,
         CHECK (meeting_id IS NULL OR chat_id IS NULL)
     );
     CREATE INDEX IF NOT EXISTS idx_assets_meeting ON assets(meeting_id);
@@ -67,12 +67,12 @@ pub(crate) fn set_app_data(dir: PathBuf) {
 }
 
 pub(crate) fn recording_path(filename: &str) -> String {
-    format!("{RECORDINGS_DIR}/{filename}")
+    format!("{ASSETS_DIR}/{filename}")
 }
 
 /// A recording's file name, as the meeting screens and the frozen audio core name it.
 pub(crate) fn recording_filename(path: &str) -> String {
-    path.strip_prefix(RECORDINGS_DIR).and_then(|rest| rest.strip_prefix('/')).unwrap_or(path).to_string()
+    path.strip_prefix(ASSETS_DIR).and_then(|rest| rest.strip_prefix('/')).unwrap_or(path).to_string()
 }
 
 pub(crate) fn insert_recording(db: &Connection, id: &str, meeting_id: &str, filename: &str, created_at: i64) -> Result<(), StoreError> {
@@ -119,7 +119,7 @@ pub struct OwedNotice {
     pub todo_id: String,
 }
 
-/// `folder/name` in a managed folder: the only shape an asset path may take.
+/// `assets/name`: the only shape an asset path may take.
 fn is_managed(path: &str) -> bool {
     let mut parts = Path::new(path).components();
     let folder = parts.next().and_then(|c| match c {
@@ -127,7 +127,7 @@ fn is_managed(path: &str) -> bool {
         _ => None,
     });
     let name_ok = matches!(parts.next(), Some(Component::Normal(_)));
-    name_ok && parts.next().is_none() && folder.is_some_and(|f| MANAGED_DIRS.contains(&f))
+    name_ok && parts.next().is_none() && folder == Some(ASSETS_DIR)
 }
 
 pub(crate) fn create(db: &Connection, id: &str, asset: &NewAsset, created_at: i64) -> Result<(), StoreError> {
@@ -142,12 +142,13 @@ pub(crate) fn create(db: &Connection, id: &str, asset: &NewAsset, created_at: i6
     Ok(())
 }
 
-/// Inside a chat save: the chat claims the unclaimed files its messages reference, and drops the ones they no longer do.
+/// Inside a chat save: the chat claims the unclaimed files its messages reference, and drops the ones they no longer do. A
+/// file kept in the library stays the library's, whichever chats show it.
 pub(crate) fn sync_chat_assets(tx: &Connection, chat_id: &str, paths: &[String]) -> Result<(), StoreError> {
     let paths_json = serde_json::to_string(paths).map_err(|e| StoreError::from(e.to_string()))?;
     tx.execute(
         "UPDATE assets SET chat_id = ?1
-         WHERE chat_id IS NULL AND meeting_id IS NULL AND path IN (SELECT value FROM json_each(?2))",
+         WHERE chat_id IS NULL AND meeting_id IS NULL AND kept = 0 AND path IN (SELECT value FROM json_each(?2))",
         rusqlite::params![chat_id, paths_json],
     )?;
     tx.execute(
@@ -292,25 +293,43 @@ fn strays(db: &Connection, root: &Path, window: &SweepWindow) -> Result<Vec<Path
     let owned = owned_paths(db)?;
     let mut meeting = db.prepare("SELECT 1 FROM meetings WHERE id = ?1")?;
     let mut found = Vec::new();
-    for dir in MANAGED_DIRS {
-        let Ok(entries) = std::fs::read_dir(root.join(dir)) else { continue };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            let Some(name) = entry.file_name().to_str().map(str::to_owned) else { continue };
-            if !window.holds(&path) {
-                continue;
-            }
-            let stray = if path.is_dir() {
-                *dir == RECORDINGS_DIR && !meeting.exists([&name])?
-            } else {
-                !owned.contains(&format!("{dir}/{name}"))
-            };
-            if stray {
-                found.push(path);
-            }
+    let Ok(entries) = std::fs::read_dir(root.join(ASSETS_DIR)) else { return Ok(found) };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Some(name) = entry.file_name().to_str().map(str::to_owned) else { continue };
+        if !window.holds(&path) {
+            continue;
+        }
+        let stray = if path.is_dir() { !meeting.exists([&name])? } else { !owned.contains(&format!("{ASSETS_DIR}/{name}")) };
+        if stray {
+            found.push(path);
         }
     }
     Ok(found)
+}
+
+/// At the first open after v17: every file still in a by-kind folder (and a recording's track folder) moves into
+/// `ASSETS_DIR` under its own name, then the emptied folder goes. The rows already point there (v17 rewrote them), so a
+/// move half done finishes at the next open; a name already in `ASSETS_DIR` is left where it was and logged.
+pub(crate) fn move_into_assets(root: &Path) {
+    let target = root.join(ASSETS_DIR);
+    for dir in OLD_DIRS {
+        let Ok(entries) = std::fs::read_dir(root.join(dir)) else { continue };
+        if let Err(error) = std::fs::create_dir_all(&target) {
+            log::error!("[store] {} not made: {}", ASSETS_DIR, error);
+            return;
+        }
+        for entry in entries.flatten() {
+            let to = target.join(entry.file_name());
+            let moved = if to.exists() { Err(std::io::Error::from(std::io::ErrorKind::AlreadyExists)) } else { std::fs::rename(entry.path(), &to) };
+            if let Err(error) = moved {
+                log::warn!("[store] {:?} not moved into {}: {}", entry.path(), ASSETS_DIR, error);
+            }
+        }
+        if std::fs::remove_dir(root.join(dir)).is_ok() {
+            log::info!("[store] {} moved into {}", dir, ASSETS_DIR);
+        }
+    }
 }
 
 fn remove_stray(path: &Path) {
@@ -323,7 +342,7 @@ fn remove_stray(path: &Path) {
 /// At open: unclaimed rows and stray entries past the grace period go, then every queued file.
 pub(crate) fn sweep(db: &Connection, root: &Path, now_ms: i64) -> Result<(), StoreError> {
     let unclaimed = db.execute(
-        "DELETE FROM assets WHERE meeting_id IS NULL AND chat_id IS NULL AND created_at < ?1",
+        "DELETE FROM assets WHERE meeting_id IS NULL AND chat_id IS NULL AND kept = 0 AND created_at < ?1",
         [now_ms - UNCLAIMED_GRACE_MS],
     )?;
     let strays = strays(db, root, &SweepWindow::at(db, now_ms))?;
@@ -331,6 +350,72 @@ pub(crate) fn sweep(db: &Connection, root: &Path, now_ms: i64) -> Result<(), Sto
     let drained = drain_files_in(db, root)?;
     log::info!("[store] Sweep: {} unclaimed assets, {} strays, {} queued files", unclaimed, strays.len(), drained);
     Ok(())
+}
+
+/// A `data:` URL's media type and bytes (base64 only: the webview's FileReader writes every attachment that way).
+fn decode_data_url(url: &str) -> Option<(String, Vec<u8>)> {
+    use base64::Engine;
+    let (head, body) = url.strip_prefix("data:")?.split_once(',')?;
+    let media_type = head.strip_suffix(";base64")?;
+    let bytes = base64::engine::general_purpose::STANDARD.decode(body).ok()?;
+    Some((media_type.to_string(), bytes))
+}
+
+/// A file's extension from its name ("plan.PDF" → "pdf"); `bin` when it has none (as `fileExtension` names a new attachment).
+fn extension_of(name: &str) -> String {
+    match name.rsplit_once('.') {
+        Some((stem, ext)) if !stem.is_empty() && !ext.is_empty() => ext.to_lowercase(),
+        _ => "bin".into(),
+    }
+}
+
+/// One message's attached files carried inside it as `data:` URLs, written out to `assets/`; each part then keeps its path.
+/// Returns the files written (path, meta); a file that can't be written stays inline.
+fn write_out_inline(root: &Path, message: &mut serde_json::Value) -> Vec<(String, String)> {
+    let mut written = Vec::new();
+    let Some(parts) = message.get_mut("parts").and_then(serde_json::Value::as_array_mut) else { return written };
+    for part in parts.iter_mut().filter(|part| part["type"] == "file") {
+        let Some((media_type, bytes)) = part["url"].as_str().and_then(decode_data_url) else { continue };
+        let name = part["filename"].as_str().unwrap_or("attachment").to_string();
+        let path = format!("{ASSETS_DIR}/{}.{}", crate::commands::generate_id(), extension_of(&name));
+        if let Err(error) = std::fs::write(root.join(&path), &bytes) {
+            log::warn!("[store] Attachment {} not written out: {}", name, error);
+            continue;
+        }
+        part["url"] = serde_json::Value::String(path.clone());
+        written.push((path, serde_json::json!({ "name": name, "mediaType": media_type }).to_string()));
+    }
+    written
+}
+
+/// At open: files attached before v17 sat inside their messages as `data:` URLs. Each is written out to `assets/` as a `file`
+/// asset owned by its chat, and its message keeps the path, one message per transaction (a file written for a message that
+/// then fails to update is a stray the sweep takes). Returns how many files were moved.
+pub(crate) fn move_inline_attachments(db: &Connection, root: &Path) -> Result<usize, StoreError> {
+    let messages: Vec<(String, String, String)> = db
+        .prepare("SELECT id, chat_id, data FROM chat_messages WHERE data LIKE '%\"url\":\"data:%'")?
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+        .collect::<Result<_, _>>()?;
+    std::fs::create_dir_all(root.join(ASSETS_DIR)).map_err(|e| StoreError::from(format!("{ASSETS_DIR}: {e}")))?;
+    let mut moved = 0;
+    for (id, chat_id, data) in messages {
+        let Ok(mut message) = serde_json::from_str::<serde_json::Value>(&data) else { continue };
+        let written = write_out_inline(root, &mut message);
+        if written.is_empty() {
+            continue;
+        }
+        let tx = db.unchecked_transaction()?;
+        for (path, meta) in &written {
+            tx.execute(
+                "INSERT INTO assets (id, kind, path, chat_id, meta, created_at) VALUES (?1, 'file', ?2, ?3, ?4, ?5)",
+                rusqlite::params![crate::commands::generate_id(), path, chat_id, meta, now_millis()],
+            )?;
+        }
+        tx.execute("UPDATE chat_messages SET data = ?1 WHERE id = ?2", rusqlite::params![message.to_string(), id])?;
+        tx.commit()?;
+        moved += written.len();
+    }
+    Ok(moved)
 }
 
 #[tauri::command]
@@ -378,7 +463,7 @@ mod tests {
 
     fn scratch(name: &str) -> PathBuf {
         let root = std::env::temp_dir().join(format!("roci-assets-{name}-{}", std::process::id()));
-        std::fs::create_dir_all(root.join(RECORDINGS_DIR)).unwrap();
+        std::fs::create_dir_all(root.join(ASSETS_DIR)).unwrap();
         root
     }
 
@@ -387,8 +472,7 @@ mod tests {
     fn deleting_parents_leaves_nothing_behind() {
         let db = open_migrated_test_db();
         let root = scratch("parents");
-        std::fs::create_dir_all(root.join("images")).unwrap();
-        for file in ["recordings/m1.wav", "images/c1.png", "images/c1.thumb.jpg"] {
+        for file in ["assets/m1.wav", "assets/c1.png", "assets/c1.thumb.jpg"] {
             std::fs::write(root.join(file), b"x").unwrap();
         }
         db.execute_batch(
@@ -397,11 +481,11 @@ mod tests {
              INSERT INTO notes (id, meeting_id, text, created_at, updated_at) VALUES ('n1', 'm1', 'note', 0, 0);
              INSERT INTO todos (id, meeting_id, text, source, created_at) VALUES ('t1', 'm1', 'ship', 'ai', 0);
              INSERT INTO reminders (todo_id, notification_id, fire_at, status, created_at) VALUES ('t1', 42, 9, 'scheduled', 0);
-             INSERT INTO assets (id, kind, path, meeting_id, created_at) VALUES ('a1', 'recording', 'recordings/m1.wav', 'm1', 0);
+             INSERT INTO assets (id, kind, path, meeting_id, created_at) VALUES ('a1', 'recording', 'assets/m1.wav', 'm1', 0);
              INSERT INTO chats (id, title, meeting_id, created_at, last_message_at) VALUES ('c1', 'Chat', 'm1', 0, 0);
              INSERT INTO chat_messages (id, chat_id, seq, role, created_at) VALUES ('msg1', 'c1', 0, 'user', 0);
              INSERT INTO assets (id, kind, path, preview_path, chat_id, created_at)
-                 VALUES ('a2', 'image', 'images/c1.png', 'images/c1.thumb.jpg', 'c1', 0);",
+                 VALUES ('a2', 'image', 'assets/c1.png', 'assets/c1.thumb.jpg', 'c1', 0);",
         )
         .unwrap();
 
@@ -417,7 +501,7 @@ mod tests {
         let notices: Vec<String> = db.prepare("SELECT ref FROM purge_queue WHERE kind = 'notice'").unwrap()
             .query_map([], |r| r.get(0)).unwrap().collect::<Result<_, _>>().unwrap();
         assert_eq!(notices, vec!["t1".to_string()], "the scheduled notice is owed a cancel");
-        for file in ["recordings/m1.wav", "images/c1.png", "images/c1.thumb.jpg"] {
+        for file in ["assets/m1.wav", "assets/c1.png", "assets/c1.thumb.jpg"] {
             assert!(!root.join(file).exists(), "{file} left on disk");
         }
         std::fs::remove_dir_all(root).unwrap();
@@ -429,26 +513,26 @@ mod tests {
         let db = open_migrated_test_db();
         db.execute_batch("INSERT INTO chats (id, title, created_at, last_message_at) VALUES ('c1', 'Chat', 0, 0);").unwrap();
         let image = |path: &str| NewAsset { kind: "image".into(), path: path.into(), preview_path: None, duration_seconds: None, meta: None };
-        create(&db, "a1", &image("images/kept.png"), 0).unwrap();
-        create(&db, "a2", &image("images/dropped.png"), 0).unwrap();
-        create(&db, "a3", &image("images/other.png"), 0).unwrap();
+        create(&db, "a1", &image("assets/kept.png"), 0).unwrap();
+        create(&db, "a2", &image("assets/dropped.png"), 0).unwrap();
+        create(&db, "a3", &image("assets/other.png"), 0).unwrap();
 
-        sync_chat_assets(&db, "c1", &["images/kept.png".into(), "images/dropped.png".into()]).unwrap();
-        sync_chat_assets(&db, "c1", &["images/kept.png".into()]).unwrap();
+        sync_chat_assets(&db, "c1", &["assets/kept.png".into(), "assets/dropped.png".into()]).unwrap();
+        sync_chat_assets(&db, "c1", &["assets/kept.png".into()]).unwrap();
 
         let owners: Vec<(String, Option<String>)> = db.prepare("SELECT path, chat_id FROM assets ORDER BY path").unwrap()
             .query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().collect::<Result<_, _>>().unwrap();
-        assert_eq!(owners, vec![("images/kept.png".into(), Some("c1".into())), ("images/other.png".into(), None)]);
+        assert_eq!(owners, vec![("assets/kept.png".into(), Some("c1".into())), ("assets/other.png".into(), None)]);
         let queued: String = db.query_row("SELECT ref FROM purge_queue", [], |r| r.get(0)).unwrap();
-        assert_eq!(queued, "images/dropped.png");
+        assert_eq!(queued, "assets/dropped.png");
     }
 
     #[test]
     fn create_refuses_paths_outside_managed_folders() {
         let db = open_migrated_test_db();
         let asset = |path: &str| NewAsset { kind: "image".into(), path: path.into(), preview_path: None, duration_seconds: None, meta: None };
-        assert!(create(&db, "a", &asset("images/x.png"), 0).is_ok());
-        for bad in ["roci.db", "images/../roci.db", "/etc/x", "cache/x.png", "images/a/b.png"] {
+        assert!(create(&db, "a", &asset("assets/x.png"), 0).is_ok());
+        for bad in ["roci.db", "assets/../roci.db", "/etc/x", "cache/x.png", "assets/a/b.png", "images/x.png"] {
             assert!(create(&db, bad, &asset(bad), 0).is_err(), "{bad} accepted");
         }
     }
@@ -456,11 +540,72 @@ mod tests {
     #[test]
     fn resolve_refuses_paths_outside_app_data() {
         let root = Path::new("/data");
-        assert_eq!(resolve(root, "recordings/a.wav"), Some(root.join("recordings/a.wav")));
+        assert_eq!(resolve(root, "assets/a.wav"), Some(root.join("assets/a.wav")));
         assert_eq!(resolve(root, "../a.wav"), None);
         assert_eq!(resolve(root, "/etc/passwd"), None);
-        assert_eq!(resolve(root, "recordings/../../a"), None);
+        assert_eq!(resolve(root, "assets/../../a"), None);
         assert_eq!(resolve(root, "roci.db"), None);
+    }
+
+    /// A file kept in the library is never swept as unclaimed and no chat save takes it; an unkept one is swept.
+    #[test]
+    fn a_kept_file_belongs_to_the_library() {
+        let db = open_migrated_test_db();
+        let root = scratch("kept");
+        db.execute_batch(
+            "INSERT INTO chats (id, title, created_at, last_message_at) VALUES ('c1', 'Chat', 0, 0);
+             INSERT INTO assets (id, kind, path, created_at, kept) VALUES ('k', 'file', 'assets/k.pdf', 0, 1);
+             INSERT INTO assets (id, kind, path, created_at) VALUES ('u', 'file', 'assets/u.pdf', 0);",
+        )
+        .unwrap();
+        sync_chat_assets(&db, "c1", &["assets/k.pdf".into()]).unwrap();
+        sweep(&db, &root, UNCLAIMED_GRACE_MS + 1).unwrap();
+        let left: Vec<(String, Option<String>)> = db.prepare("SELECT id, chat_id FROM assets").unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().collect::<Result<_, _>>().unwrap();
+        assert_eq!(left, vec![("k".into(), None)], "the kept file stays the library's; the unclaimed one goes");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    /// The first open after v17 moves every file and track folder out of the by-kind folders into `assets/`.
+    #[test]
+    fn old_folders_move_into_assets() {
+        let root = scratch("move");
+        for dir in ["recordings/m1", "images"] {
+            std::fs::create_dir_all(root.join(dir)).unwrap();
+        }
+        for file in ["recordings/m1.wav", "recordings/m1/mic.raw", "images/c1.png"] {
+            std::fs::write(root.join(file), b"x").unwrap();
+        }
+        move_into_assets(&root);
+        for file in ["assets/m1.wav", "assets/m1/mic.raw", "assets/c1.png"] {
+            assert!(root.join(file).exists(), "{file} not moved");
+        }
+        assert!(!root.join("recordings").exists() && !root.join("images").exists(), "old folders left");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    /// A file a message carried inline becomes a `file` asset its chat owns, written out byte for byte; the message keeps
+    /// its path and the rest of the message is untouched.
+    #[test]
+    fn inline_attachments_move_out_of_their_messages() {
+        use base64::Engine;
+        let db = open_migrated_test_db();
+        let root = scratch("inline");
+        let pdf = base64::engine::general_purpose::STANDARD.encode(b"%PDF-1.7");
+        let data = format!(r#"{{"parts":[{{"type":"text","text":"read this"}},{{"type":"file","mediaType":"application/pdf","url":"data:application/pdf;base64,{pdf}","filename":"Plan.PDF"}}]}}"#);
+        db.execute_batch("INSERT INTO chats (id, title, created_at, last_message_at) VALUES ('c1', 'Chat', 0, 0);").unwrap();
+        db.execute("INSERT INTO chat_messages (id, chat_id, seq, role, data, created_at) VALUES ('q', 'c1', 0, 'user', ?1, 0)", [&data]).unwrap();
+
+        assert_eq!(move_inline_attachments(&db, &root).unwrap(), 1);
+        assert_eq!(move_inline_attachments(&db, &root).unwrap(), 0, "a second open has nothing left to move");
+
+        let (path, chat): (String, String) = db.query_row("SELECT path, chat_id FROM assets WHERE kind = 'file'", [], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
+        assert!(path.starts_with("assets/") && path.ends_with(".pdf") && chat == "c1", "{path} {chat}");
+        assert_eq!(std::fs::read(root.join(&path)).unwrap(), b"%PDF-1.7");
+        let message: serde_json::Value = serde_json::from_str(&db.query_row("SELECT data FROM chat_messages", [], |r| r.get::<_, String>(0)).unwrap()).unwrap();
+        assert_eq!(message["parts"][1]["url"], path.as_str());
+        assert_eq!(message["parts"][0]["text"], "read this");
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -472,10 +617,10 @@ mod tests {
     fn drain_removes_files_and_keeps_failures_queued() {
         let db = open_migrated_test_db();
         let root = scratch("drain");
-        let file = root.join("recordings/gone.wav");
+        let file = root.join("assets/gone.wav");
         std::fs::write(&file, b"x").unwrap();
         db.execute_batch(
-            "INSERT INTO purge_queue (kind, ref) VALUES ('file', 'recordings/gone.wav'), ('file', 'recordings/missing.wav');",
+            "INSERT INTO purge_queue (kind, ref) VALUES ('file', 'assets/gone.wav'), ('file', 'assets/missing.wav');",
         )
         .unwrap();
         assert_eq!(drain_files_in(&db, &root).unwrap(), 2);
@@ -489,11 +634,11 @@ mod tests {
     fn drain_leaves_a_path_an_asset_owns_again() {
         let db = open_migrated_test_db();
         let root = scratch("reowned");
-        let file = root.join("recordings/m1.wav");
+        let file = root.join("assets/m1.wav");
         std::fs::write(&file, b"x").unwrap();
         db.execute_batch(
-            "INSERT INTO assets (id, kind, path, created_at) VALUES ('a1', 'recording', 'recordings/m1.wav', 0);
-             INSERT INTO purge_queue (kind, ref) VALUES ('file', 'recordings/m1.wav');",
+            "INSERT INTO assets (id, kind, path, created_at) VALUES ('a1', 'recording', 'assets/m1.wav', 0);
+             INSERT INTO purge_queue (kind, ref) VALUES ('file', 'assets/m1.wav');",
         )
         .unwrap();
         drain_files_in(&db, &root).unwrap();
@@ -507,8 +652,8 @@ mod tests {
         let root = scratch("sweep");
         let now = 10 * UNCLAIMED_GRACE_MS;
         db.execute_batch(&format!(
-            "INSERT INTO assets (id, kind, path, created_at) VALUES ('old', 'recording', 'recordings/old.wav', 0),
-                                                                    ('new', 'recording', 'recordings/new.wav', {now});"
+            "INSERT INTO assets (id, kind, path, created_at) VALUES ('old', 'recording', 'assets/old.wav', 0),
+                                                                    ('new', 'recording', 'assets/new.wav', {now});"
         ))
         .unwrap();
         sweep(&db, &root, now).unwrap();
@@ -532,7 +677,7 @@ mod tests {
     fn sweep_keeps_files_that_outlived_a_lost_database() {
         let db = open_migrated_test_db();
         let root = scratch("lost-db");
-        let old = root.join("recordings/from-before.wav");
+        let old = root.join("assets/from-before.wav");
         std::fs::write(&old, b"x").unwrap();
         age(&old, 30);
         sweep(&db, &root, now_ms()).unwrap();
@@ -550,9 +695,9 @@ mod tests {
             now_ms() - 10 * UNCLAIMED_GRACE_MS
         ))
         .unwrap();
-        let stray = root.join("recordings/stray.wav");
+        let stray = root.join("assets/stray.wav");
         std::fs::write(&stray, b"x").unwrap();
-        for folder in ["recordings/gone", "recordings/live"] {
+        for folder in ["assets/gone", "assets/live"] {
             std::fs::create_dir_all(root.join(folder)).unwrap();
             std::fs::write(root.join(folder).join("system.wav"), b"x").unwrap();
             age(&root.join(folder), 2);
@@ -562,8 +707,8 @@ mod tests {
         sweep(&db, &root, now_ms()).unwrap();
 
         assert!(!stray.exists(), "an untracked file this database made is swept");
-        assert!(!root.join("recordings/gone").exists(), "a deleted meeting's track folder is swept");
-        assert!(root.join("recordings/live").is_dir(), "a meeting's own track folder stays");
+        assert!(!root.join("assets/gone").exists(), "a deleted meeting's track folder is swept");
+        assert!(root.join("assets/live").is_dir(), "a meeting's own track folder stays");
         std::fs::remove_dir_all(root).unwrap();
     }
 
@@ -571,12 +716,12 @@ mod tests {
     fn sweep_keeps_fresh_untracked_files_and_folders() {
         let db = open_migrated_test_db();
         let root = scratch("fresh");
-        let fresh = root.join("recordings/importing.wav");
+        let fresh = root.join("assets/importing.wav");
         std::fs::write(&fresh, b"x").unwrap();
-        std::fs::create_dir_all(root.join("recordings/rec_1_tracks")).unwrap();
+        std::fs::create_dir_all(root.join("assets/rec_1_tracks")).unwrap();
         sweep(&db, &root, 0).unwrap();
         assert!(fresh.exists());
-        assert!(root.join("recordings/rec_1_tracks").is_dir());
+        assert!(root.join("assets/rec_1_tracks").is_dir());
         std::fs::remove_dir_all(root).unwrap();
     }
 }

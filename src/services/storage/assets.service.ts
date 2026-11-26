@@ -1,12 +1,14 @@
-/** The one way Roci writes a kept file: into its kind's folder, then registered as an asset row so it has an owner. */
+/** The one way Roci writes a kept file: into the one assets folder, then registered as an asset row (its kind) so it has an
+ *  owner. */
 
-import { exists, mkdir, remove, writeFile } from '@tauri-apps/plugin-fs';
+import { exists, mkdir, readFile, remove, writeFile } from '@tauri-apps/plugin-fs';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { StorageConfig } from '@config/storage.config';
 import { store } from '@services/db';
+import { blobToDataUrl } from '@shared/utils/file.utils';
 
-export type AssetKind = keyof typeof StorageConfig.assetKinds;
+export type AssetKind = (typeof StorageConfig.assetKinds)[number];
 
 let appData: Promise<string> | undefined;
 /** The app data folder, asked of the system once. */
@@ -32,19 +34,15 @@ export interface SavedAsset {
   path: string;
 }
 
-const dirs = new Map<AssetKind, Promise<string>>();
+let folder: Promise<string> | undefined;
 
-/** The kind's folder, created on first use. */
-function kindDir(kind: AssetKind): Promise<string> {
-  const known = dirs.get(kind);
-  if (known) return known;
-  const created = (async () => {
-    const dir = await join(await appDataPath(), StorageConfig.assetKinds[kind].dir);
+/** The assets folder on this device, created on first use. */
+function assetsFolder(): Promise<string> {
+  return (folder ??= (async () => {
+    const dir = await join(await appDataPath(), StorageConfig.assetsDir);
     if (!(await exists(dir))) await mkdir(dir, { recursive: true });
     return dir;
-  })();
-  dirs.set(kind, created);
-  return created;
+  })());
 }
 
 /** Removes files a failed save wrote; what can't be removed is left for the store's sweep. */
@@ -56,8 +54,8 @@ async function discard(paths: string[]): Promise<void> {
 export const assetsService = {
   /** Writes the file (and its preview) and registers it; on any failure removes what it wrote and throws. */
   async save(kind: AssetKind, file: AssetFile, options: SaveAssetOptions = {}): Promise<SavedAsset> {
-    const dir = await kindDir(kind);
-    const folder = StorageConfig.assetKinds[kind].dir;
+    const dir = await assetsFolder();
+    const folder = StorageConfig.assetsDir;
     const stem = crypto.randomUUID();
     const name = `${stem}.${file.extension}`;
     const path = await join(dir, name);
@@ -87,7 +85,16 @@ export const assetsService = {
     return { appPath: `${folder}/${name}`, path };
   },
 
-  /** A URL the webview loads for a file in app data, through Tauri's asset protocol (scoped per kind in tauri.conf.json). */
+  /** The assets folder on this device (a recording's file is read there by name). */
+  folder: assetsFolder,
+
+  /** A kept file's bytes as a `data:` URL, for a model's file part; throws when the file is gone. */
+  async dataUrl(appPath: string, mediaType: string): Promise<string> {
+    const bytes = await readFile(await join(await appDataPath(), appPath));
+    return blobToDataUrl(new Blob([bytes], { type: mediaType }));
+  },
+
+  /** A URL the webview loads for a file in app data, through Tauri's asset protocol (scoped to the assets folder). */
   async fileUrl(appPath: string): Promise<string> {
     return convertFileSrc(`${await appDataPath()}/${appPath}`);
   },

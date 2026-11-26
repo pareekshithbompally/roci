@@ -10,8 +10,8 @@ use super::recorder::{Recorder, Sources};
 use super::recovery;
 use crate::permissions::{self, PermissionKind};
 
-/// Recordings live in this folder of the app data directory, one `{meeting id}.wav` each.
-const RECORDINGS_DIR: &str = "recordings";
+/// Recordings live in the store's one folder of kept files, one `{meeting id}.wav` each (and its track folder while it records).
+const RECORDINGS_DIR: &str = tauri_plugin_store::ASSETS_DIR;
 
 /// The capture members of the frontend `AudioCaptureSource` union (`file-upload` is never captured).
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]

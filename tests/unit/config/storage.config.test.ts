@@ -46,14 +46,8 @@ describe('generateCacheFilename', () => {
 
 describe('StorageConfig', () => {
   it('offers a Keep row only for classes the store knows', () => {
-    const known = ['meetings', 'chats', 'dictations', ...Object.keys(StorageConfig.assetKinds)];
+    const known: string[] = ['meetings', 'chats', 'dictations', ...StorageConfig.assetKinds];
     for (const row of StorageConfig.retention.classes) expect(known).toContain(row.id);
-  });
-
-  it('keeps asset folders distinct and plain', () => {
-    const dirs = Object.values(StorageConfig.assetKinds).map((k) => k.dir);
-    expect(new Set(dirs).size).toBe(dirs.length);
-    for (const dir of dirs) expect(dir).toMatch(/^[a-z]+$/);
   });
 
   it('offers increasing Keep periods', () => {

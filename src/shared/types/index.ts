@@ -86,7 +86,7 @@ export interface TranscriptSegment {
   timestamp: number;
 }
 
-/** An image a tool made, kept in the app's data folder by its path inside it (`images/….png`); the folder itself can move (iOS app updates). */
+/** An image a tool made, kept in the app's data folder by its path inside it (`assets/….png`); the folder itself can move (iOS app updates). */
 export interface GeneratedImage {
   mediaType: string;
   path: string;
@@ -190,7 +190,7 @@ export type NotificationSettings = Record<NotificationKind, boolean> & {
 };
 
 /** What Settings › Storage keeps for a set time: whole meetings, chats and dictations, or one kind of file on its own. */
-export type RetentionClass = 'meetings' | 'chats' | 'dictations' | keyof typeof StorageConfig.assetKinds;
+export type RetentionClass = 'meetings' | 'chats' | 'dictations' | (typeof StorageConfig.assetKinds)[number];
 
 /** Days each class is kept; a class not named is kept forever. */
 export type StorageRetention = Partial<Record<RetentionClass, number>>;

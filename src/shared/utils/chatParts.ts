@@ -5,7 +5,11 @@ import type { ChatMessage, ChatPart, GeneratedImage, MeetingCitation, WebCitatio
 import type { ToolResult, ToolView } from '@extensions/tools/types';
 import { isRecord } from '@shared/utils/validators';
 import { ATTACHMENT_TYPES } from '@config/chat.config';
+import { StorageConfig } from '@config/storage.config';
 import type { Modality } from '@config/modelSpine.config';
+
+/** Whether an attached file's `url` is its kept file's app path (`assets/…`) rather than a URL. */
+export const isAssetPath = (url: string): boolean => url.startsWith(`${StorageConfig.assetsDir}/`);
 
 /** The kinds of media a message shows, from a file's media type. */
 export type MediaKind = 'image' | 'audio' | 'video' | 'document';

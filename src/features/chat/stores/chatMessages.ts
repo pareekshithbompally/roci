@@ -31,7 +31,8 @@ export function questionMessage({ text, attachments, meetings }: Question): Chat
   };
 }
 
-/** An attachment as the AI SDK's file part: the file inline as a data URL, with its name. */
+/** An attachment as the AI SDK's file part: its kept file's app path (`assets/…`; a data URL only when it is sent), with its
+ *  name. */
 export function attachmentPart(mediaType: string, url: string, filename: string): FileUIPart {
   return { type: 'file', mediaType, url, filename };
 }
