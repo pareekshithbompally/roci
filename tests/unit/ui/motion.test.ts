@@ -16,7 +16,7 @@ describe('CSS moves on the same springs (tailwind.config.js)', () => {
 
   it.each([
     ['push-in', MOTION.spring.move],
-    ['menu-pop-show', MOTION.spring.pop],
+    ['menu-pop-show', MOTION.spring.move],
   ] as const)('%s follows framer’s spring within 1%% and ends exactly at its end', (name, spec) => {
     const { duration, points } = parseSpringCss(animation[name].replace(`${name} `, ''));
     const curve = springCurve({ keyframes: [0, 1], ...spec });

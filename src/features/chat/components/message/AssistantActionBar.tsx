@@ -6,7 +6,7 @@ import SuggestionsList from './SuggestionsList';
 import SourcesList from './SourcesList';
 import type { ActionProps, CitationHandlers } from './types';
 import type { ContextTokens, MeetingCitation, WebCitation } from '@shared/types';
-import { Tabs, Button, CardRow, IconButton, Popover, PopoverContent, PopoverTrigger, Section, Separator, Dot, Text } from '@shared/ui';
+import { Tabs, Button, IconButton, Popover, PopoverContent, PopoverFact, PopoverHeader, PopoverTrigger, Separator, Dot, Text } from '@shared/ui';
 import { ModelIcon } from '@shared/components';
 import { useModelLabel } from '@shared/hooks/useModelLabel';
 import { CHAT_MESSAGE_MENU_COPY as MENU_COPY } from '@config/chat.config';
@@ -47,15 +47,13 @@ const ReplyDetailsMenu: React.FC<ReplyDetails> = ({ timestamp, provider, model, 
       <PopoverTrigger asChild>
         <IconButton icon={MoreHorizontal} label={MENU_COPY.details} size="sm" />
       </PopoverTrigger>
-      <PopoverContent label={MENU_COPY.details} align="start" className="flex flex-col gap-3 p-3">
-        <div className="flex items-center gap-3">
-          {provider && <ModelIcon provider={provider} modelId={model} />}
-          <div className="min-w-0">
-            {modelLabel && <Text as="p" variant="headline" truncate>{modelLabel}</Text>}
-            {timestamp && <Text as="p" variant="helper" tone="muted">{formatDayAndTime(timestamp)}</Text>}
-          </div>
-        </div>
-        {rows.length > 0 && <Section>{rows.map((row) => <CardRow key={row.title} title={row.title} value={row.value} />)}</Section>}
+      <PopoverContent label={MENU_COPY.details} align="start">
+        <PopoverHeader
+          leading={provider && <ModelIcon provider={provider} modelId={model} />}
+          title={modelLabel ?? MENU_COPY.details}
+          detail={timestamp ? formatDayAndTime(timestamp) : undefined}
+        />
+        {rows.map((row) => <PopoverFact key={row.title} label={row.title} value={row.value} />)}
       </PopoverContent>
     </Popover>
   );

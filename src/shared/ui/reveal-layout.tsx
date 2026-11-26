@@ -4,6 +4,7 @@ import { Surface } from './surface';
 import { UI_CONFIG } from '@config/ui.config';
 import { commits, inPushedPage, inSidewaysControl, useTouchDrag } from './touch-drag';
 import { KIT_COPY } from '@config/kitCopy.config';
+import { MOTION } from '@config/motion.config';
 
 export interface RevealLayoutProps {
   open: boolean;
@@ -22,12 +23,12 @@ export interface RevealLayoutProps {
  * iOS sidebar: the main view slides aside — still in view, with rounded corners — to reveal the pane beneath it.
  * A swipe from the left edge opens it; a swipe back, a tap on the main view or Escape closes it; while open the main view takes no input and focus moves into the pane.
  * The slide is a CSS transition on the `move` spring, so the compositor runs it and nothing on the page can stall it. It
- * has depth: the main view stays whole, a rounded card with its shadow; the sidebar lies under it in shade, which lifts as
- * the view slides off it.
+ * has depth: the main view stays whole, a rounded card with its shadow, and only slides; the sidebar lies under it a little
+ * smaller and faded, and zooms forward to full size as the view slides off it (motion.config.ts `depth`).
  */
 /** The main view follows a sideways drag from anywhere on it 1:1; let go past a share of the pane's width or with a flick
  *  and it opens or closes, otherwise it slides back. Each release carries on from where the finger left it. */
-function useRevealDrag(main: HTMLDivElement | null, paneRef: React.RefObject<HTMLElement | null>, shadeRef: React.RefObject<HTMLDivElement | null>, open: boolean, onOpen: () => void, onClose: () => void): void {
+function useRevealDrag(main: HTMLDivElement | null, paneRef: React.RefObject<HTMLElement | null>, open: boolean, onOpen: () => void, onClose: () => void): void {
   useTouchDrag(main, {
     // From anywhere on the view, not only the edge (a phone's sidebar), except on something that drags sideways itself or a
     // pushed page (its swipe is back), so one swipe never moves two layers.
@@ -35,18 +36,16 @@ function useRevealDrag(main: HTMLDivElement | null, paneRef: React.RefObject<HTM
     ignores: (target) => !main || inSidewaysControl(target, main) || inPushedPage(target),
     onMove: (dx) => {
       const pane = paneRef.current;
-      const shade = shadeRef.current;
-      if (!main || !pane || !shade) return;
+      if (!main || !pane) return;
       const width = pane.offsetWidth;
       const at = Math.min(width, Math.max(0, (open ? width : 0) + dx));
-      follow(main, shade, at, at / width);
+      follow(main, pane, at, at / width);
     },
     onEnd: (dx, speed) => {
       const pane = paneRef.current;
-      const shade = shadeRef.current;
-      if (!main || !pane || !shade) return;
+      if (!main || !pane) return;
       // The transition takes over from the finger's spot: back on, then the inline pose goes and both carry on.
-      settle(main, shade);
+      settle(main, pane);
       const { edgeShare } = UI_CONFIG.gesture;
       if (open && commits(-dx, -speed, pane.offsetWidth, edgeShare)) onClose();
       else if (!open && commits(dx, speed, pane.offsetWidth, edgeShare)) onOpen();
@@ -54,43 +53,63 @@ function useRevealDrag(main: HTMLDivElement | null, paneRef: React.RefObject<HTM
   });
 }
 
-/** Both layers where the finger has them: the main view `at` px aside, the shade over the sidebar lifting by `share` of
- *  the way open. */
-function follow(main: HTMLElement, shade: HTMLElement, at: number, share: number): void {
+const between = (from: number, to: number, share: number) => from + (to - from) * share;
+
+/** Both layers where the finger has them: the main view `at` px aside, the sidebar `share` of the way forward. */
+function follow(main: HTMLElement, pane: HTMLElement, at: number, share: number): void {
+  const { pane: from, paneDim } = MOTION.depth;
   main.dataset.dragging = '';
-  shade.dataset.dragging = '';
+  main.dataset.moving = '';
+  pane.dataset.dragging = '';
   main.style.transform = `translateX(${at}px)`;
-  shade.style.opacity = String(1 - share);
+  pane.style.transform = `scale(${between(from, 1, share)})`;
+  pane.style.opacity = String(between(paneDim, 1, share));
 }
 
-/** Lets go of both: their transitions carry them on from where the finger left them. */
-function settle(main: HTMLElement, shade: HTMLElement): void {
+/** Lets go of both: their transitions carry them on from where the finger left them; with nothing left to move, the main
+ *  view is at rest at once. */
+function settle(main: HTMLElement, pane: HTMLElement): void {
   delete main.dataset.dragging;
-  delete shade.dataset.dragging;
+  delete pane.dataset.dragging;
   main.style.transform = '';
-  shade.style.opacity = '';
+  pane.style.transform = '';
+  pane.style.opacity = '';
+  requestAnimationFrame(() => {
+    if (main.getAnimations().length === 0) delete main.dataset.moving;
+  });
 }
 
-/** Whether the main view is aside by any amount: open, or still sliding home after closing. Its corners round and its
- *  shadow shows only then; at rest it meets the screen's own rounded corners, so the switch is never seen. */
-function useAside(main: HTMLDivElement | null, open: boolean): boolean {
-  const [sliding, setSliding] = useState(false);
-  useEffect(() => {
-    if (open) return setSliding(true);
-    if (!main) return;
-    const done = (e: TransitionEvent) => { if (e.target === main) setSliding(false); };
-    main.addEventListener('transitionend', done);
-    return () => main.removeEventListener('transitionend', done);
+/** Marks the main view `data-moving` from the moment it starts to slide until it rests: blurs inside it switch off for the
+ *  slide (glass.css), since a moving blur is redrawn every frame. Set straight on the element, never through React state,
+ *  so the slide's first frame waits on nothing. */
+function useMovingMark(main: HTMLDivElement | null, open: boolean): void {
+  const first = useRef(true);
+  useLayoutEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (main) main.dataset.moving = '';
   }, [main, open]);
-  return open || sliding;
+  useEffect(() => {
+    if (!main) return;
+    const rest = (e: TransitionEvent) => {
+      if (e.target === main) delete main.dataset.moving;
+    };
+    main.addEventListener('transitionend', rest);
+    main.addEventListener('transitioncancel', rest);
+    return () => {
+      main.removeEventListener('transitionend', rest);
+      main.removeEventListener('transitioncancel', rest);
+    };
+  }, [main]);
 }
 
 export function RevealLayout({ open, onOpen, onClose, pane, paneLabel, children }: RevealLayoutProps) {
   const paneRef = useRef<HTMLElement>(null);
   const [main, setMain] = useState<HTMLDivElement | null>(null);
-  const shadeRef = useRef<HTMLDivElement>(null);
-  useRevealDrag(main, paneRef, shadeRef, open, onOpen, onClose);
-  const aside = useAside(main, open);
+  useRevealDrag(main, paneRef, open, onOpen, onClose);
+  useMovingMark(main, open);
 
   // Before the first frame of the slide: a field in the main view lets go (its caret would not slide with it).
   useLayoutEffect(() => {
@@ -117,32 +136,27 @@ export function RevealLayout({ open, onOpen, onClose, pane, paneLabel, children 
         tabIndex={-1}
         aria-label={paneLabel}
         inert={!open || undefined}
-        className="absolute inset-y-0 left-0 flex w-[var(--drawer-start-width)] flex-col pt-safe-top pb-safe-bottom outline-none"
+        // Underneath the main view, a little smaller and faded; it comes forward to full size as the view slides off it.
+        className={cn(
+          'absolute inset-y-0 left-0 flex w-[var(--drawer-start-width)] origin-left flex-col pt-safe-top pb-safe-bottom outline-none',
+          'transition-[transform,opacity] duration-move ease-move will-change-transform data-[dragging]:transition-none',
+          !open && 'scale-pane opacity-pane',
+        )}
       >
         {pane}
       </nav>
-      {/* The sidebar lies under the main view, in its shade; the shade lifts as the view slides off it. */}
-      <div
-        ref={shadeRef}
-        aria-hidden
-        className={cn(
-          'pointer-events-none absolute inset-0 bg-scrim transition-opacity duration-move ease-move data-[dragging]:transition-none',
-          open ? 'opacity-0' : 'opacity-100',
-        )}
-      />
+      {/* The main view: always the rounded card with its shadow (its corners sit inside the screen's own, so at rest they
+          never show), so starting to slide changes nothing but its offset. The outer layer moves and casts the shadow; the
+          inner one clips (clip-path, not only a radius: WebKit leaves composited children unclipped by a radius). */}
       <div
         ref={setMain}
         aria-hidden={open || undefined}
-        // Only the offset moves (compositor-cheap); corners and shadow switch while it is aside, rather than repainting per frame.
-        // clip-path, not only overflow + radius: WebKit leaves composited children (the blurred wash) unclipped by a radius.
         className={cn(
-          'absolute inset-0 flex flex-col overflow-hidden transition-transform duration-move ease-move will-change-transform data-[dragging]:transition-none',
+          'absolute inset-0 rounded-sheet shadow-overlay transition-transform duration-move ease-move will-change-transform data-[dragging]:transition-none',
           open && 'translate-x-[var(--drawer-start-width)]',
-          'data-[dragging]:rounded-sheet data-[dragging]:shadow-overlay data-[dragging]:[clip-path:inset(0_round_var(--radius-sheet))]',
-          aside && 'rounded-sheet shadow-overlay [clip-path:inset(0_round_var(--radius-sheet))]',
         )}
       >
-        {children}
+        <div className="flex h-full flex-col overflow-hidden rounded-sheet [clip-path:inset(0_round_var(--radius-sheet))]">{children}</div>
         {open && <button type="button" aria-label={KIT_COPY.closeNamed(paneLabel)} className="absolute inset-0 z-50 cursor-default" onClick={onClose} />}
       </div>
     </Surface>

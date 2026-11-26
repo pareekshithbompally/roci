@@ -2,10 +2,15 @@
 
 import { cn } from './utils';
 
-/** Floating panel: base surface, floating elevation (its 0.5px ring is the edge). */
-/** A floating layer's surface and its open / close motion, without its corners. */
-const FLOATING = 'z-popover bg-base shadow-floating outline-none data-[state=open]:animate-content-show data-[state=closed]:animate-content-hide';
-export const FLOATING_SURFACE = `${FLOATING} rounded-lg`;
+/** The one surface every menu and popover floats on, Mac and iPhone (iOS's own menu): frosted glass over a blur, a card's
+ *  corners, the floating shadow; it pops out of the control that opened it (Radix's transform origin) and shrinks back into
+ *  it, on the move spring. */
+const POP_ORIGIN = 'origin-[var(--radix-popover-content-transform-origin,var(--radix-dropdown-menu-content-transform-origin,center))]';
+export const FLOATING_SURFACE = cn(
+  'z-popover overflow-hidden rounded-card bg-menu shadow-floating outline-none backdrop-blur-2xl backdrop-saturate-150',
+  POP_ORIGIN,
+  'data-[state=open]:animate-menu-pop-show data-[state=closed]:animate-menu-pop-hide',
+);
 
 /** Dialog and AlertDialog sheets. */
 export const SCRIM =
@@ -31,9 +36,8 @@ export const MENU_ITEM = `${MENU_ROW} px-2 py-1.5 rounded`;
  *  trailing edge, a press shading the row. Whole recipes, not additions: classes don't merge. */
 export const MENU_TOUCH = {
   list: cn(
-    'z-popover min-w-60 overflow-hidden rounded-card bg-menu shadow-floating outline-none backdrop-blur-2xl backdrop-saturate-150',
-    'origin-[var(--radix-dropdown-menu-content-transform-origin)] data-[state=open]:animate-menu-pop-show data-[state=closed]:animate-menu-pop-hide',
-    '[&_[role^=menuitem]+[role^=menuitem]]:border-t [&_[role^=menuitem]+[role^=menuitem]]:border-muted',
+    FLOATING_SURFACE,
+    'min-w-60 [&_[role^=menuitem]+[role^=menuitem]]:border-t [&_[role^=menuitem]+[role^=menuitem]]:border-muted',
   ),
   item: `${MENU_ROW_LOOK} min-h-11 gap-3 px-4 data-[highlighted]:bg-pressed`,
   separator: 'h-2 bg-menu-gap',

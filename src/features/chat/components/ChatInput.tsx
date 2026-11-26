@@ -26,6 +26,7 @@ import { COMPOSER_ADD_COPY, COMPOSER_COPY, COMPOSER_ICON_ONLY_BELOW_PX, COMPOSER
 import { useElementWidth } from '@shared/hooks/useElementWidth';
 import { useRecordingMeetingId } from '@features/recording';
 import { platform } from '@platform/index';
+import { useKeyboardSettled } from '@shared/hooks/useKeyboardSettled';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import type { FileUIPart } from '@shared/types';
 import type { SpeechState } from '@features/chat/hooks/useSpeechInput';
@@ -269,15 +270,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const voiceActive = pill.active;
 
   // Return the caret to the textarea once the box is back: after Stop (the words are there to edit), and on a Mac after any
-  // ending. A phone keeps its keyboard down otherwise, so a sent message or a cancel never raises it.
+  // ending. A phone keeps its keyboard down otherwise, so a sent message or a cancel never raises it. The caret (and so
+  // iPhone's keyboard) comes back only once the voice area has gone, so the two never move at once.
   const wasVoiceActive = useRef(false);
+  const refocus = useRef(false);
   const endedInBox = pill.ending === 'box';
   useEffect(() => {
-    if (wasVoiceActive.current && !voiceActive && (endedInBox || !platform.hasTouchScreen)) {
-      inputRef.current?.focus();
-    }
+    if (wasVoiceActive.current && !voiceActive) refocus.current = endedInBox || !platform.hasTouchScreen;
     wasVoiceActive.current = voiceActive;
   }, [voiceActive, endedInBox]);
+  const keyboardSettled = useKeyboardSettled();
+  const voiceGone = () => {
+    if (refocus.current) inputRef.current?.focus();
+    refocus.current = false;
+    onVoiceGone?.();
+  };
 
   // The field and the send controls, arranged by the layout below (Mac: box + toolbar; phone: one row).
   const canDictate = showSpeechInput && !!onSpeechStart && !isLoading;
@@ -354,7 +361,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             className="relative transition-[background-color,box-shadow] duration-fade"
           >
             {/* The ending rides on `custom`, so the leaving pill knows which way to go. */}
-            <AnimatePresence initial={false} custom={pill.ending} onExitComplete={onVoiceGone}>
+            <AnimatePresence initial={false} custom={pill.ending} onExitComplete={voiceGone}>
               {voiceActive && (
                 <VoicePill
                   key="voice"
@@ -371,6 +378,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   backdrop={overContent}
                   controlSize={glyphSize}
                   stacked={phone}
+                  ready={keyboardSettled}
                   onCancel={onSpeechCancel}
                 />
               )}

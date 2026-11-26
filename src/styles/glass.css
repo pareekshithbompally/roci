@@ -26,3 +26,10 @@ html.platform-macos #root {
     -webkit-backdrop-filter: none !important;
   }
 }
+
+/* A view sliding (iPhone's sidebar, kit RevealLayout `data-moving`): blurs inside it rest until it settles, since a blur that
+   moves is redrawn on every frame. */
+[data-moving] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

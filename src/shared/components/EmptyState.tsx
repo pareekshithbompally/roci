@@ -12,15 +12,16 @@ export interface EmptyStateProps {
   className?: string;
 }
 
-/** Fills the rest of its flex-column parent and centres itself both ways: one position wherever it's used. */
+/** Fills the rest of its flex-column parent and centres itself both ways, Mac and iPhone alike: its icon in a soft circle,
+ *  its title, then one line that wraps at a reading width (never across the whole screen). */
 export const EmptyState: React.FC<EmptyStateProps> = ({ icon, message, description, action, className }) => (
-  <div className={cn('flex flex-1 flex-col items-center justify-center gap-3 w-full min-h-60 text-center', className)}>
-    <Surface variant="inset" radius="xl" className="flex items-center justify-center w-14 h-14">
-      <Icon icon={icon} size="lg" tone="faint" />
+  <div className={cn('flex w-full min-h-60 flex-1 flex-col items-center justify-center gap-3 px-6 text-center', className)}>
+    <Surface variant="inset" radius="full" className="flex h-14 w-14 items-center justify-center">
+      <Icon icon={icon} size="lg" tone="muted" />
     </Surface>
-    <div className="space-y-1">
-      <Text as="p" tone="muted">{message}</Text>
-      {description && <Text as="p" variant="helper" tone="faint">{description}</Text>}
+    <div className="flex max-w-xs flex-col items-center gap-1">
+      <Text as="p" variant="headline">{message}</Text>
+      {description && <Text as="p" variant="helper" tone="muted" className="text-balance">{description}</Text>}
     </div>
     {action}
   </div>

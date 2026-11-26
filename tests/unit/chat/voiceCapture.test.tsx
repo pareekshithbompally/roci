@@ -152,13 +152,14 @@ describe('Dictation flow', () => {
     expect(screen.getByLabelText(CANCEL)).toBeInTheDocument();
   });
 
-  it('D9 ends box: holds its beat, then the box returns', async () => {
+  it('D9 ends box: holds its beat, then the box returns, the caret back in it only once the voice area has gone', async () => {
     const end = renderEnding('box');
     end();
     expect(screen.getByTestId('horizon')).toBeInTheDocument();
     expect(screen.getByTestId('composer-box')).toHaveAttribute('inert');
+    expect(document.activeElement?.tagName).not.toBe('TEXTAREA');
     await pillGone();
-    expect(screen.getByRole('textbox')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveFocus());
   });
 
   it('D10/D11 ends send: lets go in the same render, and says it is gone only once its exit has played', async () => {
@@ -219,7 +220,7 @@ describe('Dictation flow', () => {
     const pill = { active: true, stage: 'recording', ending: 'box', label: 'Recording' } as const;
     render(
       <VoicePill pill={pill} speechState="recording" stream={null} liveText={null} elapsed={5} reduceMotion={false}
-        canSend liveLost={false} backdrop={false} controlSize="md" stacked />,
+        canSend liveLost={false} backdrop={false} controlSize="md" stacked ready />,
     );
     expect(screen.getByTitle(STOP)).toHaveClass('h-control-md');
     expect(screen.getByTitle(SEND)).toHaveClass('h-control-md');

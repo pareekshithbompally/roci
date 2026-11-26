@@ -1,6 +1,6 @@
-/** A sheet's quick actions as one row of tiles that scrolls sideways (iOS's share-sheet actions): a glyph above its label, in
- *  the same ink and text as the rows below, each tile as wide as its label. For the few actions that start something;
- *  settings stay as rows below it. */
+/** A sheet's quick actions as one row that scrolls sideways (iOS's share-sheet row): every tile the same rounded square on
+ *  the grouped card surface, its glyph centred in the rows' own ink, its label under it on up to two lines. For the few
+ *  actions that start something; settings stay as rows below it. */
 
 import type { LucideIcon } from 'lucide-react';
 import { Icon } from './icon';
@@ -18,16 +18,13 @@ export interface StripTile {
 export function TileStrip({ label, tiles }: { label: string; tiles: readonly StripTile[] }) {
   if (tiles.length === 0) return null;
   return (
-    <div role="group" aria-label={label} className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
+    <div role="group" aria-label={label} className="-mx-4 flex gap-3.5 overflow-x-auto px-4 pb-1">
       {tiles.map(({ id, label: name, icon, onPress }) => (
-        <button
-          key={id}
-          type="button"
-          onClick={onPress}
-          className={cn(GROUPED_SURFACE, 'flex shrink-0 flex-col items-center gap-2 px-4 py-3 transition motion-safe:active:scale-95')}
-        >
-          <Icon icon={icon} size="md" />
-          <Text variant="body" className="whitespace-nowrap">{name}</Text>
+        <button key={id} type="button" onClick={onPress} className="group flex w-16 shrink-0 flex-col items-center gap-1.5">
+          <span className={cn(GROUPED_SURFACE, 'flex size-15 items-center justify-center transition motion-safe:group-active:scale-95')}>
+            <Icon icon={icon} size="md" />
+          </span>
+          <Text variant="caption" clamp={2} className="w-full text-center">{name}</Text>
         </button>
       ))}
     </div>

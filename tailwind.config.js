@@ -32,7 +32,6 @@ const springCss = (spec, rest) => {
 const MOVE = springCss(MOTION.spring.move);
 const MOVE_AWAY = springCss(MOTION.spring.move, SETTLED.exit);
 const MOVE_PARTS = springParts(MOTION.spring.move);
-const POP = springCss(MOTION.spring.pop);
 /** Appearing and disappearing (scrim, popovers, menus, tooltips, a view mounting). */
 const ENTER = `${ms(MOTION.fade.in)} ${bezier(MOTION.curve.in)}`;
 const EXIT = `${ms(MOTION.fade.out)} ${bezier(MOTION.curve.out)}`;
@@ -128,6 +127,9 @@ export default {
       height: { row: 'var(--row-min-h)' },
       // `transition` alone answers the pointer (quick); `duration-fade` is a fade's length.
       // `duration-move ease-move`: the `move` spring as a CSS transition (the phone's sidebar sliding).
+      // iPhone's sidebar under the main view (motion.config.ts `depth`): `scale-pane opacity-pane` until it comes forward.
+      scale: { pane: String(MOTION.depth.pane) },
+      opacity: { pane: String(MOTION.depth.paneDim) },
       transitionTimingFunction: { DEFAULT: bezier(MOTION.curve.in), move: MOVE_PARTS.easing },
       transitionDuration: { DEFAULT: ms(MOTION.quick), fade: ms(MOTION.fade.in), move: MOVE_PARTS.duration },
       // ─── macOS text styles (SF Pro). `reading` is the one exception: long-form chat/transcript ───
@@ -204,7 +206,8 @@ export default {
         'content-hide': `content-hide ${EXIT}`,
         'sheet-show': `sheet-show ${ENTER}`,
         'sheet-hide': `sheet-hide ${EXIT}`,
-        'menu-pop-show': `menu-pop-show ${POP}`,
+        // Every menu and popover (recipes.ts FLOATING_SURFACE): out of its control on the move spring, no wobble.
+        'menu-pop-show': `menu-pop-show ${MOVE}`,
         'menu-pop-hide': `menu-pop-hide ${EXIT} both`,
         'push-in': `push-in ${MOVE}`,
         'push-out': `push-out ${MOVE_AWAY} both`,

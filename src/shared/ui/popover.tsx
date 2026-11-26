@@ -1,5 +1,7 @@
 import * as PopoverPrimitive from '@radix-ui/react-popover';
-import { createContext, useContext, type ComponentProps } from 'react';
+import React, { createContext, useContext, type ComponentProps } from 'react';
+import { Surface } from './surface';
+import { Text } from './text';
 import { cn } from './utils';
 import { FLOATING_SURFACE, NO_INSETS } from './recipes';
 import { useFormFactor } from '@platform/formFactor';
@@ -64,5 +66,28 @@ export function PopoverContent({ className, sideOffset = 4, width = 'lg', label 
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content sideOffset={sideOffset} className={cn(FLOATING_SURFACE, WIDTH[width], className)} {...props}>{children}</PopoverPrimitive.Content>
     </PopoverPrimitive.Portal>
+  );
+}
+
+/** A details popover's heading (a reply's model): its icon, its title, one quiet line. */
+export function PopoverHeader({ leading, title, detail }: { leading?: React.ReactNode; title: string; detail?: string }) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3">
+      {leading}
+      <div className="min-w-0">
+        <Text as="p" variant="headline" truncate>{title}</Text>
+        {detail && <Text as="p" variant="helper" tone="muted">{detail}</Text>}
+      </div>
+    </div>
+  );
+}
+
+/** One fact in a details popover, on the glass like a menu's row: its name at the start, its figure at the end. */
+export function PopoverFact({ label, value }: { label: string; value: string }) {
+  return (
+    <Surface edge="top" className="flex items-center justify-between gap-4 px-4 py-2.5">
+      <Text>{label}</Text>
+      <Text tone="muted" className="tabular-nums">{value}</Text>
+    </Surface>
   );
 }

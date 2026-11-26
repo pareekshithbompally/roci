@@ -37,6 +37,9 @@ interface VoicePillProps {
   controlSize: ControlSize;
   /** A phone: the line gets the screen's whole width, the controls a row under it. */
   stacked: boolean;
+  /** Where it will stay: on iPhone it comes in only once the keyboard has gone down and the composer has settled, so it
+   *  never rides down with them. */
+  ready: boolean;
   onStop?: () => void;
   onSend?: () => void;
   onCancel?: () => void;
@@ -108,7 +111,7 @@ function useLastWords(liveText: LiveText | null): LiveText | null {
 }
 
 export const VoicePill: React.FC<VoicePillProps> = ({
-  pill, speechState, stream, liveText, elapsed, reduceMotion, canSend, liveLost, backdrop, controlSize, stacked, onStop, onSend, onCancel,
+  pill, speechState, stream, liveText, elapsed, reduceMotion, canSend, liveLost, backdrop, controlSize, stacked, ready, onStop, onSend, onCancel,
 }) => {
   const beat = beatOf(speechState, pill.ending);
   const words = useLastWords(liveText);
@@ -159,7 +162,7 @@ export const VoicePill: React.FC<VoicePillProps> = ({
       variants={variants}
       custom={pill.ending}
       initial="hidden"
-      animate="shown"
+      animate={ready ? 'shown' : 'hidden'}
       exit="leave"
       transition={voiceTransition(reduceMotion, 'pillIn')}
     >

@@ -26,6 +26,8 @@ export const MOTION = {
   keyboard: 0.25,
   /** A control answering the pointer (hover, press, focus colour), seconds. */
   quick: 0.15,
+  /** iPhone's sidebar comes forward from under the main view: from `pane` of its size and `paneDim` of its opacity. */
+  depth: { pane: 0.9, paneDim: 0.55 },
   /** Reduce Motion: every motion is this one short fade, seconds. */
   reduced: 0.16,
   curve: {
